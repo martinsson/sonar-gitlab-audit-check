@@ -23,55 +23,26 @@ numbers. See `KNOWLEDGE.md` for what that cost and what it taught.
 
 ## Common use cases
 
-The whole workflow, in the order you would actually run it. Every command is
-read-only.
-
-**Can I even see the data?** Start here. Writes nothing, costs ~25 calls, and
-tells you what your token is blind to before you build anything on top of it.
+The workflow, in three commands. All read-only.
 
 ```bash
-export SONAR_URL=https://sonar.example.com
-export SONAR_TOKEN=squ_xxxxxxxx
-jbang SonarAuditCheck.java
-```
-
-**The Sonar portfolio, ranked.** Two commands: the inventory costs one pass over
-the API, the ranking costs nothing and can be re-run with different thresholds
-until the shortlist looks right.
-
-```bash
+# 1. Sonar: check what the token can see, and inventory the portfolio
+export SONAR_URL=https://sonar.example.com SONAR_TOKEN=squ_xxxxxxxx
 jbang SonarAuditCheck.java --csv inventaire.csv
+
+# 2. Rank it. No API calls, so re-run freely with different thresholds
 jbang SonarRank.java --in inventaire.csv --out classement.csv
-```
 
-**The GitLab side of the same portfolio.** One command, one directory, two files.
-This is the one to remember.
-
-```bash
-export GITLAB_URL=https://gitlab.example.com
-export GITLAB_TOKEN=glpat-xxxxxxxx
+# 3. GitLab: rank by commit activity, then measure practice on the selection
+export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxxxxxx
 jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
 ```
 
-**Sizing the work before committing to it.** Drop `--deep` and the run stops
-after selection: you get the funnel, the counts and the shortlist, without the
-expensive per-project pass.
+Drop `--deep` from the last one to stop after selection — you get the funnel and
+the shortlist without the expensive per-project pass.
 
-```bash
-jbang GitlabActivityAudit.java --group my/group --out-dir ./audit
-```
-
-**A whole GitLab instance.** The funnel is built for this, but keep the budget
-modest — the deep pass is what costs, not the selection.
-
-```bash
-jbang GitlabActivityAudit.java --deep --top 150 --out-dir ./audit
-```
-
-Each tool's `--help` ends with the same recipes, so you do not have to come back
-here for them. Options are listed in the order you are likely to need them
-rather than alphabetically; everything past `--out-dir` is tuning you can
-usually ignore.
+Each tool's `--help` ends with the rest of the recipes: whole-instance runs,
+project lists, longer windows, SonarQube Cloud.
 
 ---
 
