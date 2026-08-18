@@ -381,6 +381,44 @@ and *no vulnerabilities* renders identically to *no scanning*.
 
 ---
 
+## Running under PowerShell
+
+The output is in French, and the console encoding is not a cosmetic detail — it
+is the difference between a readable report and a page of mojibake. Two halves
+of the problem pull in opposite directions, and fixing one alone breaks the
+other.
+
+**Redirected** (file, pipe, CI): `stdout.encoding` falls back to the native
+encoding. Under a C locale — the norm in a container where `LANG` is unset —
+that is ANSI_X3.4-1968 and every accent becomes `?`. So the output must be
+forced to UTF-8 there.
+
+**A Windows terminal**: PowerShell renders using the console code page, usually
+cp850 or cp1252, never UTF-8 unless you have run `chcp 65001` first. Sending it
+UTF-8 produces exactly the reported symptom — `Ã©` where `é` belongs.
+
+The tools therefore write in the *console's* encoding when talking to a
+terminal, and in UTF-8 as soon as the output is redirected. All French accents
+exist in cp850 and cp1252, so they survive. Characters a legacy code page has
+never heard of — `—`, `≥`, `→`, `…` — are transliterated to ASCII rather than
+replaced by `?`.
+
+You do not need `chcp 65001`. If you prefer it, it works too: the console then
+reports UTF-8 and the tools use it.
+
+ANSI colours are the second Windows symptom. conhost does not interpret them
+until a program enables VT mode, so PowerShell 5.1 shows literal `←[1m`. Colour
+is therefore off by default on Windows unless the emulator announces itself
+(Windows Terminal, ConEmu, ANSICON). Override with `--color always|never`, or
+set `NO_COLOR` to silence it everywhere.
+
+`ConsoleOut.java` holds this logic for all three scripts and is pulled in with
+JBang's `//SOURCES`. Running without JBang, pass it to `javac` alongside the
+script, or let `java GitlabActivityAudit.java` resolve it — JDK 25 compiles
+neighbouring source files on its own.
+
+---
+
 ## `--dump-dir`
 
 Not debug scaffolding — a permanent feature, for two reasons.
