@@ -116,13 +116,19 @@ public class GitlabActivityAudit implements Callable<Integer> {
             description = "tenter la route GraphQL à l'étape 2 (repli REST automatique)")
     boolean graphql;
 
-    @Option(names = "--csv", description = "chemin du CSV d'inventaire à écrire")
+    @Option(names = "--out-dir",
+            description = "répertoire de sortie : y écrit inventaire.csv, "
+                    + "et pratiques.csv avec --deep")
+    Path outDir;
+
+    @Option(names = "--csv", description = "chemin explicite du CSV d'inventaire")
     Path csv;
 
     @Option(names = "--deep", description = "enchaîner sur les signaux de pratique (§4)")
     boolean deep;
 
-    @Option(names = "--pratiques", description = "chemin du CSV de pratiques (implique --deep)")
+    @Option(names = "--pratiques", description = "chemin explicite du CSV de pratiques "
+            + "(implique --deep ; l'inventaire est écrit à côté)")
     Path pratiquesCsv;
 
     @Option(names = "--seed", defaultValue = "20260818",
@@ -177,7 +183,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         gl = new Gitlab(url, token, timeout, insecure, dumpDir);
         bots = Pattern.compile(botPattern);
         windowStart = OffsetDateTime.now(ZoneOffset.UTC).minusDays(sinceDays);
-        if (pratiquesCsv != null) deep = true;
+        resolveOutputs();
 
         System.out.println(c("\nInstance : " + gl.base, BOLD));
 
@@ -200,6 +206,36 @@ public class GitlabActivityAudit implements Callable<Integer> {
 
         summary(all);
         return 0;
+    }
+
+    /**
+     * L'inventaire n'est pas une sortie facultative du mode --deep : c'est lui
+     * qui porte les dénominateurs — projets exclus et pour quel motif, cohorte
+     * sous le plancher, témoin aléatoire. Sans lui, pratiques.csv est une liste
+     * de projets sans le parc dont ils sont tirés, et les pourcentages qu'on en
+     * tire n'ont pas de population.
+     *
+     * Demander --pratiques sans --csv écrivait donc les pratiques seules. On
+     * écrit désormais l'inventaire à côté, dans le même répertoire.
+     */
+    private void resolveOutputs() throws IOException {
+        if (pratiquesCsv != null) deep = true;
+        if (outDir != null) {
+            Files.createDirectories(outDir);
+            if (csv == null) csv = outDir.resolve("inventaire.csv");
+            if (deep && pratiquesCsv == null) pratiquesCsv = outDir.resolve("pratiques.csv");
+        }
+        if (csv == null && pratiquesCsv != null) {
+            Path dir = pratiquesCsv.toAbsolutePath().getParent();
+            csv = (dir == null ? Path.of("") : dir).resolve("inventaire.csv");
+        }
+        // Un chemin explicite vers un répertoire inexistant échouait à l'écriture,
+        // après la passe complète : tout le travail d'API perdu sur un mkdir.
+        for (Path out : new Path[]{csv, pratiquesCsv}) {
+            if (out == null) continue;
+            Path dir = out.toAbsolutePath().getParent();
+            if (dir != null) Files.createDirectories(dir);
+        }
     }
 
     // ----------------------------------------------------------------------
@@ -750,7 +786,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
             w.writeNext(header);
             for (Proj p : all) w.writeNext(p.row(sinceDays));
         }
-        System.out.printf("%n  Inventaire écrit : %s (%d lignes)%n", csv, all.size());
+        System.out.printf("%n  Inventaire : %d lignes.%n", all.size());
     }
 
     private void summary(List<Proj> all) {
@@ -760,14 +796,31 @@ public class GitlabActivityAudit implements Callable<Integer> {
         System.out.printf("  Parc %d → retenus %d → frais %d → éligibles %d → sélectionnés %d.%n",
                 counters.inScope, counters.kept, counters.fresh, counters.eligible, counters.selected);
         if (counters.sampleSize > 0) {
-            System.out.printf("  Filtre de fraîcheur validé sur %d projets : %d faux négatifs.%n",
-                    counters.sampleSize, counters.sampleLeaks);
+            System.out.printf("  Filtre de fraîcheur validé sur %d projets : %d faux négatif%s.%n",
+                    counters.sampleSize, counters.sampleLeaks,
+                    counters.sampleLeaks > 1 ? "s" : "");
         }
         long truncated = all.stream().filter(p -> p.truncated).count();
         if (truncated > 0) {
             System.out.println(c("  %d projets tronqués à %d pages de commits : leur volume est"
                     .formatted(truncated, maxCommitPages), YELLOW));
             System.out.println(c("  un plancher, pas un compte. Ils sont marqués dans le CSV.", YELLOW));
+        }
+        if (csv == null && pratiquesCsv == null) {
+            System.out.println(c("  Aucun fichier écrit : ajoute --out-dir <rép> pour "
+                    + "conserver l'inventaire", YELLOW));
+            System.out.println(c("  et les pratiques. Le rapport ci-dessus ne se rejoue "
+                    + "pas sans les CSV.", YELLOW));
+        } else {
+            System.out.println("  Fichiers écrits :");
+            if (csv != null) System.out.printf("    inventaire : %s%n", csv.toAbsolutePath());
+            if (pratiquesCsv != null) {
+                System.out.printf("    pratiques  : %s%n", pratiquesCsv.toAbsolutePath());
+            }
+            System.out.println(c("    Les deux se lisent ensemble : pratiques.csv ne contient "
+                    + "que les", DIM));
+            System.out.println(c("    sélectionnés, l'inventaire porte le parc dont ils sortent. "
+                    + "Colonnes : COLUMNS.md.", DIM));
         }
         System.out.println(c("""
                   Rappel : tout classement qui ne dit pas ce qu'il a écarté se lit comme
@@ -987,8 +1040,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 w.writeNext(header);
                 for (Proj p : selected) w.writeNext(p.pratRow());
             }
-            System.out.printf("%n  Pratiques écrites : %s (%d lignes)%n",
-                    pratiquesCsv, selected.size());
+            System.out.printf("%n  Pratiques : %d lignes.%n", selected.size());
         }
     }
 
