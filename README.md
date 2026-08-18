@@ -87,28 +87,94 @@ scope a restricted audit account would have. The tool warns you if it detects th
 
 ---
 
-## Usage
+## Running it
 
-### Java
+### 1. Get a token
+
+In SonarQube: **My Account → Security → Generate Tokens**, type **User Token**.
+It starts with `squ_`. An analysis token will not work — it cannot read these
+endpoints.
+
+### 2. Install JBang
+
+```bash
+curl -Ls https://sh.jbang.dev | bash -s - app setup
+```
+
+Or `sdk install jbang` (SDKMAN), `brew install jbangdev/tap/jbang` (Homebrew),
+`choco install jbang` (Windows). JBang fetches its own JDK if you don't have
+one, and resolves the three dependencies (Jackson, OpenCSV, picocli) on first
+run — so nothing else needs installing.
+
+### 3. Run
 
 ```bash
 export SONAR_URL=https://sonar.example.com
 export SONAR_TOKEN=squ_xxxxxxxx
 
-jbang SonarAuditCheck.java
+jbang SonarAuditCheck.java                                  # diagnostic only
+jbang SonarAuditCheck.java --csv projects.csv               # + inventory CSV
 jbang SonarAuditCheck.java --csv projects.csv --stale-days 120
-jbang SonarAuditCheck.java --organization my-org      # SonarQube Cloud
+jbang SonarAuditCheck.java --organization my-org            # SonarQube Cloud
 ```
 
-Or install it to your PATH:
+Everything is a GET; the tool never writes to your instance. A run is 20-30 API
+calls plus one call per 100 projects, and takes a few seconds.
+
+Or put it on your PATH:
 
 ```bash
 jbang app install --name sonar-audit-check SonarAuditCheck.java
 sonar-audit-check --csv projects.csv
 ```
 
-JBang fetches its own JDK if you don't have one. Dependencies (Jackson, OpenCSV,
-picocli) are resolved and cached on first run.
+### Without JBang
+
+If JBang is not an option (locked-down machine, air-gapped CI), any JDK 21+ and
+Maven will do. The `//DEPS` lines at the top of the file are the three
+dependencies; Maven needs them in a POM to resolve their transitives, so write
+a throwaway one:
+
+```bash
+cat > pom.xml <<'EOF'
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>x</groupId><artifactId>sonar-audit-check</artifactId><version>1</version>
+  <dependencies>
+    <dependency><groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId><version>2.17.2</version></dependency>
+    <dependency><groupId>com.opencsv</groupId>
+      <artifactId>opencsv</artifactId><version>5.9</version></dependency>
+    <dependency><groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId><version>4.7.6</version></dependency>
+  </dependencies>
+</project>
+EOF
+
+mvn -q dependency:copy-dependencies -DoutputDirectory=libs
+javac -cp "libs/*" -d out SonarAuditCheck.java
+java -cp "out:libs/*" SonarAuditCheck --url "$SONAR_URL" --token "$SONAR_TOKEN"
+```
+
+That pulls 11 jars (the three above plus opencsv's transitives). On Windows,
+use `out;libs/*` as the classpath separator.
+
+### What a run looks like
+
+Four sections: connectivity and identity, which endpoints your token can
+actually reach, the project inventory, and activity signals. The line that
+matters most is in section 3:
+
+```
+  Projets visibles avec ce token : 4
+  Projets réellement présents    : 6
+  → 2 projet(s) hors de ton périmètre. Ton classement sera tronqué
+    de 33% sans aucun message d'erreur.
+```
+
+If the second line reads `Total réel indisponible`, your token lacks Administer
+System and the gap is unknown rather than zero — have an admin compare the
+numbers. The interface is in French.
 
 ### Options
 
