@@ -3,6 +3,7 @@
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.17.2
 //DEPS com.opencsv:opencsv:5.9
 //DEPS info.picocli:picocli:4.7.6
+//SOURCES ConsoleOut.java
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -147,21 +148,13 @@ public class GitlabActivityAudit implements Callable<Integer> {
     @Option(names = "--dump-dir", description = "répertoire où consigner les réponses brutes")
     Path dumpDir;
 
-    public static void main(String[] args) {
-        forceUtf8Output();
-        System.exit(new CommandLine(new GitlabActivityAudit()).execute(args));
-    }
+    @Option(names = "--color", defaultValue = "auto",
+            description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
+    String colorMode;
 
-    /**
-     * Toute l'interface est en français. {@code stdout.encoding} retombe sur
-     * l'encodage natif dès que la sortie est redirigée : sous une locale C,
-     * chaque accent devient '?'. On impose UTF-8 plutôt que d'en dépendre.
-     */
-    private static void forceUtf8Output() {
-        System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true,
-                StandardCharsets.UTF_8));
-        System.setErr(new PrintStream(new FileOutputStream(FileDescriptor.err), true,
-                StandardCharsets.UTF_8));
+    public static void main(String[] args) {
+        ConsoleOut.install();
+        System.exit(new CommandLine(new GitlabActivityAudit()).execute(args));
     }
 
     // ----------------------------------------------------------------------
@@ -175,6 +168,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
+        ConsoleOut.colorMode(colorMode);
         if (isBlank(url) || isBlank(token)) {
             System.err.println("GITLAB_URL et GITLAB_TOKEN sont requis "
                     + "(variables d'env ou --url/--token).");
@@ -1309,7 +1303,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
     }
 
     static String c(String text, String color) {
-        return color + text + RESET;
+        return ConsoleOut.color(text, color);
     }
 
     static void title(String text) {
