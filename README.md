@@ -9,7 +9,10 @@ It answers four questions:
 3. How many projects can I see — and how many are invisible to me?
 4. What activity signals can I get without Git access?
 
-Two equivalent implementations: Python (stdlib only) and Java (JBang).
+The supported implementation is Java (JBang). `sonar_audit_check.py` is **legacy
+and unmaintained** — it is missing `--dump-dir`, drops every `new_*` metric from
+its CSV (it reads only the root `value`, which those metrics do not have), and
+crashes on some legal-but-unusual responses. Use the Java version.
 
 ---
 
@@ -26,10 +29,17 @@ statistically the ones with the worst practices, because neglected projects tend
 to have neglected permissions. Your ranking comes out truncated and looks
 complete.
 
-**Absent is not zero.** A project with no coverage report has no `coverage`
-measure at all. Sort by coverage ascending and it does not appear — it sorts
-below nothing, because it *is* nothing. These projects are frequently the ones
-most in need of attention, and they are invisible in every naive ranking.
+**Absent is not zero — but rarer than you would think.** A project with no
+`coverage` measure at all does not appear in a coverage ranking: it sorts below
+nothing, because it *is* nothing.
+
+Measured against a real instance (SonarQube 26.8, Java), the case is narrower
+than that framing suggests. A project *analysed* without any coverage report
+still gets `coverage = "0.0"`, derived from `lines_to_cover` — it is present,
+and it does sort last. The measure is genuinely absent mainly for projects that
+have **never been analysed at all**, and for languages whose analyser reports no
+lines to cover. So read the "no coverage data" count below largely as a
+never-analysed count, alongside `Jamais analysés`.
 
 The tool reports both: the gap between what you see and what exists, and the
 count of projects with no coverage data whatsoever.
@@ -77,23 +87,15 @@ scope a restricted audit account would have. The tool warns you if it detects th
 
 ## Usage
 
-### Python
+### Java
 
 ```bash
 export SONAR_URL=https://sonar.example.com
 export SONAR_TOKEN=squ_xxxxxxxx
 
-python3 sonar_audit_check.py
-python3 sonar_audit_check.py --csv projects.csv --stale-days 120
-python3 sonar_audit_check.py --organization my-org      # SonarQube Cloud
-```
-
-Python 3.8+. No dependencies.
-
-### Java
-
-```bash
-jbang SonarAuditCheck.java --csv projects.csv
+jbang SonarAuditCheck.java
+jbang SonarAuditCheck.java --csv projects.csv --stale-days 120
+jbang SonarAuditCheck.java --organization my-org      # SonarQube Cloud
 ```
 
 Or install it to your PATH:
@@ -151,10 +153,19 @@ any of them:
 - **`api/issues/search` puts `total` at the root**, while every other paginated
   endpoint uses `paging.total`.
 - **`api/sources/scm` returns positional arrays**: `[line, author, date, revision]`,
-  and entries are sometimes shorter than four elements.
+  and entries are sometimes shorter than four elements. The line number is a JSON
+  number, not a string.
+- **`api/sources/scm` returns one entry per changeset, not per line.** Consecutive
+  lines sharing a commit are collapsed onto the first. Measured on 26.8: a 30-line
+  file returned 3 entries, at lines 1, 13 and 21. Any "first N lines" framing is
+  really counting changesets.
+- **A file indexed without SCM metadata still returns 200**, with `author` and
+  `revision` as empty strings rather than an error or an empty list. Emptiness is
+  therefore not how you detect a shallow clone — blank authors are.
 
-Both implementations handle all four. The Java version keeps every numeric field
-boxed so that absent stays null rather than binding to `0.0`.
+The Java implementation handles all of these, and keeps every numeric field boxed
+so that absent stays null rather than binding to `0.0`. Verified against a live
+SonarQube 26.8 by `testing/verify-against-real-sonarqube.sh`.
 
 ---
 
@@ -169,6 +180,20 @@ also disabled Sonar's ability to attribute issues to authors and to compute new
 code correctly.
 
 ---
+
+## Verifying a change
+
+`testing/verify-against-real-sonarqube.sh` starts a real SonarQube in Docker,
+creates six projects, grants a restricted audit token Browse on only four, runs
+two real analyses, and points the tool at the result. Expected output is
+`4 visible / 6 real / gap 2 (33%)` and a blame section reporting **no SCM
+metadata** — the analysis runs without a git repository, which is the
+`fetch-depth: 1` case.
+
+Prefer it to a mock. A mock replays whatever its author believed the API does;
+if it is written from this README it confirms the README rather than testing it.
+Three of the response behaviours documented above were found only by querying a
+real instance, and a README-derived mock had asserted the opposite.
 
 ## Licence
 
