@@ -133,7 +133,7 @@ sonar-audit-check --csv projects.csv
 
 ### Without JBang
 
-If JBang is not an option (locked-down machine, air-gapped CI), any JDK 21+ and
+If JBang is not an option (locked-down machine, air-gapped CI), any JDK 25+ and
 Maven will do. The `//DEPS` lines at the top of the file are the three
 dependencies; Maven needs them in a POM to resolve their transitives, so write
 a throwaway one:
@@ -281,6 +281,103 @@ set the origin to UTF-8.
 
 On macOS or Linux, `open classement.csv` and `xdg-open classement.csv`
 respectively.
+
+---
+
+## The GitLab side: `GitlabActivityAudit.java`
+
+SonarQube answers *what is the code like*. It cannot answer *how is it being
+worked on*, and it says nothing at all about projects that were never onboarded
+— which, on the portfolio this was built against, is 26% of them.
+
+`GitlabActivityAudit.java` is the second half. It ranks projects by **commit
+activity**, picks the ~200 worth a deep look, and then measures practice on
+those. The full method is in `GITLAB_ANALYSIS.md`; the short version:
+
+```bash
+export GITLAB_URL=https://gitlab.example.com
+export GITLAB_TOKEN=glpat-xxxxxxxx          # read_api scope is enough
+jbang GitlabActivityAudit.java --group my/group --csv inventaire.csv
+jbang GitlabActivityAudit.java --group my/group --deep --pratiques pratiques.csv
+```
+
+**Two reports, not one.** The GitLab report is complete and publishable without
+a single Sonar project matched to it. Joining the two is an overlay attempted
+after both exist — never a precondition for either. Match rates on this kind of
+join are poor, and an analysis that collapses when the join fails is not worth
+building.
+
+**Why a funnel.** The deep pass costs ~25 calls per project. Run naively over
+2000 projects that is 50k calls and a report nobody reads. The funnel spends
+~90–850 calls to choose who earns the deep pass:
+
+| Stage | Cost | What it does |
+|---|---|---|
+| 0 — inventory | ~20 calls | archived, empty, mirrors, undiverged forks, 403s — all counted |
+| 1 — recency gate | free | `last_activity_at` older than the window |
+| 2 — real commit volume | ~40 (GraphQL) or ~800 (REST) | commits, authors, merge ratio, spread |
+| 3 — activity floor | free | below it, the deep signals are arithmetic on noise |
+| 4 — quota selection | free | strata, namespace cap, bus-factor slots, random control |
+
+**`last_activity_at` is a filter, never a ranking.** Any issue comment moves it,
+so a dead repo with a chatty tracker reads as active. But it fails in the *safe*
+direction — it is inflated by non-commit events, so anything with commits in the
+window necessarily has a recent `last_activity_at`. It over-includes; it does not
+under-include. That makes it worthless for ranking and exactly right for
+excluding, and it is the largest single cut in the pipeline, for free.
+
+The tool does not ask you to take that on faith. It samples projects from
+*below* the cut, counts their commits for real, and reports the false-negative
+rate. Zero means the gate holds. Non-zero gives you a number to publish instead
+of an assumption.
+
+**Quota, not top-N.** Taking the 200 busiest projects is the same mistake as
+ranking Sonar projects by `sqale_index`: you get the big active monoliths of two
+or three teams and learn what you already knew. The budget is spent instead
+across size strata, with a namespace cap, dedicated slots for single-author
+high-activity projects, and a **random control sample**. The control slice is
+what lets the final report say "practice coverage is X among the selected, Y
+among a random draw of the rest" — and if those diverge, the selection rule is
+itself the finding.
+
+**Three ways commit counts lie**, all handled explicitly:
+
+- *Squash-merge teams look 5–10× less active.* Merged-MR counts are carried
+  alongside, so the two can be read together.
+- *Bots inflate.* Renovate and friends are filtered, but counted separately — a
+  repo whose only activity is Renovate is a finding, not an empty row.
+- *Author identity fragments.* One person commits under several addresses;
+  identities are normalised, and the author count is worth ±1. It feeds a bus
+  factor judgement, so it only has to be right about 1 versus 5.
+
+**Absent is not zero, here too.** A 403 on a project's commits is recorded as
+*activité non mesurable*, never as zero commits. Reading a permission gap as
+inactivity would drop exactly the projects most likely to need attention — the
+same failure mode as `search_projects` filtering silently on the Sonar side.
+
+### Options
+
+| Option | Default | What it does |
+|---|---|---|
+| `--group` | — | Scope to one group; instance-wide otherwise |
+| `--since` | 90 | Activity window, in days |
+| `--top` | 200 | Deep-analysis budget, spent by quota |
+| `--floor` | derived | Activity floor; `-1` derives it from the distribution |
+| `--validation-sample` | 30 | Projects drawn below the recency gate to validate it |
+| `--graphql` | on | Try the batched GraphQL route, fall back to REST |
+| `--deep` | off | Run the practice signals on the selected projects |
+| `--seed` | fixed | Seeds the random control draw, so runs are reproducible |
+
+### What is Enterprise-only
+
+Approvals, DORA and push rules need Enterprise. The tool reads
+`api/v4/metadata` up front and says which plan it found, because discovering it
+after designing the analysis is the expensive mistake. On Community the
+approval columns stay empty rather than being silently replaced by a proxy.
+
+Two data-availability traps are reported as findings rather than scores: DORA
+reads zero for a project that deploys daily without a registered environment,
+and *no vulnerabilities* renders identically to *no scanning*.
 
 ---
 
