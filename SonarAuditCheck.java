@@ -32,6 +32,8 @@ import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -771,9 +773,28 @@ public class SonarAuditCheck implements Callable<Integer> {
             }
         }
 
+        /**
+         * Endpoints qui exigent (ou acceptent) 'organization' sur SonarQube Cloud.
+         *
+         * api/projects/search en fait partie : sans le paramètre, Cloud répond 400 et
+         * le diagnostic conclut à tort « nécessite Administer System » — soit un faux
+         * point aveugle sur le calcul le plus important de l'outil.
+         *
+         * La liste reste volontairement courte : les endpoints portés par un composant
+         * (measures/*, components/tree, sources/scm, project_analyses, settings/values)
+         * n'acceptent pas le paramètre, et l'ajouter provoquerait l'erreur qu'on cherche
+         * à éviter. Le paramètre n'est de toute façon envoyé que si --organization est
+         * fourni, ce qui ne concerne que Cloud.
+         *
+         * NON VÉRIFIÉ sur une instance Cloud réelle : sonarcloud.io était injoignable
+         * depuis l'environnement de test. Déduit de la documentation de l'API.
+         */
         private static boolean needsOrganization(String path) {
             return path.startsWith("api/components/search_projects")
-                    || path.startsWith("api/qualityprofiles");
+                    || path.startsWith("api/qualityprofiles")
+                    || path.startsWith("api/projects/search")
+                    || path.startsWith("api/issues/search")
+                    || path.startsWith("api/qualitygates/get_by_project");
         }
 
         /**
@@ -1015,8 +1036,22 @@ public class SonarAuditCheck implements Callable<Integer> {
     // Petits utilitaires
     // ----------------------------------------------------------------------
 
+    /**
+     * Sonar date les analyses avec un décalage : « 2026-08-16T05:43:07+0200 ».
+     * Tronquer à 19 caractères jette ce décalage et compare ensuite une heure
+     * locale à une heure distante — d'où des âges faux de quelques heures, et un
+     * « il y a -1 jour » sur une analyse toute fraîche. On lit donc le décalage
+     * quand il est présent et on ramène tout à l'heure locale.
+     */
     static LocalDateTime parseDate(String s) {
         if (s == null || s.length() < 19) return null;
+        try {
+            return OffsetDateTime.parse(s, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                    .atZoneSameInstant(ZoneId.systemDefault())
+                    .toLocalDateTime();
+        } catch (RuntimeException ignored) {
+            // pas de décalage (ou format inattendu) : on retombe sur l'heure nue
+        }
         try {
             return LocalDateTime.parse(s.substring(0, 19), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         } catch (RuntimeException e) {

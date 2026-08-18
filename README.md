@@ -9,10 +9,12 @@ It answers four questions:
 3. How many projects can I see — and how many are invisible to me?
 4. What activity signals can I get without Git access?
 
-The supported implementation is Java (JBang). `sonar_audit_check.py` is **legacy
-and unmaintained** — it is missing `--dump-dir`, drops every `new_*` metric from
-its CSV (it reads only the root `value`, which those metrics do not have), and
-crashes on some legal-but-unusual responses. Use the Java version.
+A single implementation, in Java, run with JBang.
+
+There was a parallel Python port. It was removed rather than fixed: it silently
+dropped every `new_*` metric from its CSV — reading only the root `value`, which
+those metrics do not have — and two people running "the same" tool got different
+numbers. See `KNOWLEDGE.md` for what that cost and what it taught.
 
 ---
 
