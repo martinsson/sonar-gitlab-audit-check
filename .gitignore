@@ -1,0 +1,22 @@
+# Audit output — may contain project names, author names and internal URLs
+*.csv
+captures/
+dumps/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# JBang / JVM
+.jbang/
+*.class
+build/
+target/
+
+# Editors
+.idea/
+.vscode/
+*.iml
+.DS_Store
