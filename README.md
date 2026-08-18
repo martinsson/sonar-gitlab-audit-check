@@ -9,7 +9,12 @@ It answers four questions:
 3. How many projects can I see — and how many are invisible to me?
 4. What activity signals can I get without Git access?
 
-Two equivalent implementations: Python (stdlib only) and Java (JBang).
+A single implementation, in Java, run with JBang.
+
+There was a parallel Python port. It was removed rather than fixed: it silently
+dropped every `new_*` metric from its CSV — reading only the root `value`, which
+those metrics do not have — and two people running "the same" tool got different
+numbers. See `KNOWLEDGE.md` for what that cost and what it taught.
 
 ---
 
@@ -26,10 +31,17 @@ statistically the ones with the worst practices, because neglected projects tend
 to have neglected permissions. Your ranking comes out truncated and looks
 complete.
 
-**Absent is not zero.** A project with no coverage report has no `coverage`
-measure at all. Sort by coverage ascending and it does not appear — it sorts
-below nothing, because it *is* nothing. These projects are frequently the ones
-most in need of attention, and they are invisible in every naive ranking.
+**Absent is not zero — but rarer than you would think.** A project with no
+`coverage` measure at all does not appear in a coverage ranking: it sorts below
+nothing, because it *is* nothing.
+
+Measured against a real instance (SonarQube 26.8, Java), the case is narrower
+than that framing suggests. A project *analysed* without any coverage report
+still gets `coverage = "0.0"`, derived from `lines_to_cover` — it is present,
+and it does sort last. The measure is genuinely absent mainly for projects that
+have **never been analysed at all**, and for languages whose analyser reports no
+lines to cover. So read the "no coverage data" count below largely as a
+never-analysed count, alongside `Jamais analysés`.
 
 The tool reports both: the gap between what you see and what exists, and the
 count of projects with no coverage data whatsoever.
@@ -75,36 +87,94 @@ scope a restricted audit account would have. The tool warns you if it detects th
 
 ---
 
-## Usage
+## Running it
 
-### Python
+### 1. Get a token
+
+In SonarQube: **My Account → Security → Generate Tokens**, type **User Token**.
+It starts with `squ_`. An analysis token will not work — it cannot read these
+endpoints.
+
+### 2. Install JBang
+
+```bash
+curl -Ls https://sh.jbang.dev | bash -s - app setup
+```
+
+Or `sdk install jbang` (SDKMAN), `brew install jbangdev/tap/jbang` (Homebrew),
+`choco install jbang` (Windows). JBang fetches its own JDK if you don't have
+one, and resolves the three dependencies (Jackson, OpenCSV, picocli) on first
+run — so nothing else needs installing.
+
+### 3. Run
 
 ```bash
 export SONAR_URL=https://sonar.example.com
 export SONAR_TOKEN=squ_xxxxxxxx
 
-python3 sonar_audit_check.py
-python3 sonar_audit_check.py --csv projects.csv --stale-days 120
-python3 sonar_audit_check.py --organization my-org      # SonarQube Cloud
+jbang SonarAuditCheck.java                                  # diagnostic only
+jbang SonarAuditCheck.java --csv projects.csv               # + inventory CSV
+jbang SonarAuditCheck.java --csv projects.csv --stale-days 120
+jbang SonarAuditCheck.java --organization my-org            # SonarQube Cloud
 ```
 
-Python 3.8+. No dependencies.
+Everything is a GET; the tool never writes to your instance. A run is 20-30 API
+calls plus one call per 100 projects, and takes a few seconds.
 
-### Java
-
-```bash
-jbang SonarAuditCheck.java --csv projects.csv
-```
-
-Or install it to your PATH:
+Or put it on your PATH:
 
 ```bash
 jbang app install --name sonar-audit-check SonarAuditCheck.java
 sonar-audit-check --csv projects.csv
 ```
 
-JBang fetches its own JDK if you don't have one. Dependencies (Jackson, OpenCSV,
-picocli) are resolved and cached on first run.
+### Without JBang
+
+If JBang is not an option (locked-down machine, air-gapped CI), any JDK 21+ and
+Maven will do. The `//DEPS` lines at the top of the file are the three
+dependencies; Maven needs them in a POM to resolve their transitives, so write
+a throwaway one:
+
+```bash
+cat > pom.xml <<'EOF'
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>x</groupId><artifactId>sonar-audit-check</artifactId><version>1</version>
+  <dependencies>
+    <dependency><groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId><version>2.17.2</version></dependency>
+    <dependency><groupId>com.opencsv</groupId>
+      <artifactId>opencsv</artifactId><version>5.9</version></dependency>
+    <dependency><groupId>info.picocli</groupId>
+      <artifactId>picocli</artifactId><version>4.7.6</version></dependency>
+  </dependencies>
+</project>
+EOF
+
+mvn -q dependency:copy-dependencies -DoutputDirectory=libs
+javac -cp "libs/*" -d out SonarAuditCheck.java
+java -cp "out:libs/*" SonarAuditCheck --url "$SONAR_URL" --token "$SONAR_TOKEN"
+```
+
+That pulls 11 jars (the three above plus opencsv's transitives). On Windows,
+use `out;libs/*` as the classpath separator.
+
+### What a run looks like
+
+Four sections: connectivity and identity, which endpoints your token can
+actually reach, the project inventory, and activity signals. The line that
+matters most is in section 3:
+
+```
+  Projets visibles avec ce token : 4
+  Projets réellement présents    : 6
+  → 2 projet(s) hors de ton périmètre. Ton classement sera tronqué
+    de 33% sans aucun message d'erreur.
+```
+
+If the second line reads `Total réel indisponible`, your token lacks Administer
+System and the gap is unknown rather than zero — have an admin compare the
+numbers. The interface is in French.
 
 ### Options
 
@@ -151,10 +221,19 @@ any of them:
 - **`api/issues/search` puts `total` at the root**, while every other paginated
   endpoint uses `paging.total`.
 - **`api/sources/scm` returns positional arrays**: `[line, author, date, revision]`,
-  and entries are sometimes shorter than four elements.
+  and entries are sometimes shorter than four elements. The line number is a JSON
+  number, not a string.
+- **`api/sources/scm` returns one entry per changeset, not per line.** Consecutive
+  lines sharing a commit are collapsed onto the first. Measured on 26.8: a 30-line
+  file returned 3 entries, at lines 1, 13 and 21. Any "first N lines" framing is
+  really counting changesets.
+- **A file indexed without SCM metadata still returns 200**, with `author` and
+  `revision` as empty strings rather than an error or an empty list. Emptiness is
+  therefore not how you detect a shallow clone — blank authors are.
 
-Both implementations handle all four. The Java version keeps every numeric field
-boxed so that absent stays null rather than binding to `0.0`.
+The Java implementation handles all of these, and keeps every numeric field boxed
+so that absent stays null rather than binding to `0.0`. Verified against a live
+SonarQube 26.8 by `testing/verify-against-real-sonarqube.sh`.
 
 ---
 
@@ -169,6 +248,20 @@ also disabled Sonar's ability to attribute issues to authors and to compute new
 code correctly.
 
 ---
+
+## Verifying a change
+
+`testing/verify-against-real-sonarqube.sh` starts a real SonarQube in Docker,
+creates six projects, grants a restricted audit token Browse on only four, runs
+two real analyses, and points the tool at the result. Expected output is
+`4 visible / 6 real / gap 2 (33%)` and a blame section reporting **no SCM
+metadata** — the analysis runs without a git repository, which is the
+`fetch-depth: 1` case.
+
+Prefer it to a mock. A mock replays whatever its author believed the API does;
+if it is written from this README it confirms the README rather than testing it.
+Three of the response behaviours documented above were found only by querying a
+real instance, and a README-derived mock had asserted the opposite.
 
 ## Licence
 

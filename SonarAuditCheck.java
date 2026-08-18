@@ -15,7 +15,10 @@ import picocli.CommandLine.Option;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URLEncoder;
@@ -29,6 +32,8 @@ import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -95,7 +100,22 @@ public class SonarAuditCheck implements Callable<Integer> {
     boolean insecure;
 
     public static void main(String[] args) {
+        forceUtf8Output();
         System.exit(new CommandLine(new SonarAuditCheck()).execute(args));
+    }
+
+    /**
+     * Toute l'interface est en français. Or {@code stdout.encoding} retombe sur
+     * l'encodage natif dès que la sortie est redirigée : sous une locale C — le
+     * cas courant dans un conteneur CI, où LANG n'est pas défini — cela vaut
+     * ANSI_X3.4-1968 et chaque accent est remplacé par un '?'. On impose donc
+     * UTF-8 sur stdout/stderr plutôt que de dépendre de l'environnement.
+     */
+    private static void forceUtf8Output() {
+        System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true,
+                StandardCharsets.UTF_8));
+        System.setErr(new PrintStream(new FileOutputStream(FileDescriptor.err), true,
+                StandardCharsets.UTF_8));
     }
 
     // ----------------------------------------------------------------------
@@ -283,7 +303,7 @@ public class SonarAuditCheck implements Callable<Integer> {
             return;
         }
         probe("Blame SCM (sources/scm)", "api/sources/scm",
-                ScmResponse.class, p -> size(p.scm()) + " ligne(s) datée(s)",
+                ScmResponse.class, ScmResponse::describe,
                 params("key", fileKey, "from", "1", "to", "20"));
     }
 
@@ -369,14 +389,15 @@ public class SonarAuditCheck implements Callable<Integer> {
     /** L'écart entre ce que je vois et ce qui existe : le point aveugle de l'audit. */
     private void reportScopeGap(int visible) {
         ProjectSearch p = sq.get("api/projects/search", params("ps", "1")).as(ProjectSearch.class);
-        if (p == null) {
+        // paging absent = réponse illisible, pas « zéro projet » : ne rien affirmer.
+        Integer real = (p == null || p.paging() == null) ? null : p.paging().total();
+        if (real == null) {
             System.out.println(c("""
-                      Total réel indisponible (nécessite 'Administer System').
+                    \s Total réel indisponible (nécessite 'Administer System').
                         Fais comparer ce chiffre à un admin : l'écart est le point aveugle
                         de ton audit, et il n'apparaît dans aucune réponse d'erreur.""", YELLOW));
             return;
         }
-        int real = totalOf(p.paging());
         int gap = real - visible;
         System.out.println("  Projets réellement présents    : " + c(String.valueOf(real), BOLD));
         if (gap > 0 && real > 0) {
@@ -606,11 +627,14 @@ public class SonarAuditCheck implements Callable<Integer> {
         if (scm == null || !notEmpty(scm.scm())) {
             System.out.println();
             System.out.println(c("""
-                      Blame SCM inaccessible : il manque 'See Source Code' au token,
-                      ou le scanner tourne sans métadonnées SCM (clone shallow en CI).""", YELLOW));
+                    \s Blame SCM inaccessible : il manque 'See Source Code' au token.
+                      Sans lui, ni le churn ni l'âge du code ne sont calculables ici.""", YELLOW));
             return;
         }
-        // Chaque entrée est positionnelle : [ligne, auteur, date, révision]
+        // Chaque entrée est positionnelle : [ligne, auteur, date, révision].
+        // Attention : Sonar ne renvoie PAS une entrée par ligne — les lignes
+        // consécutives partageant un même changeset sont regroupées sous la
+        // première. Le compte porte donc sur des changesets, pas sur des lignes.
         List<LocalDateTime> dates = scm.scm().stream()
                 .map(row -> row.size() > 2 ? parseDate(row.get(2)) : null)
                 .filter(Objects::nonNull).sorted().toList();
@@ -618,10 +642,24 @@ public class SonarAuditCheck implements Callable<Integer> {
                 .filter(row -> row.size() > 1 && !isBlank(row.get(1)))
                 .map(row -> row.get(1)).collect(Collectors.toSet());
 
+        // 200 + des lignes, mais tous les auteurs vides : Sonar a indexé le fichier
+        // sans jamais recevoir de métadonnées SCM. C'est le cas 'fetch-depth: 1' —
+        // un constat d'audit à part entière, pas une absence de résultat.
+        if (authors.isEmpty()) {
+            System.out.println();
+            System.out.println(c("""
+                    \s Blame SCM vide : le scanner tourne sans métadonnées SCM
+                      (clone shallow en CI, type 'fetch-depth: 1'). Sonar ne peut donc
+                      ni attribuer les issues à un auteur, ni calculer correctement le
+                      new code. C'est un constat d'audit à part entière.""", YELLOW));
+            return;
+        }
+
         System.out.println();
         System.out.println(c("  Blame SCM accessible via l'API :", GREEN));
         System.out.printf("    Fichier témoin                : %s%n", shortName(fileKey));
-        System.out.printf("    Auteurs sur les 200 1res lignes: %d%n", authors.size());
+        System.out.printf("    Auteurs distincts (%d changesets): %d%n",
+                scm.scm().size(), authors.size());
         if (!dates.isEmpty()) {
             System.out.printf("    Dernière modification         : %s%n",
                     dates.get(dates.size() - 1).toLocalDate());
@@ -725,13 +763,38 @@ public class SonarAuditCheck implements Callable<Integer> {
                 dump(path, res.body());
                 return new Response(res.statusCode(), res.body());
             } catch (Exception e) {
-                return new Response(0, e.getMessage());
+                // ConnectException.getMessage() est souvent null : sans le nom de la
+                // classe, le diagnostic « impossible de joindre » n'indique pas
+                // s'il s'agit d'un refus, d'un timeout ou d'un échec TLS.
+                String msg = isBlank(e.getMessage())
+                        ? e.getClass().getSimpleName()
+                        : e.getClass().getSimpleName() + ": " + e.getMessage();
+                return new Response(0, msg);
             }
         }
 
+        /**
+         * Endpoints qui exigent (ou acceptent) 'organization' sur SonarQube Cloud.
+         *
+         * api/projects/search en fait partie : sans le paramètre, Cloud répond 400 et
+         * le diagnostic conclut à tort « nécessite Administer System » — soit un faux
+         * point aveugle sur le calcul le plus important de l'outil.
+         *
+         * La liste reste volontairement courte : les endpoints portés par un composant
+         * (measures/*, components/tree, sources/scm, project_analyses, settings/values)
+         * n'acceptent pas le paramètre, et l'ajouter provoquerait l'erreur qu'on cherche
+         * à éviter. Le paramètre n'est de toute façon envoyé que si --organization est
+         * fourni, ce qui ne concerne que Cloud.
+         *
+         * NON VÉRIFIÉ sur une instance Cloud réelle : sonarcloud.io était injoignable
+         * depuis l'environnement de test. Déduit de la documentation de l'API.
+         */
         private static boolean needsOrganization(String path) {
             return path.startsWith("api/components/search_projects")
-                    || path.startsWith("api/qualityprofiles");
+                    || path.startsWith("api/qualityprofiles")
+                    || path.startsWith("api/projects/search")
+                    || path.startsWith("api/issues/search")
+                    || path.startsWith("api/qualitygates/get_by_project");
         }
 
         /**
@@ -906,9 +969,23 @@ public class SonarAuditCheck implements Callable<Integer> {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Event(String key, String category, String name) { }
 
-    /** sources/scm renvoie des tableaux positionnels : [ligne, auteur, date, révision]. */
+    /**
+     * sources/scm renvoie des tableaux positionnels : [ligne, auteur, date, révision].
+     * Une entrée par changeset, pas par ligne : les lignes consécutives issues du
+     * même commit sont regroupées sous la première.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    record ScmResponse(List<List<String>> scm) { }
+    record ScmResponse(List<List<String>> scm) {
+
+        /** Un changeset sans auteur = fichier indexé sans métadonnées SCM. */
+        String describe() {
+            int n = size(scm);
+            if (n == 0) return "aucun changeset";
+            boolean anyAuthor = orEmptyList(scm).stream()
+                    .anyMatch(row -> row.size() > 1 && !isBlank(row.get(1)));
+            return anyAuthor ? n + " changeset(s)" : n + " changeset(s), aucun auteur (clone shallow ?)";
+        }
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record ErrorResponse(List<ErrorMessage> errors) { }
@@ -959,8 +1036,22 @@ public class SonarAuditCheck implements Callable<Integer> {
     // Petits utilitaires
     // ----------------------------------------------------------------------
 
+    /**
+     * Sonar date les analyses avec un décalage : « 2026-08-16T05:43:07+0200 ».
+     * Tronquer à 19 caractères jette ce décalage et compare ensuite une heure
+     * locale à une heure distante — d'où des âges faux de quelques heures, et un
+     * « il y a -1 jour » sur une analyse toute fraîche. On lit donc le décalage
+     * quand il est présent et on ramène tout à l'heure locale.
+     */
     static LocalDateTime parseDate(String s) {
         if (s == null || s.length() < 19) return null;
+        try {
+            return OffsetDateTime.parse(s, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                    .atZoneSameInstant(ZoneId.systemDefault())
+                    .toLocalDateTime();
+        } catch (RuntimeException ignored) {
+            // pas de décalage (ou format inattendu) : on retombe sur l'heure nue
+        }
         try {
             return LocalDateTime.parse(s.substring(0, 19), DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         } catch (RuntimeException e) {
