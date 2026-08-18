@@ -9,7 +9,10 @@ It answers four questions:
 3. How many projects can I see — and how many are invisible to me?
 4. What activity signals can I get without Git access?
 
-A single implementation, in Java, run with JBang.
+Then a second step, `SonarRank.java`, turns that inventory into a shortlist
+without touching the API again.
+
+Java, run with JBang.
 
 There was a parallel Python port. It was removed rather than fixed: it silently
 dropped every `new_*` metric from its CSV — reading only the root `value`, which
@@ -152,7 +155,7 @@ cat > pom.xml <<'EOF'
 EOF
 
 mvn -q dependency:copy-dependencies -DoutputDirectory=libs
-javac -cp "libs/*" -d out SonarAuditCheck.java
+javac -cp "libs/*" -d out SonarAuditCheck.java SonarRank.java
 java -cp "out:libs/*" SonarAuditCheck --url "$SONAR_URL" --token "$SONAR_TOKEN"
 ```
 
@@ -190,6 +193,94 @@ numbers. The interface is in French.
 | `--activity-days` | 90 | Activity window |
 | `--timeout` | 30 | Per-request timeout, seconds |
 | `--insecure` | off | Skip TLS validation |
+
+---
+
+## Ranking: `SonarRank.java`
+
+The diagnostic tells you what you can see. `SonarRank.java` turns the inventory
+CSV into a shortlist. It makes **no API calls at all** — it only re-reads the
+CSV, so it is free to re-run with different thresholds until the shortlist looks
+right. The method is in `ANALYSIS.md`; the short version:
+
+- **Cohorts first.** Never-analysed and stale projects are not ranked. They are
+  governance findings, and a stale project has no velocity to measure.
+- **Percentiles within size strata.** Active projects are bucketed by `ncloc`
+  (`<1k`, `1k-10k`, `10k-100k`, `>100k`) and each signal becomes a percentile
+  rank *inside its own bucket*, so small projects and monoliths stop competing.
+- **Four signals**: new issues per 1000 new lines, new-code coverage, new-code
+  duplication, and `sqale_debt_ratio` at half weight.
+- **Absent is never zero.** A missing metric is dropped from the mean, and the
+  `signaux_presents` column (0-4) tells you how much of the score is real.
+  Anything below two signals is not shortlisted.
+- **Exclusions are counted, not hidden.** Too small, no new code in the window,
+  too few signals — each is reported with its count and written to the CSV.
+
+```bash
+jbang SonarAuditCheck.java --csv projets.csv       # 1. inventory (hits the API)
+jbang SonarRank.java --in projets.csv              # 2. ranking (pure local)
+```
+
+Output is one `classement.csv` holding three lists, distinguished by the `liste`
+column: `VELOCITE` (creating debt), `DETTE_PORTEE` (carrying it, no new code),
+`ABANDON_RECENT` (stale 90-365d and in bad shape). Filter `retenu = O` for the
+shortlist.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--in` | — | Inventory CSV from `--csv` (required) |
+| `--out` | `classement.csv` | Where to write the ranking |
+| `--stale-days` | 90 | Same threshold as the diagnostic |
+| `--abandoned-days` | 365 | Past this, a stale project is dormant, not abandoned |
+| `--min-ncloc` | 500 | Below this, ratios are noise |
+| `--top-percent` | 10 | Share of each stratum shortlisted |
+| `--min-signals` | 2 | Signals required before a score is trusted |
+| `--comma` | off | Comma-separated, no BOM — for tools rather than Excel |
+
+### Opening the CSV in Excel (Windows)
+
+`classement.csv` is written **for Excel by default**: semicolon-separated, with
+a UTF-8 BOM and CRLF line endings. That combination matters more than it should.
+Without the BOM, Excel reads UTF-8 as ANSI and mangles every accent; with commas
+under a French locale, it drops the whole row into column A. Getting one of the
+two wrong makes the tool look broken.
+
+So a double-click works. From a terminal:
+
+```bat
+rem Command Prompt
+start classement.csv
+```
+
+```powershell
+# PowerShell
+Invoke-Item .\classement.csv        # or: start .\classement.csv
+```
+
+To force Excel specifically (useful when .csv is associated with something else):
+
+```bat
+start excel "%CD%\classement.csv"
+```
+
+Chain the whole thing in one line:
+
+```powershell
+jbang SonarRank.java --in projets.csv --out classement.csv; Invoke-Item .\classement.csv
+```
+
+Two things worth doing once the file is open, both one click: freeze the header
+row (View → Freeze Panes → Freeze Top Row) and turn on filters (Ctrl+Shift+L).
+Filtering `liste` then `retenu` is the entire intended workflow.
+
+The inventory CSV from `SonarAuditCheck --csv` is comma-separated machine format
+by design — `SonarRank` reads it, and it sniffs the separator, so an inventory
+that has been through Excel and back still loads. If you want to look at the raw
+inventory in Excel, use Data → From Text/CSV rather than double-clicking, and
+set the origin to UTF-8.
+
+On macOS or Linux, `open classement.csv` and `xdg-open classement.csv`
+respectively.
 
 ---
 
