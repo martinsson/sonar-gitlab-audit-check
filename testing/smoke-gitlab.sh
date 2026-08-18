@@ -49,7 +49,16 @@ run() {
 }
 
 GITLAB_URL="http://127.0.0.1:$PORT" GITLAB_TOKEN=faux \
-    run --top 6 --csv "$OUT/inventaire.csv" --deep --pratiques "$OUT/pratiques.csv"
+    run --top 6 --pratiques "$OUT/pratiques.csv"
+
+# --pratiques seul doit tout de même déposer l'inventaire à côté : sans lui, le
+# fichier de pratiques n'a pas de parc de référence.
+if [[ -f "$OUT/inventaire.csv" ]]; then
+    echo "  (inventaire écrit à côté de --pratiques)"
+else
+    echo "  ÉCHEC --pratiques n'a pas écrit d'inventaire"
+    exit 1
+fi
 
 # Deuxième passage, console cp850 simulée : c'est le cas PowerShell, où envoyer
 # de l'UTF-8 affiche « Ã© » au lieu de « é ». On vérifie que la sortie est bien

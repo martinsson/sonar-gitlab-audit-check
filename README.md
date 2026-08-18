@@ -297,9 +297,19 @@ those. The full method is in `GITLAB_ANALYSIS.md`; the short version:
 ```bash
 export GITLAB_URL=https://gitlab.example.com
 export GITLAB_TOKEN=glpat-xxxxxxxx          # read_api scope is enough
-jbang GitlabActivityAudit.java --group my/group --csv inventaire.csv
-jbang GitlabActivityAudit.java --group my/group --deep --pratiques pratiques.csv
+
+# One run, one directory: inventaire.csv + pratiques.csv
+jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
+
+# Selection only, no practice signals — cheaper, and enough to size the work
+jbang GitlabActivityAudit.java --group my/group --out-dir ./audit
 ```
+
+**The two files are read together.** `pratiques.csv` holds only the selected
+projects; `inventaire.csv` holds the portfolio they were drawn from, with every
+exclusion and its reason. A percentage computed from the practices file alone
+has no population behind it, which is why asking for practices now writes the
+inventory beside it whether or not you asked for one.
 
 **Two reports, not one.** The GitLab report is complete and publishable without
 a single Sonar project matched to it. Joining the two is an overlay attempted
@@ -359,6 +369,8 @@ same failure mode as `search_projects` filtering silently on the Sonar side.
 
 | Option | Default | What it does |
 |---|---|---|
+| `--out-dir` | — | Write `inventaire.csv`, and `pratiques.csv` with `--deep` |
+| `--csv`, `--pratiques` | — | Explicit paths, if the standard names do not suit |
 | `--group` | — | Scope to one group; instance-wide otherwise |
 | `--since` | 90 | Activity window, in days |
 | `--top` | 200 | Deep-analysis budget, spent by quota |
