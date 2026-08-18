@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//JAVA 21
+//JAVA 25
 //DEPS com.opencsv:opencsv:5.9
 //DEPS info.picocli:picocli:4.7.6
 

@@ -18,7 +18,7 @@
 # Vérifié sur SonarQube 26.8.0.126808.
 #
 # Usage :  ./testing/verify-against-real-sonarqube.sh
-# Prérequis : docker, java 21+, maven, et les dépendances JBang du script.
+# Prérequis : docker, java 25+, maven, et les dépendances JBang du script.
 
 set -euo pipefail
 
