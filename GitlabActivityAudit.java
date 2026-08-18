@@ -68,7 +68,38 @@ import java.util.stream.Collectors;
  * GraphQL de l'étape 2, qui ne fait que lire).
  */
 @Command(name = "GitlabActivityAudit", mixinStandardHelpOptions = true,
-        description = "Pré-sélection par activité de commits, puis signaux de pratique.")
+        sortOptions = false, usageHelpAutoWidth = true,
+        description = "Pré-sélection par activité de commits, puis signaux de pratique.",
+        synopsisHeading = "",
+        customSynopsis = {
+            "Usage : GitlabActivityAudit [--group <chemin>] [--deep] [--out-dir <rép>]",
+            "                            [autres options]",
+        },
+        footer = {
+            "",
+            "Cas d'usage courants :",
+            "",
+            "  Voir ce que donnerait un audit, sans rien écrire :",
+            "    GitlabActivityAudit --group mon/groupe",
+            "",
+            "  L'audit complet d'un groupe — c'est la commande à retenir :",
+            "    GitlabActivityAudit --group mon/groupe --deep --out-dir ./audit",
+            "",
+            "  Tout l'instance, budget réduit parce que la passe profonde coûte cher :",
+            "    GitlabActivityAudit --deep --top 150 --out-dir ./audit",
+            "",
+            "  Fenêtre d'un an au lieu de 90 jours, sur une liste de projets :",
+            "    GitlabActivityAudit --projects liste.txt --since 365 --out-dir ./audit",
+            "",
+            "Deux fichiers en sortie, à lire ensemble : inventaire.csv (le parc et",
+            "ce qui en a été écarté) et pratiques.csv (les projets sélectionnés).",
+            "Le dictionnaire des colonnes est dans COLUMNS.md, la méthode dans",
+            "GITLAB_ANALYSIS.md.",
+            "",
+            "GITLAB_URL et GITLAB_TOKEN peuvent remplacer --url et --token.",
+            "Le jeton n'a besoin que de la portée read_api ; son porteur doit être",
+            "Reporter sur les projets à mesurer.",
+        })
 public class GitlabActivityAudit implements Callable<Integer> {
 
     // ----------------------------------------------------------------------
@@ -105,6 +136,15 @@ public class GitlabActivityAudit implements Callable<Integer> {
             description = "plancher d'activité en commits ; -1 = déduit des données")
     int floor;
 
+    @Option(names = "--deep", description = "mesurer aussi les pratiques des projets "
+            + "sélectionnés (plus long, plus d'appels)")
+    boolean deep;
+
+    @Option(names = "--out-dir",
+            description = "répertoire de sortie : inventaire.csv, plus pratiques.csv "
+                    + "avec --deep")
+    Path outDir;
+
     @Option(names = "--include-archived", description = "inclure les projets archivés")
     boolean includeArchived;
 
@@ -116,24 +156,17 @@ public class GitlabActivityAudit implements Callable<Integer> {
             description = "tenter la route GraphQL à l'étape 2 (repli REST automatique)")
     boolean graphql;
 
-    @Option(names = "--out-dir",
-            description = "répertoire de sortie : y écrit inventaire.csv, "
-                    + "et pratiques.csv avec --deep")
-    Path outDir;
+    @Option(names = "--seed", defaultValue = "20260818",
+            description = "graine du tirage aléatoire (reproductibilité)")
+    long seed;
 
-    @Option(names = "--csv", description = "chemin explicite du CSV d'inventaire")
+    @Option(names = "--csv", description = "chemin explicite du CSV d'inventaire "
+            + "(sinon : --out-dir)")
     Path csv;
-
-    @Option(names = "--deep", description = "enchaîner sur les signaux de pratique (§4)")
-    boolean deep;
 
     @Option(names = "--pratiques", description = "chemin explicite du CSV de pratiques "
             + "(implique --deep ; l'inventaire est écrit à côté)")
     Path pratiquesCsv;
-
-    @Option(names = "--seed", defaultValue = "20260818",
-            description = "graine du tirage aléatoire (reproductibilité)")
-    long seed;
 
     @Option(names = "--bot-pattern",
             defaultValue = "(?i)(renovate|dependabot|semantic-release|\\[bot\\]|bot@|"
@@ -145,7 +178,8 @@ public class GitlabActivityAudit implements Callable<Integer> {
             description = "pages de commits max par projet (100/page)")
     int maxCommitPages;
 
-    @Option(names = "--timeout", defaultValue = "30")
+    @Option(names = "--timeout", defaultValue = "30",
+            description = "délai HTTP en secondes (défaut : ${DEFAULT-VALUE})")
     int timeout;
 
     @Option(names = "--insecure", description = "ignorer la validation TLS")

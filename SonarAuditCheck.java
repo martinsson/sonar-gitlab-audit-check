@@ -58,7 +58,32 @@ import java.util.stream.Collectors;
  *   jbang SonarAuditCheck.java --dump-dir ./captures        # captures brutes
  */
 @Command(name = "SonarAuditCheck", mixinStandardHelpOptions = true,
-        description = "Diagnostic d'accès Sonar avant audit de parc.")
+        sortOptions = false, usageHelpAutoWidth = true,
+        description = "Diagnostic d'accès Sonar avant audit de parc.",
+        synopsisHeading = "",
+        customSynopsis = {
+            "Usage : SonarAuditCheck [--csv <fichier>] [options]",
+        },
+        footer = {
+            "",
+            "Cas d'usage courants :",
+            "",
+            "  Vérifier l'accès avant de commencer — aucun fichier écrit :",
+            "    SonarAuditCheck",
+            "",
+            "  Le diagnostic et l'inventaire du parc, en un passage :",
+            "    SonarAuditCheck --csv inventaire.csv",
+            "",
+            "  Puis le classement, qui ne rappelle pas l'API :",
+            "    SonarRank --in inventaire.csv --out classement.csv",
+            "",
+            "  SonarQube Cloud :",
+            "    SonarAuditCheck --organization mon-org --csv inventaire.csv",
+            "",
+            "SONAR_URL et SONAR_TOKEN peuvent remplacer --url et --token. Le jeton",
+            "doit être de type 'User' (squ_...), pas un jeton d'analyse.",
+            "Colonnes du CSV : COLUMNS.md. Méthode de classement : ANALYSIS.md.",
+        })
 public class SonarAuditCheck implements Callable<Integer> {
 
     // ----------------------------------------------------------------------
