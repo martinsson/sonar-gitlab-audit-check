@@ -49,7 +49,29 @@ import java.util.stream.Collectors;
  *   jbang SonarRank.java --in projets.csv            # produit le classement
  */
 @Command(name = "SonarRank", mixinStandardHelpOptions = true,
-        description = "Classement de première passe à partir du CSV d'inventaire.")
+        sortOptions = false, usageHelpAutoWidth = true,
+        description = "Classement de première passe à partir du CSV d'inventaire.",
+        synopsisHeading = "",
+        customSynopsis = {
+            "Usage : SonarRank --in <inventaire.csv> [--out <classement.csv>] [options]",
+        },
+        footer = {
+            "",
+            "Cas d'usage courants :",
+            "",
+            "  Le classement, à partir du CSV produit par SonarAuditCheck --csv :",
+            "    SonarRank --in inventaire.csv",
+            "",
+            "  Une shortlist plus large, sur un parc où le décile ne suffit pas :",
+            "    SonarRank --in inventaire.csv --top-percent 20",
+            "",
+            "  Pour un outil plutôt qu'Excel — virgules, sans BOM :",
+            "    SonarRank --in inventaire.csv --out classement.csv --comma",
+            "",
+            "Aucun appel API : le fichier d'entrée suffit, donc relancer avec",
+            "d'autres seuils est gratuit. Colonnes de sortie : COLUMNS.md.",
+            "Filtrer 'liste', puis 'retenu' = O pour la shortlist.",
+        })
 public class SonarRank implements Callable<Integer> {
 
     // ----------------------------------------------------------------------
