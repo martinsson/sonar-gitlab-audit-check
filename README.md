@@ -643,8 +643,9 @@ Verified against gitlab.com, not against the documentation:
   is simply absent. Absent is reported as absent, never as zero.
 - **Bots dominate if unfiltered.** Renovate and friends finish first contributor
   and distort cadence, concentration and commit size alike. The default pattern is
-  deliberately narrow — `bot` glued to other letters would catch *Abbot* — and the
-  identities it excludes are printed, not hidden.
+  shared with the portfolio pass and deliberately narrow — `bot` glued to other
+  letters would catch *Abbot* — and the identities it excludes are printed, not
+  hidden.
 - **Pagination is by header.** `x-next-page` is empty on the last page; a full
   batch can be the last one, so batch size cannot be used to detect the end.
 - **A cap changes the denominator.** When `--max-commits` or `--max-mrs` is hit,
@@ -656,6 +657,36 @@ Verified against gitlab.com, not against the documentation:
 - **Dates carry an offset** (`2026-08-18T09:12:33.000+02:00`). Hour-of-day is read
   in that offset — the committer's local time — while ages are normalised to local
   time.
+
+### What the two GitLab tools share
+
+`Gitlab.java` holds the HTTP client and three conventions. Both tools include it
+with `//SOURCES`, the way all three include `ConsoleOut.java`.
+
+It exists because the two tools were written separately and independently agreed
+on the three traps that matter — bots, merge commits, and a capped page count
+that has to read as a floor rather than a total. Two accidental agreements do not
+survive the first fix applied to one side only, so the agreement is now written
+down once:
+
+- **`BOT_PATTERN`** — the union of the two patterns each tool had given itself.
+- **`identity(email, name)`** — the local part of the address, falling back to the
+  name, both normalised into one namespace. Without that last step a commit signed
+  `Dev 0` with no address and one from `dev0@example.com` count as two people, and
+  the bus factor silently doubles.
+- **`isMerge(commit)`** — more than one parent. No lines of its own, and dated by
+  whoever pressed *merge*.
+
+The client itself is the union too: the retry on 429 honouring `Retry-After`, the
+`HEAD` existence probe and the GraphQL call come from the portfolio pass; the
+typed pagination that reports truncation as distinct from refusal comes from the
+per-project one.
+
+They still differ where they should. The portfolio pass counts merge commits
+inside `commits_window`; the per-project report excludes them everywhere. That is
+a live disagreement, not an oversight — one ranks, the other attributes — but it
+means `commits_per_week` is not comparable between a project that merges and one
+that squashes.
 
 ### Not yet done
 

@@ -4,33 +4,18 @@
 //DEPS com.opencsv:opencsv:5.9
 //DEPS info.picocli:picocli:4.7.6
 //SOURCES ConsoleOut.java
+//SOURCES Gitlab.java
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVWriter;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpRequest;
-import java.net.http.HttpClient;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
-import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
@@ -171,9 +156,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
             + "(implique --deep ; l'inventaire est écrit à côté)")
     Path pratiquesCsv;
 
-    @Option(names = "--bot-pattern",
-            defaultValue = "(?i)(renovate|dependabot|semantic-release|\\[bot\\]|bot@|"
-                    + "gitlab-ci-token|jenkins|sonarqube|automation)",
+    @Option(names = "--bot-pattern", defaultValue = Gitlab.BOT_PATTERN,
             description = "regex identifiant les auteurs automatiques")
     String botPattern;
 
@@ -282,7 +265,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
     private boolean preflight() {
         title("0. Connectivité, identité, licence");
 
-        Response me = gl.get("user", Map.of());
+        Gitlab.Response me = gl.get("user", Map.of());
         if (me.unreachable()) {
             line("api/v4/user", Verdict.ERROR, me.errorMessage());
             System.out.println(c("\n  Instance injoignable. Vérifie l'URL, le proxy, le TLS.", RED));
@@ -300,7 +283,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
 
         // Le plan conditionne la moitié des signaux de pratique : approbations,
         // DORA, règles de push. Le découvrir après coup, c'est réécrire l'analyse.
-        Response meta = gl.get("metadata", Map.of());
+        Gitlab.Response meta = gl.get("metadata", Map.of());
         if (meta.status() == 200) {
             JsonNode m = meta.json();
             boolean enterprise = m.path("enterprise").asBoolean(false);
@@ -374,7 +357,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         for (String raw : Files.readAllLines(projectsFile, StandardCharsets.UTF_8)) {
             String path = raw.trim();
             if (path.isEmpty() || path.startsWith("#")) continue;
-            Response r = gl.get("projects/" + enc(path), Map.of("statistics", "true"));
+            Gitlab.Response r = gl.get("projects/" + enc(path), Map.of("statistics", "true"));
             if (r.status() == 200) out.add(r.json());
             else System.out.printf("    %-40s HTTP %d — ignoré%n", path, r.status());
         }
@@ -510,7 +493,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
             q.append("}");
 
             counters.graphqlCalls++;
-            Response r = gl.graphql(q.toString());
+            Gitlab.Response r = gl.graphql(q.toString());
             JsonNode data = r.status() == 200 ? r.json().path("data") : null;
             if (data == null || data.isMissingNode() || r.json().has("errors")) {
                 if (i == 0) {
@@ -533,7 +516,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
 
     /** Compte sans pagination quand X-Total est là ; sinon pagine. */
     private int countCommits(Proj p) {
-        Response r = gl.get("projects/" + p.id + "/repository/commits", Map.of(
+        Gitlab.Response r = gl.get("projects/" + p.id + "/repository/commits", Map.of(
                 "ref_name", p.defaultBranch, "since", iso(windowStart), "per_page", "1"));
         if (r.status() != 200) return 0;
         Integer total = r.intHeader("x-total");
@@ -542,7 +525,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         // dire zéro : on redemande une page pleine plutôt que de lire un en-tête
         // manquant comme un 0 — c'est exactement la confusion « absent = zéro »
         // qui a déjà coûté cher côté Sonar.
-        Response full = gl.get("projects/" + p.id + "/repository/commits", Map.of(
+        Gitlab.Response full = gl.get("projects/" + p.id + "/repository/commits", Map.of(
                 "ref_name", p.defaultBranch, "since", iso(windowStart), "per_page", "100"));
         return full.status() == 200 && full.json().isArray() ? full.json().size() : 0;
     }
@@ -560,7 +543,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         boolean truncated = false;
 
         for (int page = 1; page <= maxCommitPages; page++) {
-            Response r = gl.get("projects/" + p.id + "/repository/commits", Map.of(
+            Gitlab.Response r = gl.get("projects/" + p.id + "/repository/commits", Map.of(
                     "ref_name", p.defaultBranch, "since", iso(windowStart),
                     "per_page", "100", "page", String.valueOf(page)));
             if (r.status() != 200) {
@@ -575,11 +558,10 @@ public class GitlabActivityAudit implements Callable<Integer> {
             for (JsonNode c : arr) {
                 String email = text(c, "author_email");
                 String name = text(c, "author_name");
-                boolean isBot = bots.matcher(email + " " + name).find();
-                if (isBot) { bot++; continue; }
+                if (Gitlab.isBot(bots, email, name)) { bot++; continue; }
                 human++;
-                authors.add(identity(email, name));
-                if (c.path("parent_ids").size() > 1) merges++;
+                authors.add(Gitlab.identity(email, name));
+                if (Gitlab.isMerge(c)) merges++;
                 OffsetDateTime d = parse(text(c, "committed_date"));
                 if (d != null) {
                     days.add(ChronoUnit.DAYS.between(windowStart, d));
@@ -596,24 +578,6 @@ public class GitlabActivityAudit implements Callable<Integer> {
         p.activeDays = days.size();
         p.truncated = truncated;
         if (p.lastCommit == null) p.lastCommit = newest;
-    }
-
-    /**
-     * Deux adresses pour la même personne fragmentent le compte d'auteurs. On
-     * normalise sur la partie locale de l'adresse, à défaut sur le nom. Le
-     * résultat vaut à ±1 : il alimente un jugement de bus factor, il lui suffit
-     * d'être juste entre 1 et 5.
-     */
-    private static String identity(String email, String name) {
-        String raw = (!isBlank(email) && email.contains("@"))
-                ? email.substring(0, email.indexOf('@'))
-                : name;
-        if (isBlank(raw)) return "?";
-        // Les deux branches doivent atterrir dans le même espace de noms : sinon
-        // « Dev 0 » (commit sans adresse) et « dev0@example.com » comptent pour
-        // deux personnes, et le bus factor double silencieusement.
-        String norm = raw.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
-        return norm.isEmpty() ? "?" : norm;
     }
 
     // ----------------------------------------------------------------------
@@ -896,7 +860,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
 
         /** Binaire, non ambigu, et cela explique le nombre de poussées directes. */
         private void protection(Proj p, Prat r) {
-            Response br = gl.get("projects/" + p.id + "/protected_branches", Map.of("per_page", "100"));
+            Gitlab.Response br = gl.get("projects/" + p.id + "/protected_branches", Map.of("per_page", "100"));
             if (br.status() != 200) return;
             for (JsonNode b : br.json()) {
                 if (p.defaultBranch.equals(text(b, "name"))) {
@@ -917,7 +881,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         private void reviews(Proj p, Prat r) {
             List<JsonNode> mrs = new ArrayList<>();
             for (int page = 1; page <= 3; page++) {
-                Response m = gl.get("projects/" + p.id + "/merge_requests", Map.of(
+                Gitlab.Response m = gl.get("projects/" + p.id + "/merge_requests", Map.of(
                         "state", "merged", "target_branch", p.defaultBranch,
                         "updated_after", iso(windowStart),
                         "per_page", "100", "page", String.valueOf(page)));
@@ -949,7 +913,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 int sample = Math.min(10, mrs.size()), approved = 0, selfApproved = 0, seen = 0;
                 for (int i = 0; i < sample; i++) {
                     JsonNode mr = mrs.get(i);
-                    Response ap = gl.get("projects/" + p.id + "/merge_requests/"
+                    Gitlab.Response ap = gl.get("projects/" + p.id + "/merge_requests/"
                             + mr.path("iid").asInt() + "/approvals", Map.of());
                     if (ap.status() != 200) break;
                     seen++;
@@ -969,7 +933,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         }
 
         private void pipelines(Proj p, Prat r) {
-            Response pl = gl.get("projects/" + p.id + "/pipelines", Map.of(
+            Gitlab.Response pl = gl.get("projects/" + p.id + "/pipelines", Map.of(
                     "ref", p.defaultBranch, "updated_after", iso(windowStart), "per_page", "100"));
             if (pl.status() != 200 || !pl.json().isArray()) return;
             int n = pl.json().size(), ok = 0;
@@ -985,14 +949,14 @@ public class GitlabActivityAudit implements Callable<Integer> {
          * est un constat de disponibilité de la donnée, pas un mauvais score.
          */
         private void delivery(Proj p, Prat r) {
-            Response env = gl.get("projects/" + p.id + "/environments", Map.of("per_page", "1"));
+            Gitlab.Response env = gl.get("projects/" + p.id + "/environments", Map.of("per_page", "1"));
             if (env.status() == 200) {
                 Integer t = env.intHeader("x-total");
                 r.environments = t != null ? t : env.json().size();
             }
             if (!counters.enterprise || (r.environments != null && r.environments == 0)) return;
 
-            Response df = gl.get("projects/" + p.id + "/dora/metrics", Map.of(
+            Gitlab.Response df = gl.get("projects/" + p.id + "/dora/metrics", Map.of(
                     "metric", "deployment_frequency",
                     "start_date", iso(windowStart).substring(0, 10),
                     "interval", "monthly"));
@@ -1016,7 +980,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 }
             }
             if (!r.files.contains(".gitlab-ci.yml")) return;
-            Response raw = gl.get("projects/" + p.id + "/repository/files/"
+            Gitlab.Response raw = gl.get("projects/" + p.id + "/repository/files/"
                     + enc(".gitlab-ci.yml") + "/raw", Map.of("ref", p.defaultBranch));
             if (raw.status() != 200 || raw.body() == null) return;
             String ci = raw.body().toLowerCase(Locale.ROOT);
@@ -1078,206 +1042,6 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 for (Proj p : selected) w.writeNext(p.pratRow());
             }
             System.out.printf("%n  Pratiques : %d lignes.%n", selected.size());
-        }
-    }
-
-    // ----------------------------------------------------------------------
-    // Client HTTP
-    // ----------------------------------------------------------------------
-
-    static final ObjectMapper MAPPER = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-    /** Statut, corps brut, en-têtes. GitLab met la pagination dans les en-têtes. */
-    record Response(int status, String body, Map<String, String> headers) {
-
-        boolean unreachable() { return status == 0; }
-
-        JsonNode json() {
-            if (body == null) return MAPPER.nullNode();
-            try {
-                return MAPPER.readTree(body);
-            } catch (IOException e) {
-                return MAPPER.nullNode();
-            }
-        }
-
-        Integer intHeader(String name) {
-            String v = headers.get(name.toLowerCase(Locale.ROOT));
-            if (isBlank(v)) return null;
-            try {
-                return Integer.parseInt(v.trim());
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        }
-
-        String errorMessage() {
-            if (body == null) return "";
-            JsonNode j = json();
-            for (String k : List.of("message", "error", "error_description")) {
-                if (j.hasNonNull(k) && j.get(k).isTextual()) return truncate(j.get(k).asText(), 90);
-            }
-            return truncate(body.replace("\n", " "), 90);
-        }
-    }
-
-    static final class Gitlab {
-        final String base;
-        private final String token;
-        private final Duration timeout;
-        private final Path dumpDir;
-        private final HttpClient client;
-        int calls = 0, forbidden = 0, throttled = 0;
-
-        Gitlab(String url, String token, int timeoutSeconds, boolean insecure, Path dumpDir)
-                throws Exception {
-            this.base = url.replaceAll("/+$", "");
-            this.token = token;
-            this.timeout = Duration.ofSeconds(timeoutSeconds);
-            this.dumpDir = dumpDir;
-            if (dumpDir != null) Files.createDirectories(dumpDir);
-
-            HttpClient.Builder b = HttpClient.newBuilder()
-                    .connectTimeout(this.timeout)
-                    .followRedirects(HttpClient.Redirect.NORMAL);
-            if (insecure) {
-                System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
-                b.sslContext(trustEverything());
-            }
-            this.client = b.build();
-        }
-
-        Response get(String path, Map<String, String> params) {
-            return send("GET", base + "/api/v4/" + path.replaceAll("^/+", "") + query(params), null);
-        }
-
-        /** Existence d'un fichier sans transférer son contenu. */
-        boolean exists(String path, Map<String, String> params) {
-            return send("HEAD", base + "/api/v4/" + path.replaceAll("^/+", "") + query(params),
-                    null).status() == 200;
-        }
-
-        Response graphql(String q) {
-            String payload;
-            try {
-                payload = MAPPER.writeValueAsString(Map.of("query", q));
-            } catch (IOException e) {
-                return new Response(0, e.toString(), Map.of());
-            }
-            return send("POST", base + "/api/graphql", payload);
-        }
-
-        /**
-         * Pagination par page. GitLab expose X-Next-Page ; un en-tête vide signe
-         * la fin. On ne se fie pas au nombre d'éléments retournés : une page
-         * pleine en dernière position ferait boucler à l'infini.
-         */
-        List<JsonNode> paged(String path, Map<String, String> params) {
-            List<JsonNode> out = new ArrayList<>();
-            String page = "1";
-            for (int i = 0; i < 500 && !isBlank(page); i++) {
-                Map<String, String> p = new LinkedHashMap<>(params);
-                p.put("per_page", "100");
-                p.put("page", page);
-                Response r = get(path, p);
-                if (r.status() != 200) {
-                    System.out.println(c("    Pagination interrompue page %s : HTTP %d"
-                            .formatted(page, r.status()), YELLOW));
-                    break;
-                }
-                JsonNode arr = r.json();
-                if (!arr.isArray()) break;
-                arr.forEach(out::add);
-                page = r.headers().get("x-next-page");
-            }
-            return out;
-        }
-
-        /**
-         * Le limiteur de débit de GitLab est configuré par instance et souvent
-         * abaissé. On respecte Retry-After dès la première exécution plutôt
-         * qu'après le premier 429 rencontré en production.
-         */
-        private Response send(String method, String uri, String body) {
-            for (int attempt = 0; ; attempt++) {
-                calls++;
-                try {
-                    HttpRequest.BodyPublisher pub = body == null
-                            ? HttpRequest.BodyPublishers.noBody()
-                            : HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8);
-                    HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                            .method(method, pub)
-                            .timeout(timeout)
-                            .header("PRIVATE-TOKEN", token)
-                            .header("Accept", "application/json")
-                            .header("Content-Type", "application/json")
-                            .build();
-                    HttpResponse<String> res = client.send(req,
-                            HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-
-                    if (res.statusCode() == 429 && attempt < 3) {
-                        throttled++;
-                        long wait = res.headers().firstValue("retry-after")
-                                .map(v -> { try { return Long.parseLong(v.trim()); }
-                                            catch (NumberFormatException e) { return 5L; } })
-                                .orElse(5L);
-                        Thread.sleep(Math.min(wait, 60) * 1000);
-                        continue;
-                    }
-                    if (res.statusCode() == 403) forbidden++;
-
-                    Map<String, String> h = new HashMap<>();
-                    res.headers().map().forEach((k, v) ->
-                            h.put(k.toLowerCase(Locale.ROOT), v.isEmpty() ? "" : v.get(0)));
-                    dump(uri, res.body());
-                    return new Response(res.statusCode(), res.body(), h);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    return new Response(0, "interrompu", Map.of());
-                } catch (Exception e) {
-                    // ConnectException.getMessage() est souvent null : sans le nom de
-                    // la classe, « injoignable » ne dit pas s'il s'agit d'un refus,
-                    // d'un délai dépassé ou d'un échec TLS.
-                    String msg = isBlank(e.getMessage()) ? e.getClass().getSimpleName()
-                            : e.getClass().getSimpleName() + ": " + e.getMessage();
-                    return new Response(0, msg, Map.of());
-                }
-            }
-        }
-
-        private void dump(String uri, String body) {
-            if (dumpDir == null) return;
-            String name = "%04d-%s.json".formatted(calls,
-                    uri.replaceFirst("^https?://[^/]+/", "").replaceAll("[^A-Za-z0-9]+", "_"));
-            try {
-                Files.writeString(dumpDir.resolve(truncate(name, 120)), body == null ? "" : body);
-            } catch (IOException e) {
-                System.err.println("  (capture non écrite : " + e.getMessage() + ")");
-            }
-        }
-
-        private static String query(Map<String, String> params) {
-            if (params.isEmpty()) return "";
-            return params.entrySet().stream()
-                    .filter(e -> e.getValue() != null)
-                    .map(e -> encode(e.getKey()) + "=" + encode(e.getValue()))
-                    .collect(Collectors.joining("&", "?", ""));
-        }
-
-        private static String encode(String s) {
-            return URLEncoder.encode(s, StandardCharsets.UTF_8);
-        }
-
-        private static SSLContext trustEverything() throws Exception {
-            TrustManager[] trustAll = {new X509TrustManager() {
-                public void checkClientTrusted(X509Certificate[] c, String a) { }
-                public void checkServerTrusted(X509Certificate[] c, String a) { }
-                public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-            }};
-            SSLContext ctx = SSLContext.getInstance("TLS");
-            ctx.init(null, trustAll, new SecureRandom());
-            return ctx;
         }
     }
 
@@ -1432,16 +1196,11 @@ public class GitlabActivityAudit implements Callable<Integer> {
     }
 
     static OffsetDateTime parse(String s) {
-        if (isBlank(s)) return null;
-        try {
-            return OffsetDateTime.parse(s);
-        } catch (Exception e) {
-            return null;
-        }
+        return Gitlab.parse(s);
     }
 
     static String enc(String s) {
-        return URLEncoder.encode(s, StandardCharsets.UTF_8);
+        return Gitlab.enc(s);
     }
 
     static String text(JsonNode n, String field) {

@@ -3,32 +3,16 @@
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.17.2
 //DEPS info.picocli:picocli:4.7.6
 //SOURCES ConsoleOut.java
+//SOURCES Gitlab.java
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
 import java.time.DayOfWeek;
-import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -119,7 +103,7 @@ public class GitLabProjectReport implements Callable<Integer> {
             description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
     String colorMode;
 
-    private GitLab gl;
+    private Gitlab gl;
     private Pattern bots;
 
     public static void main(String[] args) {
@@ -138,9 +122,9 @@ public class GitLabProjectReport implements Callable<Integer> {
             System.out.println(c("  Aucun jeton : lecture anonyme, projets publics seulement.", YELLOW));
         }
         if (isBlank(url)) url = "https://gitlab.com";
-        bots = Pattern.compile(isBlank(botPattern) ? DEFAULT_BOT_PATTERN : botPattern,
+        bots = Pattern.compile(isBlank(botPattern) ? Gitlab.BOT_PATTERN : botPattern,
                 Pattern.CASE_INSENSITIVE);
-        gl = new GitLab(url, token, timeout, insecure, dumpDir);
+        gl = new Gitlab(url, token, timeout, insecure, dumpDir);
 
         String projectPath = normalizePath(path);
         LocalDateTime since = LocalDateTime.now().minusDays(days);
@@ -184,7 +168,7 @@ public class GitLabProjectReport implements Callable<Integer> {
     // ----------------------------------------------------------------------
 
     private Project fetchProject(String projectPath) {
-        Response r = gl.get("projects/" + enc(projectPath), params("statistics", "true"));
+        Gitlab.Response r = gl.get("projects/" + enc(projectPath), params("statistics", "true"));
         Project p = r.as(Project.class);
         if (p == null || p.id() == null) {
             System.err.println("Projet introuvable : " + projectPath);
@@ -241,7 +225,7 @@ public class GitLabProjectReport implements Callable<Integer> {
     private Commits commits(Project p, LocalDateTime since) {
         if (isBlank(p.defaultBranch())) return new Commits(List.of(), List.of(), false, "pas de branche par défaut");
 
-        Fetched<Commit> f = gl.paged("projects/" + p.id() + "/repository/commits",
+        Gitlab.Page<Commit> f = gl.paged("projects/" + p.id() + "/repository/commits",
                 params("ref_name", p.defaultBranch(),
                         "since", since.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                         "with_stats", "true"),
@@ -401,30 +385,46 @@ public class GitLabProjectReport implements Callable<Integer> {
             return People.EMPTY;
         }
 
-        // L'identité est l'adresse e-mail, seule clé stable. Elle ment quand la
-        // même personne commite depuis plusieurs machines : on affiche donc aussi
-        // le nombre de noms distincts, et l'écart entre les deux est le signal.
+        // Identité normalisée par Gitlab.identity, la même que côté parc : partie
+        // locale de l'adresse, à défaut le nom, les deux ramenés dans le même
+        // espace de noms. Sans cette dernière précaution, un commit signé « Dev 0 »
+        // sans adresse et un commit de dev0@example.com font deux personnes, et le
+        // bus factor double en silence.
         Map<String, Long> byEmail = cs.stream().collect(Collectors.groupingBy(
-                x -> isBlank(x.authorEmail()) ? orEmpty(x.authorName()).toLowerCase()
-                        : x.authorEmail().toLowerCase(),
+                x -> Gitlab.identity(x.authorEmail(), x.authorName()),
                 Collectors.counting()));
+
+        // L'identité normalisée est illisible : on réaffiche le nom porté par les
+        // commits, qui est ce que l'auditeur reconnaîtra.
+        Map<String, String> labels = new HashMap<>();
+        for (Commit x : cs) {
+            if (!isBlank(x.authorName())) {
+                labels.putIfAbsent(Gitlab.identity(x.authorEmail(), x.authorName()), x.authorName());
+            }
+        }
+        long distinctEmails = cs.stream().map(x -> orEmpty(x.authorEmail()).trim().toLowerCase())
+                .filter(e -> !e.isBlank()).distinct().count();
         long distinctNames = cs.stream().map(x -> orEmpty(x.authorName()).trim().toLowerCase())
-                .filter(s -> !s.isBlank()).distinct().count();
+                .filter(n -> !n.isBlank()).distinct().count();
 
         List<Map.Entry<String, Long>> ranked = byEmail.entrySet().stream()
                 .sorted(Map.Entry.<String, Long>comparingByValue().reversed()).toList();
         long total = cs.size();
 
-        System.out.printf("  Auteurs distincts (e-mails)     : %s%n",
+        System.out.printf("  Auteurs distincts               : %s%n",
                 c(String.valueOf(ranked.size()), BOLD));
-        if (distinctNames != ranked.size()) {
-            // Plus de noms que d'adresses : plusieurs personnes partagent une adresse
-            // (poste commun, machine de CI). Plus d'adresses que de noms : une même
-            // personne commite depuis plusieurs machines. Les deux faussent le compte.
-            String sens = distinctNames > ranked.size()
-                    ? "— plusieurs personnes derrière une même adresse"
-                    : "— une même personne sous plusieurs adresses";
-            System.out.printf("  Noms distincts                  : %d %s%n", distinctNames, c(sens, DIM));
+        // Ce que la normalisation a regroupé, dit plutôt que subi : le compte brut
+        // d'adresses est celui qu'on lirait sans elle.
+        if (distinctEmails > ranked.size()) {
+            System.out.printf("  Adresses distinctes             : %d %s%n", distinctEmails,
+                    c("— ramenées à %d personnes".formatted(ranked.size()), DIM));
+        }
+        // Une identité qui porte plusieurs noms, c'est soit un poste partagé, soit
+        // deux homonymes de partie locale sur des domaines différents — auquel cas
+        // la normalisation a fusionné deux personnes, et le bus factor est optimiste.
+        if (distinctNames > ranked.size()) {
+            System.out.printf("  Noms distincts                  : %d %s%n", distinctNames,
+                    c("— une identité porte plusieurs noms", DIM));
         }
 
         // Bus factor : combien de personnes il faut réunir pour couvrir 80 % des
@@ -438,7 +438,7 @@ public class GitLabProjectReport implements Callable<Integer> {
         }
         double topShare = 100.0 * ranked.get(0).getValue() / total;
         System.out.printf("  Auteur principal                : %s (%.0f %% des commits)%n",
-                shortEmail(ranked.get(0).getKey()), topShare);
+                label(labels, ranked.get(0).getKey()), topShare);
         System.out.printf("  Personnes couvrant 80 %% du code : %s%n",
                 c(String.valueOf(busFactor), busFactor <= 1 ? YELLOW : BOLD));
 
@@ -446,7 +446,7 @@ public class GitLabProjectReport implements Callable<Integer> {
         System.out.println();
         for (int i = 0; i < shown; i++) {
             Map.Entry<String, Long> e = ranked.get(i);
-            System.out.printf("    %-34s %4d  %s%n", shortEmail(e.getKey()), e.getValue(),
+            System.out.printf("    %-34s %4d  %s%n", label(labels, e.getKey()), e.getValue(),
                     bar(100.0 * e.getValue() / total));
         }
         if (ranked.size() > shown) {
@@ -460,7 +460,7 @@ public class GitLabProjectReport implements Callable<Integer> {
         LocalDateTime recent = LocalDateTime.now().minusDays(recentDays);
         long activeRecently = cs.stream()
                 .filter(x -> { LocalDateTime d = parseLocal(x.committedDate()); return d != null && d.isAfter(recent); })
-                .map(x -> orEmpty(x.authorEmail()).toLowerCase()).distinct().count();
+                .map(x -> Gitlab.identity(x.authorEmail(), x.authorName())).distinct().count();
         System.out.println();
         System.out.printf("  %-32s: %d sur %d%n",
                 "Actifs sur " + recentDays + " j", activeRecently, ranked.size());
@@ -474,7 +474,7 @@ public class GitLabProjectReport implements Callable<Integer> {
         // Vue « toute l'histoire », en un appel : elle situe la fenêtre dans la
         // durée de vie du dépôt. Ses comptes incluent les commits de fusion —
         // ils ne sont donc pas comparables terme à terme avec ceux du dessus.
-        Fetched<Contributor> f = gl.paged("projects/" + p.id() + "/repository/contributors",
+        Gitlab.Page<Contributor> f = gl.paged("projects/" + p.id() + "/repository/contributors",
                 params("order_by", "commits", "sort", "desc"), Contributor.class, 500);
         if (f.error() == null && !f.items().isEmpty()) {
             System.out.printf("  Contributeurs de tout temps     : %d %s%n", f.items().size(),
@@ -490,7 +490,7 @@ public class GitLabProjectReport implements Callable<Integer> {
     private Reviews reviews(Project p, LocalDateTime since) {
         title("4. Merge requests et revue");
 
-        Fetched<MergeRequest> f = gl.paged("projects/" + p.id() + "/merge_requests",
+        Gitlab.Page<MergeRequest> f = gl.paged("projects/" + p.id() + "/merge_requests",
                 params("scope", "all", "state", "all",
                         "created_after", since.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                         "order_by", "created_at", "sort", "desc"),
@@ -594,7 +594,7 @@ public class GitLabProjectReport implements Callable<Integer> {
         int unreviewed = 0, measured = 0;
         String error = null;
         for (MergeRequest m : subset) {
-            Fetched<Note> f = gl.paged("projects/" + p.id() + "/merge_requests/" + m.iid() + "/notes",
+            Gitlab.Page<Note> f = gl.paged("projects/" + p.id() + "/merge_requests/" + m.iid() + "/notes",
                     params("sort", "asc", "order_by", "created_at"), Note.class, 100);
             // Un refus se répète : on s'arrête au premier plutôt que de brûler
             // l'échantillon entier en 401, et surtout on le dit. Une section qui
@@ -716,187 +716,8 @@ public class GitLabProjectReport implements Callable<Integer> {
     // Bots
     // ----------------------------------------------------------------------
 
-    /**
-     * Non filtrés, Renovate et consorts finissent premiers contributeurs et
-     * faussent tout : cadence, concentration, taille des commits. Le motif reste
-     * volontairement étroit — « bot » collé à d'autres lettres attraperait
-     * Abbot ou Talbot — et les identités écartées sont affichées, pas cachées.
-     */
-    static final String DEFAULT_BOT_PATTERN =
-            "(^|[^\\p{L}])(bot|bots|renovate|dependabot|semantic-release|gitlab-ci)([^\\p{L}]|$)"
-            + "|\\[bot\\]|^project_\\d+_bot|@noreply\\.";
-
     private boolean isBot(String name, String email) {
-        return (name != null && bots.matcher(name).find())
-                || (email != null && bots.matcher(email).find());
-    }
-
-    // ----------------------------------------------------------------------
-    // Client GitLab
-    // ----------------------------------------------------------------------
-
-    static final ObjectMapper MAPPER = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-    record Fetched<T>(List<T> items, boolean truncated, String error) { }
-
-    final class Response {
-        final int status;
-        final String body;
-        final Map<String, String> headers;
-
-        Response(int status, String body, Map<String, String> headers) {
-            this.status = status;
-            this.body = body;
-            this.headers = headers;
-        }
-
-        int status() { return status; }
-
-        boolean ok() { return status >= 200 && status < 300; }
-
-        String header(String name) { return headers.get(name); }
-
-        <T> T as(Class<T> type) {
-            if (!ok() || isBlank(body)) return null;
-            try {
-                return MAPPER.readValue(body, type);
-            } catch (IOException e) {
-                return null;
-            }
-        }
-
-        <T> List<T> asList(Class<T> type) {
-            if (!ok() || isBlank(body)) return null;
-            try {
-                return MAPPER.readValue(body,
-                        MAPPER.getTypeFactory().constructCollectionType(List.class, type));
-            } catch (IOException e) {
-                return null;
-            }
-        }
-
-        /** GitLab répond {"message": "..."} ou {"error": "..."} selon l'endpoint. */
-        String errorMessage() {
-            if (status == 429) return "limite de débit atteinte (429)";
-            if (isBlank(body)) return "";
-            try {
-                GitLabError e = MAPPER.readValue(body, GitLabError.class);
-                String msg = e.message() != null ? e.message() : e.error();
-                if (!isBlank(msg)) return truncate(msg, 90);
-            } catch (IOException ignored) {
-                // corps non-JSON (page HTML d'un proxy, par exemple)
-            }
-            return truncate(body.replace("\n", " "), 90);
-        }
-    }
-
-    final class GitLab {
-        final String base;
-        private final String token;
-        private final Duration timeout;
-        private final Path dumpDir;
-        private final HttpClient client;
-        int calls = 0;
-
-        GitLab(String url, String token, int timeoutSeconds, boolean insecure, Path dumpDir)
-                throws Exception {
-            this.base = url.replaceAll("/+$", "") + "/api/v4";
-            this.token = token;
-            this.timeout = Duration.ofSeconds(timeoutSeconds);
-            this.dumpDir = dumpDir;
-            if (dumpDir != null) Files.createDirectories(dumpDir);
-
-            HttpClient.Builder b = HttpClient.newBuilder()
-                    .connectTimeout(this.timeout)
-                    .followRedirects(HttpClient.Redirect.NORMAL);
-            if (insecure) {
-                System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
-                b.sslContext(trustEverything());
-            }
-            this.client = b.build();
-        }
-
-        Response get(String path, Map<String, String> params) {
-            String uri = base + "/" + path.replaceAll("^/+", "") + queryString(params);
-            calls++;
-            try {
-                HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(uri))
-                        .GET()
-                        .timeout(timeout)
-                        .header("Accept", "application/json");
-                // PRIVATE-TOKEN accepte les PAT comme les jetons de groupe ;
-                // Bearer ne vaut que pour un jeton OAuth.
-                if (!isBlank(token)) b.header("PRIVATE-TOKEN", token);
-                HttpRequest req = b.build();
-                HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
-                dump(path, res.body());
-                Map<String, String> h = new HashMap<>();
-                res.headers().firstValue("x-next-page").ifPresent(v -> h.put("x-next-page", v));
-                res.headers().firstValue("x-total").ifPresent(v -> h.put("x-total", v));
-                return new Response(res.statusCode(), res.body(), h);
-            } catch (Exception e) {
-                String msg = isBlank(e.getMessage())
-                        ? e.getClass().getSimpleName()
-                        : e.getClass().getSimpleName() + ": " + e.getMessage();
-                return new Response(0, msg, Map.of());
-            }
-        }
-
-        /**
-         * Pagination par en-tête : GitLab renvoie la page suivante dans
-         * x-next-page, vide sur la dernière. On ne devine donc pas la fin à
-         * partir de la taille du lot — un lot plein peut être le dernier.
-         */
-        <T> Fetched<T> paged(String path, Map<String, String> params, Class<T> type, int max) {
-            List<T> out = new ArrayList<>();
-            String page = "1";
-            while (!isBlank(page) && out.size() < max) {
-                Map<String, String> p = new LinkedHashMap<>(params);
-                p.put("per_page", "100");
-                p.put("page", page);
-                Response r = get(path, p);
-                if (!r.ok()) {
-                    return new Fetched<>(out, false, "HTTP " + r.status() + " — " + r.errorMessage());
-                }
-                List<T> batch = r.asList(type);
-                if (batch == null) return new Fetched<>(out, false, "réponse illisible");
-                out.addAll(batch);
-                page = r.header("x-next-page");
-            }
-            boolean truncated = out.size() > max || !isBlank(page);
-            return new Fetched<>(out.size() > max ? new ArrayList<>(out.subList(0, max)) : out,
-                    truncated, null);
-        }
-
-        private void dump(String path, String body) {
-            if (dumpDir == null) return;
-            String name = "%03d-%s.json".formatted(calls, path.replaceAll("[^A-Za-z0-9]+", "_"));
-            try {
-                Files.writeString(dumpDir.resolve(name), body == null ? "" : body);
-            } catch (IOException e) {
-                System.err.println("  (capture non écrite : " + e.getMessage() + ")");
-            }
-        }
-
-        private static String queryString(Map<String, String> params) {
-            if (params.isEmpty()) return "";
-            return params.entrySet().stream()
-                    .filter(e -> e.getValue() != null)
-                    .map(e -> enc(e.getKey()) + "=" + enc(e.getValue()))
-                    .collect(Collectors.joining("&", "?", ""));
-        }
-
-        private static SSLContext trustEverything() throws Exception {
-            TrustManager[] trustAll = {new X509TrustManager() {
-                public void checkClientTrusted(X509Certificate[] c, String a) { }
-                public void checkServerTrusted(X509Certificate[] c, String a) { }
-                public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-            }};
-            SSLContext ctx = SSLContext.getInstance("TLS");
-            ctx.init(null, trustAll, new SecureRandom());
-            return ctx;
-        }
+        return Gitlab.isBot(bots, email, name);
     }
 
     // ----------------------------------------------------------------------
@@ -937,7 +758,7 @@ public class GitLabProjectReport implements Callable<Integer> {
                   Stats stats) {
 
         /** Deux parents ou plus : commit de fusion, dont les lignes appartiennent à d'autres. */
-        boolean isMerge() { return parentIds != null && parentIds.size() > 1; }
+        boolean isMerge() { return Gitlab.isMerge(parentIds); }
 
         @JsonIgnoreProperties(ignoreUnknown = true)
         record Stats(Integer additions, Integer deletions, Integer total) { }
@@ -1070,12 +891,7 @@ public class GitLabProjectReport implements Callable<Integer> {
      * et on ramène à l'heure locale pour les calculs d'âge.
      */
     static OffsetDateTime parseOffset(String s) {
-        if (isBlank(s)) return null;
-        try {
-            return OffsetDateTime.parse(s);
-        } catch (RuntimeException e) {
-            return null;
-        }
+        return Gitlab.parse(s);
     }
 
     static LocalDateTime parseLocal(String s) {
@@ -1113,11 +929,8 @@ public class GitLabProjectReport implements Callable<Integer> {
         return "%.1f %s".formatted(v, units[i]);
     }
 
-    /** L'adresse entière déborde de la colonne, et le domaine n'apprend rien. */
-    static String shortEmail(String email) {
-        int at = email.indexOf('@');
-        String local = at < 0 ? email : email.substring(0, at);
-        return truncate(local, 32);
+    static String label(Map<String, String> labels, String identity) {
+        return truncate(labels.getOrDefault(identity, identity), 32);
     }
 
     static Map<String, String> params(String... pairs) {
@@ -1127,7 +940,7 @@ public class GitLabProjectReport implements Callable<Integer> {
     }
 
     static String enc(String s) {
-        return URLEncoder.encode(s, StandardCharsets.UTF_8);
+        return Gitlab.enc(s);
     }
 
     static int orZero(Integer i) { return i == null ? 0 : i; }
