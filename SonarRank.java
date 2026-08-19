@@ -3,6 +3,7 @@
 //DEPS com.opencsv:opencsv:5.9
 //DEPS info.picocli:picocli:4.7.6
 //SOURCES ConsoleOut.java
+//SOURCES Csv.java
 
 import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReaderBuilder;
@@ -17,7 +18,6 @@ import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -605,11 +605,7 @@ public class SonarRank implements Callable<Integer> {
         for (Signal s : Signal.values()) header.add("pct_" + s.column);
         header.addAll(RAW_COLUMNS);
 
-        try (Writer w = writer()) {
-            CSVWriter csv = comma
-                    ? new CSVWriter(w)
-                    : new CSVWriter(w, ';', CSVWriter.DEFAULT_QUOTE_CHARACTER,
-                            CSVWriter.DEFAULT_ESCAPE_CHARACTER, "\r\n");
+        try (CSVWriter csv = Csv.writer(out, comma)) {
             csv.writeNext(header.toArray(String[]::new));
             writeList(csv, "VELOCITE", velocity, true);
             writeList(csv, "DETTE_PORTEE", carrying, false);
@@ -650,17 +646,6 @@ public class SonarRank implements Callable<Integer> {
             for (String col : RAW_COLUMNS) row.add(s.row.str(col));
             csv.writeNext(row.toArray(String[]::new));
         }
-    }
-
-    /**
-     * Sans BOM, Excel sous Windows lit un CSV UTF-8 en ANSI et massacre chaque
-     * accent ; avec un séparateur virgule sous locale française, il empile tout
-     * dans une seule colonne. Les deux à la fois font passer l'outil pour cassé.
-     */
-    private Writer writer() throws IOException {
-        Writer w = Files.newBufferedWriter(out, StandardCharsets.UTF_8);
-        if (!comma) w.write(BOM);
-        return w;
     }
 
     // ----------------------------------------------------------------------

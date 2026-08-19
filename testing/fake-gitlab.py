@@ -82,6 +82,11 @@ def commits_for(pid):
             # Un commit sur cinq sans adresse : l'identité doit retomber sur le nom.
             "author_email": "" if i % 5 == 0 else f"dev{who}@example.com",
             "committed_date": iso(i % 80),
+            # Un revert sur treize, et un « revert » en milieu de phrase qui ne doit
+            # surtout pas compter : le motif est ancré au début du titre.
+            "title": ("Revert \"correction hâtive\"" if i % 13 == 0
+                      else "Documente le revert de la migration" if i % 17 == 0
+                      else f"Modification {i}"),
             # parent_ids parfois absent : le taux de merge doit rester calculable.
             **({"parent_ids": ["a", "b"]} if i % 7 == 0 else {} if i % 11 == 0 else {"parent_ids": ["a"]}),
         })
@@ -94,6 +99,29 @@ def commits_for(pid):
             "parent_ids": ["a"],
         })
     return out
+
+
+def pipelines_for(pid):
+    """
+    Pipelines de la branche par défaut, du plus récent au plus ancien comme le
+    fait GitLab. Le jeu contient les trois cas qui décident du calcul :
+
+      * deux échecs consécutifs séparés par un pipeline annulé — UN incident,
+        pas deux, et l'annulation ne clôt pas la panne ;
+      * un second incident isolé, pour que la médiane porte sur deux durées ;
+      * sur un projet sur deux, un échec final jamais suivi d'un vert : incident
+        réel, durée inconnue, à compter sans l'inventer.
+
+    Incidents attendus : 2 (ou 3), médiane de retour au vert 48 h.
+    """
+    runs = [(40, "success"), (30, "failed"), (29, "canceled"), (28, "failed"),
+            (27, "success"), (10, "failed"), (9, "success"), (2, "success")]
+    if pid % 2 == 1:
+        runs.append((1, "failed"))
+    runs.sort(key=lambda r: -r[0])
+    out = [{"id": pid * 100 + i, "status": st, "created_at": iso(d), "ref": "main"}
+           for i, (d, st) in enumerate(runs)]
+    return list(reversed(out))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -176,7 +204,7 @@ class Handler(BaseHTTPRequestHandler):
         if re.search(r"/merge_requests/\d+/approvals$", path):
             return self._send(200, {"approved_by": [{"user": {"id": 8}}]})
         if path.endswith("/pipelines"):
-            return self._send(200, [{"status": "success" if i % 3 else "failed"} for i in range(9)])
+            return self._send(200, pipelines_for(pid))
         if path.endswith("/environments"):
             return self._send(200, [], {"X-Total": 0 if pid in (4, 11) else 2})
         if path.endswith("/dora/metrics"):

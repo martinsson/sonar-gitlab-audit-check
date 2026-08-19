@@ -12,6 +12,12 @@ It answers four questions:
 Then a second step, `SonarRank.java`, turns that inventory into a shortlist
 without touching the API again.
 
+Two tools read GitLab. `GitlabActivityAudit.java` ranks a whole group by commit
+activity and measures practice on the selection; `GitLabProjectReport.java` takes
+**one** project you already know the path of and reads its working pattern in
+detail — cadence, concentration, review latency. Portfolio first, then one project
+up close.
+
 Java, run with JBang.
 
 There was a parallel Python port. It was removed rather than fixed: it silently
@@ -23,7 +29,9 @@ numbers. See `KNOWLEDGE.md` for what that cost and what it taught.
 
 ## Common use cases
 
-The workflow, in three commands. All read-only.
+The workflow, in four commands. All read-only. The first three walk a portfolio
+down to a shortlist; the fourth is a separate entry point for a project you have
+already picked.
 
 ```bash
 # 1. Sonar: check what the token can see, and inventory the portfolio
@@ -38,7 +46,12 @@ export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxxxxxx
 jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
 ```
 
-Drop `--deep` from the last one to stop after selection — you get the funnel and
+```bash
+# 4. One project you already care about, read closely
+jbang GitLabProjectReport.java --path my/group/project
+```
+
+Drop `--deep` from the third one to stop after selection — you get the funnel and
 the shortlist without the expensive per-project pass.
 
 Each tool's `--help` ends with the rest of the recipes: whole-instance runs,
@@ -298,6 +311,7 @@ Two things worth doing once the file is open, both one click: freeze the header
 row (View → Freeze Panes → Freeze Top Row) and turn on filters (Ctrl+Shift+L).
 Filtering `liste` then `retenu` is the entire intended workflow.
 
+The GitLab CSVs follow the same rule as `classement.csv` — see their own section.
 The inventory CSV from `SonarAuditCheck --csv` is comma-separated machine format
 by design — `SonarRank` reads it, and it sniffs the separator, so an inventory
 that has been through Excel and back still loads. If you want to look at the raw
@@ -385,6 +399,14 @@ itself the finding.
   identities are normalised, and the author count is worth ±1. It feeds a bus
   factor judgement, so it only has to be right about 1 versus 5.
 
+**Where DORA is unavailable.** DORA needs declared environments; on an instance
+that has none, `deploiements` stays empty rather than becoming a zero. Two
+substitutes are computed instead, both from data already fetched, at no extra API
+cost: `retour_au_vert_h`, the median time the default branch stays broken between
+a failing pipeline and the next passing one, and `reverts`, commits whose title
+starts with `Revert`. Neither is labelled DORA, because without a production
+event neither lead time to production nor change failure rate is knowable.
+
 **Absent is not zero, here too.** A 403 on a project's commits is recorded as
 *activité non mesurable*, never as zero commits. Reading a permission gap as
 inactivity would drop exactly the projects most likely to need attention — the
@@ -404,6 +426,11 @@ same failure mode as `search_projects` filtering silently on the Sonar side.
 | `--graphql` | on | Try the batched GraphQL route, fall back to REST |
 | `--deep` | off | Run the practice signals on the selected projects |
 | `--seed` | fixed | Seeds the random control draw, so runs are reproducible |
+| `--comma` | off | Comma-separated, no BOM — for tools rather than Excel |
+
+Both CSVs are written **for Excel by default**, exactly like `classement.csv`:
+semicolon-separated, UTF-8 BOM, CRLF. So `start inventaire.csv` opens with the
+columns split and the accents intact. Pass `--comma` for the machine format.
 
 ### What is Enterprise-only
 
@@ -525,6 +552,164 @@ Prefer it to a mock. A mock replays whatever its author believed the API does;
 if it is written from this README it confirms the README rather than testing it.
 Three of the response behaviours documented above were found only by querying a
 real instance, and a README-derived mock had asserted the opposite.
+
+---
+
+## One project up close: `GitLabProjectReport.java`
+
+Sonar describes the state of the code at analysis time. GitLab describes the
+process that produced it — and for a single project, the process is usually the
+more interesting half. This tool answers one question: **what does the way this
+team works look like?**
+
+It is a separate entry point, not a step in the portfolio pipeline. Three distinct
+use cases:
+
+- *Which Sonar projects are worst?* → `SonarAuditCheck` + `SonarRank`.
+- *Which GitLab projects deserve a look?* → `GitlabActivityAudit`, above.
+- *How does this one project work?* → this tool.
+
+Where `GitlabActivityAudit --deep` produces one row per project — comparable
+across a portfolio, necessarily flat — this one produces a report on a single
+project: distributions rather than means, the ninth decile beside the median, the
+gaps between commits, the hour of day. The two overlap on purpose (bots, merge
+commits, truncation-as-floor are handled the same way in both) and answer
+different questions.
+
+It needs no Sonar at all. A repository that has never been analysed is perfectly
+legible here, and the crossings with Sonar (change frequency against complexity,
+stale against abandoned, quality gate against merged MRs) come later, on top.
+
+### Running it
+
+```bash
+export GITLAB_URL=https://gitlab.example.com     # default: https://gitlab.com
+export GITLAB_TOKEN=glpat_xxxxxxxx               # personal access token, read_api
+
+jbang GitLabProjectReport.java --path group/subgroup/project
+jbang GitLabProjectReport.java --path 918776 --days 365
+jbang GitLabProjectReport.java --path https://gitlab.com/group/proj/-/tree/main
+```
+
+The path accepts what you have in front of you: a namespace path, a numeric id,
+or a browser URL — the `/-/tree/main` tail and a trailing `.git` are stripped.
+Everything is a GET. A run is 5-20 calls plus one per 100 commits and one per
+sampled merge request.
+
+The token may be omitted for a **public** project, which is how the tool is
+verified against a real instance without owning one. It is not an audit mode:
+merge request notes return 401 anonymously, so the review-delay section goes
+missing — reported, not silently dropped.
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--url` | `$GITLAB_URL`, else gitlab.com | Instance URL |
+| `--token` | `$GITLAB_TOKEN` | PAT, `read_api` scope; optional on a public project |
+| `--path` | — | `group/sub/project`, a numeric id, or a URL (required) |
+| `--days` | 180 | Observation window |
+| `--max-commits` | 5000 | Cap on commits fetched |
+| `--max-mrs` | 500 | Cap on merge requests fetched |
+| `--sample` | 30 | MRs sampled for review latency (one call each) |
+| `--include-bots` | off | Count bots as contributors |
+| `--bot-pattern` | see below | Regex identifying bots |
+| `--dump-dir` | — | Log every raw API response here |
+| `--timeout` | 30 | Per-request timeout, seconds |
+| `--insecure` | off | Skip TLS validation |
+
+### What it measures
+
+Five sections: the project, cadence, contributors, merge requests, and findings.
+
+**Cadence** — commits per week, days with any commit, median gap and longest
+silence, weekday distribution, weekend share, share outside 8h-19h *in the
+author's own timezone offset* rather than the auditor's. Then commit size
+(median, ninth decile, share above 2000 lines) and **lines touched over net
+lines**: the net figure hides rework, since a file rewritten five times moves
+nothing.
+
+**Contributors** — distinct authors, the bus factor (how many people it takes to
+cover 80% of commits), the top author's share, and how many were still active
+recently. Identity is the email address, the only stable key; the count of
+distinct *names* is printed alongside, because the gap between the two is itself
+the signal.
+
+**Merge requests** — created, merged, closed; lead time from creation to merge
+(median and ninth decile); share with no comment at all; share merged by their
+own author; squash rate. Then, on a sample, the delay until the first review
+comment by someone other than the author.
+
+**Findings** — nothing new is computed here. The section rereads the three above
+and keeps what stands out. The thresholds are coarse and meant to be: they orient
+a conversation, they do not grade a team.
+
+### Traps, and what a live run confirmed
+
+Verified against gitlab.com, not against the documentation:
+
+- **Merge commits are not work.** They carry no lines of their own and their date
+  is the moment someone clicked *merge*, so counting them crowns the maintainer
+  top contributor. On `gitlab-org/cli`, excluding them moved the top author from
+  35% to 26% — and changed who it was. Every measurement here excludes them,
+  detected via `parent_ids` having more than one entry.
+- **Notes require a token, even on a public project** — 401, where the project,
+  commits and contributors endpoints all answer anonymously.
+- **`statistics=true` is ignored below Reporter**, silently: no error, the field
+  is simply absent. Absent is reported as absent, never as zero.
+- **Bots dominate if unfiltered.** Renovate and friends finish first contributor
+  and distort cadence, concentration and commit size alike. The default pattern is
+  shared with the portfolio pass and deliberately narrow — `bot` glued to other
+  letters would catch *Abbot* — and the identities it excludes are printed, not
+  hidden.
+- **Pagination is by header.** `x-next-page` is empty on the last page; a full
+  batch can be the last one, so batch size cannot be used to detect the end.
+- **A cap changes the denominator.** When `--max-commits` or `--max-mrs` is hit,
+  the rate is computed over the span actually covered, not over `--days`, and says
+  so. Otherwise a truncated fetch reads as a slow team.
+- **Squash destroys per-commit history.** Where the squash rate is high, the
+  commit timestamps are merge times and the cadence measures the merge button. The
+  findings section says this rather than letting the numbers imply otherwise.
+- **Dates carry an offset** (`2026-08-18T09:12:33.000+02:00`). Hour-of-day is read
+  in that offset — the committer's local time — while ages are normalised to local
+  time.
+
+### What the two GitLab tools share
+
+`Gitlab.java` holds the HTTP client and three conventions. Both tools include it
+with `//SOURCES`, the way all three include `ConsoleOut.java`.
+
+It exists because the two tools were written separately and independently agreed
+on the three traps that matter — bots, merge commits, and a capped page count
+that has to read as a floor rather than a total. Two accidental agreements do not
+survive the first fix applied to one side only, so the agreement is now written
+down once:
+
+- **`BOT_PATTERN`** — the union of the two patterns each tool had given itself.
+- **`identity(email, name)`** — the local part of the address, falling back to the
+  name, both normalised into one namespace. Without that last step a commit signed
+  `Dev 0` with no address and one from `dev0@example.com` count as two people, and
+  the bus factor silently doubles.
+- **`isMerge(commit)`** — more than one parent. No lines of its own, and dated by
+  whoever pressed *merge*.
+
+The client itself is the union too: the retry on 429 honouring `Retry-After`, the
+`HEAD` existence probe and the GraphQL call come from the portfolio pass; the
+typed pagination that reports truncation as distinct from refusal comes from the
+per-project one.
+
+They still differ where they should. The portfolio pass counts merge commits
+inside `commits_window`; the per-project report excludes them everywhere. That is
+a live disagreement, not an oversight — one ranks, the other attributes — but it
+means `commits_per_week` is not comparable between a project that merges and one
+that squashes.
+
+### Not yet done
+
+The Sonar crossing. Resolving a Sonar project key from the GitLab path
+(`sonar-project.properties` and `.gitlab-ci.yml` first, then a guess against the
+Sonar project list, then asking), and on top of it: change frequency against
+complexity per file, exclusions against the real repository size, quality gate
+events against what was merged anyway, and `GIT_DEPTH` in CI against Sonar's empty
+blame.
 
 ## Licence
 
