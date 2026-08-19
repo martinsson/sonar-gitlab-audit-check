@@ -875,6 +875,11 @@ public class GitlabActivityAudit implements Callable<Integer> {
 
         DeepPass(List<Proj> all) {
             this.selected = all.stream().filter(p -> p.selected).toList();
+            for (Proj p : all) {
+                if (p.path != null && !p.path.isEmpty()) {
+                    projPathToId.put(p.path, String.valueOf(p.id));
+                }
+            }
         }
 
         void run() throws IOException {
@@ -1008,6 +1013,9 @@ public class GitlabActivityAudit implements Callable<Integer> {
         private static final List<String> WATCHED = List.of(
                 ".gitlab-ci.yml", "README.md", "CODEOWNERS", "Dockerfile", "renovate.json");
 
+        /** Cache de résolution project_path -> ID, rempli au fur et à mesure. */
+        private final java.util.Map<String, String> projPathToId = new java.util.HashMap<>();
+
         private void files(Proj p, Prat r) {
             for (String f : WATCHED) {
                 if (gl.exists("projects/" + p.id + "/repository/files/" + enc(f),
@@ -1019,12 +1027,84 @@ public class GitlabActivityAudit implements Callable<Integer> {
             Response raw = gl.get("projects/" + p.id + "/repository/files/"
                     + enc(".gitlab-ci.yml") + "/raw", Map.of("ref", p.defaultBranch));
             if (raw.status() != 200 || raw.body() == null) return;
-            String ci = raw.body().toLowerCase(Locale.ROOT);
-            // « CI configurée pour lancer Sonar » est un fait sur l'intention qui
-            // tient avec ou sans jointure réussie avec le parc SonarQube.
-            r.ciSonar = ci.contains("sonar");
-            r.ciSecurity = ci.contains("sast") || ci.contains("secret-detection")
-                    || ci.contains("dependency-scanning");
+            String ci = raw.body();
+            String ciLower = ci.toLowerCase(Locale.ROOT);
+            // Si le mot-clé est déjà dans le fichier brut, pas besoin de résoudre les includes.
+            if (ciLower.contains("sonar") || ciLower.contains("sast")
+                    || ciLower.contains("secret-detection")
+                    || ciLower.contains("dependency-scanning")) {
+                r.ciSonar = ciLower.contains("sonar");
+                r.ciSecurity = ciLower.contains("sast") || ciLower.contains("secret-detection")
+                        || ciLower.contains("dependency-scanning");
+                return;
+            }
+            // Le fichier brut ne contient aucun mot-clé : extraire uniquement les
+            // inclusions cross-projet et scanner leur contenu (sans les télécharger
+            // si elles ne sont pas pertinentes).
+            r.ciSonar = scanProjectIncludesFor(ci, p.defaultBranch, p.id, "sonar");
+            r.ciSecurity = scanProjectIncludesFor(ci, p.defaultBranch, p.id, "sast")
+                    || scanProjectIncludesFor(ci, p.defaultBranch, p.id, "secret-detection")
+                    || scanProjectIncludesFor(ci, p.defaultBranch, p.id, "dependency-scanning");
+        }
+
+        /**
+         * Extrait les directives .include: project:/file: du YAML, télécharge
+         * uniquement les fichiers inclus et retourne true si l'un d'eux contient
+         * le mot-clé cherché. S'arrête au premier match (short-circuit).
+         */
+        private boolean scanProjectIncludesFor(String ci, String ref, long projectId,
+                                               String keyword) {
+            java.util.regex.Pattern projectInclude = java.util.regex.Pattern.compile(
+                    "-\\s*project:\\s*(\\S+).*ref:\\s*(\\S+).*file:\\s*(\\S+)", java.util.regex.Pattern.DOTALL);
+            java.util.regex.Matcher m = projectInclude.matcher(ci);
+            while (m.find()) {
+                String projPath = m.group(1).replaceAll("^['\"]|['\"]$", "");
+                String incRef = m.group(2).replaceAll("^['\"]|['\"]$", "");
+                String incFile = m.group(3).replaceAll("^['\"]|['\"]$", "");
+                String projIdStr = resolveProjectPathCached(projPath);
+                if (projIdStr == null) {
+    
+                    continue;
+                }
+                Response fileRaw = gl.get("projects/" + enc(projIdStr)
+                        + "/repository/files/" + enc(incFile) + "/raw",
+                        Map.of("ref", incRef));
+                if (fileRaw.status() == 200 && fileRaw.body() != null) {
+                    if (fileRaw.body().toLowerCase(Locale.ROOT).contains(keyword)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /**
+         * Résout le path complet d'un projet GitLab en son ID numérique,
+         * avec cache pour éviter de refaire la même requête API.
+         */
+        private String resolveProjectPathCached(String projPath) {
+            if (projPathToId.containsKey(projPath)) {
+                String cached = projPathToId.get(projPath);
+                return cached.isEmpty() ? null : cached;
+            }
+            try {
+                Long.parseLong(projPath);
+                projPathToId.put(projPath, projPath);
+                return projPath;
+            } catch (NumberFormatException ignored) {
+            }
+            Response proj = gl.get("projects/" + enc(projPath), Map.of("per_page", "1"));
+            if (proj.status() == 200 && proj.body() != null) {
+                try {
+                    JsonNode node = proj.json();
+                    String id = String.valueOf(node.path("id").asLong());
+                    projPathToId.put(projPath, id);
+                    return id;
+                } catch (Exception ignored) {
+                }
+            }
+            projPathToId.put(projPath, "");
+            return null;
         }
 
         /**
