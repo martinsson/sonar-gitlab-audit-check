@@ -12,9 +12,11 @@ It answers four questions:
 Then a second step, `SonarRank.java`, turns that inventory into a shortlist
 without touching the API again.
 
-A separate entry point, `GitLabProjectReport.java`, looks at **one** project from
-the GitLab side instead — cadence, concentration, review — for when you already
-know which repository you care about. See *The GitLab half*, below.
+Two tools read GitLab. `GitlabActivityAudit.java` ranks a whole group by commit
+activity and measures practice on the selection; `GitLabProjectReport.java` takes
+**one** project you already know the path of and reads its working pattern in
+detail — cadence, concentration, review latency. Portfolio first, then one project
+up close.
 
 Java, run with JBang.
 
@@ -27,7 +29,9 @@ numbers. See `KNOWLEDGE.md` for what that cost and what it taught.
 
 ## Common use cases
 
-The workflow, in three commands. All read-only.
+The workflow, in four commands. All read-only. The first three walk a portfolio
+down to a shortlist; the fourth is a separate entry point for a project you have
+already picked.
 
 ```bash
 # 1. Sonar: check what the token can see, and inventory the portfolio
@@ -42,7 +46,12 @@ export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxxxxxx
 jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
 ```
 
-Drop `--deep` from the last one to stop after selection — you get the funnel and
+```bash
+# 4. One project you already care about, read closely
+jbang GitLabProjectReport.java --path my/group/project
+```
+
+Drop `--deep` from the third one to stop after selection — you get the funnel and
 the shortlist without the expensive per-project pass.
 
 Each tool's `--help` ends with the rest of the recipes: whole-instance runs,
@@ -532,18 +541,26 @@ real instance, and a README-derived mock had asserted the opposite.
 
 ---
 
-## The GitLab half: `GitLabProjectReport.java`
+## One project up close: `GitLabProjectReport.java`
 
 Sonar describes the state of the code at analysis time. GitLab describes the
 process that produced it — and for a single project, the process is usually the
 more interesting half. This tool answers one question: **what does the way this
 team works look like?**
 
-It is a separate entry point, not a step in the portfolio pipeline. Two distinct
+It is a separate entry point, not a step in the portfolio pipeline. Three distinct
 use cases:
 
-- *I want the worst projects in the portfolio* → `SonarAuditCheck` + `SonarRank`.
-- *I care about this one project, and I know its GitLab path* → this tool.
+- *Which Sonar projects are worst?* → `SonarAuditCheck` + `SonarRank`.
+- *Which GitLab projects deserve a look?* → `GitlabActivityAudit`, above.
+- *How does this one project work?* → this tool.
+
+Where `GitlabActivityAudit --deep` produces one row per project — comparable
+across a portfolio, necessarily flat — this one produces a report on a single
+project: distributions rather than means, the ninth decile beside the median, the
+gaps between commits, the hour of day. The two overlap on purpose (bots, merge
+commits, truncation-as-floor are handled the same way in both) and answer
+different questions.
 
 It needs no Sonar at all. A repository that has never been analysed is perfectly
 legible here, and the crossings with Sonar (change frequency against complexity,
