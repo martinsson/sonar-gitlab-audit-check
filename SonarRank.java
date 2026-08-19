@@ -1,7 +1,8 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//JAVA 21
+//JAVA 25
 //DEPS com.opencsv:opencsv:5.9
 //DEPS info.picocli:picocli:4.7.6
+//SOURCES ConsoleOut.java
 
 import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReaderBuilder;
@@ -48,7 +49,29 @@ import java.util.stream.Collectors;
  *   jbang SonarRank.java --in projets.csv            # produit le classement
  */
 @Command(name = "SonarRank", mixinStandardHelpOptions = true,
-        description = "Classement de première passe à partir du CSV d'inventaire.")
+        sortOptions = false, usageHelpAutoWidth = true,
+        description = "Classement de première passe à partir du CSV d'inventaire.",
+        synopsisHeading = "",
+        customSynopsis = {
+            "Usage : SonarRank --in <inventaire.csv> [--out <classement.csv>] [options]",
+        },
+        footer = {
+            "",
+            "Cas d'usage courants :",
+            "",
+            "  Le classement, à partir du CSV produit par SonarAuditCheck --csv :",
+            "    SonarRank --in inventaire.csv",
+            "",
+            "  Une shortlist plus large, sur un parc où le décile ne suffit pas :",
+            "    SonarRank --in inventaire.csv --top-percent 20",
+            "",
+            "  Pour un outil plutôt qu'Excel — virgules, sans BOM :",
+            "    SonarRank --in inventaire.csv --out classement.csv --comma",
+            "",
+            "Aucun appel API : le fichier d'entrée suffit, donc relancer avec",
+            "d'autres seuils est gratuit. Colonnes de sortie : COLUMNS.md.",
+            "Filtrer 'liste', puis 'retenu' = O pour la shortlist.",
+        })
 public class SonarRank implements Callable<Integer> {
 
     // ----------------------------------------------------------------------
@@ -87,11 +110,12 @@ public class SonarRank implements Callable<Integer> {
             description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
     boolean comma;
 
+    @Option(names = "--color", defaultValue = "auto",
+            description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
+    String colorMode;
+
     public static void main(String[] args) {
-        System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true,
-                StandardCharsets.UTF_8));
-        System.setErr(new PrintStream(new FileOutputStream(FileDescriptor.err), true,
-                StandardCharsets.UTF_8));
+        ConsoleOut.install();
         // Un CSV illisible est le cas d'erreur courant ici : une trace de pile
         // n'y apprend rien à personne, la ligne de message si.
         int code = new CommandLine(new SonarRank())
@@ -112,6 +136,7 @@ public class SonarRank implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
+        ConsoleOut.colorMode(colorMode);
         List<Row> rows = readInventory(in);
         if (rows.isEmpty()) {
             System.err.println("Aucune ligne exploitable dans " + in);
@@ -651,7 +676,7 @@ public class SonarRank implements Callable<Integer> {
     static final String RESET = ESC + "[0m";
 
     static String c(String s, String color) {
-        return color.isEmpty() ? s : color + s + RESET;
+        return color.isEmpty() ? s : ConsoleOut.color(s, color);
     }
 
     static void title(String text) {

@@ -1,8 +1,9 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//JAVA 21
+//JAVA 25
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.17.2
 //DEPS com.opencsv:opencsv:5.9
 //DEPS info.picocli:picocli:4.7.6
+//SOURCES ConsoleOut.java
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -57,7 +58,32 @@ import java.util.stream.Collectors;
  *   jbang SonarAuditCheck.java --dump-dir ./captures        # captures brutes
  */
 @Command(name = "SonarAuditCheck", mixinStandardHelpOptions = true,
-        description = "Diagnostic d'accès Sonar avant audit de parc.")
+        sortOptions = false, usageHelpAutoWidth = true,
+        description = "Diagnostic d'accès Sonar avant audit de parc.",
+        synopsisHeading = "",
+        customSynopsis = {
+            "Usage : SonarAuditCheck [--csv <fichier>] [options]",
+        },
+        footer = {
+            "",
+            "Cas d'usage courants :",
+            "",
+            "  Vérifier l'accès avant de commencer — aucun fichier écrit :",
+            "    SonarAuditCheck",
+            "",
+            "  Le diagnostic et l'inventaire du parc, en un passage :",
+            "    SonarAuditCheck --csv inventaire.csv",
+            "",
+            "  Puis le classement, qui ne rappelle pas l'API :",
+            "    SonarRank --in inventaire.csv --out classement.csv",
+            "",
+            "  SonarQube Cloud :",
+            "    SonarAuditCheck --organization mon-org --csv inventaire.csv",
+            "",
+            "SONAR_URL et SONAR_TOKEN peuvent remplacer --url et --token. Le jeton",
+            "doit être de type 'User' (squ_...), pas un jeton d'analyse.",
+            "Colonnes du CSV : COLUMNS.md. Méthode de classement : ANALYSIS.md.",
+        })
 public class SonarAuditCheck implements Callable<Integer> {
 
     // ----------------------------------------------------------------------
@@ -99,23 +125,13 @@ public class SonarAuditCheck implements Callable<Integer> {
     @Option(names = "--insecure", description = "ignorer la validation TLS")
     boolean insecure;
 
-    public static void main(String[] args) {
-        forceUtf8Output();
-        System.exit(new CommandLine(new SonarAuditCheck()).execute(args));
-    }
+    @Option(names = "--color", defaultValue = "auto",
+            description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
+    String colorMode;
 
-    /**
-     * Toute l'interface est en français. Or {@code stdout.encoding} retombe sur
-     * l'encodage natif dès que la sortie est redirigée : sous une locale C — le
-     * cas courant dans un conteneur CI, où LANG n'est pas défini — cela vaut
-     * ANSI_X3.4-1968 et chaque accent est remplacé par un '?'. On impose donc
-     * UTF-8 sur stdout/stderr plutôt que de dépendre de l'environnement.
-     */
-    private static void forceUtf8Output() {
-        System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true,
-                StandardCharsets.UTF_8));
-        System.setErr(new PrintStream(new FileOutputStream(FileDescriptor.err), true,
-                StandardCharsets.UTF_8));
+    public static void main(String[] args) {
+        ConsoleOut.install();
+        System.exit(new CommandLine(new SonarAuditCheck()).execute(args));
     }
 
     // ----------------------------------------------------------------------
@@ -126,6 +142,7 @@ public class SonarAuditCheck implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
+        ConsoleOut.colorMode(colorMode);
         if (isBlank(url) || isBlank(token)) {
             System.err.println("SONAR_URL et SONAR_TOKEN sont requis "
                     + "(variables d'env ou --url/--token).");
@@ -999,8 +1016,6 @@ public class SonarAuditCheck implements Callable<Integer> {
 
     static final String BOLD = "\033[1m", DIM = "\033[2m", RESET = "\033[0m";
     static final String GREEN = "\033[32m", RED = "\033[31m", YELLOW = "\033[33m";
-    static final boolean NO_COLOR =
-            System.console() == null || System.getenv("NO_COLOR") != null;
 
     enum Verdict {
         OK(GREEN, "OK      "),
@@ -1018,7 +1033,7 @@ public class SonarAuditCheck implements Callable<Integer> {
     }
 
     static String c(String text, String color) {
-        return NO_COLOR ? text : color + text + RESET;
+        return ConsoleOut.color(text, color);
     }
 
     static void title(String text) {

@@ -25,6 +25,31 @@ numbers. See `KNOWLEDGE.md` for what that cost and what it taught.
 
 ---
 
+## Common use cases
+
+The workflow, in three commands. All read-only.
+
+```bash
+# 1. Sonar: check what the token can see, and inventory the portfolio
+export SONAR_URL=https://sonar.example.com SONAR_TOKEN=squ_xxxxxxxx
+jbang SonarAuditCheck.java --csv inventaire.csv
+
+# 2. Rank it. No API calls, so re-run freely with different thresholds
+jbang SonarRank.java --in inventaire.csv --out classement.csv
+
+# 3. GitLab: rank by commit activity, then measure practice on the selection
+export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxxxxxx
+jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
+```
+
+Drop `--deep` from the last one to stop after selection — you get the funnel and
+the shortlist without the expensive per-project pass.
+
+Each tool's `--help` ends with the rest of the recipes: whole-instance runs,
+project lists, longer windows, SonarQube Cloud.
+
+---
+
 ## Why this exists
 
 Auditing a SonarQube portfolio usually means ranking projects by technical debt.
@@ -137,7 +162,7 @@ sonar-audit-check --csv projects.csv
 
 ### Without JBang
 
-If JBang is not an option (locked-down machine, air-gapped CI), any JDK 21+ and
+If JBang is not an option (locked-down machine, air-gapped CI), any JDK 25+ and
 Maven will do. The `//DEPS` lines at the top of the file are the three
 dependencies; Maven needs them in a POM to resolve their transitives, so write
 a throwaway one:
@@ -285,6 +310,153 @@ set the origin to UTF-8.
 
 On macOS or Linux, `open classement.csv` and `xdg-open classement.csv`
 respectively.
+
+---
+
+## The GitLab side: `GitlabActivityAudit.java`
+
+SonarQube answers *what is the code like*. It cannot answer *how is it being
+worked on*, and it says nothing at all about projects that were never onboarded
+— which, on the portfolio this was built against, is 26% of them.
+
+`GitlabActivityAudit.java` is the second half. It ranks projects by **commit
+activity**, picks the ~200 worth a deep look, and then measures practice on
+those. The full method is in `GITLAB_ANALYSIS.md`; the short version:
+
+```bash
+export GITLAB_URL=https://gitlab.example.com
+export GITLAB_TOKEN=glpat-xxxxxxxx          # read_api scope is enough
+
+# One run, one directory: inventaire.csv + pratiques.csv
+jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
+
+# Selection only, no practice signals — cheaper, and enough to size the work
+jbang GitlabActivityAudit.java --group my/group --out-dir ./audit
+```
+
+**The two files are read together.** `pratiques.csv` holds only the selected
+projects; `inventaire.csv` holds the portfolio they were drawn from, with every
+exclusion and its reason. A percentage computed from the practices file alone
+has no population behind it, which is why asking for practices now writes the
+inventory beside it whether or not you asked for one.
+
+**Two reports, not one.** The GitLab report is complete and publishable without
+a single Sonar project matched to it. Joining the two is an overlay attempted
+after both exist — never a precondition for either. Match rates on this kind of
+join are poor, and an analysis that collapses when the join fails is not worth
+building.
+
+**Why a funnel.** The deep pass costs ~25 calls per project. Run naively over
+2000 projects that is 50k calls and a report nobody reads. The funnel spends
+~90–850 calls to choose who earns the deep pass:
+
+| Stage | Cost | What it does |
+|---|---|---|
+| 0 — inventory | ~20 calls | archived, empty, mirrors, undiverged forks, 403s — all counted |
+| 1 — recency gate | free | `last_activity_at` older than the window |
+| 2 — real commit volume | ~40 (GraphQL) or ~800 (REST) | commits, authors, merge ratio, spread |
+| 3 — activity floor | free | below it, the deep signals are arithmetic on noise |
+| 4 — quota selection | free | strata, namespace cap, bus-factor slots, random control |
+
+**`last_activity_at` is a filter, never a ranking.** Any issue comment moves it,
+so a dead repo with a chatty tracker reads as active. But it fails in the *safe*
+direction — it is inflated by non-commit events, so anything with commits in the
+window necessarily has a recent `last_activity_at`. It over-includes; it does not
+under-include. That makes it worthless for ranking and exactly right for
+excluding, and it is the largest single cut in the pipeline, for free.
+
+The tool does not ask you to take that on faith. It samples projects from
+*below* the cut, counts their commits for real, and reports the false-negative
+rate. Zero means the gate holds. Non-zero gives you a number to publish instead
+of an assumption.
+
+**Quota, not top-N.** Taking the 200 busiest projects is the same mistake as
+ranking Sonar projects by `sqale_index`: you get the big active monoliths of two
+or three teams and learn what you already knew. The budget is spent instead
+across size strata, with a namespace cap, dedicated slots for single-author
+high-activity projects, and a **random control sample**. The control slice is
+what lets the final report say "practice coverage is X among the selected, Y
+among a random draw of the rest" — and if those diverge, the selection rule is
+itself the finding.
+
+**Three ways commit counts lie**, all handled explicitly:
+
+- *Squash-merge teams look 5–10× less active.* Merged-MR counts are carried
+  alongside, so the two can be read together.
+- *Bots inflate.* Renovate and friends are filtered, but counted separately — a
+  repo whose only activity is Renovate is a finding, not an empty row.
+- *Author identity fragments.* One person commits under several addresses;
+  identities are normalised, and the author count is worth ±1. It feeds a bus
+  factor judgement, so it only has to be right about 1 versus 5.
+
+**Absent is not zero, here too.** A 403 on a project's commits is recorded as
+*activité non mesurable*, never as zero commits. Reading a permission gap as
+inactivity would drop exactly the projects most likely to need attention — the
+same failure mode as `search_projects` filtering silently on the Sonar side.
+
+### Options
+
+| Option | Default | What it does |
+|---|---|---|
+| `--out-dir` | — | Write `inventaire.csv`, and `pratiques.csv` with `--deep` |
+| `--csv`, `--pratiques` | — | Explicit paths, if the standard names do not suit |
+| `--group` | — | Scope to one group; instance-wide otherwise |
+| `--since` | 90 | Activity window, in days |
+| `--top` | 200 | Deep-analysis budget, spent by quota |
+| `--floor` | derived | Activity floor; `-1` derives it from the distribution |
+| `--validation-sample` | 30 | Projects drawn below the recency gate to validate it |
+| `--graphql` | on | Try the batched GraphQL route, fall back to REST |
+| `--deep` | off | Run the practice signals on the selected projects |
+| `--seed` | fixed | Seeds the random control draw, so runs are reproducible |
+
+### What is Enterprise-only
+
+Approvals, DORA and push rules need Enterprise. The tool reads
+`api/v4/metadata` up front and says which plan it found, because discovering it
+after designing the analysis is the expensive mistake. On Community the
+approval columns stay empty rather than being silently replaced by a proxy.
+
+Two data-availability traps are reported as findings rather than scores: DORA
+reads zero for a project that deploys daily without a registered environment,
+and *no vulnerabilities* renders identically to *no scanning*.
+
+---
+
+## Running under PowerShell
+
+The output is in French, and the console encoding is not a cosmetic detail — it
+is the difference between a readable report and a page of mojibake. Two halves
+of the problem pull in opposite directions, and fixing one alone breaks the
+other.
+
+**Redirected** (file, pipe, CI): `stdout.encoding` falls back to the native
+encoding. Under a C locale — the norm in a container where `LANG` is unset —
+that is ANSI_X3.4-1968 and every accent becomes `?`. So the output must be
+forced to UTF-8 there.
+
+**A Windows terminal**: PowerShell renders using the console code page, usually
+cp850 or cp1252, never UTF-8 unless you have run `chcp 65001` first. Sending it
+UTF-8 produces exactly the reported symptom — `Ã©` where `é` belongs.
+
+The tools therefore write in the *console's* encoding when talking to a
+terminal, and in UTF-8 as soon as the output is redirected. All French accents
+exist in cp850 and cp1252, so they survive. Characters a legacy code page has
+never heard of — `—`, `≥`, `→`, `…` — are transliterated to ASCII rather than
+replaced by `?`.
+
+You do not need `chcp 65001`. If you prefer it, it works too: the console then
+reports UTF-8 and the tools use it.
+
+ANSI colours are the second Windows symptom. conhost does not interpret them
+until a program enables VT mode, so PowerShell 5.1 shows literal `←[1m`. Colour
+is therefore off by default on Windows unless the emulator announces itself
+(Windows Terminal, ConEmu, ANSICON). Override with `--color always|never`, or
+set `NO_COLOR` to silence it everywhere.
+
+`ConsoleOut.java` holds this logic for all three scripts and is pulled in with
+JBang's `//SOURCES`. Running without JBang, pass it to `javac` alongside the
+script, or let `java GitlabActivityAudit.java` resolve it — JDK 25 compiles
+neighbouring source files on its own.
 
 ---
 
