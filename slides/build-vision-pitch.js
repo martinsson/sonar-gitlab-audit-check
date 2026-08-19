@@ -136,7 +136,7 @@ function card(slide, x, y, w, h, fill, opts) {
       { text: "We are not flying blind. ", options: { bold: true, color: INK } },
       { text: "We do get signal — from demos, from testers, from QA.", options: {} },
     ],
-    { x: M, y: 2.25, w: 5.3, h: 0.8, fontFace: BODY, fontSize: 16, color: SLATE, lineSpacing: 24, margin: 0 }
+    { x: M, y: 2.25, w: 5.3, h: 0.8, fontFace: BODY, fontSize: 16, color: SLATE, lineSpacing: 24, valign: "top", margin: 0 }
   );
   s.addText(
     "But it is thin, and it arrives after the big decisions have already been locked. By the time we learn something, " +
@@ -221,7 +221,7 @@ function card(slide, x, y, w, h, fill, opts) {
 
   const cy = 2.35, ch = 1.9;
   card(s, M, cy, 4.5, ch, TINT);
-  s.addText("Technical quality", { x: M + 0.35, y: cy + 0.3, w: 3.8, h: 0.4, fontFace: HEAD, fontSize: 21, bold: true, color: INK, margin: 0 });
+  s.addText("Technical quality", { x: M + 0.35, y: cy + 0.3, w: 3.8, h: 0.4, fontFace: HEAD, fontSize: 21, bold: true, color: INK, valign: "top", margin: 0 });
   s.addText("Change stays cheap and safe to make, for as long as the product is alive.", {
     x: M + 0.35, y: cy + 0.82, w: 3.8, h: 0.85, fontFace: BODY, fontSize: 13.5, color: SLATE, lineSpacing: 19, valign: "top", margin: 0,
   });
@@ -284,7 +284,7 @@ function card(slide, x, y, w, h, fill, opts) {
     card(s, x, y, cw, chh, TINT);
     ring(s, x + 0.34, y + 0.34, 0.26, ACCENT, 1.5);
     s.addText(it[0], { x: x + 0.82, y: y + 0.2, w: cw - 1.1, h: 0.32, fontFace: BODY, fontSize: 14.5, bold: true, color: INK, valign: "top", margin: 0 });
-    s.addText(it[1], { x: x + 0.82, y: y + 0.56, w: cw - 1.1, h: 0.55, fontFace: BODY, fontSize: 12.5, color: SLATE, lineSpacing: 16, margin: 0 });
+    s.addText(it[1], { x: x + 0.82, y: y + 0.56, w: cw - 1.1, h: 0.55, fontFace: BODY, fontSize: 12.5, color: SLATE, lineSpacing: 16, valign: "top", margin: 0 });
   });
 
   card(s, M, 5.32, W - 2 * M, 1.28, WHITE, { line: { color: ACCENT, width: 1.25, dashType: "dash" } });
@@ -313,9 +313,9 @@ function card(slide, x, y, w, h, fill, opts) {
   // widening groups visual — full width
   const bx = M, by = 2.05, bh = 0.58, gap = 0.24;
   const rows = [
-    ["Slice 1", "the team, testers, a handful of willing users", 3.4],
-    ["Slice 2", "one office, one user group, one region", 5.6],
-    ["Slice 3", "everyone", 8.2],
+    ["Slice 1", "the team, testers, a handful of willing users", 4.0],
+    ["Slice 2", "one office, one user group, one region", 6.5],
+    ["Slice 3", "everyone", 9.4],
   ];
   rows.forEach(function (r, i) {
     const y = by + i * (bh + gap);
@@ -325,13 +325,13 @@ function card(slide, x, y, w, h, fill, opts) {
       color: i === 2 ? WHITE : INK, valign: "middle", margin: 0,
     });
     s.addText(r[1], {
-      x: bx + r[2] + 0.25, y: y, w: 4.0, h: bh, fontFace: BODY, fontSize: 12.5, color: SLATE, valign: "middle", margin: 0,
+      x: bx + r[2] + 0.32, y: y, w: Math.min(3.9, 12.45 - (bx + r[2] + 0.32)), h: bh, fontFace: BODY, fontSize: 12.5, color: SLATE, valign: "middle", margin: 0,
     });
   });
   const ay = by + 3 * (bh + gap) + 0.04;
-  arrowLine(s, bx, ay, bx + 8.2, ay, { color: MUTED, width: 1.25 });
+  arrowLine(s, bx, ay, bx + 9.4, ay, { color: MUTED, width: 1.25 });
   s.addText("a widening group of users", {
-    x: bx, y: ay + 0.1, w: 8.2, h: 0.3, fontFace: BODY, fontSize: 11, italic: true, color: MUTED, align: "right", valign: "top", margin: 0,
+    x: bx, y: ay + 0.1, w: 9.4, h: 0.3, fontFace: BODY, fontSize: 11, italic: true, color: MUTED, align: "right", valign: "top", margin: 0,
   });
 
   s.addText(
@@ -339,7 +339,7 @@ function card(slide, x, y, w, h, fill, opts) {
       { text: "Progressive delivery. ", options: { bold: true, color: INK } },
       { text: "The unit of release stops being “the feature, finished” and becomes “the smallest slice that is genuinely useful to someone.” Each slice is a question we get an answer to.", options: {} },
     ],
-    { x: M, y: 5.2, w: 6.15, h: 1.5, fontFace: BODY, fontSize: 14, color: SLATE, lineSpacing: 21, margin: 0 }
+    { x: M, y: 5.2, w: 6.15, h: 1.5, fontFace: BODY, fontSize: 14, color: SLATE, lineSpacing: 21, valign: "top", margin: 0 }
   );
 
   // prototyping
@@ -372,7 +372,7 @@ function card(slide, x, y, w, h, fill, opts) {
   s.addText(
     "Low test coverage tells us something is wrong. High test coverage tells us almost nothing. Above the floor, " +
     "practices are candidates rather than commandments — picked by a team, tested against a measure declared upfront, published.",
-    { x: M, y: 1.66, w: 11.4, h: 0.62, fontFace: BODY, fontSize: 13.5, color: MUTED, lineSpacing: 19, margin: 0 }
+    { x: M, y: 1.66, w: 11.4, h: 0.62, fontFace: BODY, fontSize: 13.5, color: MUTED, lineSpacing: 19, valign: "top", margin: 0 }
   );
 
   // four columns; y positions are explicit so nothing can collide
@@ -387,19 +387,19 @@ function card(slide, x, y, w, h, fill, opts) {
       ],
     },
     {
-      x: 4.72, w: 2.6, head: "VALIDATED", color: INK,
+      x: 4.55, w: 2.55, head: "VALIDATED", color: INK,
       groups: [[2.86, "Delivery and flow", 3.16,
         ["trunk-based development, short-lived branches", "feature flags — deployment decoupled from release", "continuous deployment to staging and demo"]]],
     },
     {
-      x: 7.72, w: 2.6, head: "PROMISING", color: INK,
+      x: 7.5, w: 2.55, head: "PROMISING", color: INK,
       groups: [
         [2.86, "Craft", 3.16, ["TDD", "pair programming", "ensemble / mob programming", "collective review formats"]],
         [4.44, "Testing beyond coverage", 4.74, ["contract testing", "mutation testing", "property-based testing", "architecture fitness functions"]],
       ],
     },
     {
-      x: 10.72, w: 2.16, head: "UNTRIED", color: INK,
+      x: 10.45, w: 2.1, head: "UNTRIED", color: INK,
       groups: [[2.86, "Where AI sits, for now", 3.16,
         ["AI-assisted code review", "agent-assisted refactoring", "AI-generated test suites", "spec-driven workflows", "AI prototyping in discovery"]]],
     },
@@ -424,15 +424,15 @@ function card(slide, x, y, w, h, fill, opts) {
   // the wedge: scrutiny owed, thickening toward the mandatory end
   const wy = 5.98, wh = 0.6;
   s.addShape(pres.ShapeType.rtTriangle, {
-    x: M, y: wy, w: 11.98, h: wh, fill: { color: ACCENT, transparency: 58 }, line: { color: "FFFFFF", width: 0 },
+    x: M, y: wy, w: 11.65, h: wh, fill: { color: ACCENT, transparency: 58 }, line: { color: "FFFFFF", width: 0 },
   });
   s.addText("scrutiny owed", {
     x: M + 0.2, y: wy + 0.22, w: 2.4, h: 0.32, fontFace: BODY, fontSize: 11.5, bold: true, color: INK, valign: "top", margin: 0,
   });
   s.addText("care in how it is trialled — not permission", {
-    x: 8.3, y: wy + 0.02, w: 4.3, h: 0.3, fontFace: BODY, fontSize: 10, italic: true, color: MUTED, align: "right", valign: "top", margin: 0,
+    x: 8.25, y: wy + 0.02, w: 4.3, h: 0.3, fontFace: BODY, fontSize: 10, italic: true, color: MUTED, align: "right", valign: "top", margin: 0,
   });
-  arrowLine(s, M, wy + wh + 0.12, M + 11.98, wy + wh + 0.12, { color: MUTED, width: 1.25 });
+  arrowLine(s, M, wy + wh + 0.12, M + 11.65, wy + wh + 0.12, { color: MUTED, width: 1.25 });
   s.addText("Moving something down towards mandatory has to be justified and challenged. Moving something up into untried does not.", {
     x: M, y: wy + wh + 0.2, w: 10.6, h: 0.3, fontFace: BODY, fontSize: 10.5, italic: true, color: MUTED, valign: "top", margin: 0,
   });
@@ -458,9 +458,9 @@ function card(slide, x, y, w, h, fill, opts) {
   kicker(s, "GOVERNANCE");
   title(s, "Govern the experiments, not the answers.");
 
-  card(s, M, 2.15, 5.45, 2.6, TINT);
+  card(s, M, 2.15, 5.45, 2.75, TINT);
   s.addText("What we stop deciding centrally", {
-    x: M + 0.4, y: 2.45, w: 4.65, h: 0.35, fontFace: BODY, fontSize: 15, bold: true, color: MUTED, valign: "top", margin: 0,
+    x: M + 0.4, y: 2.45, w: 4.65, h: 0.35, fontFace: BODY, fontSize: 15, bold: true, color: SLATE, valign: "top", margin: 0,
   });
   s.addText(
     [
@@ -468,10 +468,10 @@ function card(slide, x, y, w, h, fill, opts) {
       { text: "Whether a team should pair, or mob, or do TDD.", options: { bullet: true, breakLine: true } },
       { text: "Which tool is allowed to be tried.", options: { bullet: true, breakLine: false } },
     ],
-    { x: M + 0.4, y: 2.92, w: 4.65, h: 1.5, fontFace: BODY, fontSize: 13.5, color: SLATE, lineSpacing: 19, paraSpaceAfter: 7, margin: 0 }
+    { x: M + 0.4, y: 2.92, w: 4.65, h: 1.75, fontFace: BODY, fontSize: 13.5, color: SLATE, lineSpacing: 19, paraSpaceAfter: 7, valign: "top", margin: 0 }
   );
 
-  card(s, 6.95, 2.15, 5.45, 2.6, ACCENT_T);
+  card(s, 6.95, 2.15, 5.45, 2.75, ACCENT_T);
   s.addText("What we govern instead", {
     x: 7.35, y: 2.45, w: 4.65, h: 0.35, fontFace: BODY, fontSize: 15, bold: true, color: ACCENT, valign: "top", margin: 0,
   });
@@ -482,7 +482,7 @@ function card(slide, x, y, w, h, fill, opts) {
       { text: "When each one is reviewed.", options: { bullet: true, breakLine: true } },
       { text: "What evidence gets published afterwards.", options: { bullet: true, breakLine: false } },
     ],
-    { x: 7.35, y: 2.92, w: 4.65, h: 1.7, fontFace: BODY, fontSize: 13.5, color: SLATE, lineSpacing: 19, paraSpaceAfter: 7, valign: "top", margin: 0 }
+    { x: 7.35, y: 2.92, w: 4.65, h: 1.75, fontFace: BODY, fontSize: 13.5, color: SLATE, lineSpacing: 19, paraSpaceAfter: 7, valign: "top", margin: 0 }
   );
 
   s.addText("Control that produces evidence rather than documents.", {
@@ -539,7 +539,7 @@ function card(slide, x, y, w, h, fill, opts) {
     arrowLine(s, x1, y1, x2, y2, { color: GREEN, width: 2 });
     // polarity marker near the arrow head
     s.addText(sign, {
-      x: x2 - ux * 0.42 + px * 1.5 - 0.16, y: y2 - uy * 0.42 + py * 1.5 - 0.15,
+      x: x2 - ux * 0.62 + px * 2.0 - 0.16, y: y2 - uy * 0.62 + py * 2.0 - 0.15,
       w: 0.32, h: 0.3, fontFace: BODY, fontSize: 14, bold: true, color: GREEN, align: "center", valign: "middle", margin: 0,
     });
   }
@@ -577,7 +577,7 @@ function card(slide, x, y, w, h, fill, opts) {
       { text: "+   the two move in the same direction", options: { breakLine: true } },
       { text: "R   a loop that feeds itself", options: {} },
     ],
-    { x: M, y: 2.35, w: 3.1, h: 0.6, fontFace: BODY, fontSize: 10.5, color: MUTED, lineSpacing: 15, margin: 0 }
+    { x: M, y: 2.35, w: 3.1, h: 0.6, fontFace: BODY, fontSize: 11, color: SLATE, lineSpacing: 15, valign: "top", margin: 0 }
   );
 
   // loop captions
@@ -589,7 +589,7 @@ function card(slide, x, y, w, h, fill, opts) {
   caps.forEach(function (c, i) {
     const x = M + i * 3.95;
     s.addText(c[0], { x: x, y: 6.06, w: 3.6, h: 0.26, fontFace: BODY, fontSize: 12, bold: true, color: ACCENT, valign: "top", margin: 0 });
-    s.addText(c[1], { x: x, y: 6.34, w: 3.6, h: 0.72, fontFace: BODY, fontSize: 10.5, color: SLATE, lineSpacing: 13, margin: 0 });
+    s.addText(c[1], { x: x, y: 6.34, w: 3.6, h: 0.72, fontFace: BODY, fontSize: 10.5, color: SLATE, lineSpacing: 13, valign: "top", margin: 0 });
   });
 
   footer(s, 9);
@@ -618,12 +618,12 @@ function card(slide, x, y, w, h, fill, opts) {
   arrowLine(s, px0, pyB, px0, pyT - 0.25, { color: MUTED_D, width: 1, head: false });
   s.addText("time", { x: px1 - 1.3, y: pyB + 0.12, w: 1.3, h: 0.28, fontFace: BODY, fontSize: 10.5, italic: true, color: MUTED_D, align: "right", valign: "top", margin: 0 });
   s.addText("capability", {
-    x: px0 - 0.62, y: pyT - 0.05, w: 1.6, h: 0.28, fontFace: BODY, fontSize: 10.5, italic: true, color: MUTED_D, valign: "top", margin: 0,
+    x: px0 + 0.14, y: pyT + 0.06, w: 1.6, h: 0.28, fontFace: BODY, fontSize: 10.5, italic: true, color: MUTED_D, valign: "top", margin: 0,
   });
 
   // today marker
   arrowLine(s, today, pyT - 0.3, today, pyB, { color: MUTED_D, width: 1, dash: "sysDot", head: false });
-  s.addText("today", { x: today - 0.5, y: pyT - 0.62, w: 1.0, h: 0.28, fontFace: BODY, fontSize: 10.5, bold: true, color: MUTED_D, align: "center", margin: 0 });
+  s.addText("today", { x: today - 0.5, y: pyT - 0.62, w: 1.0, h: 0.28, fontFace: BODY, fontSize: 10.5, bold: true, color: MUTED_D, align: "center", valign: "top", margin: 0 });
 
   // ---- what is technically feasible
   const F = [[1.45, 4.72], [4.3, 4.35], [6.35, 4.05], [6.95, 3.95]];
