@@ -311,6 +311,7 @@ Two things worth doing once the file is open, both one click: freeze the header
 row (View → Freeze Panes → Freeze Top Row) and turn on filters (Ctrl+Shift+L).
 Filtering `liste` then `retenu` is the entire intended workflow.
 
+The GitLab CSVs follow the same rule as `classement.csv` — see their own section.
 The inventory CSV from `SonarAuditCheck --csv` is comma-separated machine format
 by design — `SonarRank` reads it, and it sniffs the separator, so an inventory
 that has been through Excel and back still loads. If you want to look at the raw
@@ -417,6 +418,11 @@ same failure mode as `search_projects` filtering silently on the Sonar side.
 | `--graphql` | on | Try the batched GraphQL route, fall back to REST |
 | `--deep` | off | Run the practice signals on the selected projects |
 | `--seed` | fixed | Seeds the random control draw, so runs are reproducible |
+| `--comma` | off | Comma-separated, no BOM — for tools rather than Excel |
+
+Both CSVs are written **for Excel by default**, exactly like `classement.csv`:
+semicolon-separated, UTF-8 BOM, CRLF. So `start inventaire.csv` opens with the
+columns split and the accents intact. Pass `--comma` for the machine format.
 
 ### What is Enterprise-only
 

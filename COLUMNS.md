@@ -7,8 +7,8 @@ and — more usefully — how to read the ones that are easy to misread.
 |---|---|---|
 | inventory CSV | `SonarAuditCheck --csv` | comma, UTF-8 |
 | `classement.csv` | `SonarRank --out` | semicolon + BOM by default, comma with `--comma` |
-| `inventaire.csv` | `GitlabActivityAudit --out-dir` | comma, UTF-8 |
-| `pratiques.csv` | `GitlabActivityAudit --out-dir --deep` | comma, UTF-8 |
+| `inventaire.csv` | `GitlabActivityAudit --out-dir` | semicolon + BOM by default, comma with `--comma` |
+| `pratiques.csv` | `GitlabActivityAudit --out-dir --deep` | semicolon + BOM by default, comma with `--comma` |
 
 The last two are written by the same run and are meant to be read as a pair:
 `pratiques.csv` covers only the selected projects, `inventaire.csv` covers the

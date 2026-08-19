@@ -5,6 +5,7 @@
 //DEPS info.picocli:picocli:4.7.6
 //SOURCES ConsoleOut.java
 //SOURCES Gitlab.java
+//SOURCES Csv.java
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.opencsv.CSVWriter;
@@ -159,6 +160,10 @@ public class GitlabActivityAudit implements Callable<Integer> {
     @Option(names = "--bot-pattern", defaultValue = Gitlab.BOT_PATTERN,
             description = "regex identifiant les auteurs automatiques")
     String botPattern;
+
+    @Option(names = "--comma",
+            description = "CSV séparés par des virgules, sans BOM (pour un outil, pas Excel)")
+    boolean comma;
 
     @Option(names = "--max-commit-pages", defaultValue = "10",
             description = "pages de commits max par projet (100/page)")
@@ -783,7 +788,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 "commits_bots", "authors_window", "merge_commits", "active_days",
                 "commits_per_week", "tronque", "exclu", "fuite_filtre",
                 "selectionne", "motif_selection"};
-        try (CSVWriter w = new CSVWriter(Files.newBufferedWriter(csv, StandardCharsets.UTF_8))) {
+        try (CSVWriter w = Csv.writer(csv, comma)) {
             w.writeNext(header);
             for (Proj p : all) w.writeNext(p.row(sinceDays));
         }
@@ -822,6 +827,8 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     + "que les", DIM));
             System.out.println(c("    sélectionnés, l'inventaire porte le parc dont ils sortent. "
                     + "Colonnes : COLUMNS.md.", DIM));
+            System.out.println(c("  " + Csv.openingHint(
+                    csv != null ? csv : pratiquesCsv, comma), DIM));
         }
         System.out.println(c("""
                   Rappel : tout classement qui ne dit pas ce qu'il a écarté se lit comme
@@ -1037,7 +1044,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     "auto_merge", "notes_par_mr", "echantillon_approbations", "part_approuvee",
                     "auto_approbation", "pipelines", "taux_succes", "environnements",
                     "deploiements", "dora_indispo", "ci_sonar", "ci_securite", "fichiers"};
-            try (CSVWriter w = new CSVWriter(Files.newBufferedWriter(pratiquesCsv, StandardCharsets.UTF_8))) {
+            try (CSVWriter w = Csv.writer(pratiquesCsv, comma)) {
                 w.writeNext(header);
                 for (Proj p : selected) w.writeNext(p.pratRow());
             }
