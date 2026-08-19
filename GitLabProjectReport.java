@@ -2,6 +2,7 @@
 //JAVA 25
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.17.2
 //DEPS info.picocli:picocli:4.7.6
+//SOURCES ConsoleOut.java
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -14,10 +15,7 @@ import picocli.CommandLine.Option;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -117,24 +115,21 @@ public class GitLabProjectReport implements Callable<Integer> {
     @Option(names = "--insecure", description = "ignorer la validation TLS")
     boolean insecure;
 
+    @Option(names = "--color", defaultValue = "auto",
+            description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
+    String colorMode;
+
     private GitLab gl;
     private Pattern bots;
 
     public static void main(String[] args) {
-        forceUtf8Output();
+        ConsoleOut.install();
         System.exit(new CommandLine(new GitLabProjectReport()).execute(args));
-    }
-
-    /** Même raison que dans SonarAuditCheck : sortie française, locale C en CI. */
-    private static void forceUtf8Output() {
-        System.setOut(new PrintStream(new FileOutputStream(FileDescriptor.out), true,
-                StandardCharsets.UTF_8));
-        System.setErr(new PrintStream(new FileOutputStream(FileDescriptor.err), true,
-                StandardCharsets.UTF_8));
     }
 
     @Override
     public Integer call() throws Exception {
+        ConsoleOut.colorMode(colorMode);
         if (isBlank(token)) {
             // Un projet public de gitlab.com se lit sans jeton. C'est marginal en
             // audit, mais c'est le seul moyen de vérifier l'outil contre une vraie
@@ -1016,9 +1011,6 @@ public class GitLabProjectReport implements Callable<Integer> {
 
     static final String BOLD = "\033[1m", DIM = "\033[2m", RESET = "\033[0m";
     static final String GREEN = "\033[32m", RED = "\033[31m", YELLOW = "\033[33m";
-    static final boolean NO_COLOR =
-            System.console() == null || System.getenv("NO_COLOR") != null;
-
     static final int BIG_COMMIT = 2000;
 
     enum Verdict {
@@ -1037,7 +1029,7 @@ public class GitLabProjectReport implements Callable<Integer> {
     }
 
     static String c(String text, String color) {
-        return NO_COLOR ? text : color + text + RESET;
+        return ConsoleOut.color(text, color);
     }
 
     static void title(String text) {
