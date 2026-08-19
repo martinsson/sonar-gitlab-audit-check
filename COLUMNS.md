@@ -169,6 +169,7 @@ should not be used, as a ranking.
 | `commits_bots` | Commits attributed to bots, filtered out of `commits_window` |
 | `authors_window` | Distinct human authors. Worth ±1 — identities are normalised, not resolved |
 | `merge_commits` | Commits with more than one parent |
+| `reverts` | Commits whose title starts with `Revert`/`revert:`. A direct quality signal, needing neither Sonar nor environments |
 | `active_days` | Distinct days carrying a commit. 40 commits over 12 weeks ≠ 40 in one day |
 | `commits_per_week` | `commits_window × 7 ÷ --since`. The ranking measure |
 | `tronque` | `true` = paging stopped at `--max-commit-pages`, so the count is a **floor**, not a total |
@@ -234,6 +235,9 @@ it only exists for the ~200 that the funnel chose.
 | `auto_approbation` | Approvals given by the MR's own author, within the sample |
 | `pipelines` | Pipelines on the default branch in the window (last 100 max) |
 | `taux_succes` | Share of those that succeeded, 0–1 |
+| `incidents_rouges` | Red streaks on the default branch. Consecutive failures are **one** incident, not several |
+| `retour_au_vert_h` | Median hours from the first failure of a streak to the next success. **Not a DORA metric** — see below |
+| `rouge_non_resolu` | `1` = still red at the end of the window. The incident is real, its duration is not yet known |
 | `environnements` | Environments declared. **`0` invalidates the DORA column** |
 | `deploiements` | Deployments over the window, summed from DORA deployment frequency |
 | `dora_indispo` | `true` = DORA returned 403/404. Not available, as distinct from zero |
@@ -257,6 +261,15 @@ DORA counts deployments to declared environments. A project deploying daily from
 a pipeline that never registers a `production` environment scores zero. That is
 a data-availability finding, and a different conversation from a project that
 genuinely does not deploy.
+
+**`retour_au_vert_h` is not `time_to_restore_service`.** DORA measures restoring
+a *service*, which requires a production event to date. Without declared
+environments there is none, and nothing here substitutes for one. This column
+measures how long the team leaves the default branch broken — a CI fact, not a
+production one. It is free, though: it comes out of the same pipeline list that
+already produces `pipelines` and `taux_succes`, at no extra API cost. Statuses
+that are neither `success` nor `failed` — canceled, skipped, running, manual —
+are skipped rather than read as the end of an outage.
 
 **`ci_sonar` is about intent, not results.** It says the pipeline is configured
 to run Sonar, not that Sonar has data. That is exactly what makes it useful

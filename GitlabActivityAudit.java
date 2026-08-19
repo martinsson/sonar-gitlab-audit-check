@@ -542,7 +542,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
      */
     private void pageCommits(Proj p) {
         Set<String> authors = new TreeSet<>();
-        int human = 0, bot = 0, merges = 0;
+        int human = 0, bot = 0, merges = 0, reverts = 0;
         Set<Long> days = new HashSet<>();
         OffsetDateTime newest = null;
         boolean truncated = false;
@@ -565,6 +565,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 String name = text(c, "author_name");
                 if (Gitlab.isBot(bots, email, name)) { bot++; continue; }
                 human++;
+                if (REVERT.matcher(orEmpty(text(c, "title"))).find()) reverts++;
                 authors.add(Gitlab.identity(email, name));
                 if (Gitlab.isMerge(c)) merges++;
                 OffsetDateTime d = parse(text(c, "committed_date"));
@@ -578,6 +579,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         }
         p.commits = human;
         p.commitsBots = bot;
+        p.reverts = reverts;
         p.authors = authors.size();
         p.mergeCommits = merges;
         p.activeDays = days.size();
@@ -659,6 +661,15 @@ public class GitlabActivityAudit implements Callable<Integer> {
     }
 
     static final int MIN_FLOOR = 5;
+
+    /**
+     * Git écrit « Revert "titre d'origine" », l'interface GitLab reprend la même
+     * forme, et les dépôts en commits conventionnels écrivent « revert: … ». Le
+     * motif est ancré au début du titre : « revert » au milieu d'une phrase parle
+     * du sujet, pas d'une annulation.
+     */
+    static final java.util.regex.Pattern REVERT =
+            java.util.regex.Pattern.compile("^\\s*revert\\b", java.util.regex.Pattern.CASE_INSENSITIVE);
 
     // ----------------------------------------------------------------------
     // Étape 4 : quotas, pas top-N
@@ -785,7 +796,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         String[] header = {"id", "path", "name", "namespace", "default_branch", "visibility",
                 "created_at", "last_activity_at", "archived", "fork", "mirror",
                 "total_commits", "repo_size", "bucket", "last_commit", "commits_window",
-                "commits_bots", "authors_window", "merge_commits", "active_days",
+                "commits_bots", "authors_window", "merge_commits", "reverts", "active_days",
                 "commits_per_week", "tronque", "exclu", "fuite_filtre",
                 "selectionne", "motif_selection"};
         try (CSVWriter w = Csv.writer(csv, comma)) {
@@ -947,6 +958,57 @@ public class GitlabActivityAudit implements Callable<Integer> {
             for (JsonNode x : pl.json()) if ("success".equals(text(x, "status"))) ok++;
             r.pipelines = n;
             r.pipelineSuccess = n == 0 ? null : (double) ok / n;
+            recovery(pl.json(), r);
+        }
+
+        /**
+         * Combien de temps l'équipe laisse la branche par défaut cassée.
+         *
+         * Sans environnement déclaré, aucune métrique DORA n'est calculable : il
+         * n'existe pas d'événement de mise en production à dater. Ceci n'en est
+         * pas une et ne doit pas s'y substituer sous un nom voisin — c'est le
+         * temps de retour au vert de la CI, qui se mesure sur les seuls
+         * horodatages déjà présents dans la liste ci-dessus, sans un appel de plus.
+         *
+         * Une série d'échecs consécutifs est UN incident, pas cinq : compter
+         * chaque pipeline rouge gonflerait le nombre d'incidents et raccourcirait
+         * la médiane, exactement à l'envers de ce qu'on cherche à voir. Les états
+         * ni verts ni rouges — annulé, ignoré, en cours, manuel — ne cassent ni ne
+         * réparent : ils sont sautés plutôt que lus comme une fin de panne.
+         */
+        private void recovery(JsonNode arr, Prat r) {
+            record Run(OffsetDateTime at, boolean red, boolean green) { }
+            List<Run> runs = new ArrayList<>();
+            for (JsonNode x : arr) {
+                OffsetDateTime at = parse(text(x, "created_at"));
+                String st = text(x, "status");
+                if (at == null || st == null) continue;
+                boolean red = "failed".equals(st);
+                boolean green = "success".equals(st);
+                if (red || green) runs.add(new Run(at, red, green));
+            }
+            if (runs.isEmpty()) return;
+            runs.sort(Comparator.comparing(Run::at));
+
+            List<Double> hours = new ArrayList<>();
+            int incidents = 0, unresolved = 0;
+            OffsetDateTime brokenSince = null;
+            for (Run run : runs) {
+                if (run.red() && brokenSince == null) {
+                    brokenSince = run.at();
+                    incidents++;
+                } else if (run.green() && brokenSince != null) {
+                    hours.add(ChronoUnit.MINUTES.between(brokenSince, run.at()) / 60.0);
+                    brokenSince = null;
+                }
+            }
+            // Toujours rouge à la fin de la fenêtre : l'incident est réel, sa durée
+            // ne l'est pas encore. On le compte sans lui inventer un retour au vert.
+            if (brokenSince != null) unresolved = 1;
+
+            r.redIncidents = incidents;
+            r.unresolvedRed = unresolved;
+            r.recoveryMedianHours = median(hours);
         }
 
         /**
@@ -1019,6 +1081,27 @@ public class GitlabActivityAudit implements Callable<Integer> {
             row("Aucun environnement déclaré", core, witness,
                     p -> p.prat.environments != null && p.prat.environments == 0);
 
+            List<Double> recoveries = core.stream().map(p -> p.prat.recoveryMedianHours)
+                    .filter(Objects::nonNull).toList();
+            if (!recoveries.isEmpty()) {
+                System.out.printf("%n  Retour au vert (médiane des médianes) : %s h sur %d projet%s.%n",
+                        dec(median(recoveries)), recoveries.size(), recoveries.size() > 1 ? "s" : "");
+                System.out.println(c("    Temps pendant lequel la branche par défaut reste cassée. "
+                        + "Ce n'est pas", DIM));
+                System.out.println(c("    une métrique DORA : sans environnement déclaré, aucune mise "
+                        + "en production", DIM));
+                System.out.println(c("    n'est datable, et rien ici ne s'y substitue.", DIM));
+            }
+
+            long reverting = core.stream().filter(p -> p.reverts != null && p.reverts > 0).count();
+            if (reverting > 0) {
+                int total = core.stream().mapToInt(p -> p.reverts == null ? 0 : p.reverts).sum();
+                System.out.printf("%n  %d revert%s sur %d projet%s.%n", total, total > 1 ? "s" : "",
+                        reverting, reverting > 1 ? "s" : "");
+                System.out.println(c("    Signal de qualité direct, indépendant de Sonar et des "
+                        + "environnements.", DIM));
+            }
+
             long noReview = core.stream().filter(p -> p.prat.mergedMrs == 0 && p.commits >= 20).count();
             if (noReview > 0) {
                 System.out.printf("%n  %d projet%s à ≥20 commits sans une seule MR fusionnée.%n",
@@ -1042,7 +1125,8 @@ public class GitlabActivityAudit implements Callable<Integer> {
             String[] header = {"path", "motif_selection", "bucket", "commits_window", "authors_window",
                     "branche_protegee", "push_verrouille", "mr_fusionnees", "ttm_median_j",
                     "auto_merge", "notes_par_mr", "echantillon_approbations", "part_approuvee",
-                    "auto_approbation", "pipelines", "taux_succes", "environnements",
+                    "auto_approbation", "pipelines", "taux_succes", "incidents_rouges",
+                    "retour_au_vert_h", "rouge_non_resolu", "environnements",
                     "deploiements", "dora_indispo", "ci_sonar", "ci_securite", "fichiers"};
             try (CSVWriter w = Csv.writer(pratiquesCsv, comma)) {
                 w.writeNext(header);
@@ -1069,7 +1153,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         String forkedFrom;
         Long totalCommits, repoSize;
 
-        Integer commits, commitsBots, authors, mergeCommits, activeDays;
+        Integer commits, commitsBots, authors, mergeCommits, activeDays, reverts;
         boolean truncated, leaked, selected;
         String unmeasurable;
         String bucket = "", excluded, selectionReason = "";
@@ -1109,7 +1193,8 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     String.valueOf(archived), forkedFrom == null ? "false" : "true",
                     String.valueOf(mirror),
                     num(totalCommits), num(repoSize), bucket, iso(lastCommit),
-                    num(commits), num(commitsBots), num(authors), num(mergeCommits), num(activeDays),
+                    num(commits), num(commitsBots), num(authors), num(mergeCommits),
+                    num(reverts), num(activeDays),
                     commits == null ? "" : "%.2f".formatted(perWeek(windowDays)),
                     String.valueOf(truncated), orEmpty(excluded), String.valueOf(leaked),
                     String.valueOf(selected), orEmpty(selectionReason)};
@@ -1123,7 +1208,8 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     String.valueOf(r.mergedMrs), dec(r.medianTtmDays), String.valueOf(r.selfMerged),
                     dec(r.notesPerMr), num(r.approvalSample), dec(r.approvedShare),
                     String.valueOf(r.selfApproved), String.valueOf(r.pipelines),
-                    dec(r.pipelineSuccess), num(r.environments), dec(r.deployments),
+                    dec(r.pipelineSuccess), num(r.redIncidents), dec(r.recoveryMedianHours),
+                    num(r.unresolvedRed), num(r.environments), dec(r.deployments),
                     String.valueOf(r.doraUnavailable), String.valueOf(r.ciSonar),
                     String.valueOf(r.ciSecurity), String.join(" ", r.files)};
         }
@@ -1132,8 +1218,9 @@ public class GitlabActivityAudit implements Callable<Integer> {
     static final class Prat {
         boolean defaultProtected, pushLocked, ciSonar, ciSecurity, doraUnavailable;
         int mergedMrs, selfMerged, selfApproved, pipelines;
-        Integer approvalSample, environments;
-        Double medianTtmDays, notesPerMr, approvedShare, pipelineSuccess, deployments;
+        Integer approvalSample, environments, redIncidents, unresolvedRed;
+        Double medianTtmDays, notesPerMr, approvedShare, pipelineSuccess, deployments,
+                recoveryMedianHours;
         final List<String> files = new ArrayList<>();
     }
 

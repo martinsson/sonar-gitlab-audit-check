@@ -399,6 +399,14 @@ itself the finding.
   identities are normalised, and the author count is worth ±1. It feeds a bus
   factor judgement, so it only has to be right about 1 versus 5.
 
+**Where DORA is unavailable.** DORA needs declared environments; on an instance
+that has none, `deploiements` stays empty rather than becoming a zero. Two
+substitutes are computed instead, both from data already fetched, at no extra API
+cost: `retour_au_vert_h`, the median time the default branch stays broken between
+a failing pipeline and the next passing one, and `reverts`, commits whose title
+starts with `Revert`. Neither is labelled DORA, because without a production
+event neither lead time to production nor change failure rate is knowable.
+
 **Absent is not zero, here too.** A 403 on a project's commits is recorded as
 *activité non mesurable*, never as zero commits. Reading a permission gap as
 inactivity would drop exactly the projects most likely to need attention — the
