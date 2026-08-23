@@ -1049,6 +1049,9 @@ public class GitlabActivityAudit implements Callable<Integer> {
         /** Cache de résolution project_path -> ID, rempli au fur et à mesure. */
         private final java.util.Map<String, String> projPathToId = new java.util.HashMap<>();
 
+        /** Cache du contenu brut des fichiers inclus pour éviter les rappels API. */
+        private final java.util.Map<String, Gitlab.Response> includeCache = new java.util.HashMap<>();
+
         private void files(Proj p, Prat r) {
             for (String f : WATCHED) {
                 if (gl.exists("projects/" + p.id + "/repository/files/" + enc(f),
@@ -1072,21 +1075,28 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 return;
             }
             // Le fichier brut ne contient aucun mot-clé : extraire uniquement les
-            // inclusions cross-projet et scanner leur contenu (sans les télécharger
-            // si elles ne sont pas pertinentes).
-            r.ciSonar = scanProjectIncludesFor(ci, p.defaultBranch, p.id, "sonar");
-            r.ciSecurity = scanProjectIncludesFor(ci, p.defaultBranch, p.id, "sast")
-                    || scanProjectIncludesFor(ci, p.defaultBranch, p.id, "secret-detection")
-                    || scanProjectIncludesFor(ci, p.defaultBranch, p.id, "dependency-scanning");
+            // inclusions cross-projet et scanner leur contenu en un seul passage.
+            scanProjectIncludesFor(ci, p.defaultBranch, p.id, content -> {
+                String lower = content.toLowerCase(Locale.ROOT);
+                if (!r.ciSonar && lower.contains("sonar")) r.ciSonar = true;
+                if (!r.ciSecurity && (lower.contains("sast")
+                        || lower.contains("secret-detection")
+                        || lower.contains("dependency-scanning"))) r.ciSecurity = true;
+                // Si les deux sont trouvés, on peut arrêter tout de suite
+                return r.ciSonar && r.ciSecurity;
+            });
         }
 
         /**
          * Extrait les directives .include: project:/file: du YAML, télécharge
-         * uniquement les fichiers inclus et retourne true si l'un d'eux contient
-         * le mot-clé cherché. S'arrête au premier match (short-circuit).
+         * chaque fichier inclus une seule fois, et vérifie tous les mots-clés
+         * en un seul passage. Cache le contenu des fichiers inclus pour éviter
+         * les rappels identiques.
+         *
+         * @param checker fonction qui retourne true pour arrêter le scan prématurément
          */
-        private boolean scanProjectIncludesFor(String ci, String ref, long projectId,
-                                               String keyword) {
+        private void scanProjectIncludesFor(String ci, String ref, long projectId,
+                                             java.util.function.Function<String, Boolean> checker) {
             java.util.regex.Pattern projectInclude = java.util.regex.Pattern.compile(
                     "-\\s*project:\\s*(\\S+).*ref:\\s*(\\S+).*file:\\s*(\\S+)", java.util.regex.Pattern.DOTALL);
             java.util.regex.Matcher m = projectInclude.matcher(ci);
@@ -1095,20 +1105,21 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 String incRef = m.group(2).replaceAll("^['\"]|['\"]$", "");
                 String incFile = m.group(3).replaceAll("^['\"]|['\"]$", "");
                 String projIdStr = resolveProjectPathCached(projPath);
-                if (projIdStr == null) {
-    
-                    continue;
+                if (projIdStr == null) continue;
+                String cacheKey = projIdStr + ":" + incFile + ":" + incRef;
+                Gitlab.Response fileRaw;
+                if (includeCache.containsKey(cacheKey)) {
+                    fileRaw = includeCache.get(cacheKey);
+                } else {
+                    fileRaw = gl.get("projects/" + enc(projIdStr)
+                            + "/repository/files/" + enc(incFile) + "/raw",
+                            Map.of("ref", incRef));
+                    includeCache.put(cacheKey, fileRaw);
                 }
-                Response fileRaw = gl.get("projects/" + enc(projIdStr)
-                        + "/repository/files/" + enc(incFile) + "/raw",
-                        Map.of("ref", incRef));
                 if (fileRaw.status() == 200 && fileRaw.body() != null) {
-                    if (fileRaw.body().toLowerCase(Locale.ROOT).contains(keyword)) {
-                        return true;
-                    }
+                    if (checker.apply(fileRaw.body())) return;
                 }
             }
-            return false;
         }
 
         /**
@@ -1126,7 +1137,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 return projPath;
             } catch (NumberFormatException ignored) {
             }
-            Response proj = gl.get("projects/" + enc(projPath), Map.of("per_page", "1"));
+            Gitlab.Response proj = gl.get("projects/" + enc(projPath), Map.of("per_page", "1"));
             if (proj.status() == 200 && proj.body() != null) {
                 try {
                     JsonNode node = proj.json();
