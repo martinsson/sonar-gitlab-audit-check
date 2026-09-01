@@ -118,6 +118,29 @@ else
     fail=1
 fi
 
+# Le croisement : il lit les deux CSV et n'appelle rien. Un inventaire Sonar
+# minimal suffit — ce qui est vérifié ici, c'est que la jointure trouve la clé
+# écrite par la passe profonde, et que les suggestions ne comptent pas.
+cat > "$OUT/sonar.csv" <<'SONAR'
+key,name,analysisDate,days_since_analysis,ncloc,coverage,tests,sqale_index,new_lines,new_violations,alert_status
+equipe-a-service-actif,service-actif,2026-08-30,2,42000,12.4,0,18400,1200,64,ERROR
+equipe-c_mono-auteur,mono-auteur,2026-06-02,91,8600,0.0,412,4200,0,0,OK
+SONAR
+runx() {
+    if [[ -n "${AUDIT_CP:-}" ]]; then
+        java ${JVM_OPTS:-} -cp "$AUDIT_CP" "$HERE/../CrossAudit.java" "$@"
+    else
+        jbang ${JVM_OPTS:-} "$HERE/../CrossAudit.java" "$@"
+    fi
+}
+runx --sonar "$OUT/sonar.csv" --gitlab "$OUT/pratiques.csv" \
+    --out "$OUT/croisement.csv" > "$OUT/croisement.txt" 2>&1 || true
+check "$OUT/croisement.txt" 'clé lue dans la CI' "jointure exacte sur cle_sonar"
+# Des tests comptés et une couverture à zéro : le constat que ni l'un ni l'autre
+# rapport ne peut produire seul, et qui a motivé l'ajout de la métrique tests.
+check "$OUT/croisement.txt" "la couverture n'arrive pas : 1" \
+    "tests sans couverture repérés par le croisement"
+
 check "$OUT/cp850-relu.txt" 'Filtre de fraîcheur' "accents intacts sur une console cp850"
 if grep -q '—' "$OUT/cp850-relu.txt"; then
     echo "  ÉCHEC tiret cadratin non translittéré"

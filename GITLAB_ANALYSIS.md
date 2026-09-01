@@ -333,6 +333,9 @@ Written to be publishable with no Sonar data at all:
 
 ## 6. The join — best effort, additive, never load-bearing
 
+**Implemented in `CrossAudit.java`.** It reads the two CSVs and calls no API, so
+it is re-runnable for free and a failure here cannot touch either report.
+
 Attempted only after both reports exist. It adds a section; it cannot invalidate
 one.
 
@@ -367,6 +370,13 @@ alone:
 - **High Sonar debt + zero commits** — confirms *carrying, not creating* with independent evidence, rather than inferring it from a stale analysis date.
 
 If it lands badly, delete the section. Nothing above depends on it.
+
+A sixth claim came out of implementing it, which none of the above anticipated:
+**tests run and the coverage never arrives.** SonarQube counting tests while
+reporting 0 % coverage is a CI plumbing fault, fixable in an afternoon, and it
+is indistinguishable from *this team writes no tests* in any report that reads
+only the percentage. It needed the `tests` metric, which the Sonar pass was not
+collecting.
 
 ---
 

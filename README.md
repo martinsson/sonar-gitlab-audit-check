@@ -47,12 +47,19 @@ jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
 ```
 
 ```bash
-# 4. One project you already care about, read closely
+# 4. Cross the two. No API calls — both sides are already on disk
+jbang CrossAudit.java --sonar inventaire.csv --gitlab ./audit/pratiques.csv \
+    --out ./audit/croisement.csv
+```
+
+```bash
+# 5. One project you already care about, read closely
 jbang GitLabProjectReport.java --path my/group/project
 ```
 
 Drop `--deep` from the third one to stop after selection — you get the funnel and
-the shortlist without the expensive per-project pass.
+the shortlist without the expensive per-project pass. Keep it if you want step 4:
+`cle_sonar`, the column the crossing joins on, is written by the deep pass.
 
 Each tool's `--help` ends with the rest of the recipes: whole-instance runs,
 project lists, longer windows, SonarQube Cloud.
@@ -772,12 +779,59 @@ Three further reductions, none of which change a measurement:
   the cut are reported as *not looked at*, never as zero.
 - **The key cache**, above.
 
+---
+
+## Crossing the two: `CrossAudit.java`
+
+This was designed in `GITLAB_ANALYSIS.md` §6 from the start and listed here as
+*not yet done*. It genuinely was not done: no tool read both sides, and no CSV
+carried a column from both. `CrossAudit.java` is that missing piece.
+
+It reads the two CSVs the other tools already wrote and **makes no API calls**,
+so re-running it — different thresholds, a different join — costs nothing and
+cannot invalidate either audit.
+
+```bash
+jbang CrossAudit.java --sonar inventaire.csv --gitlab ./audit/pratiques.csv \
+    --out ./audit/croisement.csv
+```
+
+**The join, and how it is labelled.** Every pair carries the method that made it
+and a confidence, per §6:
+
+| Method | Confidence | Counts toward findings |
+|---|---|---|
+| `cle_sonar` — the key read out of the CI — matches a Sonar `key` | exact | yes |
+| Sonar key normalised against `path_with_namespace` | derived | yes |
+| Project name against the last path segment | suggestion | **no** |
+
+Suggestions go into `croisement.csv` marked as such, for a human to confirm.
+They never enter a count. Two projects called `api` in different namespaces
+match perfectly and are not the same project.
+
+**The match rate is a finding, not a status line.** A low rate does not mean the
+tool failed — it means the GitLab↔SonarQube integration is not configured, and
+nobody can currently answer *is this repo analysed?* without checking by hand.
+That is the same class of governance gap as the never-analysed projects.
+
+Six claims come out, none of which either report supports alone:
+
+- **Active in GitLab, absent from Sonar** — live projects with no scanner, separated at last from dead repos.
+- **CI configured for Sonar, no matched Sonar project** — the pipeline says it analyses; nothing receives it under a key we can attach. A silently failing job, or a key pointing nowhere. Checkable project by project in a minute.
+- **Debt created on code nobody reviewed** — Sonar sees violations on new code; GitLab sees that code reach the default branch with no merged MR.
+- **Neither tests nor review, on code that moves** — coverage under 20%, no merged MRs, sustained activity. Both safety nets missing at once.
+- **Debt carried, not created** — debt on the books, zero commits in the window. Confirmed by the repo itself rather than inferred from a stale analysis date.
+- **Tests run, coverage never arrives** — SonarQube counts tests and reports 0% coverage: the coverage report is not wired up. A CI plumbing problem, not an engineering one, and the two are indistinguishable if you only look at the percentage.
+
+The output caveat worth repeating: `pratiques.csv` holds only the projects the
+GitLab audit *selected*, not the whole estate. A Sonar project with no GitLab
+match may simply not have been drawn. The run says so.
+
 ### Not yet done
 
-The rest of the Sonar crossing, now that the key resolves: change frequency
-against complexity per file, exclusions against the real repository size,
-quality gate events against what was merged anyway, and `GIT_DEPTH` in CI
-against Sonar's empty blame.
+Per-file work, on both sides: change frequency against complexity per file,
+exclusions against the real repository size, quality gate events against what
+was merged anyway, and `GIT_DEPTH` in CI against Sonar's empty blame.
 
 ## Licence
 

@@ -1,6 +1,6 @@
 # CSV column dictionary
 
-Four CSV files come out of these tools. This file says what every column holds,
+Five CSV files come out of these tools. This file says what every column holds,
 and — more usefully — how to read the ones that are easy to misread.
 
 | File | Written by | Separator |
@@ -9,6 +9,7 @@ and — more usefully — how to read the ones that are easy to misread.
 | `classement.csv` | `SonarRank --out` | semicolon + BOM by default, comma with `--comma` |
 | `inventaire.csv` | `GitlabActivityAudit --out-dir` | semicolon + BOM by default, comma with `--comma` |
 | `pratiques.csv` | `GitlabActivityAudit --out-dir --deep` | semicolon + BOM by default, comma with `--comma` |
+| `croisement.csv` | `CrossAudit --out` | semicolon + BOM by default, comma with `--comma` |
 
 The last two are written by the same run and are meant to be read as a pair:
 `pratiques.csv` covers only the selected projects, `inventaire.csv` covers the
@@ -38,22 +39,56 @@ here is scored or ranked.
 | `analysisDate` | Date of the last analysis. **Empty = never analysed** |
 | `days_since_analysis` | Days since that date. Empty for never-analysed projects |
 
-Then the 13 measures, exactly as SonarQube returns them:
+Then the measures, exactly as SonarQube returns them. They cost nothing extra:
+the same one call per hundred projects carries all of them.
+
+**Size and shape**
 
 | Column | Meaning | Read it as |
 |---|---|---|
 | `ncloc` | Lines of code, excluding comments and blanks | Size. Used for stratification |
-| `coverage` | Overall test coverage, % | See the coverage note below |
-| `new_coverage` | Coverage of new code in the leak period, % | The one that reflects current habits |
+| `files` | Files analysed | Sanity check on `ncloc` |
+| `complexity` | Cyclomatic complexity | Paired with change frequency, this is where refactoring pays |
+| `cognitive_complexity` | Cognitive complexity | Closer to "hard to read" than the cyclomatic one |
+| `comment_lines_density` | Comment lines, % | Weak on its own; useful against `complexity` |
 | `duplicated_lines_density` | Duplicated lines, % of total | Level, not velocity |
 | `new_duplicated_lines_density` | Duplication in new code, % | Copy-paste in fresh work |
+
+**Tests and coverage**
+
+| Column | Meaning | Read it as |
+|---|---|---|
+| `coverage` | Overall test coverage, % | Never read alone — see the note below |
+| `line_coverage` / `branch_coverage` | The two halves of it, % | High line, low branch = tests that execute code without deciding anything |
+| `new_coverage` | Coverage of new code in the leak period, % | The one that reflects current habits |
+| `lines_to_cover` | Lines the analyser considers coverable | **0 means the percentage is meaningless**, not that coverage is bad |
+| `uncovered_lines` | Of those, how many are not covered | Gives the effort a volume. 40% on 200 lines and 40% on a monolith are not the same job |
+| `tests` | Unit tests SonarQube saw | `0` = no suite it can see. Not the same as low coverage |
+| `test_failures` / `test_errors` | Failing and erroring tests | Non-zero means the suite is red and shipping anyway |
+| `skipped_tests` | Tests marked skipped | The quiet way a suite stops protecting anything |
+| `test_success_density` | Passing tests, % | |
+
+**Debt and defects**
+
+| Column | Meaning | Read it as |
+|---|---|---|
+| `sqale_index` | Remediation cost, in minutes | Debt in absolute terms. **Was fetched and silently dropped from this CSV until now** |
 | `sqale_debt_ratio` | Remediation cost ÷ development cost, % | Debt carried, relative to size |
 | `sqale_rating` | Maintainability rating, `1`–`5` | 1 = A … 5 = E |
-| `new_violations` | Issues raised on new code | Numerator of the injection rate |
-| `new_lines` | Lines of new code in the leak period | Denominator. **0 or empty means no velocity can be computed** |
+| `bugs` / `vulnerabilities` / `code_smells` | The counts behind the three ratings | These add up and divide by `ncloc`. The ratings do not |
+| `violations` | All open issues | |
 | `reliability_rating` | Bug rating, `1`–`5` | 1 = A … 5 = E |
 | `security_rating` | Vulnerability rating, `1`–`5` | 1 = A … 5 = E |
+| `security_hotspots` | Hotspots raised | |
 | `security_hotspots_reviewed` | Hotspots reviewed, % | |
+
+**New code**
+
+| Column | Meaning | Read it as |
+|---|---|---|
+| `new_lines` | Lines of new code in the leak period | Denominator. **0 or empty means no velocity can be computed** |
+| `new_violations` | Issues raised on new code | Numerator of the injection rate |
+| `new_bugs` / `new_vulnerabilities` / `new_code_smells` | Split of the above | Which kind of debt is being created |
 | `alert_status` | Quality gate: `OK`, `ERROR`, `WARN` | Says which gate, not which standard — gates differ per project |
 
 **The coverage column, specifically.** An analysed project with no coverage
@@ -62,6 +97,20 @@ present, and it sorts last, correctly. The measure is genuinely *empty* mainly
 for projects never analysed at all, and for languages whose analyser reports no
 lines to cover. So a large count of empty `coverage` cells reads mostly as a
 never-analysed count. `KNOWLEDGE.md §2` has the measurement behind this.
+
+**And that is exactly why `tests` is here.** `coverage = 0` is two different
+findings that call for opposite responses: a team with no test suite, and a team
+with 400 passing tests whose coverage report never reaches SonarQube. The
+percentage cannot tell them apart; `tests` and `lines_to_cover` can. The second
+case is a CI plumbing problem worth an afternoon, and it is invisible in every
+report that looks only at the percentage — `CrossAudit` surfaces it by name.
+
+**Not every instance knows every metric.** `api/measures/search` rejects the
+whole request — 400, no measures at all — if a single metric key is unknown to
+it. The tool asks `api/metrics/search` once and sends only the intersection,
+naming anything it dropped. Without that, one renamed metric on an older
+SonarQube would return a portfolio with no measures rather than one measure
+fewer.
 
 **The ratings are ordinal, not numeric.** A `sqale_rating` of 4 is not twice as
 bad as 2, and averaging them produces a number with no meaning. Filter on them;
@@ -304,3 +353,37 @@ than the exception.
 No per-person columns, no lines added or removed, no commit-message quality
 score. The unit of analysis is the project throughout; author counts feed a bus
 factor judgement and nothing else. `GITLAB_ANALYSIS.md §8` has the reasoning.
+
+---
+
+## 5. `croisement.csv` — `CrossAudit`
+
+One row per project in `pratiques.csv`, matched or not. Every column is
+prefixed with the side it came from — `gl_` for GitLab, `sq_` for SonarQube —
+because without the prefix `coverage` and `commits_window` on one row read as
+one measurement, when they are two systems, two dates and two definitions.
+
+| Column | Meaning |
+|---|---|
+| `methode_jointure` | How the pair was made: `clé lue dans la CI`, `clé normalisée = chemin GitLab`, `noms voisins`, or `aucune` |
+| `confiance` | `exact`, `derived`, `suggestion`, `none` |
+| `gl_…` | Columns carried over from `pratiques.csv` |
+| `sq_…` | Columns carried over from the Sonar inventory. **All empty when nothing matched** |
+
+**`confiance = suggestion` is not a match.** Those rows are name resemblances
+for a human to confirm, and they are excluded from every count the run prints.
+Two projects called `api` in different namespaces resemble each other perfectly
+and are not the same project. Filter on this column before doing anything with
+the file.
+
+**An unmatched Sonar project may just not have been drawn.** `pratiques.csv`
+holds only the projects the GitLab audit selected, not the whole estate. The
+count of Sonar projects with no GitLab match is bounded by that, not by the
+integration's health — the run says so, and it is the one number in the
+crossing that is easy to over-read.
+
+**The match rate belongs in the report.** It is not a diagnostic about the
+tool. A low rate says the GitLab↔SonarQube integration is not configured, which
+is the same class of governance finding as the never-analysed projects — and it
+is the finding that has to be fixed before any of the others can be trusted at
+scale.
