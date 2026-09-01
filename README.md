@@ -47,12 +47,19 @@ jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
 ```
 
 ```bash
-# 4. One project you already care about, read closely
+# 4. Cross the two. No API calls — both sides are already on disk
+jbang CrossAudit.java --sonar inventaire.csv --gitlab ./audit/pratiques.csv \
+    --out ./audit/croisement.csv
+```
+
+```bash
+# 5. One project you already care about, read closely
 jbang GitLabProjectReport.java --path my/group/project
 ```
 
 Drop `--deep` from the third one to stop after selection — you get the funnel and
-the shortlist without the expensive per-project pass.
+the shortlist without the expensive per-project pass. Keep it if you want step 4:
+`cle_sonar`, the column the crossing joins on, is written by the deep pass.
 
 Each tool's `--help` ends with the rest of the recipes: whole-instance runs,
 project lists, longer windows, SonarQube Cloud.
@@ -422,6 +429,10 @@ same failure mode as `search_projects` filtering silently on the Sonar side.
 | `--since` | 90 | Activity window, in days |
 | `--top` | 200 | Deep-analysis budget, spent by quota |
 | `--floor` | derived | Activity floor; `-1` derives it from the distribution |
+| `--active-within` | 0 | Only pay the REST pass for projects that committed in the last N days; 0 = the whole `--since` window |
+| `--concurrency` | 8 | GitLab calls in flight at once; `1` restores the old sequential behaviour |
+| `--cache` | `.sonar-keys.json` in `--out-dir` | Where the Sonar-key cache lives |
+| `--no-cache` | off | Neither read nor write that cache |
 | `--validation-sample` | 30 | Projects drawn below the recency gate to validate it |
 | `--graphql` | on | Try the batched GraphQL route, fall back to REST |
 | `--deep` | off | Run the practice signals on the selected projects |
@@ -694,7 +705,9 @@ down once:
 The client itself is the union too: the retry on 429 honouring `Retry-After`, the
 `HEAD` existence probe and the GraphQL call come from the portfolio pass; the
 typed pagination that reports truncation as distinct from refusal comes from the
-per-project one.
+per-project one. It also holds `parallel`/`map`, which run independent calls with
+a bounded number in flight — the bound is the point, since the alternative to
+waiting on one call at a time is discovering the instance's rate limiter.
 
 They still differ where they should. The portfolio pass counts merge commits
 inside `commits_window`; the per-project report excludes them everywhere. That is
@@ -702,14 +715,123 @@ a live disagreement, not an oversight — one ranks, the other attributes — bu
 means `commits_per_week` is not comparable between a project that merges and one
 that squashes.
 
+### The Sonar key, and why finding it is the hard part
+
+`pratiques.csv` carries `cle_sonar` — the `sonar.projectKey` the scanner
+actually sends to SonarQube. That column is the join against the Sonar
+inventory, and getting it right is most of the work on this side.
+
+The naive read — grep the project's `.gitlab-ci.yml` for `sonar` — is wrong on
+the parc this was built against, and wrong in the direction that hides the
+problem. **The Sonar job is almost never in the project's own file.** It arrives
+through `include: project:` from a shared CI template, which frequently includes
+another template in turn. A grep on the raw file sees nothing and concludes
+*no Sonar* — across most of the estate.
+
+Chasing those includes by hand was the wrong fix. Doing it correctly means
+resolving project paths to IDs, following nesting, handling an absent `ref:`, a
+list-valued `file:`, `component:`, `local:` and `remote:` — reimplementing
+GitLab's include engine against a moving target. GitLab already does it and will
+hand over the result: **`GET /projects/:id/ci/lint` returns `merged_yaml`, the
+whole include tree expanded, in one call.** That is the route. The hand-rolled
+chase remains as a fallback for instances that refuse `ci/lint` to a Reporter
+token, and the run says which route produced the numbers — because the fallback
+sees less, so a parc read mostly through it has a `ci_sonar` that undercounts.
+
+A shared template cannot hard-code a key, so it writes
+`-Dsonar.projectKey=${CI_PROJECT_PATH_SLUG}`. That is a key, not a failure:
+GitLab's predefined variables are computed here from what the inventory already
+knows about the project, at no extra call. What stays unresolved is reported as
+unresolved and the key is left empty — a wrong join against Sonar is worse than
+no join.
+
+**The key is cached on disk**, indexed by the head of the default branch. It is
+the only thing this audit measures that is not windowed: commits, MRs and
+pipelines are stale the next day, while the key holds until `.gitlab-ci.yml`
+changes. The index is the SHA rather than a date, because a date that moves
+backwards — an import, a history rewrite — would keep serving a stale answer,
+while a different SHA always invalidates in the safe direction.
+
+### Speed, and where it went
+
+The cost of this tool is not computation, it is waiting: a GitLab call is
+100–300 ms, and every one of them used to be made one after the other. Nothing
+in the per-project passes depends on the order, so they now overlap, bounded by
+`--concurrency` so the instance's rate limiter is not the thing that discovers
+the change. Measured against a 414-project stand-in at 40 ms per call, `--top 60`:
+
+| | wall clock | calls | Sonar found on |
+|---|---|---|---|
+| sequential, includes chased by hand | 75 s | 1673 | 1 of 60 |
+| same work, `--concurrency 8` | 10 s | 1422 | 51 of 60 |
+| `--concurrency 16`, warm key cache | 7 s | 1371 | 51 of 60 |
+
+Fewer calls *and* fifty more projects correctly identified: the old detection
+was fast in the way that a wrong answer is always fast.
+
+Three further reductions, none of which change a measurement:
+
+- **One tree listing, not five HEAD probes.** The five watched root files are
+  answered by a single `repository/tree` call.
+- **`--active-within N`.** The last-commit date already cost one call per fifty
+  projects on the GraphQL pass, so it can decide for free who is worth the REST
+  pagination — the only per-project call in the selection funnel. Projects below
+  the cut are reported as *not looked at*, never as zero.
+- **The key cache**, above.
+
+---
+
+## Crossing the two: `CrossAudit.java`
+
+This was designed in `GITLAB_ANALYSIS.md` §6 from the start and listed here as
+*not yet done*. It genuinely was not done: no tool read both sides, and no CSV
+carried a column from both. `CrossAudit.java` is that missing piece.
+
+It reads the two CSVs the other tools already wrote and **makes no API calls**,
+so re-running it — different thresholds, a different join — costs nothing and
+cannot invalidate either audit.
+
+```bash
+jbang CrossAudit.java --sonar inventaire.csv --gitlab ./audit/pratiques.csv \
+    --out ./audit/croisement.csv
+```
+
+**The join, and how it is labelled.** Every pair carries the method that made it
+and a confidence, per §6:
+
+| Method | Confidence | Counts toward findings |
+|---|---|---|
+| `cle_sonar` — the key read out of the CI — matches a Sonar `key` | exact | yes |
+| Sonar key normalised against `path_with_namespace` | derived | yes |
+| Project name against the last path segment | suggestion | **no** |
+
+Suggestions go into `croisement.csv` marked as such, for a human to confirm.
+They never enter a count. Two projects called `api` in different namespaces
+match perfectly and are not the same project.
+
+**The match rate is a finding, not a status line.** A low rate does not mean the
+tool failed — it means the GitLab↔SonarQube integration is not configured, and
+nobody can currently answer *is this repo analysed?* without checking by hand.
+That is the same class of governance gap as the never-analysed projects.
+
+Six claims come out, none of which either report supports alone:
+
+- **Active in GitLab, absent from Sonar** — live projects with no scanner, separated at last from dead repos.
+- **CI configured for Sonar, no matched Sonar project** — the pipeline says it analyses; nothing receives it under a key we can attach. A silently failing job, or a key pointing nowhere. Checkable project by project in a minute.
+- **Debt created on code nobody reviewed** — Sonar sees violations on new code; GitLab sees that code reach the default branch with no merged MR.
+- **Neither tests nor review, on code that moves** — coverage under 20%, no merged MRs, sustained activity. Both safety nets missing at once.
+- **Debt carried, not created** — debt on the books, zero commits in the window. Confirmed by the repo itself rather than inferred from a stale analysis date.
+- **Tests run, coverage never arrives** — SonarQube counts tests and reports 0% coverage: the coverage report is not wired up. A CI plumbing problem, not an engineering one, and the two are indistinguishable if you only look at the percentage.
+
+The output caveat worth repeating: `pratiques.csv` holds only the projects the
+GitLab audit *selected*, not the whole estate. A Sonar project with no GitLab
+match may simply not have been drawn. The run says so.
+
 ### Not yet done
 
-The Sonar crossing. Resolving a Sonar project key from the GitLab path
-(`sonar-project.properties` and `.gitlab-ci.yml` first, then a guess against the
-Sonar project list, then asking), and on top of it: change frequency against
-complexity per file, exclusions against the real repository size, quality gate
-events against what was merged anyway, and `GIT_DEPTH` in CI against Sonar's empty
-blame.
+Per-file work, on both sides: change frequency against complexity per file,
+exclusions against the real repository size, quality gate events against what
+was merged anyway, and `GIT_DEPTH` in CI against Sonar's empty blame.
 
 ## Licence
 

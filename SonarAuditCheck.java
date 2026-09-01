@@ -157,6 +157,8 @@ public class SonarAuditCheck implements Callable<Integer> {
 
         String sample = (project != null) ? project : firstVisibleProject();
 
+        // Avant la première mesure : savoir ce que cette instance sait nommer.
+        negotiateMetrics();
         checkCapabilities(sample);
         inventory();
         if (sample != null) activitySignals(sample, activityDays);
@@ -246,13 +248,101 @@ public class SonarAuditCheck implements Callable<Integer> {
     // 2. Capacités réelles
     // ----------------------------------------------------------------------
 
-    /** Les métriques qui ciblent la dette en cours de création, pas le stock. */
-    private static final String METRICS = String.join(",",
-            "ncloc", "coverage", "duplicated_lines_density",
+    /**
+     * Les mesures demandées à SonarQube, et — c'est le même objet — les colonnes
+     * du CSV. Il y avait ici deux listes à tenir d'accord, une pour l'appel et
+     * une pour l'écriture : {@code sqale_index} figurait dans la première et pas
+     * dans la seconde, donc il était demandé à chaque projet du parc puis jeté.
+     * Une mesure absente du CSV se lit comme une mesure que SonarQube ne donne
+     * pas, ce qui est faux et coûte cher : c'est la dette en valeur absolue,
+     * celle sur laquelle GITLAB_ANALYSIS.md raisonne.
+     *
+     * L'ordre est celui du CSV. Quatre groupes :
+     *
+     *   1. taille et forme      — de quoi stratifier, et lire tout le reste ;
+     *   2. tests et couverture  — voir la note ci-dessous ;
+     *   3. dette et défauts     — les comptes derrière les notes A–E ;
+     *   4. code neuf            — ce qui se crée, plutôt que ce qui est porté.
+     *
+     * **Pourquoi autant autour de la couverture.** {@code coverage} seule ne
+     * distingue pas les deux situations qui appellent des actions opposées :
+     * une équipe qui n'a pas de tests, et une équipe qui en a mais dont le
+     * rapport de couverture n'arrive pas jusqu'à SonarQube. {@code tests} et
+     * {@code lines_to_cover} les séparent — 0 % avec 400 tests est un problème
+     * de tuyauterie CI, 0 % avec 0 test est un problème d'ingénierie — et
+     * {@code uncovered_lines} donne enfin un volume à l'effort, là où un
+     * pourcentage sur un projet de 200 lignes et un sur un monolithe se
+     * ressemblent.
+     *
+     * **Pourquoi les comptes en plus des notes.** {@code *_rating} est ordinal :
+     * un 4 ne vaut pas deux 2, et la moyenne d'une colonne de notes n'a pas de
+     * sens. {@code bugs}, {@code vulnerabilities}, {@code code_smells} se
+     * somment, se comparent, se rapportent à {@code ncloc}.
+     */
+    private static final List<String> METRIC_COLUMNS = List.of(
+            // 1. Taille et forme
+            "ncloc", "files", "complexity", "cognitive_complexity",
+            "comment_lines_density",
+            "duplicated_lines_density", "new_duplicated_lines_density",
+            // 2. Tests et couverture
+            "coverage", "line_coverage", "branch_coverage", "new_coverage",
+            "lines_to_cover", "uncovered_lines",
+            "tests", "test_failures", "test_errors", "skipped_tests",
+            "test_success_density",
+            // 3. Dette et défauts
             "sqale_index", "sqale_debt_ratio", "sqale_rating",
-            "reliability_rating", "security_rating", "alert_status",
-            "new_coverage", "new_lines", "new_violations",
-            "new_duplicated_lines_density", "security_hotspots_reviewed");
+            "bugs", "reliability_rating",
+            "vulnerabilities", "security_rating",
+            "security_hotspots", "security_hotspots_reviewed",
+            "code_smells", "violations",
+            // 4. Code neuf
+            "new_lines", "new_violations", "new_bugs", "new_vulnerabilities",
+            "new_code_smells",
+            "alert_status");
+
+    /**
+     * Ce qu'on demandera réellement : {@link #METRIC_COLUMNS} restreint aux
+     * métriques que *cette* instance connaît.
+     *
+     * {@code api/measures/search} refuse la requête entière — 400 — dès qu'une
+     * seule clé lui est inconnue. Une métrique retirée ou renommée d'une version
+     * de SonarQube à l'autre ferait donc perdre les treize autres, et l'audit
+     * afficherait un parc sans aucune mesure plutôt qu'une mesure de moins. On
+     * demande la liste une fois, et on n'envoie que l'intersection.
+     */
+    private List<String> supportedMetrics = METRIC_COLUMNS;
+    private List<String> unsupportedMetrics = List.of();
+
+    private String metricKeys() {
+        return String.join(",", supportedMetrics);
+    }
+
+    /**
+     * Un appel, paginé, avant toute mesure. Si l'instance ne répond pas, on garde
+     * la liste complète : le comportement d'avant, pas une dégradation de plus.
+     */
+    private void negotiateMetrics() {
+        Set<String> known = new HashSet<>();
+        for (int page = 1; page <= 10; page++) {
+            MetricsSearch m = sq.get("api/metrics/search",
+                    params("ps", "500", "p", String.valueOf(page))).as(MetricsSearch.class);
+            if (m == null || m.metrics() == null || m.metrics().isEmpty()) break;
+            m.metrics().forEach(x -> known.add(x.key()));
+            Paging pg = m.paging();
+            if (pg != null && pg.total() != null && known.size() >= pg.total()) break;
+        }
+        if (known.isEmpty()) return;
+        supportedMetrics = METRIC_COLUMNS.stream().filter(known::contains).toList();
+        unsupportedMetrics = METRIC_COLUMNS.stream().filter(k -> !known.contains(k)).toList();
+        if (!unsupportedMetrics.isEmpty()) {
+            System.out.printf("  Métriques inconnues de cette instance : %s%n",
+                    c(String.join(", ", unsupportedMetrics), YELLOW));
+            System.out.println(c("    Retirées de la requête. Demandées quand même, "
+                    + "elles feraient échouer", DIM));
+            System.out.println(c("    l'appel entier et le parc ressortirait sans "
+                    + "aucune mesure.", DIM));
+        }
+    }
 
     private void checkCapabilities(String sample) {
         title("2. Capacités du token sur les endpoints utiles");
@@ -270,7 +360,7 @@ public class SonarAuditCheck implements Callable<Integer> {
 
         probe("Mesures en masse (measures/search)", "api/measures/search",
                 MeasuresSearch.class, p -> size(p.measures()) + " mesures",
-                params("projectKeys", sample, "metricKeys", METRICS));
+                params("projectKeys", sample, "metricKeys", metricKeys()));
 
         probe("Historique de mesures (search_history)", "api/measures/search_history",
                 SearchHistory.class, p -> total(p.paging()) + " points",
@@ -457,7 +547,7 @@ public class SonarAuditCheck implements Callable<Integer> {
         for (int i = 0; i < keys.size(); i += 100) {
             List<String> chunk = keys.subList(i, Math.min(i + 100, keys.size()));
             MeasuresSearch m = sq.get("api/measures/search",
-                            params("projectKeys", String.join(",", chunk), "metricKeys", METRICS))
+                            params("projectKeys", String.join(",", chunk), "metricKeys", metricKeys()))
                     .as(MeasuresSearch.class);
             if (m == null) continue;
             for (Measure measure : orEmptyList(m.measures())) {
@@ -486,13 +576,6 @@ public class SonarAuditCheck implements Callable<Integer> {
     // ----------------------------------------------------------------------
     // CSV
     // ----------------------------------------------------------------------
-
-    private static final List<String> METRIC_COLUMNS = List.of(
-            "ncloc", "coverage", "new_coverage",
-            "duplicated_lines_density", "new_duplicated_lines_density",
-            "sqale_debt_ratio", "sqale_rating", "new_violations", "new_lines",
-            "reliability_rating", "security_rating", "security_hotspots_reviewed",
-            "alert_status");
 
     private void writeCsv(List<Component> projects,
                           Map<String, Map<String, String>> measures) throws IOException {
@@ -907,6 +990,12 @@ public class SonarAuditCheck implements Callable<Integer> {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record MeasuresSearch(List<Measure> measures) { }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record MetricsSearch(Paging paging, List<Metric> metrics) { }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Metric(String key, String name, String type) { }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record ComponentMeasures(ComponentWithMeasures component) {
