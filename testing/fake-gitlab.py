@@ -19,8 +19,10 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import unquote
 
 NOW = datetime.now(timezone.utc)
+LINT_FORBIDDEN = False
 
 
 def iso(days_ago):
@@ -124,6 +126,92 @@ def pipelines_for(pid):
     return list(reversed(out))
 
 
+# Le cas qui a motivé la réécriture : chez le client, le job Sonar n'est presque
+# jamais dans le .gitlab-ci.yml du projet. Il est dans un template partagé, inclus
+# par `include: project:`, lequel en inclut parfois un autre. L'ancien mock servait
+# un .gitlab-ci.yml contenant littéralement « sonar » pour tout le monde, donc la
+# chasse aux includes n'était jamais exercée — et son motif cassé passait le test.
+#
+# Trois formes de racine, pour trois façons de rater la détection :
+#   * SANS_SONAR  — includes seuls, la clé est deux niveaux plus bas ;
+#   * SONAR_BRUT  — le job est en clair dans le fichier du projet ;
+#   * PAS_DE_CI   — pas de .gitlab-ci.yml du tout.
+CI_INCLUDES = """include:
+  - project: 'outils/templates-ci'
+    ref: main
+    file: '/qualite/analyse.gitlab-ci.yml'
+  - project: 'outils/templates-ci'
+    file:
+      - '/build/java.yml'
+      - '/build/docker.yml'
+  - local: /ci/local.yml
+stages:
+  - build
+  - test
+"""
+
+CI_SONAR_BRUT = """stages:
+  - test
+sonarqube-check:
+  script:
+    - sonar-scanner -Dsonar.projectKey=equipe-a_monolithe
+"""
+
+# Le template partagé n'a pas le job : il inclut celui qui l'a. Un seul niveau de
+# chasse ne trouve rien, et c'est exactement le cas que l'ancien code manquait.
+TEMPLATES = {
+    "/qualite/analyse.gitlab-ci.yml": """include:
+  - project: 'outils/templates-ci'
+    ref: main
+    file: '/qualite/scanner.yml'
+""",
+    "/qualite/scanner.yml": """sonarqube-check:
+  image: sonarsource/sonar-scanner-cli
+  script:
+    - sonar-scanner -Dsonar.projectKey=${CI_PROJECT_PATH_SLUG}
+""",
+    "/build/java.yml": "build-java:\n  script:\n    - mvn -B package\n",
+    "/build/docker.yml": "build-image:\n  script:\n    - docker build .\n",
+    "/sast.yml": "include:\n  - template: Security/SAST.gitlab-ci.yml\n",
+}
+
+# id -> contenu de .gitlab-ci.yml à la racine. Absent = pas de CI.
+CI_ROOT = {
+    1: CI_INCLUDES,      # Sonar à deux niveaux d'include, clé en variable
+    2: CI_INCLUDES,
+    3: CI_SONAR_BRUT,    # Sonar en clair, clé littérale
+    11: CI_INCLUDES,
+    13: CI_INCLUDES,
+    14: CI_SONAR_BRUT,
+}
+
+
+def merged_yaml(pid):
+    """Ce que GitLab renvoie dans merged_yaml : l'arbre d'inclusion déplié."""
+    root = CI_ROOT.get(pid)
+    if root is None:
+        return None
+    out = [root]
+    if root is CI_INCLUDES:
+        out += [TEMPLATES["/qualite/scanner.yml"], TEMPLATES["/build/java.yml"],
+                TEMPLATES["/build/docker.yml"]]
+    return "\n".join(out)
+
+
+def tree_for(pid):
+    names = ["README.md"]
+    if pid in CI_ROOT:
+        names.append(".gitlab-ci.yml")
+    if pid % 2:
+        names += ["CODEOWNERS", "Dockerfile"]
+    # Un seul projet porte la clé en clair dans sonar-project.properties : c'est
+    # la source la moins ambiguë, et elle doit gagner sur la CI.
+    if pid == 11:
+        names.append("sonar-project.properties")
+    return [{"id": f"{i:040x}", "name": n, "type": "blob", "path": n}
+            for i, n in enumerate(sorted(names))]
+
+
 class Handler(BaseHTTPRequestHandler):
     throttled_once = False
 
@@ -175,6 +263,14 @@ class Handler(BaseHTTPRequestHandler):
             nxt = page + 1 if page * per < len(PROJECTS) else ""
             return self._send(200, chunk, {"X-Total": len(PROJECTS), "X-Next-Page": nxt})
 
+        # Résolution d'un chemin de projet en ID : c'est ainsi que le repli
+        # trouve le dépôt de templates, qui n'est pas dans le périmètre audité.
+        m2 = re.match(r"/api/v4/projects/([^/]+)$", path)
+        if m2 and not m2.group(1).isdigit():
+            if unquote(m2.group(1)) == "outils/templates-ci":
+                return self._send(200, {"id": 99, "path_with_namespace": "outils/templates-ci"})
+            return self._send(404, {"message": "404 Not Found"})
+
         if pid == 12:
             return self._send(403, {"message": "403 Forbidden"})
 
@@ -209,14 +305,48 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, [], {"X-Total": 0 if pid in (4, 11) else 2})
         if path.endswith("/dora/metrics"):
             return self._send(200, [{"date": "2026-07-01", "value": 12}])
+        if path.endswith("/repository/tree"):
+            return self._send(200, tree_for(pid), {"X-Next-Page": ""})
+
+        # ci/lint : la route qui rend l'arbre d'inclusion déjà déplié. Refusée
+        # sur le projet 13, pour que le repli — la chasse aux includes à la main —
+        # soit exercé lui aussi, et pas seulement en théorie.
+        if path.endswith("/ci/lint"):
+            if LINT_FORBIDDEN:
+                return self._send(403, {"message": "403 Forbidden"})
+            merged = merged_yaml(pid)
+            if merged is None:
+                return self._send(200, {"valid": False, "errors": ["file not found"]})
+            return self._send(200, {"valid": True, "errors": [], "merged_yaml": merged})
+
         if path.endswith("/raw"):
-            return self._send(200, "stages:\n  - test\nsonarqube-check:\n  script: sonar-scanner\n")
+            # Le fichier demandé, pas un fichier passe-partout : servir du YAML
+            # contenant « sonar » quoi qu'on demande masquait tout le sujet.
+            m = re.search(r"/repository/files/([^/]+)/raw", path)
+            wanted = unquote(m.group(1)) if m else ""
+            if wanted == "sonar-project.properties":
+                return self._send(200, "sonar.projectKey=equipe-c_mono-auteur\nsonar.sources=src\n")
+            if wanted == ".gitlab-ci.yml":
+                root = CI_ROOT.get(pid)
+                return self._send(200, root) if root else self._send(404, {})
+            if wanted in TEMPLATES:
+                return self._send(200, TEMPLATES[wanted])
+            return self._send(404, {"message": "404 Not Found"})
+
         if "/repository/files/" in path:
-            return self._send(200 if pid % 2 else 404, {})
+            # HEAD d'existence : doit répondre comme l'arbre, sinon le mock se
+            # contredit lui-même selon la route empruntée.
+            m = re.search(r"/repository/files/([^/]+)", path)
+            wanted = unquote(m.group(1)) if m else ""
+            present = {e["name"] for e in tree_for(pid)}
+            return self._send(200 if wanted in present else 404, {})
 
         return self._send(404, {"message": "404 Not Found"})
 
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8099
+    # LINT=refuse : l'instance interdit ci/lint au jeton. Le repli doit alors
+    # trouver la même chose, en plus d'appels — c'est ce qu'on veut vérifier.
+    LINT_FORBIDDEN = len(sys.argv) > 2 and sys.argv[2] == "refuse"
     HTTPServer(("127.0.0.1", port), Handler).serve_forever()

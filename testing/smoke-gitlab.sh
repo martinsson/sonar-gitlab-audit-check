@@ -83,11 +83,40 @@ check() {
 # Un refus de permission ne doit jamais ressortir en « 0 commit ».
 check "$OUT/inventaire.csv" 'activité non mesurable (HTTP 403)' "403 ≠ zéro commit"
 # Le projet mono-auteur planté doit être compté à 1 auteur, pas 2.
-check "$OUT/inventaire.csv" '"equipe-c/mono-auteur".*"45","0","1"' "identités d'auteur fusionnées"
+# Le séparateur est le point-virgule depuis que les CSV sont écrits pour Excel :
+# ce motif attendait encore la virgule, donc il passait sans rien vérifier.
+check "$OUT/inventaire.csv" '"equipe-c/mono-auteur".*"45"."0"."1"' "identités d'auteur fusionnées"
 # Le projet actif mais marqué inactif doit être retrouvé par l'échantillon.
 check "$OUT/inventaire.csv" '"equipe-d/fuite".*"true"' "fuite du filtre de fraîcheur détectée"
 # Le parc contient un dépôt dont l'activité est entièrement robotique.
 check "$OUT/inventaire.csv" 'activité robotique seule' "activité robotique isolée"
+
+# Le job Sonar n'est ni dans le .gitlab-ci.yml du projet ni dans le premier
+# template inclus : il est deux niveaux plus bas, et sa clé est une variable.
+# C'est le cas majoritaire du parc visé, et celui qu'un grep sur le fichier brut
+# ne peut pas voir.
+check "$OUT/pratiques.csv" '"equipe-a/service-actif".*"equipe-a-service-actif"' \
+    "clé Sonar résolue à travers deux niveaux d'include"
+# sonar-project.properties porte la clé en clair : il doit gagner sur la CI.
+check "$OUT/pratiques.csv" '"equipe-c/mono-auteur".*"equipe-c_mono-auteur"' \
+    "clé littérale préférée à la clé dérivée"
+
+# ci/lint refusé : le repli doit trouver la même chose, en plus d'appels. Une
+# instance sur deux ne donne pas ce droit à un jeton Reporter.
+python3 "$HERE/fake-gitlab.py" "$((PORT + 1))" refuse &
+REFUSE_PID=$!
+sleep 1
+GITLAB_URL="http://127.0.0.1:$((PORT + 1))" GITLAB_TOKEN=faux \
+    run --top 6 --no-cache --pratiques "$OUT/repli/pratiques.csv" > "$OUT/repli.txt" 2>&1 || true
+kill "$REFUSE_PID" 2>/dev/null || true
+check "$OUT/repli.txt" "ci/lint refusé" "repli annoncé, pas silencieux"
+if diff -q <(cut -d';' -f1,23,24,25 "$OUT/pratiques.csv" | sort) \
+           <(cut -d';' -f1,23,24,25 "$OUT/repli/pratiques.csv" | sort) > /dev/null; then
+    echo "  OK   le repli trouve les mêmes clés que ci/lint"
+else
+    echo "  ÉCHEC le repli et ci/lint divergent"
+    fail=1
+fi
 
 check "$OUT/cp850-relu.txt" 'Filtre de fraîcheur' "accents intacts sur une console cp850"
 if grep -q '—' "$OUT/cp850-relu.txt"; then

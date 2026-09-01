@@ -26,6 +26,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -129,7 +137,19 @@ public final class Gitlab {
     private final Duration timeout;
     private final Path dumpDir;
     private final HttpClient client;
-    public int calls = 0, forbidden = 0, throttled = 0;
+
+    // Comptés depuis plusieurs fils dès que parallel() est utilisé : un int nu
+    // perdrait des incréments, et le total d'appels est ce sur quoi on juge le
+    // coût de l'outil. Il doit être juste, pas approximativement juste.
+    private final AtomicInteger callCount = new AtomicInteger();
+    private final AtomicInteger forbiddenCount = new AtomicInteger();
+    private final AtomicInteger throttledCount = new AtomicInteger();
+
+    public int calls() { return callCount.get(); }
+
+    public int forbidden() { return forbiddenCount.get(); }
+
+    public int throttled() { return throttledCount.get(); }
 
     public Gitlab(String url, String token, int timeoutSeconds, boolean insecure, Path dumpDir)
             throws Exception {
@@ -215,6 +235,76 @@ public final class Gitlab {
                 truncated, null);
     }
 
+    // ----------------------------------------------------------------------
+    // Parallélisme
+    // ----------------------------------------------------------------------
+
+    /**
+     * Le coût de ces outils n'est pas le calcul, c'est l'attente : un appel
+     * GitLab tourne autour de 100 à 300 ms, et jusqu'ici on les faisait un par
+     * un. Sur un parc de 6 000 projets, la passe profonde y passe des heures
+     * sans que la machine ni l'instance ne travaillent — les deux attendent le
+     * réseau.
+     *
+     * Les faire se recouvrir ne change aucune mesure : chaque projet est lu
+     * indépendamment des autres, et rien dans les étapes par projet ne dépend
+     * de l'ordre. La borne, elle, compte : le limiteur de débit de GitLab est
+     * configuré par instance et souvent abaissé, donc on plafonne le nombre
+     * d'appels en vol plutôt que de lâcher 200 requêtes d'un coup. Le 429 reste
+     * traité comme avant, avec Retry-After — la borne le rend rare, elle ne le
+     * rend pas impossible.
+     *
+     * Les exceptions ne sont pas avalées : une tâche qui échoue relance son
+     * exception à l'appelant, comme si la boucle était restée séquentielle.
+     */
+    public <T> void parallel(List<T> items, int concurrency, Consumer<T> work) {
+        map(items, concurrency, item -> {
+            work.accept(item);
+            return null;
+        });
+    }
+
+    /** Même chose, en conservant les résultats dans l'ordre des entrées. */
+    public <T, R> List<R> map(List<T> items, int concurrency, Function<T, R> work) {
+        if (items.isEmpty()) return List.of();
+        int width = Math.max(1, concurrency);
+        if (width == 1 || items.size() == 1) {
+            return items.stream().map(work).collect(Collectors.toCollection(ArrayList::new));
+        }
+        // Un fil virtuel par tâche, un sémaphore pour la largeur : les fils sont
+        // gratuits, les connexions ne le sont pas. Le sémaphore borne les appels
+        // en vol, pas les objets créés.
+        Semaphore inFlight = new Semaphore(width);
+        List<R> out = new ArrayList<>(java.util.Collections.nCopies(items.size(), (R) null));
+        try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
+            List<Future<R>> futures = new ArrayList<>(items.size());
+            for (T item : items) {
+                futures.add(pool.submit(() -> {
+                    inFlight.acquire();
+                    try {
+                        return work.apply(item);
+                    } finally {
+                        inFlight.release();
+                    }
+                }));
+            }
+            for (int i = 0; i < futures.size(); i++) {
+                try {
+                    out.set(i, futures.get(i).get());
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("interrompu", e);
+                } catch (ExecutionException e) {
+                    Throwable cause = e.getCause();
+                    if (cause instanceof RuntimeException re) throw re;
+                    if (cause instanceof Error err) throw err;
+                    throw new IllegalStateException(cause);
+                }
+            }
+        }
+        return out;
+    }
+
     private static Map<String, String> pageParams(Map<String, String> params, String page) {
         Map<String, String> p = new LinkedHashMap<>(params);
         p.put("per_page", "100");
@@ -229,7 +319,7 @@ public final class Gitlab {
      */
     private Response send(String method, String uri, String body) {
         for (int attempt = 0; ; attempt++) {
-            calls++;
+            int seq = callCount.incrementAndGet();
             try {
                 HttpRequest.BodyPublisher pub = body == null
                         ? HttpRequest.BodyPublishers.noBody()
@@ -249,7 +339,7 @@ public final class Gitlab {
                         HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
                 if (res.statusCode() == 429 && attempt < 3) {
-                    throttled++;
+                    throttledCount.incrementAndGet();
                     long wait = res.headers().firstValue("retry-after")
                             .map(v -> { try { return Long.parseLong(v.trim()); }
                                         catch (NumberFormatException e) { return 5L; } })
@@ -257,12 +347,12 @@ public final class Gitlab {
                     Thread.sleep(Math.min(wait, 60) * 1000);
                     continue;
                 }
-                if (res.statusCode() == 403) forbidden++;
+                if (res.statusCode() == 403) forbiddenCount.incrementAndGet();
 
                 Map<String, String> h = new HashMap<>();
                 res.headers().map().forEach((k, v) ->
                         h.put(k.toLowerCase(Locale.ROOT), v.isEmpty() ? "" : v.get(0)));
-                dump(uri, res.body());
+                dump(seq, uri, res.body());
                 return new Response(res.statusCode(), res.body(), h);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
@@ -278,9 +368,9 @@ public final class Gitlab {
         }
     }
 
-    private void dump(String uri, String body) {
+    private void dump(int seq, String uri, String body) {
         if (dumpDir == null) return;
-        String name = "%04d-%s.json".formatted(calls,
+        String name = "%04d-%s.json".formatted(seq,
                 uri.replaceFirst("^https?://[^/]+/", "").replaceAll("[^A-Za-z0-9]+", "_"));
         try {
             Files.writeString(dumpDir.resolve(truncate(name, 120)), body == null ? "" : body);

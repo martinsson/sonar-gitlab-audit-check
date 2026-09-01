@@ -140,7 +140,7 @@ public class GitLabProjectReport implements Callable<Integer> {
         findings(project, commits, cadence, people, reviews);
 
         System.out.println();
-        System.out.println(c("  %d appels API.".formatted(gl.calls), DIM));
+        System.out.println(c("  %d appels API.".formatted(gl.calls()), DIM));
         return 0;
     }
 

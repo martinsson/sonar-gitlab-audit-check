@@ -22,6 +22,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -42,6 +43,15 @@ import java.util.stream.Collectors;
  *   étape 4  sélection par quotas              0 appel
  *
  * Puis, optionnellement, --deep : les signaux de pratique sur les sélectionnés.
+ *
+ * Le coût de tout cela n'est pas le calcul, c'est l'attente. Les appels qui ne
+ * dépendent pas les uns des autres — un projet n'a rien à dire d'un autre — se
+ * recouvrent, à concurrence de --concurrency, ce qui laisse le limiteur de débit
+ * de l'instance décider du reste. Deux réductions s'y ajoutent, sans changer une
+ * seule mesure : --active-within fait trancher la date du dernier commit, déjà
+ * payée par lot en GraphQL, avant la pagination REST qui coûte un appel par
+ * projet ; et la clé Sonar, seule donnée non fenêtrée de l'audit, est relue d'un
+ * cache disque tant que la tête de la branche par défaut n'a pas bougé.
  *
  * Usage :
  *   export GITLAB_URL=https://gitlab.example.com
@@ -121,6 +131,11 @@ public class GitlabActivityAudit implements Callable<Integer> {
             description = "budget d'analyse approfondie (défaut : ${DEFAULT-VALUE})")
     int top;
 
+    @Option(names = "--active-within", defaultValue = "0",
+            description = "ne payer la passe REST que pour les projets ayant commité "
+                    + "dans les N derniers jours ; 0 = toute la fenêtre --since")
+    int activeWithinDays;
+
     @Option(names = "--floor", defaultValue = "-1",
             description = "plancher d'activité en commits ; -1 = déduit des données")
     int floor;
@@ -169,6 +184,18 @@ public class GitlabActivityAudit implements Callable<Integer> {
             description = "pages de commits max par projet (100/page)")
     int maxCommitPages;
 
+    @Option(names = "--concurrency", defaultValue = "8",
+            description = "appels GitLab simultanés ; 1 = séquentiel "
+                    + "(défaut : ${DEFAULT-VALUE})")
+    int concurrency;
+
+    @Option(names = "--cache", description = "fichier de cache des clés Sonar "
+            + "(sinon : .sonar-keys.json dans --out-dir)")
+    Path cacheFile;
+
+    @Option(names = "--no-cache", description = "ignorer et ne pas écrire le cache des clés Sonar")
+    boolean noCache;
+
     @Option(names = "--timeout", defaultValue = "30",
             description = "délai HTTP en secondes (défaut : ${DEFAULT-VALUE})")
     int timeout;
@@ -196,6 +223,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
     private Pattern bots;
     private OffsetDateTime windowStart;
     private final Counters counters = new Counters();
+    private SonarCache cache;
 
     @Override
     public Integer call() throws Exception {
@@ -209,6 +237,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         bots = Pattern.compile(botPattern);
         windowStart = OffsetDateTime.now(ZoneOffset.UTC).minusDays(sinceDays);
         resolveOutputs();
+        cache = new SonarCache(cacheFile, !noCache);
 
         System.out.println(c("\nInstance : " + gl.base, BOLD));
 
@@ -227,7 +256,11 @@ public class GitlabActivityAudit implements Callable<Integer> {
         select(fresh);
 
         if (csv != null) writeInventory(all);
-        if (deep) new DeepPass(all).run();
+        if (deep) {
+            cache.load();
+            new DeepPass(all).run();
+            cache.save();
+        }
 
         summary(all);
         return 0;
@@ -249,6 +282,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
             Files.createDirectories(outDir);
             if (csv == null) csv = outDir.resolve("inventaire.csv");
             if (deep && pratiquesCsv == null) pratiquesCsv = outDir.resolve("pratiques.csv");
+            if (cacheFile == null) cacheFile = outDir.resolve(".sonar-keys.json");
         }
         if (csv == null && pratiquesCsv != null) {
             Path dir = pratiquesCsv.toAbsolutePath().getParent();
@@ -349,22 +383,26 @@ public class GitlabActivityAudit implements Callable<Integer> {
         counters.kept = kept.size();
         System.out.printf("  Retenus pour analyse            : %d (%s du parc)%n",
                 kept.size(), pct(kept.size(), all.size()));
-        if (gl.forbidden > 0) {
+        if (gl.forbidden() > 0) {
             System.out.println(c("    %d réponses 403 : le jeton ne voit pas tout le parc."
-                    .formatted(gl.forbidden), YELLOW));
+                    .formatted(gl.forbidden()), YELLOW));
             System.out.println(c("    Un trou de permission raccourcit la liste sans lever d'erreur.", DIM));
         }
         return all;
     }
 
     private List<JsonNode> fromFile() throws IOException {
+        List<String> paths = Files.readAllLines(projectsFile, StandardCharsets.UTF_8).stream()
+                .map(String::trim)
+                .filter(l -> !l.isEmpty() && !l.startsWith("#"))
+                .toList();
         List<JsonNode> out = new ArrayList<>();
-        for (String raw : Files.readAllLines(projectsFile, StandardCharsets.UTF_8)) {
-            String path = raw.trim();
-            if (path.isEmpty() || path.startsWith("#")) continue;
-            Gitlab.Response r = gl.get("projects/" + enc(path), Map.of("statistics", "true"));
+        List<Gitlab.Response> rs = gl.map(paths, concurrency,
+                path -> gl.get("projects/" + enc(path), Map.of("statistics", "true")));
+        for (int i = 0; i < paths.size(); i++) {
+            Gitlab.Response r = rs.get(i);
             if (r.status() == 200) out.add(r.json());
-            else System.out.printf("    %-40s HTTP %d — ignoré%n", path, r.status());
+            else System.out.printf("    %-40s HTTP %d — ignoré%n", paths.get(i), r.status());
         }
         return out;
     }
@@ -414,12 +452,13 @@ public class GitlabActivityAudit implements Callable<Integer> {
         Collections.shuffle(below, new Random(seed));
         List<Proj> sample = below.subList(0, Math.min(validationSample, below.size()));
         int leaks = 0;
-        for (Proj p : sample) {
-            int n = countCommits(p);
+        List<Integer> counts = gl.map(sample, concurrency, this::countCommits);
+        for (int i = 0; i < sample.size(); i++) {
+            int n = counts.get(i);
             if (n > 0) {
                 leaks++;
-                p.leaked = true;
-                p.commits = n;
+                sample.get(i).leaked = true;
+                sample.get(i).commits = n;
             }
         }
         counters.sampleSize = sample.size();
@@ -451,7 +490,14 @@ public class GitlabActivityAudit implements Callable<Integer> {
             System.out.println(c("    (last_activity_at récent sans commit récent : tickets, wiki, CI)", DIM));
         }
 
-        int counted = 0;
+        // La date du dernier commit vient de coûter un appel pour cinquante
+        // projets. Elle décide donc gratuitement qui mérite la pagination REST,
+        // qui est le seul poste de l'étape 2 à coûter un appel par projet.
+        OffsetDateTime cut = activeWithinDays > 0
+                ? OffsetDateTime.now(ZoneOffset.UTC).minusDays(activeWithinDays)
+                : windowStart;
+        List<Proj> toCount = new ArrayList<>();
+        int tooQuiet = 0;
         for (Proj p : fresh) {
             // Si GraphQL a daté le dernier commit hors fenêtre, le compte est zéro
             // par construction : inutile de le redemander en REST.
@@ -461,10 +507,41 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 p.authors = 0;
                 continue;
             }
-            pageCommits(p);
-            counted++;
+            // Et s'il est daté avant la coupe demandée, le projet n'est pas de
+            // ceux qu'on veut regarder : on ne le compte pas, et surtout on ne
+            // le note pas zéro — il a des commits, on a choisi de ne pas les
+            // compter. La nuance tient tout le reste du rapport.
+            // À défaut de date de commit — GraphQL indisponible — on retombe sur
+            // last_activity_at, qui se trompe dans le sens sûr : il est gonflé
+            // par les événements non-commit, donc un projet sous la coupe selon
+            // lui l'est forcément selon ses commits. La coupe reste gratuite.
+            OffsetDateTime seen = p.lastCommit != null ? p.lastCommit : p.lastActivity;
+            if (activeWithinDays > 0 && seen != null && seen.isBefore(cut)) {
+                p.excluded = "hors coupe d'activité (%s > %dj)".formatted(
+                        p.lastCommit != null ? "dernier commit" : "dernière activité", activeWithinDays);
+                tooQuiet++;
+                continue;
+            }
+            toCount.add(p);
         }
+        if (activeWithinDays > 0) {
+            System.out.printf("  Coupe --active-within %-3d       : %d projets écartés sur %d%n",
+                    activeWithinDays, tooQuiet, fresh.size());
+            System.out.println(c("    Écartés sans être comptés : « pas regardé » n'est pas « rien vu ».", DIM));
+            boolean byCommit = fresh.stream().anyMatch(x -> x.lastCommit != null);
+            System.out.println(c(byCommit
+                    ? "    Gratuit — la date vient de la passe GraphQL, pas d'un appel de plus."
+                    : "    Gratuit — GraphQL indisponible, la coupe porte sur last_activity_at,\n"
+                            + "    qui majore l'activité : elle écarte donc moins, jamais à tort.", DIM));
+        }
+
+        // Un appel par projet, sans lien entre eux : c'est le poste le plus
+        // lourd de l'outil sur un gros parc, et il n'avait aucune raison d'être
+        // séquentiel.
+        gl.parallel(toCount, concurrency, this::pageCommits);
+        int counted = toCount.size();
         counters.commitPassed = counted;
+        counters.notCounted = tooQuiet;
         long active = fresh.stream().filter(p -> p.commits != null && p.commits > 0).count();
         System.out.printf("  Comptés par pagination REST     : %d projets%n", counted);
         System.out.printf("  Avec au moins un commit humain  : %d%n", active);
@@ -493,7 +570,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
             for (int j = 0; j < batch.size(); j++) {
                 q.append("p").append(j).append(":project(fullPath:\"")
                         .append(batch.get(j).path.replace("\"", "\\\""))
-                        .append("\"){repository{rootRef tree{lastCommit{committedDate}}}} ");
+                        .append("\"){repository{rootRef tree{lastCommit{sha committedDate}}}} ");
             }
             q.append("}");
 
@@ -508,10 +585,15 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 break; // partiel : les projets non datés passeront par REST
             }
             for (int j = 0; j < batch.size(); j++) {
-                JsonNode n = data.path("p" + j).path("repository").path("tree")
-                        .path("lastCommit").path("committedDate");
+                JsonNode last = data.path("p" + j).path("repository").path("tree")
+                        .path("lastCommit");
+                JsonNode n = last.path("committedDate");
                 if (n.isTextual()) {
                     batch.get(j).lastCommit = parse(n.asText());
+                    // Le SHA de tête indexe le cache des clés Sonar : il ne coûte
+                    // rien de plus ici, et c'est le seul index qui n'invalide
+                    // jamais dans le mauvais sens.
+                    if (last.path("sha").isTextual()) batch.get(j).headSha = last.path("sha").asText();
                     done++;
                 }
             }
@@ -559,6 +641,10 @@ public class GitlabActivityAudit implements Callable<Integer> {
             }
             JsonNode arr = r.json();
             if (!arr.isArray() || arr.isEmpty()) break;
+            // Repli d'index de cache quand GraphQL n'a pas répondu : les commits
+            // arrivent du plus récent au plus ancien, donc le premier de la
+            // première page est la tête de la branche par défaut.
+            if (page == 1 && isBlank(p.headSha)) p.headSha = text(arr.get(0), "id");
 
             for (JsonNode c : arr) {
                 String email = text(c, "author_email");
@@ -605,7 +691,11 @@ public class GitlabActivityAudit implements Callable<Integer> {
     private int activityFloor(List<Proj> fresh) {
         title("4. Plancher d'activité (étape 3)");
 
-        List<Integer> volumes = fresh.stream()
+        // La distribution ne porte que sur les projets effectivement comptés :
+        // y verser un zéro pour chaque projet volontairement non compté
+        // déplacerait les déciles, donc le plancher déduit, donc la sélection.
+        List<Proj> counted = fresh.stream().filter(p -> p.excluded == null).toList();
+        List<Integer> volumes = counted.stream()
                 .map(p -> p.commits == null ? 0 : p.commits)
                 .sorted(Comparator.reverseOrder()).toList();
         System.out.print("  Distribution des commits (déciles) :");
@@ -631,7 +721,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         }
 
         int eligible = 0, unmeasurable = 0;
-        for (Proj p : fresh) {
+        for (Proj p : counted) {
             if (p.commits == null) {
                 p.excluded = "activité non mesurable (" + orEmpty(p.unmeasurable) + ")";
                 unmeasurable++;
@@ -649,7 +739,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         counters.eligible = eligible;
         System.out.printf("  Éligibles au tirage             : %d%n", eligible);
         System.out.printf("  Cohorte faible activité         : %d%n",
-                fresh.size() - eligible - unmeasurable);
+                counted.size() - eligible - unmeasurable);
         if (unmeasurable > 0) {
             System.out.printf("  Activité non mesurable          : %d%n", unmeasurable);
             System.out.println(c("    403 ou erreur sur les commits. Écartés, pas classés à zéro :", YELLOW));
@@ -809,9 +899,17 @@ public class GitlabActivityAudit implements Callable<Integer> {
     private void summary(List<Proj> all) {
         title("Synthèse");
         System.out.printf("  %d appels API (%d GET, %d GraphQL, %d 429 réessayés).%n",
-                gl.calls, gl.calls - counters.graphqlCalls, counters.graphqlCalls, gl.throttled);
+                gl.calls(), gl.calls() - counters.graphqlCalls, counters.graphqlCalls, gl.throttled());
         System.out.printf("  Parc %d → retenus %d → frais %d → éligibles %d → sélectionnés %d.%n",
                 counters.inScope, counters.kept, counters.fresh, counters.eligible, counters.selected);
+        if (counters.notCounted > 0) {
+            // La coupe d'activité n'est pas une exclusion comme les autres : les
+            // projets qu'elle écarte n'ont pas été mesurés, ils ont été laissés
+            // de côté. Le dénominateur du rapport le dit, sinon le total se lit
+            // comme un parc.
+            System.out.printf("  %d projets laissés de côté par --active-within %d, non mesurés.%n",
+                    counters.notCounted, activeWithinDays);
+        }
         if (counters.sampleSize > 0) {
             System.out.printf("  Filtre de fraîcheur validé sur %d projets : %d faux négatif%s.%n",
                     counters.sampleSize, counters.sampleLeaks,
@@ -831,13 +929,21 @@ public class GitlabActivityAudit implements Callable<Integer> {
         } else {
             System.out.println("  Fichiers écrits :");
             if (csv != null) System.out.printf("    inventaire : %s%n", csv.toAbsolutePath());
-            if (pratiquesCsv != null) {
+            // Annoncer un fichier qu'on n'a pas écrit — aucun projet sélectionné,
+            // donc pas de passe profonde — envoie chercher un chemin qui n'existe
+            // pas. Le rapport ne doit pas mentir sur ses propres sorties.
+            boolean pratiquesWritten = pratiquesCsv != null && Files.exists(pratiquesCsv);
+            if (pratiquesWritten) {
                 System.out.printf("    pratiques  : %s%n", pratiquesCsv.toAbsolutePath());
+            } else if (pratiquesCsv != null) {
+                System.out.println(c("    pratiques  : non écrit — aucun projet sélectionné.", YELLOW));
             }
-            System.out.println(c("    Les deux se lisent ensemble : pratiques.csv ne contient "
-                    + "que les", DIM));
-            System.out.println(c("    sélectionnés, l'inventaire porte le parc dont ils sortent. "
-                    + "Colonnes : COLUMNS.md.", DIM));
+            if (pratiquesWritten) {
+                System.out.println(c("    Les deux se lisent ensemble : pratiques.csv ne contient "
+                        + "que les", DIM));
+                System.out.println(c("    sélectionnés, l'inventaire porte le parc dont ils sortent. "
+                        + "Colonnes : COLUMNS.md.", DIM));
+            }
             System.out.println(c("  " + Csv.openingHint(
                     csv != null ? csv : pratiquesCsv, comma), DIM));
         }
@@ -855,6 +961,15 @@ public class GitlabActivityAudit implements Callable<Integer> {
     final class DeepPass {
         private final List<Proj> selected;
 
+        /** Cache de résolution project_path -> ID, rempli au fur et à mesure. */
+        private final Map<String, String> projPathToId = new java.util.concurrent.ConcurrentHashMap<>();
+
+        /** Contenu brut des templates inclus. Quelques templates servent tout le parc. */
+        private final Map<String, String> includeCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+        /** ci/lint refusé une fois l'est pour tout le parc : le droit est sur le jeton. */
+        private volatile boolean lintRefused;
+
         DeepPass(List<Proj> all) {
             this.selected = all.stream().filter(p -> p.selected).toList();
             for (Proj p : all) {
@@ -868,7 +983,10 @@ public class GitlabActivityAudit implements Callable<Integer> {
             if (selected.isEmpty()) return;
             title("6. Signaux de pratique sur les %d sélectionnés".formatted(selected.size()));
 
-            for (Proj p : selected) {
+            // Une dizaine d'appels par projet, sans lien d'un projet à l'autre :
+            // la seule raison de les faire l'un après l'autre était qu'on ne
+            // s'était pas posé la question. C'est le facteur qui compte.
+            gl.parallel(selected, concurrency, p -> {
                 Prat r = new Prat();
                 p.prat = r;
                 protection(p, r);
@@ -876,7 +994,8 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 pipelines(p, r);
                 delivery(p, r);
                 files(p, r);
-            }
+            });
+            reportCiRoutes();
             coverage();
             if (pratiquesCsv != null) writePratiques();
         }
@@ -1046,78 +1165,205 @@ public class GitlabActivityAudit implements Callable<Integer> {
         private static final List<String> WATCHED = List.of(
                 ".gitlab-ci.yml", "README.md", "CODEOWNERS", "Dockerfile", "renovate.json");
 
-        /** Cache de résolution project_path -> ID, rempli au fur et à mesure. */
-        private final java.util.Map<String, String> projPathToId = new java.util.HashMap<>();
-
-        /** Cache du contenu brut des fichiers inclus pour éviter les rappels API. */
-        private final java.util.Map<String, Gitlab.Response> includeCache = new java.util.HashMap<>();
-
+        /**
+         * Les cinq fichiers surveillés sont tous à la racine, et l'arbre racine
+         * les liste tous d'un coup. Cinq sondes HEAD par projet — une par
+         * fichier — répondaient à la même question pour cinq fois le prix.
+         */
         private void files(Proj p, Prat r) {
-            for (String f : WATCHED) {
-                if (gl.exists("projects/" + p.id + "/repository/files/" + enc(f),
-                        Map.of("ref", p.defaultBranch))) {
-                    r.files.add(f);
-                }
+            Set<String> root = rootEntries(p);
+            for (String f : WATCHED) if (root.contains(f)) r.files.add(f);
+            sonar(p, r, root);
+        }
+
+        /** Noms des entrées à la racine de la branche par défaut, en un appel. */
+        private Set<String> rootEntries(Proj p) {
+            Set<String> names = new TreeSet<>();
+            for (JsonNode e : gl.paged("projects/" + p.id + "/repository/tree",
+                    params("ref", p.defaultBranch))) {
+                names.add(text(e, "name"));
             }
-            if (!r.files.contains(".gitlab-ci.yml")) return;
-            Gitlab.Response raw = gl.get("projects/" + p.id + "/repository/files/"
-                    + enc(".gitlab-ci.yml") + "/raw", Map.of("ref", p.defaultBranch));
-            if (raw.status() != 200 || raw.body() == null) return;
-            String ci = raw.body();
-            String ciLower = ci.toLowerCase(Locale.ROOT);
-            // Si le mot-clé est déjà dans le fichier brut, pas besoin de résoudre les includes.
-            if (ciLower.contains("sonar") || ciLower.contains("sast")
-                    || ciLower.contains("secret-detection")
-                    || ciLower.contains("dependency-scanning")) {
-                r.ciSonar = ciLower.contains("sonar");
-                r.ciSecurity = ciLower.contains("sast") || ciLower.contains("secret-detection")
-                        || ciLower.contains("dependency-scanning");
-                return;
-            }
-            // Le fichier brut ne contient aucun mot-clé : extraire uniquement les
-            // inclusions cross-projet et scanner leur contenu en un seul passage.
-            scanProjectIncludesFor(ci, p.defaultBranch, p.id, content -> {
-                String lower = content.toLowerCase(Locale.ROOT);
-                if (!r.ciSonar && lower.contains("sonar")) r.ciSonar = true;
-                if (!r.ciSecurity && (lower.contains("sast")
-                        || lower.contains("secret-detection")
-                        || lower.contains("dependency-scanning"))) r.ciSecurity = true;
-                // Si les deux sont trouvés, on peut arrêter tout de suite
-                return r.ciSonar && r.ciSecurity;
-            });
+            return names;
         }
 
         /**
-         * Extrait les directives .include: project:/file: du YAML, télécharge
-         * chaque fichier inclus une seule fois, et vérifie tous les mots-clés
-         * en un seul passage. Cache le contenu des fichiers inclus pour éviter
-         * les rappels identiques.
+         * Ce que la CI dit de Sonar, et sous quelle clé.
          *
-         * @param checker fonction qui retourne true pour arrêter le scan prématurément
+         * Le résultat est mis en cache sur disque, indexé par la tête de la
+         * branche par défaut : tant que le dépôt n'a pas bougé, sa clé Sonar est
+         * la même qu'au dernier passage, et la reposer à GitLab ne peut que
+         * redonner la même réponse. C'est la seule partie de l'audit dont la
+         * réponse est stable entre deux exécutions — le reste est fenêtré, donc
+         * périmé par construction.
          */
-        private void scanProjectIncludesFor(String ci, String ref, long projectId,
-                                             java.util.function.Function<String, Boolean> checker) {
-            java.util.regex.Pattern projectInclude = java.util.regex.Pattern.compile(
-                    "-\\s*project:\\s*(\\S+).*ref:\\s*(\\S+).*file:\\s*(\\S+)", java.util.regex.Pattern.DOTALL);
-            java.util.regex.Matcher m = projectInclude.matcher(ci);
-            while (m.find()) {
-                String projPath = m.group(1).replaceAll("^['\"]|['\"]$", "");
-                String incRef = m.group(2).replaceAll("^['\"]|['\"]$", "");
-                String incFile = m.group(3).replaceAll("^['\"]|['\"]$", "");
-                String projIdStr = resolveProjectPathCached(projPath);
-                if (projIdStr == null) continue;
-                String cacheKey = projIdStr + ":" + incFile + ":" + incRef;
-                Gitlab.Response fileRaw;
-                if (includeCache.containsKey(cacheKey)) {
-                    fileRaw = includeCache.get(cacheKey);
-                } else {
-                    fileRaw = gl.get("projects/" + enc(projIdStr)
-                            + "/repository/files/" + enc(incFile) + "/raw",
-                            Map.of("ref", incRef));
-                    includeCache.put(cacheKey, fileRaw);
+        private void sonar(Proj p, Prat r, Set<String> root) {
+            String key = cache.keyFor(p);
+            CiFacts hit = cache.get(key);
+            if (hit != null) {
+                hit.applyTo(r);
+                counters.ciFromCacheN.incrementAndGet();
+                return;
+            }
+            CiFacts f = new CiFacts();
+
+            // sonar-project.properties porte la clé littérale quand il existe :
+            // c'est la source la moins ambiguë, et elle coûte un appel.
+            if (root.contains("sonar-project.properties")) {
+                Gitlab.Response props = gl.get("projects/" + p.id + "/repository/files/"
+                        + enc("sonar-project.properties") + "/raw", Map.of("ref", p.defaultBranch));
+                if (props.status() == 200 && props.body() != null) {
+                    f.sonarKey = firstMatch(SONAR_KEY_PROP, props.body());
+                    if (f.sonarKey != null) f.keySource = "sonar-project.properties";
+                    f.ciSonar = true;
                 }
-                if (fileRaw.status() == 200 && fileRaw.body() != null) {
-                    if (checker.apply(fileRaw.body())) return;
+            }
+
+            if (root.contains(".gitlab-ci.yml")) {
+                Ci ci = ciConfig(p);
+                if (ci != null) {
+                    f.ciRoute = ci.route();
+                    String lower = ci.yaml().toLowerCase(Locale.ROOT);
+                    if (lower.contains("sonar")) f.ciSonar = true;
+                    f.ciSecurity = lower.contains("sast")
+                            || lower.contains("secret-detection")
+                            || lower.contains("dependency-scanning");
+                    if (f.sonarKey == null) {
+                        for (Pattern pat : SONAR_KEY_CI) {
+                            f.sonarKey = firstMatch(pat, ci.yaml());
+                            if (f.sonarKey != null) {
+                                f.keySource = ci.route();
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // -Dsonar.projectKey=${CI_PROJECT_PATH_SLUG} est une clé, pas un
+            // échec : les variables prédéfinies de GitLab se calculent ici, sans
+            // un appel de plus, et la clé résolue est celle que le scanner a
+            // réellement envoyée à SonarQube.
+            if (f.sonarKey != null) {
+                String expanded = expandPredefined(f.sonarKey, p);
+                if (!expanded.equals(f.sonarKey)) {
+                    f.keySource += " (variables)";
+                    f.sonarKey = expanded;
+                }
+                if (UNRESOLVED_VAR.matcher(f.sonarKey).find()) {
+                    // Une variable qu'on ne sait pas calculer : la clé est
+                    // inconnue. La publier telle quelle en ferait une fausse
+                    // jointure côté Sonar, ce qui est pire que pas de jointure.
+                    f.unresolvedKey = f.sonarKey;
+                    f.sonarKey = null;
+                    f.keySource = "variable non résolue";
+                }
+            }
+            cache.put(key, f);
+            f.applyTo(r);
+        }
+
+        /** Le YAML de CI effectivement exécuté, et par quelle route on l'a obtenu. */
+        private record Ci(String yaml, String route) { }
+
+        /**
+         * Le piège de ce dépôt : chez nous, le job Sonar n'est presque jamais
+         * dans le .gitlab-ci.yml du projet. Il est dans un template partagé,
+         * inclus par `include: project:`, lequel en inclut souvent un autre.
+         * Lire le fichier brut ne voit rien et conclut « pas de Sonar » — sur la
+         * majorité du parc.
+         *
+         * Chasser les includes à la main était la mauvaise réponse : il faut
+         * résoudre les chemins de projet, suivre l'imbrication, gérer `ref`
+         * absent, `file` en liste, `component`, `local`, `remote` — soit
+         * réimplémenter le moteur d'inclusion de GitLab, contre une cible qui
+         * bouge. GitLab le fait déjà et le rend : ci/lint renvoie merged_yaml,
+         * l'arbre d'inclusion entièrement déplié, en un appel et sans erreur
+         * d'interprétation possible.
+         *
+         * La chasse manuelle reste, corrigée, pour les instances qui refusent
+         * ci/lint — le jeton n'y a parfois que Reporter. C'est un repli, pas la
+         * route : il ne voit que ce qu'il sait lire.
+         */
+        private Ci ciConfig(Proj p) {
+            if (!lintRefused) {
+                Gitlab.Response lint = gl.get("projects/" + p.id + "/ci/lint", params(
+                        "ref", p.defaultBranch,
+                        "content_ref", p.defaultBranch,
+                        "include_merged_yaml", "true"));
+                if (lint.status() == 200) {
+                    JsonNode j = lint.json();
+                    String merged = j.path("merged_yaml").asText(null);
+                    if (isBlank(merged)) merged = j.path("content").path("merged_yaml").asText(null);
+                    if (!isBlank(merged)) {
+                        counters.ciByLintN.incrementAndGet();
+                        return new Ci(merged, "ci/lint");
+                    }
+                    // 200 sans merged_yaml : configuration invalide, ou version
+                    // de GitLab qui ne le renvoie pas. Les deux se replient.
+                } else if (lint.status() == 401 || lint.status() == 403 || lint.status() == 404) {
+                    // Refusé une fois, refusé partout : le droit se donne au
+                    // jeton, pas au projet. Insister coûterait un appel perdu
+                    // par projet du parc.
+                    lintRefused = true;
+                    counters.lintRefusedStatus = lint.status();
+                }
+            }
+            Gitlab.Response raw = gl.get("projects/" + p.id + "/repository/files/"
+                    + enc(".gitlab-ci.yml") + "/raw", Map.of("ref", p.defaultBranch));
+            if (raw.status() != 200 || raw.body() == null) return null;
+            counters.ciByFallbackN.incrementAndGet();
+            StringBuilder all = new StringBuilder(raw.body());
+            chaseIncludes(raw.body(), p.defaultBranch, all, 0, new HashSet<>());
+            return new Ci(all.toString(), "includes suivis");
+        }
+
+        /** Un include ne dépasse pas trois niveaux chez nous ; la borne évite les cycles. */
+        private static final int MAX_INCLUDE_DEPTH = 3;
+
+        /**
+         * Repli : suivre soi-même les `include: project:`, en descendant dans
+         * les templates qui en incluent d'autres.
+         *
+         * Le motif précédent était en DOTALL avec des `.*` gourmands, donc il
+         * matchait une seule fois sur tout le fichier et recollait le `project:`
+         * du premier include, le `ref:` du deuxième et le `file:` du troisième.
+         * Trois includes donnaient un match, faux, vers un fichier qui n'existe
+         * pas — un 404 payé pour ne rien apprendre. On découpe donc par entrée,
+         * et `ref:` est facultatif : GitLab prend HEAD quand il manque.
+         */
+        private void chaseIncludes(String yaml, String ref, StringBuilder sink,
+                                   int depth, Set<String> seen) {
+            if (depth >= MAX_INCLUDE_DEPTH) return;
+            Matcher entry = INCLUDE_ENTRY.matcher(yaml);
+            while (entry.find()) {
+                String block = entry.group();
+                String projPath = unquote(firstMatch(INCLUDE_PROJECT, block));
+                if (projPath == null) continue;
+                String maybeRef = unquote(firstMatch(INCLUDE_REF, block));
+                // `ref:` est facultatif : sans lui GitLab prend la tête du dépôt
+                // inclus. L'ancien motif l'exigeait, donc ne voyait pas ces
+                // includes-là du tout.
+                final String incRef = maybeRef == null ? "HEAD" : maybeRef;
+                String projId = resolveProjectPathCached(projPath);
+                if (projId == null) continue;
+
+                // `file:` accepte une liste : un template Sonar et un template
+                // build dans la même entrée, ce que l'ancien motif ne voyait pas.
+                Matcher files = INCLUDE_FILE.matcher(block);
+                while (files.find()) {
+                    String incFile = unquote(files.group(1));
+                    if (incFile == null) continue;
+                    String cacheKey = projId + ":" + incFile + ":" + incRef;
+                    if (!seen.add(cacheKey)) continue;
+                    String body = includeCache.computeIfAbsent(cacheKey, k -> {
+                        Gitlab.Response fr = gl.get("projects/" + enc(projId)
+                                + "/repository/files/" + enc(incFile) + "/raw",
+                                Map.of("ref", incRef));
+                        return fr.status() == 200 && fr.body() != null ? fr.body() : "";
+                    });
+                    if (body.isEmpty()) continue;
+                    sink.append('\n').append(body);
+                    chaseIncludes(body, ref, sink, depth + 1, seen);
                 }
             }
         }
@@ -1127,10 +1373,8 @@ public class GitlabActivityAudit implements Callable<Integer> {
          * avec cache pour éviter de refaire la même requête API.
          */
         private String resolveProjectPathCached(String projPath) {
-            if (projPathToId.containsKey(projPath)) {
-                String cached = projPathToId.get(projPath);
-                return cached.isEmpty() ? null : cached;
-            }
+            String cached = projPathToId.get(projPath);
+            if (cached != null) return cached.isEmpty() ? null : cached;
             try {
                 Long.parseLong(projPath);
                 projPathToId.put(projPath, projPath);
@@ -1139,16 +1383,112 @@ public class GitlabActivityAudit implements Callable<Integer> {
             }
             Gitlab.Response proj = gl.get("projects/" + enc(projPath), Map.of("per_page", "1"));
             if (proj.status() == 200 && proj.body() != null) {
-                try {
-                    JsonNode node = proj.json();
+                JsonNode node = proj.json();
+                if (node.hasNonNull("id")) {
                     String id = String.valueOf(node.path("id").asLong());
                     projPathToId.put(projPath, id);
                     return id;
-                } catch (Exception ignored) {
                 }
             }
             projPathToId.put(projPath, "");
             return null;
+        }
+
+        // ------------------------------------------------------------------
+        // Extraction de la clé Sonar
+        // ------------------------------------------------------------------
+
+        /** sonar.projectKey=… dans un fichier de propriétés. */
+        private static final Pattern SONAR_KEY_PROP = Pattern.compile(
+                "(?m)^\\s*sonar\\.projectKey\\s*=\\s*(\\S+)\\s*$");
+
+        /**
+         * Les trois formes rencontrées dans un pipeline : l'option de ligne de
+         * commande, la variable que le scanner lit, et la propriété posée en
+         * clair. Cherchées dans cet ordre : la ligne de commande gagne, c'est
+         * elle qui s'applique en dernier.
+         */
+        private static final List<Pattern> SONAR_KEY_CI = List.of(
+                Pattern.compile("-Dsonar\\.projectKey=([^\\s'\"]+)"),
+                Pattern.compile("(?m)^\\s*SONAR_PROJECT_KEY\\s*:\\s*[\"']?([^\\s'\"]+)"),
+                Pattern.compile("(?m)^\\s*sonar\\.projectKey\\s*[:=]\\s*[\"']?([^\\s'\"]+)"));
+
+        /** Ce qui reste d'une variable après expansion : $X, ${X}, %X%. */
+        private static final Pattern UNRESOLVED_VAR = Pattern.compile("\\$\\{?\\w+\\}?|%\\w+%");
+
+        /**
+         * Découpe le YAML en entrées `- project: …`, chacune jusqu'à la
+         * suivante. Sans ce découpage, un motif unique recolle les champs de
+         * trois includes différents — le défaut corrigé ici.
+         */
+        private static final Pattern INCLUDE_ENTRY = Pattern.compile(
+                "-\\s*project:[\\s\\S]*?(?=\\n\\s*-\\s*(?:project|local|remote|template|component):|\\n\\S|\\z)");
+        private static final Pattern INCLUDE_PROJECT = Pattern.compile("project:\\s*(\\S+)");
+        private static final Pattern INCLUDE_REF = Pattern.compile("(?m)^\\s*ref:\\s*(\\S+)");
+        private static final Pattern INCLUDE_FILE = Pattern.compile("(?:file:\\s*|^\\s*-\\s*)([\'\"]?[\\w./-]+\\.ya?ml[\'\"]?)\\s*$",
+                Pattern.MULTILINE);
+
+        /**
+         * Les variables prédéfinies que GitLab aurait substituées, calculées
+         * ici à partir de ce que l'inventaire sait déjà du projet. Sans cela,
+         * `-Dsonar.projectKey=${CI_PROJECT_PATH_SLUG}` — la forme la plus
+         * répandue dans un template partagé, puisqu'un template ne peut pas
+         * coder la clé en dur — se lirait « clé inconnue » sur tout le parc,
+         * alors que c'est précisément le cas où elle est calculable.
+         */
+        private String expandPredefined(String raw, Proj p) {
+            String slug = slug(p.path);
+            String out = raw;
+            for (var e : Map.of(
+                    "CI_PROJECT_PATH_SLUG", slug,
+                    "CI_PROJECT_PATH", orEmpty(p.path),
+                    "CI_PROJECT_NAMESPACE", orEmpty(p.namespace),
+                    "CI_PROJECT_NAME", orEmpty(p.name),
+                    "CI_PROJECT_TITLE", orEmpty(p.name),
+                    "CI_PROJECT_ID", String.valueOf(p.id)).entrySet()) {
+                out = out.replace("${" + e.getKey() + "}", e.getValue())
+                         .replace("$" + e.getKey(), e.getValue());
+            }
+            return out;
+        }
+
+        /** CI_PROJECT_PATH_SLUG : minuscules, tout le reste en tirets. */
+        private String slug(String path) {
+            if (isBlank(path)) return "";
+            return path.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-")
+                       .replaceAll("^-+|-+$", "");
+        }
+
+        private static String firstMatch(Pattern pat, String text) {
+            if (text == null) return null;
+            Matcher m = pat.matcher(text);
+            return m.find() ? m.group(1) : null;
+        }
+
+        private static String unquote(String s) {
+            return s == null ? null : s.replaceAll("^[\'\"]|[\'\",]$", "");
+        }
+
+        /**
+         * Par quelle route la CI a été lue, et combien n'ont rien coûté. Publié
+         * parce que les trois routes ne voient pas la même chose : merged_yaml
+         * voit tout l'arbre d'inclusion, le repli ne voit que ce qu'il sait
+         * lire, et un parc majoritairement lu par le repli a un ci_sonar qui
+         * sous-compte. Le taux de repli est donc une réserve sur la mesure, pas
+         * une statistique d'exécution.
+         */
+        private void reportCiRoutes() {
+            int cached = counters.ciFromCacheN.get(), lint = counters.ciByLintN.get(),
+                    back = counters.ciByFallbackN.get();
+            if (cached + lint + back == 0) return;
+            System.out.printf("%n  CI lue : %d par ci/lint, %d par repli, %d depuis le cache.%n",
+                    lint, back, cached);
+            if (back > 0 && counters.lintRefusedStatus > 0) {
+                System.out.println(c("    ci/lint refusé (HTTP %d) : le jeton n'a pas le droit de "
+                        .formatted(counters.lintRefusedStatus), YELLOW));
+                System.out.println(c("    déplier la configuration. Le repli ne suit que les includes", YELLOW));
+                System.out.println(c("    « project: » qu'il sait lire — ci_sonar y sous-compte.", YELLOW));
+            }
         }
 
         /**
@@ -1218,7 +1558,8 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     "auto_merge", "notes_par_mr", "echantillon_approbations", "part_approuvee",
                     "auto_approbation", "pipelines", "taux_succes", "incidents_rouges",
                     "retour_au_vert_h", "rouge_non_resolu", "environnements",
-                    "deploiements", "dora_indispo", "ci_sonar", "ci_securite", "fichiers"};
+                    "deploiements", "dora_indispo", "ci_sonar", "ci_securite",
+                    "cle_sonar", "source_cle_sonar", "fichiers"};
             try (CSVWriter w = Csv.writer(pratiquesCsv, comma)) {
                 w.writeNext(header);
                 for (Proj p : selected) w.writeNext(p.pratRow());
@@ -1244,6 +1585,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
         String forkedFrom;
         Long totalCommits, repoSize;
 
+        String headSha;
         Integer commits, commitsBots, authors, mergeCommits, activeDays, reverts;
         boolean truncated, leaked, selected;
         String unmeasurable;
@@ -1302,12 +1644,14 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     dec(r.pipelineSuccess), num(r.redIncidents), dec(r.recoveryMedianHours),
                     num(r.unresolvedRed), num(r.environments), dec(r.deployments),
                     String.valueOf(r.doraUnavailable), String.valueOf(r.ciSonar),
-                    String.valueOf(r.ciSecurity), String.join(" ", r.files)};
+                    String.valueOf(r.ciSecurity), orEmpty(r.sonarKey), orEmpty(r.sonarKeySource),
+                    String.join(" ", r.files)};
         }
     }
 
     static final class Prat {
         boolean defaultProtected, pushLocked, ciSonar, ciSecurity, doraUnavailable;
+        String sonarKey, sonarKeySource;
         int mergedMrs, selfMerged, selfApproved, pipelines;
         Integer approvalSample, environments, redIncidents, unresolvedRed;
         Double medianTtmDays, notesPerMr, approvedShare, pipelineSuccess, deployments,
@@ -1315,10 +1659,133 @@ public class GitlabActivityAudit implements Callable<Integer> {
         final List<String> files = new ArrayList<>();
     }
 
+    /**
+     * Ce qu'on a appris de la CI d'un projet, et qui ne changera pas tant que
+     * son dépôt ne bouge pas.
+     */
+    static final class CiFacts {
+        boolean ciSonar, ciSecurity;
+        String sonarKey, keySource, ciRoute, unresolvedKey;
+
+        void applyTo(Prat r) {
+            r.ciSonar = ciSonar;
+            r.ciSecurity = ciSecurity;
+            r.sonarKey = sonarKey;
+            r.sonarKeySource = unresolvedKey != null
+                    ? "variable non résolue : " + unresolvedKey : keySource;
+        }
+    }
+
+    /**
+     * Cache disque des faits de CI, indexé par la tête de la branche par défaut.
+     *
+     * La clé Sonar d'un projet est la seule chose que cet audit mesure qui ne
+     * soit pas fenêtrée : commits, MR, pipelines valent pour 90 jours et sont
+     * périmés le lendemain, tandis que la clé vaut tant que le .gitlab-ci.yml
+     * n'a pas changé. La redemander à chaque passage, c'est repayer la partie
+     * la plus chère de l'audit pour la seule réponse dont on sait d'avance
+     * qu'elle est identique.
+     *
+     * L'index est le SHA de la tête, pas la date : une date qui recule — import,
+     * réécriture d'historique — laisserait servir une réponse périmée, alors
+     * qu'un SHA différent invalide toujours dans le bon sens. À défaut de SHA on
+     * indexe sur last_activity_at, qui bouge pour des raisons qui ne touchent
+     * pas au dépôt : le cache rate plus souvent, il ne ment pas.
+     *
+     * Un cache illisible ou d'une version antérieure n'est pas une erreur : on
+     * repart de zéro. Le pire qu'il puisse faire est de coûter le prix d'un
+     * premier passage.
+     */
+    static final class SonarCache {
+        private static final int VERSION = 1;
+        private final Map<String, CiFacts> entries = new java.util.concurrent.ConcurrentHashMap<>();
+        private final Path file;
+        private final boolean enabled;
+        private int loaded;
+
+        SonarCache(Path file, boolean enabled) {
+            this.file = file;
+            this.enabled = enabled && file != null;
+        }
+
+        String keyFor(Proj p) {
+            String stamp = !isBlank(p.headSha) ? p.headSha
+                    : "act:" + iso(p.lastActivity);
+            return p.id + "@" + stamp;
+        }
+
+        CiFacts get(String key) {
+            return enabled ? entries.get(key) : null;
+        }
+
+        void put(String key, CiFacts f) {
+            if (enabled) entries.put(key, f);
+        }
+
+        int size() { return entries.size(); }
+
+        int loadedCount() { return loaded; }
+
+        void load() {
+            if (!enabled || !Files.exists(file)) return;
+            try {
+                JsonNode root = Gitlab.MAPPER.readTree(Files.readString(file, StandardCharsets.UTF_8));
+                if (root.path("version").asInt(0) != VERSION) return;
+                root.path("entries").fields().forEachRemaining(e -> {
+                    JsonNode v = e.getValue();
+                    CiFacts f = new CiFacts();
+                    f.ciSonar = v.path("ciSonar").asBoolean(false);
+                    f.ciSecurity = v.path("ciSecurity").asBoolean(false);
+                    f.sonarKey = v.path("sonarKey").asText(null);
+                    f.keySource = v.path("keySource").asText(null);
+                    f.ciRoute = v.path("ciRoute").asText(null);
+                    f.unresolvedKey = v.path("unresolvedKey").asText(null);
+                    entries.put(e.getKey(), f);
+                });
+                loaded = entries.size();
+            } catch (IOException | RuntimeException e) {
+                entries.clear();
+                loaded = 0;
+            }
+        }
+
+        void save() {
+            if (!enabled || entries.isEmpty()) return;
+            var root = Gitlab.MAPPER.createObjectNode();
+            root.put("version", VERSION);
+            var es = root.putObject("entries");
+            entries.forEach((k, f) -> {
+                var o = es.putObject(k);
+                o.put("ciSonar", f.ciSonar);
+                o.put("ciSecurity", f.ciSecurity);
+                o.put("sonarKey", f.sonarKey);
+                o.put("keySource", f.keySource);
+                o.put("ciRoute", f.ciRoute);
+                o.put("unresolvedKey", f.unresolvedKey);
+            });
+            try {
+                Path dir = file.toAbsolutePath().getParent();
+                if (dir != null) Files.createDirectories(dir);
+                Files.writeString(file, Gitlab.MAPPER.writerWithDefaultPrettyPrinter()
+                        .writeValueAsString(root), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                System.err.println("  (cache non écrit : " + e.getMessage() + ")");
+            }
+        }
+    }
+
     static final class Counters {
         boolean enterprise;
         int inScope, kept, fresh, eligible, selected, floor;
-        int sampleSize, sampleLeaks, commitPassed, graphqlCalls;
+        int sampleSize, sampleLeaks, commitPassed, graphqlCalls, notCounted;
+        // Écrits depuis la passe profonde, qui tourne en parallèle.
+        final java.util.concurrent.atomic.AtomicInteger ciFromCacheN =
+                new java.util.concurrent.atomic.AtomicInteger();
+        final java.util.concurrent.atomic.AtomicInteger ciByLintN =
+                new java.util.concurrent.atomic.AtomicInteger();
+        final java.util.concurrent.atomic.AtomicInteger ciByFallbackN =
+                new java.util.concurrent.atomic.AtomicInteger();
+        volatile int lintRefusedStatus;
     }
 
     // ----------------------------------------------------------------------

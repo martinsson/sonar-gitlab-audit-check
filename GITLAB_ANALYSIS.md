@@ -277,16 +277,44 @@ same in a table and mean opposite things.
 
 ### Tier 4 — repo contents, near-free
 
-`HEAD /projects/:id/repository/files/<url-encoded>?ref=<default>` returns 200/404
-without transferring: `.gitlab-ci.yml`, `README.md`, `CODEOWNERS`, `Dockerfile`,
-renovate/dependabot config, lockfiles (a manifest with no lockfile is an
-unpinned tree).
+One `GET /projects/:id/repository/tree?ref=<default>` lists the root, which
+answers for every watched file at once: `.gitlab-ci.yml`, `README.md`,
+`CODEOWNERS`, `Dockerfile`, renovate/dependabot config, lockfiles (a manifest
+with no lockfile is an unpinned tree). A `HEAD` per file returns the same
+200/404 and was what this did first — five calls to learn what one listing says.
 
-Then fetch `.gitlab-ci.yml` on the shortlist and grep for a `sonar` job, the
-`SAST`/`Secret-Detection`/`Dependency-Scanning` template includes, and a deploy
-stage. The sonar grep is the useful one even standalone: *projects whose CI is
-configured to run Sonar* is a fact about intent that stands with or without a
-successful join.
+### Tier 5 — what the CI actually runs, and under which Sonar key
+
+Then read the CI configuration and look for a `sonar` job, the
+`SAST`/`Secret-Detection`/`Dependency-Scanning` includes, and a deploy stage.
+*Projects whose CI is configured to run Sonar* is a fact about intent that
+stands with or without a successful join, and it is the cheapest half of §6.
+
+**Read the merged configuration, not the file.** On an estate that uses shared
+CI templates — which is what a platform team builds first — the Sonar job lives
+in a template pulled in by `include: project:`, and that template routinely
+includes another. Grepping the project's own `.gitlab-ci.yml` returns *no Sonar*
+for the majority of the parc, confidently and wrongly.
+
+Following those includes by hand means reimplementing GitLab's include engine:
+path-to-ID resolution, nesting, optional `ref:`, list-valued `file:`,
+`component:`, `local:`, `remote:`. `GET /projects/:id/ci/lint` returns
+`merged_yaml` — that engine's output — in one call, and it cannot disagree with
+what the pipeline runs. Use it. Keep the hand-rolled chase only for tokens
+refused that endpoint, and say in the output which route was used: the fallback
+sees strictly less, so its `ci_sonar` is a floor.
+
+**The key is usually a variable, and that is fine.** A shared template cannot
+hard-code a project key, so it writes `-Dsonar.projectKey=${CI_PROJECT_PATH_SLUG}`.
+GitLab's predefined variables are computable from the inventory row, at no extra
+call, and expanding them yields the key the scanner really sent. What cannot be
+computed is published as unresolved, not guessed: a wrong join into §6 is worse
+than a missing one.
+
+**And it is worth caching.** Every other measure here is windowed and stale
+tomorrow. The Sonar key holds until `.gitlab-ci.yml` changes, so it is indexed
+on the default branch's head SHA — not a date, which can move backwards after an
+import or a history rewrite and keep serving a stale answer.
 
 ---
 
@@ -312,10 +340,16 @@ Try in order, and **label every match with how it was made**:
 
 | Method | Confidence |
 |---|---|
+| `cle_sonar` from the merged CI configuration or `sonar-project.properties` | exact |
 | `api/alm_settings/get_binding` on the Sonar project → GitLab path | exact |
 | Sonar `api/project_links/search`, `scm` link → repo URL | exact |
 | Sonar project key or name normalised against `path_with_namespace` | derived |
 | Fuzzy name match | suggestion only |
+
+`cle_sonar` is first because it is the only method that reads what the scanner
+was *told* to do, rather than inferring it from what SonarQube ended up storing.
+It is also the only one that survives a project analysed under a key that
+resembles nothing in its GitLab path.
 
 Only exact and derived matches feed any cross-report claim. Fuzzy matches go in
 an appendix as *candidates for a human to confirm*, never into a table that

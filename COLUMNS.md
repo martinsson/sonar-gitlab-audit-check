@@ -241,8 +241,10 @@ it only exists for the ~200 that the funnel chose.
 | `environnements` | Environments declared. **`0` invalidates the DORA column** |
 | `deploiements` | Deployments over the window, summed from DORA deployment frequency |
 | `dora_indispo` | `true` = DORA returned 403/404. Not available, as distinct from zero |
-| `ci_sonar` | `.gitlab-ci.yml` mentions Sonar — the project *intends* to be scanned |
+| `ci_sonar` | The **fully expanded** CI configuration mentions Sonar — the project *intends* to be scanned. Shared templates included |
 | `ci_securite` | It includes SAST, secret detection or dependency scanning |
+| `cle_sonar` | The `sonar.projectKey` the scanner sends. **The join key against the Sonar inventory.** Empty when it cannot be resolved without guessing |
+| `source_cle_sonar` | Where the key was read: `sonar-project.properties`, `ci/lint`, `includes suivis`, or why it is empty |
 | `fichiers` | Space-separated list of watched files found: `.gitlab-ci.yml`, `README.md`, `CODEOWNERS`, `Dockerfile`, `renovate.json` |
 
 ### Three columns that will mislead you if read plainly
@@ -275,6 +277,27 @@ are skipped rather than read as the end of an outage.
 to run Sonar, not that Sonar has data. That is exactly what makes it useful
 without a working Sonar↔GitLab join: `ci_sonar = true` on a project absent from
 the SonarQube inventory is a concrete, checkable finding on its own.
+
+**`ci_sonar` undercounts when the run says it fell back.** The column is read
+from the CI configuration with every `include:` expanded — normally by
+`GET /projects/:id/ci/lint`, which returns the whole tree already merged. Where
+the token is refused that call, the tool follows the `include: project:`
+directives itself, and it only sees what it knows how to read: no `component:`,
+no `remote:`, no dynamic includes. The run prints which route was used and how
+often. A parc read mostly through the fallback has a `ci_sonar` that is a floor,
+not a count.
+
+**`cle_sonar` empty is three different things**, and `source_cle_sonar` says
+which. *No Sonar in the pipeline at all* — the honest zero. *Sonar runs but the
+key is a variable this tool cannot compute*, reported as `variable non résolue`
+with the raw text, because publishing a half-expanded key would produce a wrong
+join against SonarQube, which is worse than no join. Or *the key is implicit* —
+the scanner defaulting to a key derived by the GitLab integration rather than
+one written down anywhere. GitLab's own predefined variables
+(`CI_PROJECT_PATH_SLUG`, `CI_PROJECT_PATH`, `CI_PROJECT_NAME`, `CI_PROJECT_ID`
+and friends) *are* computed here, at no extra API call — they are how a shared
+template names a project it cannot hard-code, so they are the common case rather
+than the exception.
 
 ### What is not here, on purpose
 
