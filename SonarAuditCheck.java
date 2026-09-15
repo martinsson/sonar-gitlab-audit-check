@@ -111,6 +111,11 @@ public class SonarAuditCheck implements Callable<Integer> {
     @Option(names = "--dump-dir", description = "répertoire où consigner les réponses brutes")
     Path dumpDir;
 
+    @Option(names = "--main-branch-only",
+            description = "ne lire que la branche principale, comme search_projects "
+                    + "(sans chercher le dernier scan sur les autres branches)")
+    boolean mainBranchOnly;
+
     @Option(names = "--stale-days", defaultValue = "90",
             description = "seuil d'obsolescence (défaut : ${DEFAULT-VALUE})")
     int staleDays;
@@ -458,6 +463,7 @@ public class SonarAuditCheck implements Callable<Integer> {
                 + c(String.valueOf(projects.size()), BOLD));
 
         reportScopeGap(projects.size());
+        projects = resolveLatestBranch(projects);
         reportFreshness(projects);
 
         Map<String, Map<String, String>> measures = fetchMeasures(projects);
@@ -491,6 +497,61 @@ public class SonarAuditCheck implements Callable<Integer> {
         }
         if (page > guard) System.out.println(c("  Pagination interrompue à 20 000 projets.", YELLOW));
         return all;
+    }
+
+    /**
+     * search_projects et measures/search ne connaissent que la branche principale.
+     * Un projet dont seule une autre branche (develop, …) est analysée y apparaît
+     * sans date ni mesure, exactement comme un projet jamais analysé. On demande
+     * donc ses branches à chaque projet et on retient celle dont l'analyse est la
+     * plus récente — c'est le dernier scan qui intéresse l'audit, pas la branche.
+     */
+    private List<Component> resolveLatestBranch(List<Component> projects) {
+        if (mainBranchOnly) return projects;
+        List<Component> out = new ArrayList<>(projects.size());
+        int nonMain = 0, rescued = 0;
+        for (Component p : projects) {
+            Branch b = latestBranch(p.key());
+            if (b == null) { out.add(p); continue; }
+            boolean isMain = Boolean.TRUE.equals(b.isMain());
+            if (!isMain) {
+                nonMain++;
+                if (p.analysisDate() == null) rescued++;
+            }
+            out.add(p.onBranch(b.name(), isMain, b.analysisDate()));
+        }
+        System.out.println("  Dernier scan sur une branche non principale : "
+                + c(String.valueOf(nonMain), BOLD));
+        if (rescued > 0) {
+            System.out.println(c("    dont %d sans aucune analyse de la branche principale"
+                    .formatted(rescued), DIM));
+            System.out.println(c("    (invisibles dans search_projects et measures/search)", DIM));
+        }
+        return out;
+    }
+
+    /** Branche dont la dernière analyse est la plus récente, ou null si indisponible. */
+    private Branch latestBranch(String key) {
+        BranchList bl = sq.get("api/project_branches/list", params("project", key))
+                .as(BranchList.class);
+        if (bl == null) return null;
+        return orEmptyList(bl.branches()).stream()
+                .filter(b -> parseDate(b.analysisDate()) != null)
+                .max(Comparator.comparing(b -> parseDate(b.analysisDate())))
+                .orElse(null);
+    }
+
+    /** Mesures d'une branche précise : measures/search ne sait lire que la principale. */
+    private Map<String, String> branchMeasures(String key, String branch) {
+        Map<String, String> out = new HashMap<>();
+        ComponentMeasures cm = sq.get("api/measures/component",
+                        params("component", key, "branch", branch, "metricKeys", metricKeys()))
+                .as(ComponentMeasures.class);
+        if (cm == null || cm.component() == null) return out;
+        for (Measure m : orEmptyList(cm.component().measures())) {
+            out.put(m.metric(), m.effectiveValue());
+        }
+        return out;
     }
 
     /** L'écart entre ce que je vois et ce qui existe : le point aveugle de l'audit. */
@@ -543,7 +604,8 @@ public class SonarAuditCheck implements Callable<Integer> {
      */
     private Map<String, Map<String, String>> fetchMeasures(List<Component> projects) {
         Map<String, Map<String, String>> byKey = new LinkedHashMap<>();
-        List<String> keys = projects.stream().map(Component::key).toList();
+        List<String> keys = projects.stream()
+                .filter(p -> !p.onOtherBranch()).map(Component::key).toList();
         for (int i = 0; i < keys.size(); i += 100) {
             List<String> chunk = keys.subList(i, Math.min(i + 100, keys.size()));
             MeasuresSearch m = sq.get("api/measures/search",
@@ -554,6 +616,9 @@ public class SonarAuditCheck implements Callable<Integer> {
                 byKey.computeIfAbsent(measure.component(), k -> new HashMap<>())
                         .put(measure.metric(), measure.effectiveValue());
             }
+        }
+        for (Component p : projects) {
+            if (p.onOtherBranch()) byKey.put(p.key(), branchMeasures(p.key(), p.branch()));
         }
         return byKey;
     }
@@ -577,11 +642,15 @@ public class SonarAuditCheck implements Callable<Integer> {
     // CSV
     // ----------------------------------------------------------------------
 
+    private static final List<String> BRANCH_COLUMNS = List.of(
+            "branch", "is_main_branch", "main_branch_analysisDate");
+
     private void writeCsv(List<Component> projects,
                           Map<String, Map<String, String>> measures) throws IOException {
         List<String> header = new ArrayList<>(
                 List.of("key", "name", "analysisDate", "days_since_analysis"));
         header.addAll(METRIC_COLUMNS);
+        header.addAll(BRANCH_COLUMNS);
 
         LocalDateTime now = LocalDateTime.now();
         try (CSVWriter w = new CSVWriter(Files.newBufferedWriter(csv, StandardCharsets.UTF_8))) {
@@ -600,6 +669,9 @@ public class SonarAuditCheck implements Callable<Integer> {
                 orEmpty(p.analysisDate()),
                 d == null ? "" : String.valueOf(ChronoUnit.DAYS.between(d, now))));
         METRIC_COLUMNS.forEach(metric -> row.add(orEmpty(m.get(metric))));
+        row.add(orEmpty(p.branch()));
+        row.add(p.isMain() == null ? "" : String.valueOf(p.isMain()));
+        row.add(orEmpty(p.mainBranchAnalysisDate()));
         return row.toArray(String[]::new);
     }
 
@@ -962,9 +1034,30 @@ public class SonarAuditCheck implements Callable<Integer> {
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Paging(Integer pageIndex, Integer pageSize, Integer total) { }
 
+    /**
+     * Les trois derniers champs ne viennent pas de l'API : resolveLatestBranch()
+     * les pose quand il substitue la branche la plus récente à la principale.
+     * {@code analysisDate} porte alors la date de cette branche, et
+     * {@code mainBranchAnalysisDate} ce que search_projects avait répondu.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
     record Component(String key, String name, String qualifier,
-                     String analysisDate, String leakPeriodDate) { }
+                     String analysisDate, String leakPeriodDate,
+                     String branch, Boolean isMain, String mainBranchAnalysisDate) {
+
+        Component onBranch(String branch, boolean isMain, String branchAnalysisDate) {
+            return new Component(key, name, qualifier, branchAnalysisDate, leakPeriodDate,
+                    branch, isMain, analysisDate);
+        }
+
+        boolean onOtherBranch() { return branch != null && Boolean.FALSE.equals(isMain); }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record Branch(String name, Boolean isMain, String type, String analysisDate) { }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record BranchList(List<Branch> branches) { }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     record ProjectSearch(Paging paging, List<Component> components) { }
