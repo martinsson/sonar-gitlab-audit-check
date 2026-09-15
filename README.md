@@ -91,8 +91,17 @@ have **never been analysed at all**, and for languages whose analyser reports no
 lines to cover. So read the "no coverage data" count below largely as a
 never-analysed count, alongside `Jamais analysés`.
 
-The tool reports both: the gap between what you see and what exists, and the
-count of projects with no coverage data whatsoever.
+**The main branch is not the last scan.** `search_projects` and
+`api/measures/search` only return the main branch. A project whose CI scans
+`develop` and nothing else comes back with no date and no measures, exactly like
+a project never analysed. The tool asks `api/project_branches/list` for every
+project, keeps the most recently analysed branch, and reads its measures through
+`api/measures/component?branch=`. The CSV names the branch it used, and
+`--main-branch-only` restores the naive read.
+
+The tool reports all three: the gap between what you see and what exists, the
+projects whose last scan lives on a non-main branch, and the count of projects
+with no coverage data whatsoever.
 
 ---
 
@@ -234,6 +243,7 @@ numbers. The interface is in French.
 | `--project` | first visible | Sample project used for capability probes |
 | `--csv` | — | Write the project inventory here |
 | `--dump-dir` | — | Log every raw API response here |
+| `--main-branch-only` | off | Read only the main branch, like `search_projects` does; skips the per-project branch lookup |
 | `--stale-days` | 90 | Age past which a project counts as stale |
 | `--activity-days` | 90 | Activity window |
 | `--timeout` | 30 | Per-request timeout, seconds |
@@ -521,6 +531,10 @@ any of them:
   array on older versions. The top-level `value` is absent for these.
 - **`api/issues/search` puts `total` at the root**, while every other paginated
   endpoint uses `paging.total`.
+- **`search_projects` and `measures/search` are main-branch only.** A project
+  scanned on another branch has no `analysisDate` and no measures there, and
+  nothing hints that other branches exist. Only `api/project_branches/list`
+  tells you; `api/measures/component` takes a `branch` parameter.
 - **`api/sources/scm` returns positional arrays**: `[line, author, date, revision]`,
   and entries are sometimes shorter than four elements. The line number is a JSON
   number, not a string.

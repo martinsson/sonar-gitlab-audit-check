@@ -36,7 +36,7 @@ here is scored or ranked.
 |---|---|
 | `key` | SonarQube project key. Join key for everything downstream |
 | `name` | Display name |
-| `analysisDate` | Date of the last analysis. **Empty = never analysed** |
+| `analysisDate` | Date of the last analysis, on whichever branch was scanned last (see `branch` below). **Empty = never analysed on any branch** |
 | `days_since_analysis` | Days since that date. Empty for never-analysed projects |
 
 Then the measures, exactly as SonarQube returns them. They cost nothing extra:
@@ -115,6 +115,23 @@ fewer.
 **The ratings are ordinal, not numeric.** A `sqale_rating` of 4 is not twice as
 bad as 2, and averaging them produces a number with no meaning. Filter on them;
 do not do arithmetic with them.
+
+**Which branch the row describes.** `search_projects` and `measures/search`
+only know the main branch. A project whose CI scans `develop` and nothing else
+comes back from them with no date and no measures, indistinguishable from a
+project never analysed. The tool therefore asks `api/project_branches/list`
+for every project and takes the most recently analysed branch, main or not.
+The last three columns say what it did:
+
+| Column | Meaning |
+|---|---|
+| `branch` | Branch the date and every measure come from. Empty when the branch list was unavailable, or with `--main-branch-only` |
+| `is_main_branch` | `true` if that branch is the Sonar main branch, `false` otherwise |
+| `main_branch_analysisDate` | What `search_projects` reported for the main branch. Empty while `is_main_branch` is `false` means the project was **never** analysed on its main branch, and was invisible to the naive extraction |
+
+Two cases still come out empty: projects scanned only on merge requests
+(`api/project_pull_requests/list`, not consulted), and Community Edition
+instances, where branches do not exist and every scan lands on main.
 
 ---
 
