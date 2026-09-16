@@ -606,8 +606,8 @@ public class SonarAuditCheck implements Callable<Integer> {
         Map<String, Map<String, String>> byKey = new LinkedHashMap<>();
         List<String> keys = projects.stream()
                 .filter(p -> !p.onOtherBranch()).map(Component::key).toList();
-        for (int i = 0; i < keys.size(); i += 100) {
-            List<String> chunk = keys.subList(i, Math.min(i + 100, keys.size()));
+        for (int i = 0; i < keys.size(); i += 10) {
+            List<String> chunk = keys.subList(i, Math.min(i + 10, keys.size()));
             MeasuresSearch m = sq.get("api/measures/search",
                             params("projectKeys", String.join(",", chunk), "metricKeys", metricKeys()))
                     .as(MeasuresSearch.class);
