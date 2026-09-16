@@ -5,15 +5,11 @@
 //SOURCES ConsoleOut.java
 //SOURCES Csv.java
 
-import com.opencsv.CSVParserBuilder;
-import com.opencsv.CSVReaderBuilder;
 import com.opencsv.CSVWriter;
-import com.opencsv.exceptions.CsvException;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-import java.io.BufferedReader;
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -24,7 +20,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -162,68 +157,28 @@ public class SonarRank implements Callable<Integer> {
     // ----------------------------------------------------------------------
 
     /**
-     * Le CSV peut arriver au format machine (virgule) ou Excel (point-virgule,
-     * précédé d'un BOM) : on renifle l'en-tête plutôt que d'imposer un format,
-     * parce qu'un aller-retour par Excel est le trajet le plus probable de ce
-     * fichier.
+     * La lecture est celle de {@link Csv} : le séparateur s'y renifle, le BOM
+     * s'y retire, et un aller-retour par Excel y survit. Ce fichier en avait sa
+     * propre copie, à quelques détails près — deux lecteurs pour un seul format
+     * qui ne divergent que le jour où l'un des deux est corrigé.
      */
-    private static List<Row> readInventory(Path path) throws IOException, CsvException {
-        String head;
-        try (BufferedReader r = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-            head = r.readLine();
-        }
-        if (head == null) return List.of();
-        char sep = (count(head, ';') > count(head, ',')) ? ';' : ',';
-
-        try (BufferedReader r = Files.newBufferedReader(path, StandardCharsets.UTF_8);
-             var csv = new CSVReaderBuilder(r)
-                     .withCSVParser(new CSVParserBuilder().withSeparator(sep).build())
-                     .build()) {
-            List<String[]> all = csv.readAll();
-            if (all.isEmpty()) return List.of();
-
-            String[] header = all.get(0);
-            header[0] = stripBom(header[0]);
-            Map<String, Integer> index = new HashMap<>();
-            for (int i = 0; i < header.length; i++) index.put(header[i].trim(), i);
-
-            for (String required : List.of("key", "ncloc", "analysisDate")) {
-                if (!index.containsKey(required)) {
-                    throw new IOException("colonne '" + required + "' absente de " + path
-                            + " — ce fichier vient-il bien de --csv ?");
-                }
-            }
-
-            List<Row> rows = new ArrayList<>();
-            for (String[] cells : all.subList(1, all.size())) {
-                if (cells.length == 0 || (cells.length == 1 && cells[0].isBlank())) continue;
-                rows.add(new Row(index, cells));
-            }
-            return rows;
-        }
+    private static List<Row> readInventory(Path path) throws IOException {
+        Csv.Table t = Csv.read(path);
+        t.require(path, "SonarAuditCheck --csv", "key", "ncloc", "analysisDate");
+        return t.rows().stream().map(Row::new).toList();
     }
 
-    /** Une ligne du CSV. Les valeurs restent des String : vide n'est pas zéro. */
-    record Row(Map<String, Integer> index, String[] cells) {
+    /**
+     * Une ligne d'inventaire : la lecture générique de {@link Csv.Row}, plus ce
+     * que ce classement-ci sait de ces colonnes. Les valeurs restent des String
+     * là-dessous — vide n'est pas zéro.
+     */
+    record Row(Csv.Row cells) {
 
-        String str(String column) {
-            Integer i = index.get(column);
-            if (i == null || i >= cells.length || cells[i] == null) return "";
-            return cells[i].trim();
-        }
+        String str(String column) { return cells.str(column); }
 
         /** {@code null} si la métrique est absente — jamais 0. */
-        Double num(String column) {
-            String s = str(column);
-            if (s.isEmpty()) return null;
-            // Un aller-retour par Excel en locale française transforme 12.5 en 12,5.
-            if (!s.contains(".") && s.contains(",")) s = s.replace(',', '.');
-            try {
-                return Double.parseDouble(s);
-            } catch (NumberFormatException e) {
-                return null;
-            }
-        }
+        Double num(String column) { return cells.num(column); }
 
         String key() { return str("key"); }
 
@@ -652,7 +607,6 @@ public class SonarRank implements Callable<Integer> {
     // Présentation
     // ----------------------------------------------------------------------
 
-    static final char BOM = (char) 0xFEFF;
     static final String ESC = String.valueOf((char) 27);
     static final String BOLD = ESC + "[1m";
     static final String DIM = ESC + "[2m";
@@ -684,11 +638,4 @@ public class SonarRank implements Callable<Integer> {
         return s.length() <= max ? s : s.substring(0, max - 1) + "...";
     }
 
-    static int count(String s, char ch) {
-        return (int) s.chars().filter(x -> x == ch).count();
-    }
-
-    static String stripBom(String s) {
-        return (!s.isEmpty() && s.charAt(0) == BOM) ? s.substring(1) : s;
-    }
 }

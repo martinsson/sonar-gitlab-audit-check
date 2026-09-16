@@ -1559,7 +1559,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     "auto_approbation", "pipelines", "taux_succes", "incidents_rouges",
                     "retour_au_vert_h", "rouge_non_resolu", "environnements",
                     "deploiements", "dora_indispo", "ci_sonar", "ci_securite",
-                    "cle_sonar", "source_cle_sonar", "fichiers"};
+                    "cle_sonar", "source_cle_sonar", "fichiers", "id"};
             try (CSVWriter w = Csv.writer(pratiquesCsv, comma)) {
                 w.writeNext(header);
                 for (Proj p : selected) w.writeNext(p.pratRow());
@@ -1645,7 +1645,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     num(r.unresolvedRed), num(r.environments), dec(r.deployments),
                     String.valueOf(r.doraUnavailable), String.valueOf(r.ciSonar),
                     String.valueOf(r.ciSecurity), orEmpty(r.sonarKey), orEmpty(r.sonarKeySource),
-                    String.join(" ", r.files)};
+                    String.join(" ", r.files), String.valueOf(id)};
         }
     }
 

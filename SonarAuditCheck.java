@@ -4,34 +4,18 @@
 //DEPS com.opencsv:opencsv:5.9
 //DEPS info.picocli:picocli:4.7.6
 //SOURCES ConsoleOut.java
+//SOURCES Sonar.java
+//SOURCES Csv.java
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.opencsv.CSVWriter;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -80,6 +64,10 @@ import java.util.stream.Collectors;
             "  SonarQube Cloud :",
             "    SonarAuditCheck --organization mon-org --csv inventaire.csv",
             "",
+            "  Capturer, puis rejouer hors ligne — ni URL ni jeton au rejeu :",
+            "    SonarAuditCheck --csv inventaire.csv --dump-dir ./captures",
+            "    SonarAuditCheck --replay-dir ./captures --csv rejoue.csv",
+            "",
             "SONAR_URL et SONAR_TOKEN peuvent remplacer --url et --token. Le jeton",
             "doit être de type 'User' (squ_...), pas un jeton d'analyse.",
             "Colonnes du CSV : COLUMNS.md. Méthode de classement : ANALYSIS.md.",
@@ -108,13 +96,32 @@ public class SonarAuditCheck implements Callable<Integer> {
     @Option(names = "--csv", description = "chemin du CSV d'inventaire à écrire")
     Path csv;
 
+    @Option(names = "--comma",
+            description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
+    boolean comma;
+
     @Option(names = "--dump-dir", description = "répertoire où consigner les réponses brutes")
     Path dumpDir;
+
+    @Option(names = "--replay-dir",
+            description = "rejouer un --dump-dir au lieu d'appeler l'instance (hors ligne)")
+    Path replayDir;
+
+    @Option(names = "--concurrency", defaultValue = "8",
+            description = "appels en vol à la fois ; 1 = séquentiel "
+                    + "(défaut : ${DEFAULT-VALUE})")
+    int concurrency;
 
     @Option(names = "--main-branch-only",
             description = "ne lire que la branche principale, comme search_projects "
                     + "(sans chercher le dernier scan sur les autres branches)")
     boolean mainBranchOnly;
+
+    @Option(names = "--no-bindings",
+            description = "ne pas lire la liaison GitLab ni les liens de chaque projet "
+                    + "(deux appels de moins par projet ; CrossAudit perd sa jointure exacte "
+                    + "côté Sonar)")
+    boolean noBindings;
 
     @Option(names = "--stale-days", defaultValue = "90",
             description = "seuil d'obsolescence (défaut : ${DEFAULT-VALUE})")
@@ -148,14 +155,21 @@ public class SonarAuditCheck implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         ConsoleOut.colorMode(colorMode);
-        if (isBlank(url) || isBlank(token)) {
+        // En rejeu, l'instance n'est jamais appelée : exiger une URL et un jeton
+        // interdirait le seul mode qui tourne sans elle.
+        if (replayDir == null && (isBlank(url) || isBlank(token))) {
             System.err.println("SONAR_URL et SONAR_TOKEN sont requis "
                     + "(variables d'env ou --url/--token).");
             return 2;
         }
-        sq = new Sonar(url, token, organization, timeout, insecure, dumpDir);
+        if (replayDir != null && !Files.isDirectory(replayDir)) {
+            System.err.println("--replay-dir : " + replayDir + " n'est pas un répertoire.");
+            return 2;
+        }
+        sq = new Sonar(url, token, organization, timeout, insecure, dumpDir, replayDir);
 
-        System.out.println(c("\nInstance : " + sq.base, BOLD));
+        System.out.println(c("\nInstance : "
+                + (sq.replaying() ? "rejeu de " + replayDir : sq.base), BOLD));
 
         CurrentUser me = checkConnectivity();
         if (me == null) return 1;
@@ -180,7 +194,20 @@ public class SonarAuditCheck implements Callable<Integer> {
 
     private void summary() {
         title("Synthèse");
-        System.out.printf("  %d appels API effectués.%n", sq.calls);
+        System.out.printf("  %d appels API effectués%s.%n", sq.calls(),
+                concurrency > 1 && !sq.replaying() ? " (%d en vol)".formatted(concurrency) : "");
+        // Une reprise silencieuse est une mesure qu'on ne sait pas justifier :
+        // si l'instance a refusé puis accepté, le rapport doit le dire.
+        if (sq.throttled() > 0 || sq.retried() > 0) {
+            System.out.println(c("  dont %d ralenti(s) (429) et %d repris (5xx)."
+                    .formatted(sq.throttled(), sq.retried()), DIM));
+        }
+        // En rejeu, une capture manquante est la seule panne possible — et elle
+        // ressemblerait sinon à un parc plus petit qu'il n'est.
+        if (sq.replaying() && sq.missingCaptures() > 0) {
+            System.out.println(c("  %d capture(s) manquante(s) : le rejeu est incomplet."
+                    .formatted(sq.missingCaptures()), YELLOW));
+        }
         System.out.println(c("""
                   Rappel : search_projects filtre silencieusement sur ce que le token
                   peut voir. Une permission manquante ne produit pas d'erreur, seulement
@@ -196,7 +223,7 @@ public class SonarAuditCheck implements Callable<Integer> {
     private CurrentUser checkConnectivity() {
         title("1. Connectivité et identité");
 
-        Response status = sq.get("api/system/status", params());
+        Sonar.Response status = sq.get("api/system/status", params());
         if (status.unreachable()) {
             line("api/system/status", Verdict.ERROR, status.errorMessage());
             System.out.println();
@@ -209,7 +236,7 @@ public class SonarAuditCheck implements Callable<Integer> {
             line("api/system/status", Verdict.OK,
                     "%s · v%s · %s".formatted(st.status(), st.version(), orEmpty(st.id())));
         } else {
-            line("api/system/status", status.verdict(), "HTTP " + status.status());
+            line("api/system/status", verdict(status), "HTTP " + status.status());
         }
 
         Validation v = sq.get("api/authentication/validate", params()).as(Validation.class);
@@ -223,10 +250,10 @@ public class SonarAuditCheck implements Callable<Integer> {
             return null;
         }
 
-        Response r = sq.get("api/users/current", params());
+        Sonar.Response r = sq.get("api/users/current", params());
         CurrentUser me = r.as(CurrentUser.class);
         if (me == null) {
-            line("api/users/current", r.verdict(), r.errorMessage());
+            line("api/users/current", verdict(r), r.errorMessage());
             return new CurrentUser(null, null, null, null);
         }
 
@@ -404,6 +431,15 @@ public class SonarAuditCheck implements Callable<Integer> {
                 ProjectSearch.class, p -> total(p.paging()) + " projets au total",
                 params("ps", "1"));
 
+        probe("Liaison DevOps (alm_settings/get_binding)", "api/alm_settings/get_binding",
+                AlmBinding.class, b -> b.alm() == null ? "aucune liaison"
+                        : "%s, dépôt %s".formatted(b.alm(), orEmpty(b.repository())),
+                params("project", sample));
+
+        probe("Liens du projet (project_links/search)", "api/project_links/search",
+                ProjectLinks.class, l -> size(l.links()) + " lien(s)",
+                params("projectKey", sample));
+
         probeBlame(sample);
     }
 
@@ -429,8 +465,8 @@ public class SonarAuditCheck implements Callable<Integer> {
     /** Un probe = un appel, un verdict OK/REFUSE/ABSENT, et un détail si ça a marché. */
     private <T> T probe(String label, String path, Class<T> type,
                         Function<T, String> hint, Map<String, String> params) {
-        Response r = sq.get(path, params);
-        Verdict v = r.verdict();
+        Sonar.Response r = sq.get(path, params);
+        Verdict v = verdict(r);
         String detail = "";
         T parsed = null;
         if (v == Verdict.OK) {
@@ -469,10 +505,13 @@ public class SonarAuditCheck implements Callable<Integer> {
         Map<String, Map<String, String>> measures = fetchMeasures(projects);
         reportMissingCoverage(projects, measures);
 
+        Map<String, Attachments> attachments = fetchAttachments(projects);
+
         if (csv != null) {
-            writeCsv(projects, measures);
+            writeCsv(projects, measures, attachments);
             System.out.println();
             System.out.println("  CSV écrit : " + c(csv.toString(), BOLD));
+            System.out.println(c(Csv.openingHint(csv, comma), DIM));
         }
     }
 
@@ -480,7 +519,7 @@ public class SonarAuditCheck implements Callable<Integer> {
         List<Component> all = new ArrayList<>();
         int page = 1, pageSize = 500, guard = 40;
         while (page <= guard) {
-            Response r = sq.get("api/components/search_projects",
+            Sonar.Response r = sq.get("api/components/search_projects",
                     params("ps", String.valueOf(pageSize), "p", String.valueOf(page),
                             "f", "analysisDate,leakPeriodDate"));
             ProjectSearch p = r.as(ProjectSearch.class);
@@ -508,17 +547,25 @@ public class SonarAuditCheck implements Callable<Integer> {
      */
     private List<Component> resolveLatestBranch(List<Component> projects) {
         if (mainBranchOnly) return projects;
-        List<Component> out = new ArrayList<>(projects.size());
-        int nonMain = 0, rescued = 0;
-        for (Component p : projects) {
+        // Un appel par projet : c'est la passe la plus chère de l'outil, et la
+        // seule dont le coût grandit avec le parc. Elle se recouvre, sinon un
+        // parc de 500 projets attend 500 fois le réseau, l'un après l'autre.
+        Progress bar = new Progress("  Branches lues", projects.size());
+        List<Component> out = sq.map(projects, concurrency, p -> {
             Branch b = latestBranch(p.key());
-            if (b == null) { out.add(p); continue; }
-            boolean isMain = Boolean.TRUE.equals(b.isMain());
-            if (!isMain) {
+            bar.tick();
+            return b == null ? p : p.onBranch(b.name(), Boolean.TRUE.equals(b.isMain()),
+                    b.analysisDate());
+        });
+        bar.done();
+
+        int nonMain = 0, rescued = 0;
+        for (int i = 0; i < out.size(); i++) {
+            Component p = out.get(i);
+            if (p.onOtherBranch()) {
                 nonMain++;
-                if (p.analysisDate() == null) rescued++;
+                if (projects.get(i).analysisDate() == null) rescued++;
             }
-            out.add(p.onBranch(b.name(), isMain, b.analysisDate()));
         }
         System.out.println("  Dernier scan sur une branche non principale : "
                 + c(String.valueOf(nonMain), BOLD));
@@ -617,10 +664,92 @@ public class SonarAuditCheck implements Callable<Integer> {
                         .put(measure.metric(), measure.effectiveValue());
             }
         }
-        for (Component p : projects) {
-            if (p.onOtherBranch()) byKey.put(p.key(), branchMeasures(p.key(), p.branch()));
+        // measures/search ignore les branches : chaque projet lu ailleurs que sur
+        // la principale coûte son propre appel. Même raison qu'au-dessus de les
+        // faire se recouvrir.
+        List<Component> others = projects.stream().filter(Component::onOtherBranch).toList();
+        if (!others.isEmpty()) {
+            Progress bar = new Progress("  Mesures de branche", others.size());
+            List<Map<String, String>> read = sq.map(others, concurrency, p -> {
+                Map<String, String> m = branchMeasures(p.key(), p.branch());
+                bar.tick();
+                return m;
+            });
+            bar.done();
+            for (int i = 0; i < others.size(); i++) byKey.put(others.get(i).key(), read.get(i));
         }
         return byKey;
+    }
+
+    /**
+     * Ce que SonarQube sait lui-même du dépôt : la liaison DevOps, posée quand
+     * le projet a été importé depuis GitLab, et les liens saisis à la main.
+     *
+     * La liaison donne l'identifiant du projet GitLab — la seule jointure qui
+     * ne dépend d'aucun nom. Elle n'existe que pour les projets créés ou liés
+     * par l'intégration : un projet né d'un `-Dsonar.projectKey` en CI n'en a
+     * pas, et c'est précisément ce que ce comptage mesure.
+     *
+     * Les liens sont saisis par quelqu'un, pas vérifiés par l'instance : ils
+     * sortent dans le CSV pour que CrossAudit mesure s'ils servent, pas pour
+     * faire une jointure.
+     */
+    private Map<String, Attachments> fetchAttachments(List<Component> projects) {
+        if (noBindings || projects.isEmpty()) return Map.of();
+        Progress bar = new Progress("  Liaisons et liens", projects.size());
+        List<Attachments> read = sq.map(projects, concurrency, p -> {
+            Attachments a = attachments(p.key());
+            bar.tick();
+            return a;
+        });
+        bar.done();
+
+        Map<String, Attachments> byKey = new HashMap<>();
+        Map<String, Long> byAlm = new TreeMap<>();
+        long refused = 0, withLinks = 0;
+        for (int i = 0; i < projects.size(); i++) {
+            Attachments a = read.get(i);
+            byKey.put(projects.get(i).key(), a);
+            if (a.refused()) refused++;
+            else if (!a.alm().isEmpty()) byAlm.merge(a.alm(), 1L, Long::sum);
+            if (!a.links().isEmpty()) withLinks++;
+        }
+        System.out.println();
+        long bound = byAlm.values().stream().mapToLong(Long::longValue).sum();
+        System.out.printf("  Liés à une plateforme DevOps   : %s / %d%s%n",
+                c(String.valueOf(bound), BOLD), projects.size(),
+                byAlm.isEmpty() ? "" : "  " + byAlm);
+        if (refused > 0) {
+            System.out.println(c("    dont %d liaison(s) illisible(s) : lecture refusée, pas absente"
+                    .formatted(refused), YELLOW));
+        }
+        System.out.printf("  Avec au moins un lien saisi    : %d / %d%n", withLinks, projects.size());
+        return byKey;
+    }
+
+    private Attachments attachments(String key) {
+        Sonar.Response r = sq.get("api/alm_settings/get_binding", params("project", key));
+        String alm;
+        String repository = "";
+        if (r.ok()) {
+            AlmBinding b = r.as(AlmBinding.class);
+            // En rejeu, un 404 capturé revient en 200 avec son corps d'erreur :
+            // une liaison sans plateforme est une absence, pas une lecture ratée.
+            alm = b == null || b.alm() == null ? "" : b.alm().toLowerCase(Locale.ROOT);
+            repository = b == null ? "" : orEmpty(b.repository());
+        } else if (r.status() == 404) {
+            alm = "";
+        } else {
+            alm = Attachments.REFUSED + " (HTTP " + r.status() + ")";
+        }
+
+        ProjectLinks pl = sq.get("api/project_links/search", params("projectKey", key))
+                .as(ProjectLinks.class);
+        String links = pl == null ? "" : orEmptyList(pl.links()).stream()
+                .filter(l -> !isBlank(l.url()))
+                .map(l -> (isBlank(l.type()) ? "autre" : l.type()) + " " + l.url().trim())
+                .collect(Collectors.joining(" | "));
+        return new Attachments(alm, repository, links);
     }
 
     private void reportMissingCoverage(List<Component> projects,
@@ -645,23 +774,35 @@ public class SonarAuditCheck implements Callable<Integer> {
     private static final List<String> BRANCH_COLUMNS = List.of(
             "branch", "is_main_branch", "main_branch_analysisDate");
 
+    private static final List<String> ATTACHMENT_COLUMNS = List.of(
+            "alm", "alm_repository", "liens");
+
     private void writeCsv(List<Component> projects,
-                          Map<String, Map<String, String>> measures) throws IOException {
+                          Map<String, Map<String, String>> measures,
+                          Map<String, Attachments> attachments) throws IOException {
         List<String> header = new ArrayList<>(
                 List.of("key", "name", "analysisDate", "days_since_analysis"));
         header.addAll(METRIC_COLUMNS);
         header.addAll(BRANCH_COLUMNS);
+        header.addAll(ATTACHMENT_COLUMNS);
 
         LocalDateTime now = LocalDateTime.now();
-        try (CSVWriter w = new CSVWriter(Files.newBufferedWriter(csv, StandardCharsets.UTF_8))) {
+        // Le même écrivain que les trois autres outils : un inventaire qui
+        // s'ouvre de travers dans Excel passe pour un outil cassé, et personne
+        // ne fait le détour par l'assistant d'import. Les outils qui relisent ce
+        // fichier reniflent le séparateur, donc le défaut lisible ne leur coûte
+        // rien ; --comma reste là pour qui veut l'autre forme.
+        try (CSVWriter w = Csv.writer(csv, comma)) {
             w.writeNext(header.toArray(String[]::new));
             for (Component p : projects) {
-                w.writeNext(csvRow(p, measures.getOrDefault(p.key(), Map.of()), now));
+                w.writeNext(csvRow(p, measures.getOrDefault(p.key(), Map.of()),
+                        attachments.get(p.key()), now));
             }
         }
     }
 
-    private String[] csvRow(Component p, Map<String, String> m, LocalDateTime now) {
+    private String[] csvRow(Component p, Map<String, String> m, Attachments a,
+                            LocalDateTime now) {
         LocalDateTime d = parseDate(p.analysisDate());
         List<String> row = new ArrayList<>(List.of(
                 orEmpty(p.key()),
@@ -672,6 +813,11 @@ public class SonarAuditCheck implements Callable<Integer> {
         row.add(orEmpty(p.branch()));
         row.add(p.isMain() == null ? "" : String.valueOf(p.isMain()));
         row.add(orEmpty(p.mainBranchAnalysisDate()));
+        // Colonnes vides avec --no-bindings : non lues, ce que l'en-tête ne dit
+        // pas mais que la console a dit.
+        row.add(a == null ? "" : a.alm());
+        row.add(a == null ? "" : a.repository());
+        row.add(a == null ? "" : a.links());
         return row.toArray(String[]::new);
     }
 
@@ -693,11 +839,11 @@ public class SonarAuditCheck implements Callable<Integer> {
 
     /** Cadence d'analyses = cadence de livraison (biais : les builds nocturnes la gonflent). */
     private void reportAnalysisCadence(String sample, String since, int days) {
-        Response r = sq.get("api/project_analyses/search",
+        Sonar.Response r = sq.get("api/project_analyses/search",
                 params("project", sample, "ps", "500", "from", since));
         Analyses a = r.as(Analyses.class);
         if (a == null) {
-            line("api/project_analyses/search", r.verdict(), "HTTP " + r.status());
+            line("api/project_analyses/search", verdict(r), "HTTP " + r.status());
             return;
         }
         List<Analysis> analyses = orEmptyList(a.analyses());
@@ -721,11 +867,11 @@ public class SonarAuditCheck implements Callable<Integer> {
 
     /** La facette 'author' donne le nombre de contributeurs sans toucher à Git. */
     private void reportAuthorConcentration(String sample, String since, int days) {
-        Response r = sq.get("api/issues/search",
+        Sonar.Response r = sq.get("api/issues/search",
                 params("componentKeys", sample, "createdAfter", since, "facets", "author", "ps", "1"));
         IssuesSearch is = r.as(IssuesSearch.class);
         if (is == null) {
-            line("Facette 'author' sur issues", r.verdict(), "HTTP " + r.status());
+            line("Facette 'author' sur issues", verdict(r), "HTTP " + r.status());
             return;
         }
         List<FacetValue> authors = is.facetValues("author");
@@ -769,24 +915,80 @@ public class SonarAuditCheck implements Callable<Integer> {
                 .as(SearchHistory.class);
         if (h == null) return;
 
-        List<HistoryPoint> ncloc = h.pointsFor("ncloc");
-        List<HistoryPoint> debt = h.pointsFor("sqale_index");
-        if (ncloc.size() < 2 || debt.size() < 2) return;
-
-        long dNcloc = delta(ncloc);
-        long dDebt = delta(debt);
+        Velocity v = velocity(h.pointsFor("ncloc"), h.pointsFor("sqale_index"));
         System.out.println();
-        System.out.printf("  Δ lignes sur %d j            : %+d%n", days, dNcloc);
-        System.out.printf("  Δ dette sur %d j (min)       : %+d%n", days, dDebt);
-        if (dNcloc > 0) {
+        if (v == null) {
+            System.out.println(c("  Vélocité de dette indisponible : moins de deux analyses "
+                    + "chiffrées sur la fenêtre.", DIM));
+            return;
+        }
+        // La fenêtre demandée et la fenêtre mesurée ne coïncident jamais : les
+        // points sont ceux des analyses, pas ceux du calendrier. On affiche
+        // l'écart réellement mesuré, sinon le lecteur rapporte à 90 jours une
+        // variation qui en couvre 12.
+        System.out.printf("  Δ lignes sur %d j (%d j mesurés) : %+d%n",
+                days, v.spanDays(), v.deltaNcloc());
+        System.out.printf("  Δ dette sur %d j (min)       : %+d%n", days, v.deltaDebt());
+        if (v.deltaNcloc() > 0) {
             System.out.println("  Dette ajoutée par ligne écrite  : "
-                    + c("%+.2f min/LOC".formatted((double) dDebt / dNcloc), BOLD));
+                    + c("%+.2f min/LOC".formatted(v.debtPerLine()), BOLD));
             System.out.println(c("    (négatif = l'équipe rembourse ; > 10 = signal fort)", DIM));
         }
     }
 
-    private static long delta(List<HistoryPoint> points) {
-        return asLong(points.get(points.size() - 1).value()) - asLong(points.get(0).value());
+    /**
+     * Ce que l'historique dit, séparé de la façon de le dire.
+     *
+     * {@code spanDays} n'est pas décoratif : deux analyses espacées de douze
+     * jours dans une fenêtre de quatre-vingt-dix produisent un Δ parfaitement
+     * réel et parfaitement trompeur si on le lit comme un trimestre.
+     */
+    record Velocity(long deltaNcloc, long deltaDebt, long spanDays,
+                    String from, String to) {
+
+        double debtPerLine() { return (double) deltaDebt / deltaNcloc; }
+    }
+
+    /**
+     * {@code null} dès qu'un des deux bouts manque — et surtout pas zéro.
+     *
+     * L'ancienne version lisait la première et la dernière valeur avec un
+     * parseur qui rendait 0 sur tout ce qu'il ne comprenait pas. Un projet dont
+     * l'historique est illisible ressortait donc « +0 ligne, +0 minute de
+     * dette » : le portrait exact d'une équipe irréprochable. C'est la confusion
+     * absent / zéro que ce dépôt documente partout ailleurs, et elle devient
+     * dangereuse le jour où ce calcul alimente une colonne de CSV plutôt qu'une
+     * ligne de console.
+     */
+    static Velocity velocity(List<HistoryPoint> ncloc, List<HistoryPoint> debt) {
+        Long dNcloc = delta(ncloc);
+        Long dDebt = delta(debt);
+        if (dNcloc == null || dDebt == null) return null;
+
+        LocalDateTime from = parseDate(ncloc.get(0).date());
+        LocalDateTime to = parseDate(ncloc.get(ncloc.size() - 1).date());
+        long span = (from == null || to == null) ? 0 : ChronoUnit.DAYS.between(from, to);
+        return new Velocity(dNcloc, dDebt, span,
+                orEmpty(ncloc.get(0).date()), orEmpty(ncloc.get(ncloc.size() - 1).date()));
+    }
+
+    /** Écart entre le premier et le dernier point chiffré, ou null s'il en manque un. */
+    static Long delta(List<HistoryPoint> points) {
+        if (points == null || points.size() < 2) return null;
+        Double first = numeric(points.get(0).value());
+        Double last = numeric(points.get(points.size() - 1).value());
+        if (first == null || last == null) return null;
+        return (long) (last - first);
+    }
+
+    /** {@code null} sur une valeur absente ou illisible : jamais 0. */
+    static Double numeric(String s) {
+        if (isBlank(s)) return null;
+        try {
+            return Double.parseDouble(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     /** Sonar stocke l'auteur et la date du dernier commit par ligne : churn sans Git. */
@@ -842,172 +1044,6 @@ public class SonarAuditCheck implements Callable<Integer> {
     }
 
     // ----------------------------------------------------------------------
-    // Client HTTP
-    // ----------------------------------------------------------------------
-
-    static final ObjectMapper MAPPER = new ObjectMapper()
-            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-    /** Statut + corps brut. Le corps est toujours présent, y compris sur erreur. */
-    record Response(int status, String body) {
-
-        boolean unreachable() {
-            return status == 0;
-        }
-
-        Verdict verdict() {
-            return switch (status) {
-                case 200 -> Verdict.OK;
-                case 401, 403 -> Verdict.DENIED;
-                case 404 -> Verdict.MISSING;
-                default -> Verdict.ERROR;
-            };
-        }
-
-        /** null si le statut n'est pas 200 ou si le corps n'est pas le JSON attendu. */
-        <T> T as(Class<T> type) {
-            if (status != 200 || body == null) return null;
-            try {
-                return MAPPER.readValue(body, type);
-            } catch (IOException e) {
-                return null;
-            }
-        }
-
-        String errorMessage() {
-            if (body == null) return "";
-            try {
-                ErrorResponse e = MAPPER.readValue(body, ErrorResponse.class);
-                if (notEmpty(e.errors())) {
-                    return truncate(e.errors().stream().map(ErrorMessage::msg)
-                            .filter(Objects::nonNull).collect(Collectors.joining("; ")), 90);
-                }
-            } catch (IOException ignored) {
-                // corps non-JSON : on le montre tel quel
-            }
-            return truncate(body.replace("\n", " "), 90);
-        }
-    }
-
-    static final class Sonar {
-        final String base;
-        private final String token;
-        private final String organization;
-        private final Duration timeout;
-        private final Path dumpDir;
-        private final HttpClient client;
-        int calls = 0;
-
-        Sonar(String url, String token, String organization,
-              int timeoutSeconds, boolean insecure, Path dumpDir) throws Exception {
-            this.base = url.replaceAll("/+$", "");
-            this.token = token;
-            this.organization = isBlank(organization) ? null : organization;
-            this.timeout = Duration.ofSeconds(timeoutSeconds);
-            this.dumpDir = dumpDir;
-            if (dumpDir != null) Files.createDirectories(dumpDir);
-
-            HttpClient.Builder b = HttpClient.newBuilder()
-                    .connectTimeout(this.timeout)
-                    .followRedirects(HttpClient.Redirect.NORMAL);
-            if (insecure) {
-                System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
-                b.sslContext(trustEverything());
-            }
-            this.client = b.build();
-        }
-
-        Response get(String path, Map<String, String> params) {
-            Map<String, String> all = new LinkedHashMap<>(params);
-            if (organization != null && needsOrganization(path)) {
-                all.putIfAbsent("organization", organization);
-            }
-            String uri = base + "/" + path.replaceAll("^/+", "") + queryString(all);
-            calls++;
-            try {
-                HttpRequest req = HttpRequest.newBuilder(URI.create(uri))
-                        .GET()
-                        .timeout(timeout)
-                        .header("Authorization", "Bearer " + token)
-                        .header("Accept", "application/json")
-                        .build();
-                HttpResponse<String> res = client.send(req, HttpResponse.BodyHandlers.ofString());
-                dump(path, res.body());
-                return new Response(res.statusCode(), res.body());
-            } catch (Exception e) {
-                // ConnectException.getMessage() est souvent null : sans le nom de la
-                // classe, le diagnostic « impossible de joindre » n'indique pas
-                // s'il s'agit d'un refus, d'un timeout ou d'un échec TLS.
-                String msg = isBlank(e.getMessage())
-                        ? e.getClass().getSimpleName()
-                        : e.getClass().getSimpleName() + ": " + e.getMessage();
-                return new Response(0, msg);
-            }
-        }
-
-        /**
-         * Endpoints qui exigent (ou acceptent) 'organization' sur SonarQube Cloud.
-         *
-         * api/projects/search en fait partie : sans le paramètre, Cloud répond 400 et
-         * le diagnostic conclut à tort « nécessite Administer System » — soit un faux
-         * point aveugle sur le calcul le plus important de l'outil.
-         *
-         * La liste reste volontairement courte : les endpoints portés par un composant
-         * (measures/*, components/tree, sources/scm, project_analyses, settings/values)
-         * n'acceptent pas le paramètre, et l'ajouter provoquerait l'erreur qu'on cherche
-         * à éviter. Le paramètre n'est de toute façon envoyé que si --organization est
-         * fourni, ce qui ne concerne que Cloud.
-         *
-         * NON VÉRIFIÉ sur une instance Cloud réelle : sonarcloud.io était injoignable
-         * depuis l'environnement de test. Déduit de la documentation de l'API.
-         */
-        private static boolean needsOrganization(String path) {
-            return path.startsWith("api/components/search_projects")
-                    || path.startsWith("api/qualityprofiles")
-                    || path.startsWith("api/projects/search")
-                    || path.startsWith("api/issues/search")
-                    || path.startsWith("api/qualitygates/get_by_project");
-        }
-
-        /**
-         * Les captures brutes ne sont pas de l'échafaudage : elles servent à générer
-         * les records, puis à diffuser les dérives de version d'une instance à l'autre.
-         */
-        private void dump(String path, String body) {
-            if (dumpDir == null) return;
-            String name = "%03d-%s.json".formatted(calls, path.replaceAll("[^A-Za-z0-9]+", "_"));
-            try {
-                Files.writeString(dumpDir.resolve(name), body == null ? "" : body);
-            } catch (IOException e) {
-                System.err.println("  (capture non écrite : " + e.getMessage() + ")");
-            }
-        }
-
-        private static String queryString(Map<String, String> params) {
-            if (params.isEmpty()) return "";
-            return params.entrySet().stream()
-                    .filter(e -> e.getValue() != null)
-                    .map(e -> encode(e.getKey()) + "=" + encode(e.getValue()))
-                    .collect(Collectors.joining("&", "?", ""));
-        }
-
-        private static String encode(String s) {
-            return URLEncoder.encode(s, StandardCharsets.UTF_8);
-        }
-
-        private static SSLContext trustEverything() throws Exception {
-            TrustManager[] trustAll = {new X509TrustManager() {
-                public void checkClientTrusted(X509Certificate[] c, String a) { }
-                public void checkServerTrusted(X509Certificate[] c, String a) { }
-                public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
-            }};
-            SSLContext ctx = SSLContext.getInstance("TLS");
-            ctx.init(null, trustAll, new SecureRandom());
-            return ctx;
-        }
-    }
-
-    // ----------------------------------------------------------------------
     // Records
     //
     // Tous les champs numériques sont boxés : une mesure absente doit rester
@@ -1051,6 +1087,24 @@ public class SonarAuditCheck implements Callable<Integer> {
         }
 
         boolean onOtherBranch() { return branch != null && Boolean.FALSE.equals(isMain); }
+    }
+
+    /** Pour GitLab, {@code repository} est l'identifiant numérique du projet. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record AlmBinding(String key, String alm, String repository, String slug, String url,
+                      Boolean monorepo) { }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record ProjectLinks(List<ProjectLink> links) { }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    record ProjectLink(String type, String name, String url) { }
+
+    /** Ce que l'inventaire écrit de la liaison et des liens d'un projet. */
+    record Attachments(String alm, String repository, String links) {
+        static final String REFUSED = "illisible";
+
+        boolean refused() { return alm.startsWith(REFUSED); }
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -1186,12 +1240,6 @@ public class SonarAuditCheck implements Callable<Integer> {
         }
     }
 
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record ErrorResponse(List<ErrorMessage> errors) { }
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    record ErrorMessage(String msg) { }
-
     // ----------------------------------------------------------------------
     // Présentation
     // ----------------------------------------------------------------------
@@ -1212,6 +1260,51 @@ public class SonarAuditCheck implements Callable<Integer> {
             this.color = color;
             this.tag = tag;
         }
+    }
+
+    /**
+     * Une passe qui dure des minutes sans rien écrire ne se distingue pas d'un
+     * blocage. Sur un terminal on réécrit la même ligne ; ailleurs — CI, sortie
+     * redirigée — on se tait, parce qu'un fichier de log n'a que faire de 500
+     * lignes de compteur.
+     */
+    static final class Progress {
+        private final String label;
+        private final int total;
+        private final java.util.concurrent.atomic.AtomicInteger done =
+                new java.util.concurrent.atomic.AtomicInteger();
+        private final boolean live = ConsoleOut.colors();
+
+        Progress(String label, int total) {
+            this.label = label;
+            this.total = total;
+            if (live && total > 0) System.out.printf("%s 0/%d\r", label, total);
+        }
+
+        void tick() {
+            int n = done.incrementAndGet();
+            if (live && (n % 25 == 0 || n == total)) {
+                System.out.printf("%s %d/%d\r", label, n, total);
+                System.out.flush();
+            }
+        }
+
+        void done() {
+            if (live && total > 0) System.out.printf("%s %d/%d%n", label, done.get(), total);
+        }
+    }
+
+    /**
+     * Le verdict est une affaire de présentation, pas de transport : le client
+     * rapporte un statut, l'audit décide de ce qu'il en dit.
+     */
+    static Verdict verdict(Sonar.Response r) {
+        return switch (r.status()) {
+            case 200 -> Verdict.OK;
+            case 401, 403 -> Verdict.DENIED;
+            case 404 -> Verdict.MISSING;
+            default -> Verdict.ERROR;
+        };
     }
 
     static String c(String text, String color) {
@@ -1260,14 +1353,6 @@ public class SonarAuditCheck implements Callable<Integer> {
         Map<String, String> m = new LinkedHashMap<>();
         for (int i = 0; i + 1 < pairs.length; i += 2) m.put(pairs[i], pairs[i + 1]);
         return m;
-    }
-
-    static long asLong(String s) {
-        try {
-            return (long) Double.parseDouble(s);
-        } catch (RuntimeException e) {
-            return 0L;
-        }
     }
 
     static int orZero(Integer i) { return i == null ? 0 : i; }

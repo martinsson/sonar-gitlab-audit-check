@@ -5,7 +5,7 @@ and — more usefully — how to read the ones that are easy to misread.
 
 | File | Written by | Separator |
 |---|---|---|
-| inventory CSV | `SonarAuditCheck --csv` | comma, UTF-8 |
+| inventory CSV | `SonarAuditCheck --csv` | semicolon + BOM by default, comma with `--comma` |
 | `classement.csv` | `SonarRank --out` | semicolon + BOM by default, comma with `--comma` |
 | `inventaire.csv` | `GitlabActivityAudit --out-dir` | semicolon + BOM by default, comma with `--comma` |
 | `pratiques.csv` | `GitlabActivityAudit --out-dir --deep` | semicolon + BOM by default, comma with `--comma` |
@@ -132,6 +132,22 @@ The last three columns say what it did:
 Two cases still come out empty: projects scanned only on merge requests
 (`api/project_pull_requests/list`, not consulted), and Community Edition
 instances, where branches do not exist and every scan lands on main.
+
+### What SonarQube knows about the repository
+
+Two more calls per project (skip them with `--no-bindings`) read what the
+instance itself records about where the code lives. `CrossAudit` uses them.
+
+| Column | Meaning |
+|---|---|
+| `alm` | DevOps platform the project is bound to (`gitlab`, `github`, …), from `api/alm_settings/get_binding`. Empty = no binding. `illisible (HTTP n)` = the binding could not be read, which is **not** the same as no binding |
+| `alm_repository` | For GitLab, the numeric **GitLab project ID**. The only join that involves no name |
+| `liens` | Links typed into the project, from `api/project_links/search`, as `type url` separated by ` | ` |
+
+A binding exists only for projects created or bound through SonarQube's GitLab
+integration. A project born from `-Dsonar.projectKey=…` in a pipeline has
+none, so a low count here describes how the estate was set up, not a failure.
+Links are typed by hand and never checked by the instance.
 
 ---
 
@@ -312,6 +328,7 @@ it only exists for the ~200 that the funnel chose.
 | `cle_sonar` | The `sonar.projectKey` the scanner sends. **The join key against the Sonar inventory.** Empty when it cannot be resolved without guessing |
 | `source_cle_sonar` | Where the key was read: `sonar-project.properties`, `ci/lint`, `includes suivis`, or why it is empty |
 | `fichiers` | Space-separated list of watched files found: `.gitlab-ci.yml`, `README.md`, `CODEOWNERS`, `Dockerfile`, `renovate.json` |
+| `id` | GitLab project ID. Joined against the Sonar inventory's `alm_repository` |
 
 ### Three columns that will mislead you if read plainly
 
@@ -382,10 +399,30 @@ one measurement, when they are two systems, two dates and two definitions.
 
 | Column | Meaning |
 |---|---|
-| `methode_jointure` | How the pair was made: `clé lue dans la CI`, `clé normalisée = chemin GitLab`, `noms voisins`, or `aucune` |
+| `methode_jointure` | How the pair was made, tried in this order: `clé lue dans la CI`, `liaison DevOps Sonar → GitLab`, `clé normalisée = chemin GitLab`, `noms ressemblants (TF-IDF)`, or `aucune` |
 | `confiance` | `exact`, `derived`, `suggestion`, `none` |
+| `candidat_nom` | Best name-similarity candidate, when the safer methods failed. Filled **even when it was rejected** (see `rejet_nom`) |
+| `score_nom` | Its score, 0–1 |
+| `second_nom` | The runner-up and its score. A close runner-up is why a candidate gets rejected as ambiguous |
+| `rejet_nom` | Why no suggestion was made: `sous le seuil`, `ambigu`, `numéros différents`, `déjà proposé à <path>` |
+| `liaison_sonar` | Sonar keys whose binding points to this GitLab project, whatever method was used. Several = a monorepo bound more than once |
+| `lien_sonar` | Sonar keys whose typed links point to this GitLab project. **Informative only**, never used to join |
+| `lien_concorde` | `oui`/`non`: do those links agree with the pair that was made. Empty when there is no link or no pair |
 | `gl_…` | Columns carried over from `pratiques.csv` |
 | `sq_…` | Columns carried over from the Sonar inventory. **All empty when nothing matched** |
+
+**How the name similarity works.** Names are split into words: accents,
+case, and the space/dash/dot/underscore separators are ignored, and camelCase
+is split. Numbers are taken out of the words. Each word is weighted by how rare
+it is across both inventories (TF-IDF), so `api`, `service` or the company
+prefix count for almost nothing, with no list to maintain. Words of four
+letters or more also match with a small typo (Jaro-Winkler ≥ 0.9). The last
+segment of the GitLab path counts double. The namespace helps break ties but
+cannot create a match on its own. On top of that there are three guards:
+`--seuil-nom` (default 0.5), `--marge-nom` (default 0.1) between the best and
+second candidate, and one-to-one matching, so a Sonar project is proposed only
+once. If both names carry numbers and the numbers differ, the candidate is
+dropped: `sirh-v2` matches `sirh`, but `app1` never matches `app2`.
 
 **`confiance = suggestion` is not a match.** Those rows are name resemblances
 for a human to confirm, and they are excluded from every count the run prints.

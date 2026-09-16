@@ -133,8 +133,13 @@ public final class Csv {
         public Double num(String column) {
             String v = str(column);
             if (v.isEmpty()) return null;
+            // Un aller-retour par Excel en locale française transforme 12.5 en
+            // 12,5. Remplacer la virgule sans condition casserait en revanche
+            // « 1,234.5 », où elle sépare les milliers : on ne la traite comme
+            // séparateur décimal qu'en l'absence de point.
+            if (!v.contains(".") && v.contains(",")) v = v.replace(',', '.');
             try {
-                return Double.parseDouble(v.replace(',', '.'));
+                return Double.parseDouble(v);
             } catch (NumberFormatException e) {
                 return null;
             }

@@ -175,8 +175,22 @@ jbang SonarAuditCheck.java --csv projects.csv --stale-days 120
 jbang SonarAuditCheck.java --organization my-org            # SonarQube Cloud
 ```
 
-Everything is a GET; the tool never writes to your instance. A run is 20-30 API
-calls plus one call per 100 projects, and takes a few seconds.
+Everything is a GET; the tool never writes to your instance.
+
+The cost is dominated by one thing: since the tool resolves the latest analysed
+branch, it asks `api/project_branches/list` once **per project**. A run is
+roughly 30 calls, plus one per 100 projects for the bulk measures, plus one per
+project for its branches, plus one more for each project last scanned somewhere
+other than its main branch.
+
+| Portfolio | Calls | Wall clock, `--concurrency 8` |
+|---|---|---|
+| 7 projects (the fake instance) | 35 | under a second |
+| 500 projects | ~540 | a few seconds |
+
+Calls overlap eight at a time by default. `--concurrency 1` restores the old
+sequential behaviour, and `--main-branch-only` skips the per-project pass
+entirely at the cost of losing every project scanned on another branch.
 
 Or put it on your PATH:
 
@@ -242,7 +256,10 @@ numbers. The interface is in French.
 | `--organization` | `$SONAR_ORG` | SonarQube Cloud organization |
 | `--project` | first visible | Sample project used for capability probes |
 | `--csv` | — | Write the project inventory here |
+| `--comma` | off | Write that CSV with commas and no BOM, for another tool rather than Excel |
 | `--dump-dir` | — | Log every raw API response here |
+| `--replay-dir` | — | Replay a `--dump-dir` instead of calling the instance; needs no URL or token |
+| `--concurrency` | 8 | Calls in flight at once; `1` restores the old sequential behaviour |
 | `--main-branch-only` | off | Read only the main branch, like `search_projects` does; skips the per-project branch lookup |
 | `--stale-days` | 90 | Age past which a project counts as stale |
 | `--activity-days` | 90 | Activity window |
@@ -497,16 +514,16 @@ is therefore off by default on Windows unless the emulator announces itself
 (Windows Terminal, ConEmu, ANSICON). Override with `--color always|never`, or
 set `NO_COLOR` to silence it everywhere.
 
-`ConsoleOut.java` holds this logic for all three scripts and is pulled in with
+`ConsoleOut.java` holds this logic for every script and is pulled in with
 JBang's `//SOURCES`. Running without JBang, pass it to `javac` alongside the
 script, or let `java GitlabActivityAudit.java` resolve it — JDK 25 compiles
 neighbouring source files on its own.
 
 ---
 
-## `--dump-dir`
+## `--dump-dir` and `--replay-dir`
 
-Not debug scaffolding — a permanent feature, for two reasons.
+Not debug scaffolding — a permanent feature, for three reasons.
 
 Jackson is configured with `FAIL_ON_UNKNOWN_PROPERTIES=false`, so a new field in
 a later SonarQube version is absorbed silently and a removed field becomes null.
@@ -518,6 +535,24 @@ projects — the ones this tool exists to find. Capture three references
 deliberately: a normal project, one that has never been analysed, and one with
 no coverage report. A sample taken only from healthy projects will not show you
 what the payloads look like when fields go missing.
+
+Third, a capture replays. `--replay-dir` points the tool at a directory written
+by `--dump-dir` and runs the whole audit from disk, with no URL, no token and no
+instance:
+
+```bash
+jbang SonarAuditCheck.java --csv inventaire.csv --dump-dir ./captures
+jbang SonarAuditCheck.java --replay-dir ./captures --csv rejoue.csv   # hors ligne
+```
+
+The two CSVs are identical, and that equality is what `testing/smoke-sonar.sh`
+asserts. It also means a colleague can hand you a capture of an instance you
+cannot reach, and you can rank it.
+
+Captures are named after the request — path plus a short hash of the parameters
+— not after the order they were made in, because calls now overlap and their
+order is no longer stable. `index.txt` in the same directory records the
+sequence and the full query of each one.
 
 ---
 
@@ -573,10 +608,20 @@ two real analyses, and points the tool at the result. Expected output is
 metadata** — the analysis runs without a git repository, which is the
 `fetch-depth: 1` case.
 
-Prefer it to a mock. A mock replays whatever its author believed the API does;
-if it is written from this README it confirms the README rather than testing it.
-Three of the response behaviours documented above were found only by querying a
-real instance, and a README-derived mock had asserted the opposite.
+Prefer it to a mock for anything about **what the API says**. A mock replays
+whatever its author believed the API does; if it is written from this README it
+confirms the README rather than testing it. Three of the response behaviours
+documented above were found only by querying a real instance, and a
+README-derived mock had asserted the opposite.
+
+`testing/smoke-sonar.sh` covers the other half — **what this tool does with an
+answer** — against `testing/fake-sonar.py`, and runs in about a second without
+Docker. It is the Sonar counterpart of `testing/smoke-gitlab.sh`, and it exists
+for the cases a real instance will not produce on demand: `new_*` values under
+`periods` rather than `period`, a project analysed only on `develop`, a history
+with a single point or a blank value, a 429 with `Retry-After`, an isolated 502
+in the middle of a concurrent pass. The last two assertions replay the captures
+offline and require the CSV to come out byte-identical.
 
 ---
 
@@ -700,7 +745,14 @@ Verified against gitlab.com, not against the documentation:
 ### What the two GitLab tools share
 
 `Gitlab.java` holds the HTTP client and three conventions. Both tools include it
-with `//SOURCES`, the way all three include `ConsoleOut.java`.
+with `//SOURCES`, the way every script includes `ConsoleOut.java`.
+
+`Sonar.java` is its counterpart on the other side, and was extracted for the same
+reason one release later: the inventory now costs one call per project, and doing
+those one at a time wastes minutes on a portfolio of any size. It holds the GET,
+the bounded concurrency, the retry on 429 and 5xx, and capture/replay. What it
+deliberately does not hold is any verdict about what an answer means — the audit
+decides that, which is why `Verdict` stayed in `SonarAuditCheck.java`.
 
 It exists because the two tools were written separately and independently agreed
 on the three traps that matter — bots, merge commits, and a capped page count
@@ -816,8 +868,15 @@ and a confidence, per §6:
 | Method | Confidence | Counts toward findings |
 |---|---|---|
 | `cle_sonar` — the key read out of the CI — matches a Sonar `key` | exact | yes |
+| Sonar's own GitLab binding (`alm_repository`) matches the GitLab project `id` | exact | yes |
 | Sonar key normalised against `path_with_namespace` | derived | yes |
-| Project name against the last path segment | suggestion | **no** |
+| TF-IDF-weighted name similarity, typo-tolerant, with a threshold, an ambiguity margin and one-to-one matching | suggestion | **no** |
+
+The links typed into Sonar projects (`api/project_links/search`) do not join
+anything. The run reports how many there are, and how many confirm a join,
+contradict one, or would have created one, so you can judge whether they
+deserve to become a method. It also reports every binding that contradicts
+the CI key.
 
 Suggestions go into `croisement.csv` marked as such, for a human to confirm.
 They never enter a count. Two projects called `api` in different namespaces

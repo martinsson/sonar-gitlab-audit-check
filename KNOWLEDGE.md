@@ -40,6 +40,32 @@ mock for error branches and regressions. Never write the mock from the
 documentation you are trying to verify — write it from captured payloads
 (`--dump-dir` exists for exactly this).
 
+`testing/fake-sonar.py` and `testing/smoke-sonar.sh` are that mock, kept to that
+role, and `--replay-dir` closes the loop the rule asks for: a capture taken from
+a real instance replays through the whole tool offline and must produce the same
+CSV. The fixture is then not derived from our beliefs at all — it is the
+instance's own answer, frozen.
+
+### The zero that means "I could not read it"
+
+The `new_*` bug in section 3 had a twin, found while extending the tool, in the
+one place the repository was not watching: the arithmetic.
+
+`Δ sqale_index / Δ ncloc` parsed its history points with a helper that returned
+`0` for anything it could not read. A project whose history was short, blank or
+malformed therefore reported **`+0` lines and `+0` minutes of debt** — the exact
+portrait of a disciplined team. Absent had become zero again, one layer below
+where we had been looking for it, and this time it was flattering rather than
+merely missing.
+
+It was survivable only because the number was printed to a console for one
+sample project. The moment such a figure becomes a CSV column ranked across a
+portfolio, a project nobody can measure sorts as a project with nothing wrong.
+The calculation now returns `null` when either end of the window is unreadable,
+and reports the number of days it actually spans, because two analyses twelve
+days apart inside a ninety-day window produce a perfectly real delta that means
+something else entirely.
+
 ---
 
 ## 2. Permissions
