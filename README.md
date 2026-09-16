@@ -872,6 +872,10 @@ and a confidence, per §6:
 | Sonar key normalised against `path_with_namespace` | derived | yes |
 | TF-IDF-weighted name similarity, typo-tolerant, with a threshold, an ambiguity margin and one-to-one matching | suggestion | **no** |
 
+The join is done by `ProjectMapper.java` (below), which CrossAudit calls with
+its Sonar × GitLab preset. `--report rapport.json` writes the evaluation of
+every method.
+
 The links typed into Sonar projects (`api/project_links/search`) do not join
 anything. The run reports how many there are, and how many confirm a join,
 contradict one, or would have created one, so you can judge whether they
@@ -899,6 +903,52 @@ Six claims come out, none of which either report supports alone:
 The output caveat worth repeating: `pratiques.csv` holds only the projects the
 GitLab audit *selected*, not the whole estate. A Sonar project with no GitLab
 match may simply not have been drawn. The run says so.
+
+### The matcher on its own: `ProjectMapper.java`
+
+It matches the rows of one CSV to the rows of another, and grades each way of
+doing it. It knows nothing about Sonar or GitLab beyond a preset, which is what
+it uses when no method is given:
+
+```bash
+# Sonar × GitLab, as CrossAudit does it
+jbang ProjectMapper.java --left ./audit/pratiques.csv --right inventaire.csv \
+    --out correspondances.csv --report rapport-appariement.json
+
+# Anything else: name the columns
+jbang ProjectMapper.java --left cmdb.csv --right jira.csv \
+    --left-key appli --right-key ref \
+    --exact code:code=code_appli --names appli=libelle --plain-names
+```
+
+Methods are written `id:left_column=right_column[?column=value]`.
+`--exact` needs strict equality. `--derived` compares after normalisation.
+`--link` reads repository URLs on the right and is informative only. They are
+applied in order, and name similarity (`--names`) runs last, on whatever is
+left, and only produces suggestions.
+
+**The report is the point.** Every method is also run on its own, on every
+row, so the report can show:
+
+- **Coverage.** What each method proposes, how often it is ambiguous, how
+  often it decided, and how often it is the only method with an answer, which
+  is what you would lose without it.
+- **Agreement.** How often each pair of methods agrees or disagrees, with
+  examples. A CI key that contradicts Sonar's own binding shows up here.
+- **Links.** Whether they confirm a join, contradict one, or would have created
+  one.
+- **Name similarity, graded against the sure pairs.** Score distribution of
+  right and wrong answers, then precision and recall at each threshold. Use it
+  to pick `--seuil-nom` from evidence rather than taste.
+- **Examples of failure.** Wrong proposals on sure pairs, sure pairs whose
+  names diverge, near misses, frequent words in unmatched rows that never
+  appear on the other side, and key prefixes of unmatched right rows. These are
+  the leads for the next improvement: an abbreviation to expand, a prefix to
+  strip, a naming convention to learn.
+
+The JSON report is meant to be read back, by a person or an assistant, to
+decide what to improve next. It contains project names, so handle it like the
+CSVs.
 
 ### Not yet done
 

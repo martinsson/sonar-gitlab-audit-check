@@ -397,6 +397,9 @@ prefixed with the side it came from — `gl_` for GitLab, `sq_` for SonarQube �
 because without the prefix `coverage` and `commits_window` on one row read as
 one measurement, when they are two systems, two dates and two definitions.
 
+These columns are shared with `ProjectMapper --out`, which writes the same
+thing without the `gl_`/`sq_` columns.
+
 | Column | Meaning |
 |---|---|
 | `methode_jointure` | How the pair was made, tried in this order: `clé lue dans la CI`, `liaison DevOps Sonar → GitLab`, `clé normalisée = chemin GitLab`, `noms ressemblants (TF-IDF)`, or `aucune` |
@@ -404,10 +407,11 @@ one measurement, when they are two systems, two dates and two definitions.
 | `candidat_nom` | Best name-similarity candidate, when the safer methods failed. Filled **even when it was rejected** (see `rejet_nom`) |
 | `score_nom` | Its score, 0–1 |
 | `second_nom` | The runner-up and its score. A close runner-up is why a candidate gets rejected as ambiguous |
-| `rejet_nom` | Why no suggestion was made: `sous le seuil`, `ambigu`, `numéros différents`, `déjà proposé à <path>` |
-| `liaison_sonar` | Sonar keys whose binding points to this GitLab project, whatever method was used. Several = a monorepo bound more than once |
-| `lien_sonar` | Sonar keys whose typed links point to this GitLab project. **Informative only**, never used to join |
-| `lien_concorde` | `oui`/`non`: do those links agree with the pair that was made. Empty when there is no link or no pair |
+| `rejet_nom` | Why no suggestion was made: `sous le seuil`, `ambigu`, `numéros différents`, `aucun candidat`, `déjà proposé à <path>` |
+| `m_cle_ci`, `m_liaison`, `m_chemin` | What each method designates **on its own**, whether or not it was the one applied. Several keys = ambiguous (for example a monorepo bound more than once) |
+| `m_liens` | Sonar keys whose typed links point to this GitLab project. **Informative only**, never used to join |
+| `liens_concorde` | `oui`/`non`: do those links agree with the pair that was made. Empty when there is no link or no pair |
+| `m_noms_libre` | The name-similarity candidate against **all** Sonar projects, ignoring what was already matched, with its score and, if it would have been rejected, why. This is what the matching report is evaluated on |
 | `gl_…` | Columns carried over from `pratiques.csv` |
 | `sq_…` | Columns carried over from the Sonar inventory. **All empty when nothing matched** |
 

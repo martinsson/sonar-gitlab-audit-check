@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.IntPredicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -100,6 +101,11 @@ final class NameMatcher {
      * les nombres contredisent ceux de la source n'y figure pas.
      */
     List<Scored> rank(int source) {
+        return rank(source, i -> true);
+    }
+
+    /** Les mêmes, parmi les seules cibles que {@code allowed} laisse passer. */
+    List<Scored> rank(int source, IntPredicate allowed) {
         Doc s = sources.get(source);
         Set<Integer> candidates = new LinkedHashSet<>();
         for (String t : s.weights().keySet()) {
@@ -107,6 +113,7 @@ final class NameMatcher {
         }
         List<Scored> out = new ArrayList<>();
         for (int i : candidates) {
+            if (!allowed.test(i)) continue;
             Doc t = targets.get(i);
             if (numbersConflict(s.numbers(), t.numbers())) continue;
             double score = similarity(s, t);
@@ -114,6 +121,14 @@ final class NameMatcher {
         }
         out.sort(Comparator.comparingDouble(Scored::score).reversed());
         return out;
+    }
+
+    /**
+     * Le score d'une paire précise, hors blocage et hors veto : de quoi dire à
+     * quel point deux noms qu'on sait appariés se ressemblent.
+     */
+    double score(int source, int target) {
+        return similarity(sources.get(source), targets.get(target));
     }
 
     /** Vrai quand la source avait un candidat écarté pour ses seuls nombres. */

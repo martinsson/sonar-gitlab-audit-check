@@ -134,8 +134,12 @@ runx() {
     fi
 }
 runx --sonar "$OUT/sonar.csv" --gitlab "$OUT/pratiques.csv" \
-    --out "$OUT/croisement.csv" > "$OUT/croisement.txt" 2>&1 || true
+    --out "$OUT/croisement.csv" --report "$OUT/appariement.json" > "$OUT/croisement.txt" 2>&1 || true
 check "$OUT/croisement.txt" 'clé lue dans la CI' "jointure exacte sur cle_sonar"
+# L'inventaire minimal n'a ni liaison ni liens : ces méthodes doivent être dites
+# non évaluées, pas comptées à zéro, et le rapport doit sortir quand même.
+check "$OUT/croisement.txt" 'Non évaluée : liaison DevOps' "méthode sans colonnes dite non évaluée"
+check "$OUT/appariement.json" '"thresholds"' "rapport d'appariement écrit"
 # Des tests comptés et une couverture à zéro : le constat que ni l'un ni l'autre
 # rapport ne peut produire seul, et qui a motivé l'ajout de la métrique tests.
 check "$OUT/croisement.txt" "la couverture n'arrive pas : 1" \
