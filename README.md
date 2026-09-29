@@ -47,9 +47,16 @@ jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
 ```
 
 ```bash
-# 4. Cross the two. No API calls — both sides are already on disk
+# 4. Cross the two. No API calls — both sides are already on disk.
+#    The Sonar ↔ GitLab pairs are kept in ./audit/appariement.csv and reused
+#    on every later run; correct a pair there once and it stays corrected.
 jbang CrossAudit.java --sonar inventaire.csv --gitlab ./audit/pratiques.csv \
     --out ./audit/croisement.csv
+```
+
+```bash
+# 4b. Views of the crossing: important columns first, and projects drifting badly
+jbang Vues.java --in ./audit/croisement.csv
 ```
 
 ```bash
@@ -811,6 +818,13 @@ knows about the project, at no extra call. What stays unresolved is reported as
 unresolved and the key is left empty — a wrong join against Sonar is worse than
 no join.
 
+**For Maven projects the key is not in the CI at all.** The shared Sonar
+component takes an optional `project_key` input; left empty, `sonar-maven-plugin`
+uses `groupId:artifactId` from the `pom.xml`. The deep pass therefore reads the
+root `pom.xml` when the tree lists one (one call, cached with the rest) and
+writes `cle_pom`, joined as an exact method of its own, plus `nom_pom`, the
+display name Sonar shows.
+
 **The key is cached on disk**, indexed by the head of the default branch. It is
 the only thing this audit measures that is not windowed: commits, MRs and
 pipelines are stale the next day, while the key holds until `.gitlab-ci.yml`
@@ -868,8 +882,10 @@ and a confidence, per §6:
 | Method | Confidence | Counts toward findings |
 |---|---|---|
 | `cle_sonar` — the key read out of the CI — matches a Sonar `key` | exact | yes |
+| `cle_pom` — `groupId:artifactId` of the root `pom.xml` — matches a Sonar `key` | exact | yes |
 | Sonar's own GitLab binding (`alm_repository`) matches the GitLab project `id` | exact | yes |
 | Sonar key normalised against `path_with_namespace` | derived | yes |
+| `nom_pom` equals a Sonar `name`, and no other Sonar project has that name | derived | yes |
 | TF-IDF-weighted name similarity, typo-tolerant, with a threshold, an ambiguity margin and one-to-one matching | suggestion | **no** |
 
 The join is done by `ProjectMapper.java` (below), which CrossAudit calls with
@@ -949,6 +965,38 @@ row, so the report can show:
 The JSON report is meant to be read back, by a person or an assistant, to
 decide what to improve next. It contains project names, so handle it like the
 CSVs.
+
+### The mapping is kept, and corrected by hand
+
+The pairs are written once and **reused by default**. `CrossAudit` keeps them
+in `appariement.csv` next to `pratiques.csv` (`--appariement` to put it
+elsewhere); `ProjectMapper` keeps them in its `--out` file. Both tools read
+the same format, so the mapper can be run alone first, corrected, and the
+crossing will pick it up.
+
+On each run the file is replayed over a fresh computation, row by row, on the
+`confiance` column:
+
+| `confiance` in the file | What the next run does |
+|---|---|
+| `manuel` | **Set by hand.** Pairs with the key in `droite_key`, whatever the methods say. Counts as a sure pair in the findings |
+| `rejete` | **Rejected by hand.** No pair, and none is proposed again |
+| `exact`, `derived` | Kept as they were. Recomputed only if the Sonar key no longer exists (renamed or deleted project), and the run lists those |
+| `suggestion`, `none` | Recomputed: a method added since — the `pom.xml` key, say — may now find them |
+
+So to confirm a name suggestion, change `suggestion` to `manuel`; to fix a
+wrong pair, put the right key in `droite_key` and write `manuel`; to refuse
+one, write `rejete`. Accents and English (`manual`, `rejected`) are accepted.
+
+Projects that appear in a new audit are computed and appended. Rows for
+projects the current audit did not select are kept untouched, so a decision
+made by hand is not lost because the sample changed. Every rewrite leaves the
+previous version in `appariement.csv.bak`.
+
+`--reapparier` recomputes the `exact` and `derived` rows too — after improving
+a method or `namespace-mapping.yaml` — and still keeps `manuel` and `rejete`,
+the only rows that cost a person time. To forget those as well, delete the
+file.
 
 ### Not yet done
 

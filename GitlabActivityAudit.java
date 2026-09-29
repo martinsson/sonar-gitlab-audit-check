@@ -1268,39 +1268,66 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     f.ciSecurity = lower.contains("sast")
                             || lower.contains("secret-detection")
                             || lower.contains("dependency-scanning");
-                    if (f.sonarKey == null) {
-                        for (Pattern pat : SONAR_KEY_CI) {
-                            f.sonarKey = firstMatch(pat, ci.yaml());
-                            if (f.sonarKey != null) {
-                                f.keySource = ci.route();
-                                break;
-                            }
-                        }
-                    }
+                    if (f.sonarKey == null) ciKey(ci, p, f);
                 }
             }
 
-            // -Dsonar.projectKey=${CI_PROJECT_PATH_SLUG} est une clé, pas un
-            // échec : les variables prédéfinies de GitLab se calculent ici, sans
-            // un appel de plus, et la clé résolue est celle que le scanner a
-            // réellement envoyée à SonarQube.
-            if (f.sonarKey != null) {
-                String expanded = expandPredefined(f.sonarKey, p);
-                if (!expanded.equals(f.sonarKey)) {
-                    f.keySource += " (variables)";
-                    f.sonarKey = expanded;
-                }
-                if (UNRESOLVED_VAR.matcher(f.sonarKey).find()) {
-                    // Une variable qu'on ne sait pas calculer : la clé est
-                    // inconnue. La publier telle quelle en ferait une fausse
-                    // jointure côté Sonar, ce qui est pire que pas de jointure.
-                    f.unresolvedKey = f.sonarKey;
-                    f.sonarKey = null;
-                    f.keySource = "variable non résolue";
+            // Sans clé explicite, le scanner Maven prend groupId:artifactId du
+            // pom. C'est le cas du composant Sonar partagé quand project_key est
+            // vide, et la forme des clés de l'instance (ch.ge.x.y:artefact).
+            // Lu même quand la CI donne une clé : c'est une seconde méthode de
+            // jointure, notée à part, et le <name> du pom est le nom affiché.
+            if (root.contains("pom.xml")) {
+                Gitlab.Response pom = gl.get("projects/" + p.id + "/repository/files/"
+                        + enc("pom.xml") + "/raw", Map.of("ref", p.defaultBranch));
+                if (pom.status() == 200 && pom.body() != null) {
+                    Pom read = Pom.parse(pom.body());
+                    if (read != null) {
+                        f.pomName = read.name();
+                        if (read.key() == null) f.pomUnresolved = read.rawKey();
+                        else f.pomKey = read.key();
+                    }
                 }
             }
             cache.put(key, f);
             f.applyTo(r);
+        }
+
+        /**
+         * La clé que la CI donne au scanner. Plusieurs motifs peuvent répondre
+         * dans le même YAML : le composant Sonar écrit à la fois
+         * `-Dsonar.projectKey=$SONAR_PROJECT_KEY` et `SONAR_PROJECT_KEY: <input>`.
+         * Le premier ne se calcule pas, le second si : on garde le premier
+         * candidat qui se résout, et on ne signale une variable non résolue que
+         * si aucun ne l'est.
+         *
+         * -Dsonar.projectKey=${CI_PROJECT_PATH_SLUG} est une clé, pas un échec :
+         * les variables prédéfinies de GitLab se calculent ici, sans un appel de
+         * plus, et la clé résolue est celle que le scanner a réellement envoyée.
+         */
+        private void ciKey(Ci ci, Proj p, CiFacts f) {
+            String firstUnresolved = null;
+            for (Pattern pat : SONAR_KEY_CI) {
+                Matcher m = pat.matcher(ci.yaml());
+                while (m.find()) {
+                    String raw = m.group(1);
+                    String expanded = expandPredefined(raw, p);
+                    if (UNRESOLVED_VAR.matcher(expanded).find()) {
+                        if (firstUnresolved == null) firstUnresolved = expanded;
+                        continue;
+                    }
+                    f.sonarKey = expanded;
+                    f.keySource = ci.route() + (expanded.equals(raw) ? "" : " (variables)");
+                    return;
+                }
+            }
+            if (firstUnresolved != null) {
+                // Une variable qu'on ne sait pas calculer : la clé est inconnue.
+                // La publier telle quelle en ferait une fausse jointure côté
+                // Sonar, ce qui est pire que pas de jointure.
+                f.unresolvedKey = firstUnresolved;
+                f.keySource = "variable non résolue";
+            }
         }
 
         /** Le YAML de CI effectivement exécuté, et par quelle route on l'a obtenu. */
@@ -1444,18 +1471,26 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 "(?m)^\\s*sonar\\.projectKey\\s*=\\s*(\\S+)\\s*$");
 
         /**
-         * Les trois formes rencontrées dans un pipeline : l'option de ligne de
-         * commande, la variable que le scanner lit, et la propriété posée en
-         * clair. Cherchées dans cet ordre : la ligne de commande gagne, c'est
-         * elle qui s'applique en dernier.
+         * Les formes rencontrées dans un pipeline : l'option de ligne de
+         * commande, la variable que le scanner lit, l'input du composant, et la
+         * propriété posée en clair. Cherchées dans cet ordre : la ligne de
+         * commande gagne, c'est elle qui s'applique en dernier.
          */
         private static final List<Pattern> SONAR_KEY_CI = List.of(
                 Pattern.compile("-Dsonar\\.projectKey=([^\\s'\"]+)"),
                 Pattern.compile("(?m)^\\s*SONAR_PROJECT_KEY\\s*:\\s*[\"']?([^\\s'\"]+)"),
+                // L'input du composant Sonar partagé, dans `include: component:
+                // … inputs:`. Le repli ne déplie pas les composants : c'est la
+                // seule trace de la surcharge qu'il puisse lire.
+                Pattern.compile("(?m)^\\s*project_key\\s*:\\s*[\"']?([^\\s'\"]+)"),
                 Pattern.compile("(?m)^\\s*sonar\\.projectKey\\s*[:=]\\s*[\"']?([^\\s'\"]+)"));
 
-        /** Ce qui reste d'une variable après expansion : $X, ${X}, %X%. */
-        private static final Pattern UNRESOLVED_VAR = Pattern.compile("\\$\\{?\\w+\\}?|%\\w+%");
+        /**
+         * Ce qui reste d'une variable après expansion : $X, ${X}, %X%, et
+         * l'interpolation d'input `$[[ inputs.x ]]`, qu'un repli lit non
+         * dépliée et dont le motif de clé ne capture que « $[[ ».
+         */
+        private static final Pattern UNRESOLVED_VAR = Pattern.compile("\\$\\{?\\w+\\}?|\\$\\[\\[|%\\w+%");
 
         /**
          * Découpe le YAML en entrées `- project: …`, chacune jusqu'à la
@@ -1479,14 +1514,22 @@ public class GitlabActivityAudit implements Callable<Integer> {
          */
         private String expandPredefined(String raw, Proj p) {
             String slug = slug(p.path);
+            String path = orEmpty(p.path);
             String out = raw;
-            for (var e : Map.of(
-                    "CI_PROJECT_PATH_SLUG", slug,
-                    "CI_PROJECT_PATH", orEmpty(p.path),
-                    "CI_PROJECT_NAMESPACE", orEmpty(p.namespace),
-                    "CI_PROJECT_NAME", orEmpty(p.name),
-                    "CI_PROJECT_TITLE", orEmpty(p.name),
-                    "CI_PROJECT_ID", String.valueOf(p.id)).entrySet()) {
+            // CI_PROJECT_NAME est le répertoire du dépôt — le dernier segment du
+            // chemin —, pas le nom affiché : celui-là est CI_PROJECT_TITLE.
+            // Les confondre donnait « Service Actif » là où le scanner a
+            // envoyé « service-actif ».
+            // Les plus longs d'abord : $CI_PROJECT_PATH est un préfixe de
+            // $CI_PROJECT_PATH_SLUG, $CI_PROJECT_NAME de $CI_PROJECT_NAMESPACE.
+            // Un Map.of, sans ordre, remplaçait parfois le court en premier.
+            for (var e : List.of(
+                    Map.entry("CI_PROJECT_PATH_SLUG", slug),
+                    Map.entry("CI_PROJECT_NAMESPACE", orEmpty(p.namespace)),
+                    Map.entry("CI_PROJECT_TITLE", orEmpty(p.name)),
+                    Map.entry("CI_PROJECT_NAME", path.substring(path.lastIndexOf('/') + 1)),
+                    Map.entry("CI_PROJECT_PATH", path),
+                    Map.entry("CI_PROJECT_ID", String.valueOf(p.id)))) {
                 out = out.replace("${" + e.getKey() + "}", e.getValue())
                          .replace("$" + e.getKey(), e.getValue());
             }
@@ -1521,14 +1564,29 @@ public class GitlabActivityAudit implements Callable<Integer> {
         private void reportCiRoutes() {
             int cached = counters.ciFromCacheN.get(), lint = counters.ciByLintN.get(),
                     back = counters.ciByFallbackN.get();
-            if (cached + lint + back == 0) return;
-            System.out.printf("%n  CI lue : %d par ci/lint, %d par repli, %d depuis le cache.%n",
-                    lint, back, cached);
+            if (cached + lint + back > 0) {
+                System.out.printf("%n  CI lue : %d par ci/lint, %d par repli, %d depuis le cache.%n",
+                        lint, back, cached);
+            }
             if (back > 0 && counters.lintRefusedStatus > 0) {
                 System.out.println(c("    ci/lint refusé (HTTP %d) : le jeton n'a pas le droit de "
                         .formatted(counters.lintRefusedStatus), YELLOW));
                 System.out.println(c("    déplier la configuration. Le repli ne suit que les includes", YELLOW));
-                System.out.println(c("    « project: » qu'il sait lire — ci_sonar y sous-compte.", YELLOW));
+                System.out.println(c("    « project: » qu'il sait lire — ci_sonar y sous-compte. D'un", YELLOW));
+                System.out.println(c("    « component: », il ne lit que le project_key passé en inputs.", YELLOW));
+            }
+            // La clé Maven se lit à côté de la CI, pas dedans : elle ne dépend
+            // d'aucune route, et c'est elle qui apparie le composant Sonar
+            // partagé quand project_key est laissé vide.
+            long pom = selected.stream().filter(p -> p.prat != null && p.prat.pomKey != null).count();
+            long pomVar = selected.stream().filter(p -> p.prat != null && p.prat.pomUnresolved != null).count();
+            long both = selected.stream().filter(p -> p.prat != null && p.prat.pomKey != null
+                    && p.prat.sonarKey != null).count();
+            System.out.printf("  Clé Maven (pom.xml) : %d projets, dont %d ont aussi une clé dans la CI.%n",
+                    pom, both);
+            if (pomVar > 0) {
+                System.out.println(c(("    %d pom avec ${…} dans groupId/artifactId : clé inconnue, "
+                        + "pas devinée.").formatted(pomVar), YELLOW));
             }
         }
 
@@ -1601,7 +1659,8 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     "retour_au_vert_h", "rouge_non_resolu", "environnements",
                     "deploiements", "dora_indispo", "ci_sonar", "ci_securite",
                     "cle_sonar", "source_cle_sonar", "fichiers", "id",
-                    "fenetre_j", "lignes_modifiees", "commits_lignes", "lignes_tronquees"};
+                    "fenetre_j", "lignes_modifiees", "commits_lignes", "lignes_tronquees",
+                    "cle_pom", "nom_pom"};
             try (CSVWriter w = Csv.writer(pratiquesCsv, comma)) {
                 w.writeNext(header);
                 for (Proj p : selected) w.writeNext(p.pratRow(sinceDays));
@@ -1689,13 +1748,13 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     String.valueOf(r.ciSecurity), orEmpty(r.sonarKey), orEmpty(r.sonarKeySource),
                     String.join(" ", r.files), String.valueOf(id),
                     String.valueOf(windowDays), num(r.linesChanged), num(r.churnCommits),
-                    String.valueOf(r.churnTruncated)};
+                    String.valueOf(r.churnTruncated), orEmpty(r.pomKey), orEmpty(r.pomName)};
         }
     }
 
     static final class Prat {
         boolean defaultProtected, pushLocked, ciSonar, ciSecurity, doraUnavailable;
-        String sonarKey, sonarKeySource;
+        String sonarKey, sonarKeySource, pomKey, pomName, pomUnresolved;
         int mergedMrs, selfMerged, selfApproved, pipelines;
         Integer approvalSample, environments, redIncidents, unresolvedRed, churnCommits;
         Long linesChanged;
@@ -1706,17 +1765,79 @@ public class GitlabActivityAudit implements Callable<Integer> {
     }
 
     /**
+     * Ce que le pom.xml racine dit de la clé Sonar : groupId:artifactId, la
+     * clé que sonar-maven-plugin prend quand on ne lui en donne pas.
+     *
+     * Seuls les enfants directs de <project> comptent — un <groupId> de
+     * dépendance ou de plugin n'est pas celui du projet —, et le groupId absent
+     * s'hérite du <parent>, comme Maven le fait. Une valeur qui contient
+     * encore ${…} n'est pas une clé : on la rend dans rawKey, jamais dans key.
+     */
+    record Pom(String key, String rawKey, String name) {
+
+        static Pom parse(String xml) {
+            org.w3c.dom.Element project;
+            try {
+                var f = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+                // Un pom vient d'un dépôt qu'on audite, pas qu'on contrôle :
+                // pas de DTD, pas d'entité externe.
+                f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+                f.setExpandEntityReferences(false);
+                f.setXIncludeAware(false);
+                project = f.newDocumentBuilder()
+                        .parse(new org.xml.sax.InputSource(new java.io.StringReader(xml)))
+                        .getDocumentElement();
+            } catch (Exception e) {
+                return null;
+            }
+            if (!"project".equals(local(project))) return null;
+            String group = child(project, "groupId");
+            if (group == null) {
+                org.w3c.dom.Element parent = childElement(project, "parent");
+                if (parent != null) group = child(parent, "groupId");
+            }
+            String artifact = child(project, "artifactId");
+            if (group == null || artifact == null) return null;
+            String raw = group + ":" + artifact;
+            return new Pom(raw.contains("${") ? null : raw, raw, child(project, "name"));
+        }
+
+        private static String child(org.w3c.dom.Element parent, String name) {
+            org.w3c.dom.Element e = childElement(parent, name);
+            if (e == null) return null;
+            String v = e.getTextContent().trim();
+            return v.isEmpty() ? null : v;
+        }
+
+        private static org.w3c.dom.Element childElement(org.w3c.dom.Element parent, String name) {
+            for (var n = parent.getFirstChild(); n != null; n = n.getNextSibling()) {
+                if (n instanceof org.w3c.dom.Element e && name.equals(local(e))) return e;
+            }
+            return null;
+        }
+
+        private static String local(org.w3c.dom.Element e) {
+            String n = e.getNodeName();
+            return n.substring(n.indexOf(':') + 1);
+        }
+    }
+
+    /**
      * Ce qu'on a appris de la CI d'un projet, et qui ne changera pas tant que
      * son dépôt ne bouge pas.
      */
     static final class CiFacts {
         boolean ciSonar, ciSecurity;
         String sonarKey, keySource, ciRoute, unresolvedKey;
+        String pomKey, pomName, pomUnresolved;
 
         void applyTo(Prat r) {
             r.ciSonar = ciSonar;
             r.ciSecurity = ciSecurity;
             r.sonarKey = sonarKey;
+            r.pomKey = pomKey;
+            r.pomName = pomName;
+            r.pomUnresolved = pomUnresolved;
             r.sonarKeySource = unresolvedKey != null
                     ? "variable non résolue : " + unresolvedKey : keySource;
         }
@@ -1743,7 +1864,9 @@ public class GitlabActivityAudit implements Callable<Integer> {
      * premier passage.
      */
     static final class SonarCache {
-        private static final int VERSION = 1;
+        // 2 : le pom est lu. Un cache de version 1 dirait « pas de clé Maven »
+        // pour tout le parc sans l'avoir cherchée.
+        private static final int VERSION = 2;
         private final Map<String, CiFacts> entries = new java.util.concurrent.ConcurrentHashMap<>();
         private final Path file;
         private final boolean enabled;
@@ -1786,6 +1909,9 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     f.keySource = v.path("keySource").asText(null);
                     f.ciRoute = v.path("ciRoute").asText(null);
                     f.unresolvedKey = v.path("unresolvedKey").asText(null);
+                    f.pomKey = v.path("pomKey").asText(null);
+                    f.pomName = v.path("pomName").asText(null);
+                    f.pomUnresolved = v.path("pomUnresolved").asText(null);
                     entries.put(e.getKey(), f);
                 });
                 loaded = entries.size();
@@ -1808,6 +1934,9 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 o.put("keySource", f.keySource);
                 o.put("ciRoute", f.ciRoute);
                 o.put("unresolvedKey", f.unresolvedKey);
+                o.put("pomKey", f.pomKey);
+                o.put("pomName", f.pomName);
+                o.put("pomUnresolved", f.pomUnresolved);
             });
             try {
                 Path dir = file.toAbsolutePath().getParent();

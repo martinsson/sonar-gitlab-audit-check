@@ -364,6 +364,8 @@ it only exists for the ~200 that the funnel chose.
 | `lignes_modifiees` | Lines added + deleted on the default branch over the window (`with_stats`), bots and merge commits excluded. Empty if the commits could not be read |
 | `commits_lignes` | Commits those lines were summed over. Lower than `commits_window`, which counts merges |
 | `lignes_tronquees` | `true` = pagination stopped at `--max-commit-pages`, so `lignes_modifiees` is undercounted |
+| `cle_pom` | `groupId:artifactId` of the root `pom.xml` — the key `sonar-maven-plugin` uses when the CI gives none. `groupId` inherited from `<parent>` when absent. Empty when there is no `pom.xml`, or when a `${…}` property is left in it. **A second join key**, graded on its own |
+| `nom_pom` | `<name>` of the root `pom.xml`: the display name Sonar shows for a Maven analysis |
 
 **`lignes_modifiees` counts everything in the repository**, including lockfiles,
 generated code and docs, while Sonar only counts the code it analyses. A
@@ -420,7 +422,18 @@ one written down anywhere. GitLab's own predefined variables
 (`CI_PROJECT_PATH_SLUG`, `CI_PROJECT_PATH`, `CI_PROJECT_NAME`, `CI_PROJECT_ID`
 and friends) *are* computed here, at no extra API call — they are how a shared
 template names a project it cannot hard-code, so they are the common case rather
-than the exception.
+than the exception. `CI_PROJECT_NAME` is the last segment of the path, not the
+display name (that one is `CI_PROJECT_TITLE`).
+
+**The Maven case has its key outside the CI.** The shared Sonar component
+(`include: component: …/gitlab-components/sonar/…`) takes an optional
+`project_key` input. Left empty, the Maven scanner defaults to
+`groupId:artifactId` from the `pom.xml` — which is why the instance's keys look
+like `ch.ge.logement.sidlo:sidlo`. `cle_sonar` then reads `variable non
+résolue : ${SONAR_PROJECT_KEY}`, and `cle_pom` carries the key. When
+`project_key` is set, it lands in `cle_sonar` (read from the rendered job via
+`ci/lint`, or from the `inputs:` of the include in the fallback, which does not
+expand components).
 
 ### What is not here, on purpose
 
@@ -443,13 +456,13 @@ thing without the `gl_`/`sq_` columns.
 | Column | Meaning |
 |---|---|
 | `projet` | GitLab path of the project. First on purpose: freeze this column in the spreadsheet and every row stays identifiable while you scroll right |
-| `methode_jointure` | How the pair was made, tried in this order: `clé lue dans la CI`, `liaison DevOps Sonar → GitLab`, `clé normalisée = chemin GitLab`, `noms ressemblants (TF-IDF)`, or `aucune` |
-| `confiance` | `exact`, `derived`, `suggestion`, `none` |
+| `methode_jointure` | How the pair was made, tried in this order: `clé lue dans la CI`, `clé Maven du pom`, `liaison DevOps Sonar → GitLab`, `mapping namespace GL→Sonar`, `clé normalisée = chemin GitLab`, `nom du pom = nom Sonar` (only when that name designates a single Sonar project), `noms ressemblants (TF-IDF)`, or `aucune` |
+| `confiance` | `exact`, `derived`, `suggestion`, `none`, or, when taken from a hand-corrected `appariement.csv`, `manuel` (pair set by hand, counted as sure) and `rejete` (pair refused by hand). See README, *The mapping is kept* |
 | `candidat_nom` | Best name-similarity candidate, when the safer methods failed. Filled **even when it was rejected** (see `rejet_nom`) |
 | `score_nom` | Its score, 0–1 |
 | `second_nom` | The runner-up and its score. A close runner-up is why a candidate gets rejected as ambiguous |
 | `rejet_nom` | Why no suggestion was made: `sous le seuil`, `ambigu`, `numéros différents`, `aucun candidat`, `déjà proposé à <path>` |
-| `m_cle_ci`, `m_liaison`, `m_chemin` | What each method designates **on its own**, whether or not it was the one applied. Several keys = ambiguous (for example a monorepo bound more than once) |
+| `m_cle_ci`, `m_cle_pom`, `m_liaison`, `m_ns_map`, `m_chemin`, `m_nom_pom` | What each method designates **on its own**, whether or not it was the one applied. Several keys = ambiguous (for example a monorepo bound more than once) |
 | `m_liens` | Sonar keys whose typed links point to this GitLab project. **Informative only**, never used to join |
 | `liens_concorde` | `oui`/`non`: do those links agree with the pair that was made. Empty when there is no link or no pair |
 | `m_noms_libre` | The name-similarity candidate against **all** Sonar projects, ignoring what was already matched, with its score and, if it would have been rejected, why. This is what the matching report is evaluated on |
@@ -495,3 +508,39 @@ tool. A low rate says the GitLab↔SonarQube integration is not configured, whic
 is the same class of governance finding as the never-analysed projects — and it
 is the finding that has to be fixed before any of the others can be trusted at
 scale.
+
+---
+
+## 6. Views — `Vues --in croisement.csv`
+
+Extractions of `croisement.csv`, written next to it. No API calls, no joining,
+nothing recomputed. Each view picks columns and orders rows, so it cannot
+disagree with the crossing. This is a prototype: the column lists are at the
+top of `Vues.java`, meant to be edited.
+
+**`croisement-essentiel.csv`** has every row and every column, with the ones read first moved
+to the front: `projet`, `confiance`, the density slope, issues per kLOC changed,
+quality gate, last analysis, activity, review, appsec, size, debt, coverage.
+
+**`croisement-derive.csv`** has matched projects only (`exact`/`derived`/`manuel`). Without a Sonar
+side there is no slope to read. Rows are sorted by the number of signals, then
+by density slope. The columns are grouped: the derivative, how credible it is
+(analyses, days, freshness), the work it relates to (commits, lines, authors),
+the safety nets that should have stopped it (review, auto-merge, new-code
+issues and coverage, appsec, quality gate, pipeline health), and scale.
+
+`signaux` is the one added column. It lists named reasons rather than a score,
+because a score hides which reason weighs, and the reason tells you what to do.
+The thresholds are prototype choices:
+
+| Signal | Rule |
+|---|---|
+| `densité en hausse` | `sq_violations_kloc_pente_pct_mois` > +2 |
+| `modifs ajoutent des issues` | `issues_par_kloc_modifie` > 0 |
+| `code neuf > 10 issues/kLOC` | `sq_new_violations / sq_new_lines` × 1000 > 10, with ≥ 200 new lines |
+| `code neuf < 50 % couvert` | `sq_new_coverage` < 50 |
+| `aucune revue` | ≥ 20 commits and 0 merged MR |
+| `auto-merge > 50 %` | more than half of ≥ 5 merged MRs merged by their author |
+| `sans appsec` | `gl_ci_securite` = `false` (an empty cell is not `false`) |
+| `quality gate rouge` | `sq_alert_status` = `ERROR` |
+| `analyse périmée` | ≥ 20 commits and last analysis > 30 days old: the slope describes old code |

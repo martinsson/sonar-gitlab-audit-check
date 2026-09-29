@@ -160,6 +160,62 @@ sonarqube-check:
     - sonar-scanner -Dsonar.projectKey=equipe-a_monolithe
 """
 
+# Le composant Sonar partagé du client : `include: component:`, pas `project:`.
+# Le repli ne le déplie pas ; ci/lint si. Sans project_key, le composant laisse
+# le scanner Maven prendre groupId:artifactId du pom — la clé est dans le dépôt,
+# pas dans la CI.
+CI_COMPONENT = """include:
+  - component: $CI_SERVER_FQDN/DEVELOPPEUR-EDG/gitlab-components/sonar/purge-cache-before@2.0.3
+stages:
+  - build
+  - quality
+"""
+
+# Le même, avec la surcharge : la clé explicite doit gagner sur le pom.
+CI_COMPONENT_KEY = """include:
+  - component: $CI_SERVER_FQDN/DEVELOPPEUR-EDG/gitlab-components/sonar/purge-cache-before@2.0.3
+    inputs:
+      project_key: equipe-d-sans-total
+stages:
+  - quality
+"""
+
+
+def component_job(project_key):
+    """Le job tel que ci/lint le rend, inputs interpolés."""
+    return f"""sonar:
+  stage: quality
+  variables:
+    SONAR_PROJECT_KEY: "{project_key}"
+  script:
+    - mvn sonar:sonar -Dsonar.projectKey=${{SONAR_PROJECT_KEY}}
+"""
+
+
+# Trois poms, trois pièges : groupId hérité du <parent> (et un groupId de
+# dépendance qui ne doit pas être pris), clé explicite dans la CI qui doit
+# gagner, artifactId en ${…} qui ne doit pas devenir une clé.
+POMS = {
+    2: """<?xml version="1.0"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+  <parent>
+    <groupId>ch.ge.equipe-a</groupId>
+    <artifactId>parent</artifactId>
+  </parent>
+  <artifactId>service-calme</artifactId>
+  <name>Service Calme</name>
+  <dependencies>
+    <dependency><groupId>org.leurre</groupId><artifactId>leurre</artifactId></dependency>
+  </dependencies>
+</project>
+""",
+    3: """<project><groupId>ch.ge.equipe-a</groupId><artifactId>${app.name}</artifactId></project>
+""",
+    14: """<project><groupId>ch.ge.equipe-d</groupId><artifactId>sans-total</artifactId>
+<name>Sans Total</name></project>
+""",
+}
+
 # Le template partagé n'a pas le job : il inclut celui qui l'a. Un seul niveau de
 # chasse ne trouve rien, et c'est exactement le cas que l'ancien code manquait.
 TEMPLATES = {
@@ -181,11 +237,11 @@ TEMPLATES = {
 # id -> contenu de .gitlab-ci.yml à la racine. Absent = pas de CI.
 CI_ROOT = {
     1: CI_INCLUDES,      # Sonar à deux niveaux d'include, clé en variable
-    2: CI_INCLUDES,
+    2: CI_COMPONENT,     # composant Sonar sans project_key : clé dans le pom
     3: CI_SONAR_BRUT,    # Sonar en clair, clé littérale
     11: CI_INCLUDES,
     13: CI_INCLUDES,
-    14: CI_SONAR_BRUT,
+    14: CI_COMPONENT_KEY,  # composant Sonar avec project_key
 }
 
 
@@ -198,6 +254,10 @@ def merged_yaml(pid):
     if root is CI_INCLUDES:
         out += [TEMPLATES["/qualite/scanner.yml"], TEMPLATES["/build/java.yml"],
                 TEMPLATES["/build/docker.yml"]]
+    elif root is CI_COMPONENT:
+        out.append(component_job(""))
+    elif root is CI_COMPONENT_KEY:
+        out.append(component_job("equipe-d-sans-total"))
     return "\n".join(out)
 
 
@@ -211,6 +271,8 @@ def tree_for(pid):
     # la source la moins ambiguë, et elle doit gagner sur la CI.
     if pid == 11:
         names.append("sonar-project.properties")
+    if pid in POMS:
+        names.append("pom.xml")
     return [{"id": f"{i:040x}", "name": n, "type": "blob", "path": n}
             for i, n in enumerate(sorted(names))]
 
@@ -329,6 +391,8 @@ class Handler(BaseHTTPRequestHandler):
             wanted = unquote(m.group(1)) if m else ""
             if wanted == "sonar-project.properties":
                 return self._send(200, "sonar.projectKey=equipe-c_mono-auteur\nsonar.sources=src\n")
+            if wanted == "pom.xml" and pid in POMS:
+                return self._send(200, POMS[pid])
             if wanted == ".gitlab-ci.yml":
                 root = CI_ROOT.get(pid)
                 return self._send(200, root) if root else self._send(404, {})

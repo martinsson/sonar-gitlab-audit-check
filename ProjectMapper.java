@@ -126,6 +126,11 @@ public class ProjectMapper implements Callable<Integer> {
     @Option(names = "--out", description = "CSV d'appariement, une ligne par ligne de gauche")
     Path out;
 
+    @Option(names = "--reapparier",
+            description = "recalculer les paires exact/derived d'un --out existant "
+                    + "(manuel et rejete restent)")
+    boolean recompute;
+
     @Option(names = "--report", description = "rapport JSON d'évaluation des méthodes")
     Path report;
 
@@ -203,15 +208,12 @@ public class ProjectMapper implements Callable<Integer> {
         System.out.printf("  Gauche : %d lignes (%s)%n", left.rows().size(), leftCsv);
         System.out.printf("  Droite : %d lignes (%s)%n", right.rows().size(), rightCsv);
 
-        Result r = map(spec, left, right);
+        Reuse[] reuse = new Reuse[1];
+        Result r = mapAndKeep(spec, left, right, out, recompute, comma, reuse);
         Report rep = evaluate(r, examples);
         print(rep);
 
-        if (out != null) {
-            writeMapping(r, out, comma);
-            System.out.printf("%n  Appariement : %d lignes → %s%n", r.matches().size(), out.toAbsolutePath());
-            System.out.println(c(Csv.openingHint(out, comma), DIM));
-        }
+        if (out != null) System.out.println(c(Csv.openingHint(out, comma), DIM));
         if (report != null) {
             writeReport(rep, report);
             System.out.printf("  Rapport     : %s%n", report.toAbsolutePath());
@@ -223,9 +225,37 @@ public class ProjectMapper implements Callable<Integer> {
     // Ce qu'on demande
     // ----------------------------------------------------------------------
 
-    enum Kind { EXACT, DERIVED, LINK, MAPPED }
+    /**
+     * NAME : un nom affiché, normalisé des deux côtés comme DERIVED, mais qui
+     * n'apparie que s'il ne désigne qu'un seul projet. Un nom se répète
+     * (« api », « frontend ») là où une clé ne le peut pas.
+     */
+    enum Kind { EXACT, DERIVED, LINK, MAPPED, NAME }
 
-    enum Confidence { EXACT, DERIVED, SUGGESTION, NONE }
+    /**
+     * MANUEL et REJETE ne sortent jamais du calcul : ils sont saisis dans un
+     * appariement déjà écrit, et c'est ce qui les rend définitifs (voir
+     * {@link #reuse}).
+     */
+    enum Confidence {
+        EXACT, DERIVED, SUGGESTION, NONE, MANUEL, REJETE;
+
+        /** Ce qu'on écrit dans la colonne confiance, et qu'on relit. */
+        String code() { return name().toLowerCase(Locale.ROOT); }
+
+        static Confidence parse(String s) {
+            String v = java.text.Normalizer.normalize(s.trim(), java.text.Normalizer.Form.NFD)
+                    .replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
+            return switch (v) {
+                case "exact" -> EXACT;
+                case "derived", "derive" -> DERIVED;
+                case "suggestion" -> SUGGESTION;
+                case "manuel", "manual", "confirme" -> MANUEL;
+                case "rejete", "rejected" -> REJETE;
+                default -> NONE;
+            };
+        }
+    }
 
     /**
      * Une méthode par clé. {@code whereColumn}/{@code whereValue} restreignent
@@ -252,7 +282,7 @@ public class ProjectMapper implements Callable<Integer> {
             return switch (kind) {
                 case EXACT -> Confidence.EXACT;
                 case DERIVED -> Confidence.DERIVED;
-                case MAPPED -> Confidence.DERIVED;
+                case MAPPED, NAME -> Confidence.DERIVED;
                 case LINK -> Confidence.NONE;
             };
         }
@@ -295,6 +325,11 @@ public class ProjectMapper implements Callable<Integer> {
                     // lit l'instruction donnée au pipeline.
                     new KeyMethod("cle_ci", "clé lue dans la CI", Kind.EXACT,
                             "cle_sonar", "key", null, null),
+                    // groupId:artifactId du pom racine : la clé que le scanner
+                    // Maven prend quand la CI ne lui en donne pas — le cas du
+                    // composant Sonar partagé avec project_key vide.
+                    new KeyMethod("cle_pom", "clé Maven du pom", Kind.EXACT,
+                            "cle_pom", "key", null, null),
                     // Ce que SonarQube a enregistré en important le dépôt.
                     new KeyMethod("liaison", "liaison DevOps Sonar → GitLab", Kind.EXACT,
                             "id", "alm_repository", "alm", "gitlab"),
@@ -304,6 +339,11 @@ public class ProjectMapper implements Callable<Integer> {
                     // Le chemin normalisé comme une clé Sonar l'est souvent.
                     new KeyMethod("chemin", "clé normalisée = chemin GitLab", Kind.DERIVED,
                             "path", "key", null, null),
+                    // Le <name> du pom devient le nom affiché dans Sonar. Plus
+                    // faible qu'une clé — un nom se répète —, donc après elles,
+                    // et seulement s'il ne désigne qu'un projet.
+                    new KeyMethod("nom_pom", "nom du pom = nom Sonar", Kind.NAME,
+                            "nom_pom", "name", null, null),
                     // Saisis à la main : lus, jamais utilisés pour apparier.
                     new KeyMethod("liens", "liens saisis dans Sonar", Kind.LINK,
                             "path", "liens", null, null)),
@@ -343,7 +383,8 @@ public class ProjectMapper implements Callable<Integer> {
 
         /** Une jointure sur laquelle on peut compter : ni suggestion, ni absence. */
         boolean joined() {
-            return right != null && (confidence == Confidence.EXACT || confidence == Confidence.DERIVED);
+            return right != null && (confidence == Confidence.EXACT || confidence == Confidence.DERIVED
+                    || confidence == Confidence.MANUEL);
         }
 
         String rightKey(Spec spec) { return right == null ? "" : right.str(spec.rightKey()); }
@@ -407,7 +448,8 @@ public class ProjectMapper implements Callable<Integer> {
                 String v = leftValue(m, l.str(m.leftColumn()));
                 List<Integer> js = v.isEmpty() ? List.of() : indexes.get(m.id()).getOrDefault(v, List.of());
                 found.put(m.id(), js.stream().map(j -> rights.get(j).str(spec.rightKey())).toList());
-                if (hit == null && m.joins() && !js.isEmpty()) {
+                if (hit == null && m.joins() && !js.isEmpty()
+                        && (m.kind() != Kind.NAME || js.size() == 1)) {
                     hit = js.get(0);
                     by = m;
                 }
@@ -542,6 +584,7 @@ public class ProjectMapper implements Callable<Integer> {
             case EXACT -> v.trim();
             case DERIVED -> normalise(v);
             case MAPPED -> mapPathToSonarKey(v);
+            case NAME -> normalise(v);
             case LINK -> v.trim().toLowerCase(Locale.ROOT);
         };
     }
@@ -552,6 +595,7 @@ public class ProjectMapper implements Callable<Integer> {
             case EXACT -> List.of(v.trim());
             case DERIVED -> List.of(normalise(v));
             case MAPPED -> mappedSonarKey(v);
+            case NAME -> List.of(normalise(v));
             case LINK -> linkedPaths(v);
         };
     }
@@ -808,7 +852,7 @@ public class ProjectMapper implements Callable<Integer> {
         return row;
     }
 
-    static void writeMapping(Result r, Path out, boolean comma) throws IOException {
+    static void writeMapping(Result r, Path out, boolean comma, List<String[]> orphans) throws IOException {
         Path dir = out.toAbsolutePath().getParent();
         if (dir != null) Files.createDirectories(dir);
         Spec s = r.spec();
@@ -819,11 +863,167 @@ public class ProjectMapper implements Callable<Integer> {
             w.writeNext(header.toArray(String[]::new));
             for (Match p : r.matches()) {
                 List<String> row = new ArrayList<>(List.of(p.left().str(s.leftKey()), p.rightKey(s),
-                        p.label(), p.confidence().name().toLowerCase(Locale.ROOT)));
+                        p.label(), p.confidence().code()));
                 row.addAll(detailCells(r, p));
                 w.writeNext(row.toArray(String[]::new));
             }
+            // Les lignes d'un appariement précédent dont le projet a quitté la
+            // gauche : gardées telles quelles. Une décision saisie à la main ne
+            // doit pas disparaître parce qu'un audit n'a pas retenu le projet.
+            for (String[] o : orphans) {
+                String[] row = new String[header.size()];
+                java.util.Arrays.fill(row, "");
+                System.arraycopy(o, 0, row, 0, Math.min(o.length, 4));
+                w.writeNext(row);
+            }
         }
+    }
+
+    // ----------------------------------------------------------------------
+    // Réutiliser un appariement déjà écrit
+    // ----------------------------------------------------------------------
+
+    static final String MANUAL_LABEL = "saisi à la main";
+    static final String REJECTED_LABEL = "rejeté à la main";
+
+    /**
+     * Ce que la reprise a fait. {@code stale} : paires dont la clé de droite
+     * n'existe plus — projet Sonar renommé ou supprimé —, recalculées.
+     */
+    record Reuse(int kept, int manual, int rejected, int recomputed, int added,
+                 List<String> stale, List<String[]> orphans) {
+
+        static final Reuse NONE = new Reuse(0, 0, 0, 0, 0, List.of(), List.of());
+    }
+
+    /**
+     * Rejoue un appariement déjà écrit sur un appariement fraîchement calculé.
+     *
+     * Le fichier gagne, sauf là où il n'a rien décidé :
+     *   * manuel  — la paire saisie à la main, même contre le calcul ;
+     *   * rejete  — pas de paire, et le calcul ne doit pas en reproposer ;
+     *   * exact, derived — la paire d'avant, tant que sa clé existe encore ;
+     *     sinon recalculée, et signalée ;
+     *   * suggestion, none — recalculées : une méthode ajoutée depuis (la clé
+     *     du pom, par exemple) doit pouvoir trouver ce qu'on ne trouvait pas.
+     *
+     * {@code --reapparier} recalcule aussi exact et derived, jamais manuel ni
+     * rejete : ce sont les seules lignes qui ont coûté un humain. Pour les
+     * oublier aussi, on supprime le fichier.
+     */
+    static Result reuse(Result fresh, Csv.Table existing, boolean recomputeAll, Reuse[] outStats) {
+        Spec s = fresh.spec();
+        String lk = "gauche_" + s.leftKey(), rk = "droite_" + s.rightKey();
+        Map<String, Csv.Row> byLeft = new LinkedHashMap<>();
+        for (Csv.Row r : existing.rows()) {
+            String k = r.str(lk);
+            if (!k.isEmpty()) byLeft.put(k, r);
+        }
+        Map<String, String> idByLabel = new HashMap<>();
+        for (KeyMethod m : fresh.available()) idByLabel.put(m.label(), m.id());
+        idByLabel.put(Spec.NAMES_LABEL, Spec.NAMES_ID);
+
+        List<Match> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        int kept = 0, manual = 0, rejected = 0, recomputed = 0, added = 0;
+        List<String> stale = new ArrayList<>();
+        for (Match m : fresh.matches()) {
+            String left = m.left().str(s.leftKey());
+            seen.add(left);
+            Csv.Row prev = byLeft.get(left);
+            if (prev == null) {
+                added++;
+                out.add(m);
+                continue;
+            }
+            Confidence c = Confidence.parse(prev.str("confiance"));
+            String key = prev.str(rk).trim();
+            Integer j = key.isEmpty() ? null : fresh.rightIndex().get(key);
+            Csv.Row right = j == null ? null : fresh.right().rows().get(j);
+            if (c == Confidence.REJETE) {
+                rejected++;
+                out.add(with(m, null, null, REJECTED_LABEL, Confidence.REJETE, m.guess(), m.free()));
+            } else if (c == Confidence.MANUEL && right != null) {
+                manual++;
+                out.add(with(m, right, "manuel", MANUAL_LABEL, Confidence.MANUEL, m.guess(), m.free()));
+            } else if (c == Confidence.MANUEL) {
+                // Saisie à la main vers une clé qui n'existe plus : on ne peut
+                // pas la tenir, et on ne la remplace pas en silence.
+                stale.add(left + " → " + key + " (manuel)");
+                out.add(m);
+            } else if ((c == Confidence.EXACT || c == Confidence.DERIVED) && !recomputeAll) {
+                if (right == null) {
+                    stale.add(left + " → " + key);
+                    recomputed++;
+                    out.add(m);
+                } else {
+                    kept++;
+                    String label = prev.str("methode");
+                    out.add(with(m, right, idByLabel.getOrDefault(label, "fichier"), label, c,
+                            m.guess(), m.free()));
+                }
+            } else {
+                recomputed++;
+                out.add(m);
+            }
+        }
+        List<String[]> orphans = new ArrayList<>();
+        for (var e : byLeft.entrySet()) {
+            if (seen.contains(e.getKey())) continue;
+            Csv.Row r = e.getValue();
+            orphans.add(new String[]{e.getKey(), r.str(rk), r.str("methode"), r.str("confiance")});
+        }
+        outStats[0] = new Reuse(kept, manual, rejected, recomputed, added, stale, orphans);
+        return new Result(s, fresh.left(), fresh.right(), fresh.available(), fresh.unavailable(),
+                out, fresh.matcher(), fresh.rightIndex());
+    }
+
+    /**
+     * Le chemin commun aux deux outils : calculer, rejouer le fichier s'il
+     * existe, le réécrire complété — l'ancien gardé en .bak.
+     */
+    static Result mapAndKeep(Spec spec, Csv.Table left, Csv.Table right, Path file,
+                             boolean recomputeAll, boolean comma, Reuse[] stats) throws IOException {
+        Result fresh = map(spec, left, right);
+        stats[0] = Reuse.NONE;
+        if (file == null) return fresh;
+        Result r = fresh;
+        boolean existed = Files.exists(file);
+        if (existed) {
+            Csv.Table prev = Csv.read(file);
+            prev.require(file, "un appariement déjà écrit", "gauche_" + spec.leftKey(),
+                    "droite_" + spec.rightKey(), "confiance");
+            r = reuse(fresh, prev, recomputeAll, stats);
+            Files.copy(file, file.resolveSibling(file.getFileName() + ".bak"),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+        writeMapping(r, file, comma, stats[0].orphans());
+        printReuse(file, existed, recomputeAll, stats[0], r.matches().size());
+        return r;
+    }
+
+    static void printReuse(Path file, boolean existed, boolean recomputeAll, Reuse u, int rows) {
+        if (!existed) {
+            System.out.printf("%n  Appariement : %d lignes → %s%n", rows, file.toAbsolutePath());
+            System.out.println(c("    Réutilisé aux prochains lancements. Pour corriger une paire :", DIM));
+            System.out.println(c("    confiance = manuel (et la clé dans droite_…), ou rejete.", DIM));
+            return;
+        }
+        System.out.printf("%n  Appariement repris de %s%s%n", file.toAbsolutePath(),
+                recomputeAll ? c(" (--reapparier : exact et derived recalculés)", YELLOW) : "");
+        System.out.printf("    %d gardées, %d saisies à la main, %d rejetées, "
+                + "%d recalculées, %d nouveaux projets%n",
+                u.kept(), u.manual(), u.rejected(), u.recomputed(), u.added());
+        if (!u.orphans().isEmpty()) {
+            System.out.println(c("    %d lignes pour des projets absents de cet audit, conservées."
+                    .formatted(u.orphans().size()), DIM));
+        }
+        if (!u.stale().isEmpty()) {
+            System.out.println(c("    %d paires vers une clé qui n'existe plus, recalculées :"
+                    .formatted(u.stale().size()), YELLOW));
+            u.stale().stream().limit(10).forEach(x -> System.out.println(c("      " + x, YELLOW)));
+        }
+        System.out.println(c("    Ancienne version : " + file.getFileName() + ".bak", DIM));
     }
 
     // ----------------------------------------------------------------------

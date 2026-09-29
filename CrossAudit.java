@@ -76,8 +76,9 @@ import java.util.concurrent.Callable;
             "Aucun appel réseau : tout se lit dans les deux CSV. Relancer coûte",
             "zéro appel, donc les seuils se règlent sans repayer un audit.",
             "",
-            "La colonne qui fait la jointure est cle_sonar, écrite par",
-            "GitlabActivityAudit --deep. Sans elle, seul le rapprochement par",
+            "Les colonnes qui font la jointure sont cle_sonar (clé lue dans la",
+            "CI) et cle_pom (groupId:artifactId du pom), écrites par",
+            "GitlabActivityAudit --deep. Sans elles, seul le rapprochement par",
             "nom reste possible, et il ne sort qu'en suggestions.",
         })
 public class CrossAudit implements Callable<Integer> {
@@ -92,6 +93,16 @@ public class CrossAudit implements Callable<Integer> {
 
     @Option(names = "--out", description = "CSV du croisement (sinon : rien n'est écrit)")
     Path out;
+
+    @Option(names = "--appariement",
+            description = "appariement à reprendre et à compléter "
+                    + "(défaut : appariement.csv à côté de --gitlab)")
+    Path mappingFile;
+
+    @Option(names = "--reapparier",
+            description = "recalculer les paires exact/derived de l'appariement "
+                    + "(les lignes manuel et rejete restent)")
+    boolean recompute;
 
     @Option(names = "--seuil-nom", defaultValue = "0.5",
             description = "score de ressemblance minimal d'une suggestion, 0–1 "
@@ -145,8 +156,14 @@ public class CrossAudit implements Callable<Integer> {
             System.out.println(c("  la jointure exacte.", YELLOW));
         }
 
-        ProjectMapper.Result mapping = ProjectMapper.map(
-                ProjectMapper.Spec.sonarGitlab(nameThreshold, nameMargin), gitlab, sonar);
+        // L'appariement est repris d'un lancement à l'autre : les paires déjà
+        // trouvées ne bougent plus, et une correction saisie à la main
+        // (manuel, rejete) survit aux audits suivants.
+        Path file = mappingFile != null ? mappingFile
+                : gitlabCsv.toAbsolutePath().resolveSibling("appariement.csv");
+        ProjectMapper.Result mapping = ProjectMapper.mapAndKeep(
+                ProjectMapper.Spec.sonarGitlab(nameThreshold, nameMargin), gitlab, sonar,
+                file, recompute, comma, new ProjectMapper.Reuse[1]);
         ProjectMapper.Report rep = ProjectMapper.evaluate(mapping, examples);
         List<Pair> pairs = mapping.matches().stream().map(Pair::new).toList();
         matchRate(pairs, sonar, rep);
@@ -384,7 +401,7 @@ public class CrossAudit implements Callable<Integer> {
             "path", "bucket", "commits_window", "authors_window", "mr_fusionnees",
             "auto_merge", "part_approuvee", "branche_protegee", "taux_succes",
             "rouge_non_resolu", "ci_sonar", "ci_securite",
-            "cle_sonar", "source_cle_sonar", "id",
+            "cle_sonar", "source_cle_sonar", "cle_pom", "nom_pom", "id",
             "fenetre_j", "lignes_modifiees", "commits_lignes", "lignes_tronquees");
 
     private static final List<String> SQ_COLUMNS = List.of(
@@ -417,7 +434,7 @@ public class CrossAudit implements Callable<Integer> {
             w.writeNext(header.toArray(String[]::new));
             for (Pair p : pairs) {
                 List<String> row = new ArrayList<>(List.of(p.gl().str("path"), p.m().label(),
-                        p.m().confidence().name().toLowerCase(Locale.ROOT)));
+                        p.m().confidence().code()));
                 row.addAll(ProjectMapper.detailCells(mapping, p.m()));
                 GL_COLUMNS.forEach(col -> row.add(p.gl().str(col)));
                 SQ_COLUMNS.forEach(col -> row.add(p.sq() == null ? "" : p.sq().str(col)));
