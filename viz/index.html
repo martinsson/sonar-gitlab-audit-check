@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audit Sonar × GitLab</title>
+<script src="https://cdn.jsdelivr.net/npm/vega@5.33.1/build/vega.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@5.23.0/build/vega-lite.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@6.29.0/build/vega-embed.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>Audit Sonar × GitLab</h1>
+  <p>Déposer ici, ou choisir, les CSV de l'audit. Ils sont lus dans le navigateur, rien n'est envoyé.</p>
+  <input type="file" id="files" multiple accept=".csv">
+  <label>Regrouper les namespaces sur
+    <select id="depth"><option>1</option><option selected>2</option><option>3</option></select>
+    niveau(x)</label>
+  <ul id="loaded"></ul>
+</header>
+<main id="charts"></main>
+
+<script src="app.js"></script>
+<!-- Un graphique = un fichier. Retirer une ligne retire le graphique. -->
+<script src="charts/entonnoir.js"></script>
+<script src="charts/quadrant.js"></script>
+<script src="charts/fleches.js"></script>
+<script src="charts/pratiques.js"></script>
+<script src="charts/treemap.js"></script>
+<script src="charts/historique.js"></script>
+<script>Viz.start();</script>
+</body>
+</html>

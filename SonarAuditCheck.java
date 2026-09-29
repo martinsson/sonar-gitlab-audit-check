@@ -518,6 +518,11 @@ public class SonarAuditCheck implements Callable<Integer> {
             System.out.println();
             System.out.println("  CSV écrit : " + c(csv.toString(), BOLD));
             System.out.println(c(Csv.openingHint(csv, comma), DIM));
+            if (!histories.isEmpty()) {
+                Path history = historyPath(csv);
+                writeHistory(history);
+                System.out.println("  Historique écrit : " + c(history.toString(), BOLD));
+            }
         }
     }
 
@@ -773,6 +778,9 @@ public class SonarAuditCheck implements Callable<Integer> {
      * gagne autant, appellent des réponses opposées et sortent identiques de
      * measures/search. La dérivée les sépare.
      */
+    /** Les séries brutes derrière les pentes, pour historique.csv. */
+    private final Map<String, SearchHistory> histories = new LinkedHashMap<>();
+
     private Map<String, Trend> fetchTrends(List<Component> projects) {
         if (noTrend || projects.isEmpty()) return Map.of();
         String metrics = TREND_METRICS.stream().filter(supportedMetrics::contains)
@@ -782,7 +790,7 @@ public class SonarAuditCheck implements Callable<Integer> {
                 .format(DateTimeFormatter.ISO_LOCAL_DATE);
 
         Progress bar = new Progress("  Historiques lus", projects.size());
-        List<Trend> read = sq.map(projects, concurrency, p -> {
+        List<SearchHistory> read = sq.map(projects, concurrency, p -> {
             // L'historique vit sur la branche dont viennent les mesures : lire
             // la principale d'un projet scanné ailleurs rendrait une série vide.
             Map<String, String> q = new LinkedHashMap<>(params("component", p.key(),
@@ -790,13 +798,16 @@ public class SonarAuditCheck implements Callable<Integer> {
             if (p.onOtherBranch()) q.put("branch", p.branch());
             SearchHistory h = sq.get("api/measures/search_history", q).as(SearchHistory.class);
             bar.tick();
-            return h == null ? null : trend(h);
+            return h;
         });
         bar.done();
 
         Map<String, Trend> byKey = new HashMap<>();
         for (int i = 0; i < projects.size(); i++) {
-            if (read.get(i) != null) byKey.put(projects.get(i).key(), read.get(i));
+            SearchHistory h = read.get(i);
+            if (h == null) continue;
+            histories.put(projects.get(i).key(), h);
+            byKey.put(projects.get(i).key(), trend(h));
         }
         reportTrends(projects.size(), byKey.values());
         return byKey;
@@ -960,6 +971,41 @@ public class SonarAuditCheck implements Callable<Integer> {
                 w.writeNext(csvRow(p, measures.getOrDefault(p.key(), Map.of()),
                         attachments.get(p.key()), trends.get(p.key()), now));
             }
+        }
+    }
+
+    /** inventaire.csv → inventaire-historique.csv, à côté. */
+    static Path historyPath(Path csv) {
+        String name = csv.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        String base = dot > 0 ? name.substring(0, dot) : name;
+        return csv.resolveSibling(base + "-historique.csv");
+    }
+
+    /**
+     * Une ligne par projet et par date d'analyse, les mesures de tendance en
+     * colonnes : de quoi tracer la série que les pentes résument. Une cellule
+     * vide = mesure absente à cette date, pas zéro.
+     */
+    private void writeHistory(Path path) throws IOException {
+        List<String> header = new ArrayList<>(List.of("key", "date"));
+        header.addAll(TREND_METRICS);
+        try (CSVWriter w = Csv.writer(path, comma)) {
+            w.writeNext(header.toArray(String[]::new));
+            histories.forEach((key, h) -> {
+                TreeMap<String, Map<String, String>> byDate = new TreeMap<>();
+                for (String metric : TREND_METRICS) {
+                    for (HistoryPoint pt : h.pointsFor(metric)) {
+                        byDate.computeIfAbsent(pt.date(), d -> new HashMap<>())
+                                .put(metric, pt.value());
+                    }
+                }
+                byDate.forEach((date, values) -> {
+                    List<String> row = new ArrayList<>(List.of(key, date));
+                    TREND_METRICS.forEach(m -> row.add(orEmpty(values.get(m))));
+                    w.writeNext(row.toArray(String[]::new));
+                });
+            });
         }
     }
 

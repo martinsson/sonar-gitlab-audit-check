@@ -106,6 +106,8 @@ check "$OUT/live.txt" 'Δ lignes sur 90 j (88 j mesurés)' "fenêtre réellement
 check "$OUT/inventaire.csv" '"org:sain".*"3";"88";"14.[0-9]*";"-2.[0-9]*";"1.[0-9]*"' \
     "pentes de tendance écrites, densité en baisse malgré plus d'issues"
 check "$OUT/live.txt" 'en baisse (< -2 %/mois)    : 1' "tendance comptée en baisse"
+check "$OUT/inventaire-historique.csv" '"org:sain";"[0-9T:-]*+0000";"443";"12000";"2.1"' \
+    "séries brutes écrites dans inventaire-historique.csv"
 
 # Un seul point d'historique : pas de Δ, et surtout pas +0.
 check "$OUT/un-point.txt" 'Vélocité de dette indisponible' "historique trop court dit indisponible"

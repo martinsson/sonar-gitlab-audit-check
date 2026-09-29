@@ -60,6 +60,11 @@ jbang Vues.java --in ./audit/croisement.csv
 ```
 
 ```bash
+# 4c. Charts: open viz/index.html in a browser and drop the CSVs on it
+open viz/index.html
+```
+
+```bash
 # 5. One project you already care about, read closely
 jbang GitLabProjectReport.java --path my/group/project
 ```
@@ -997,6 +1002,39 @@ previous version in `appariement.csv.bak`.
 a method or `namespace-mapping.yaml` — and still keeps `manuel` and `rejete`,
 the only rows that cost a person time. To forget those as well, delete the
 file.
+
+### Charts: `viz/index.html`
+
+A static page. Open it, then drop the CSVs on it, or pick them with the file
+button: `./audit/inventaire.csv`, `pratiques.csv`, `croisement.csv`, and the
+Sonar side's `inventaire-historique.csv`. The files are read in the browser and
+never sent anywhere. The libraries (Vega, Vega-Lite, vega-embed, PapaParse) load
+from jsDelivr, so the page needs that one site to be reachable.
+
+Each file is recognised by its columns, not its name: the two inventories are
+both called `inventaire.csv`. A chart whose files are missing says which ones,
+and the others render anyway.
+
+| Chart | Reads | Question |
+|---|---|---|
+| Coverage funnel | GitLab inventory, then `pratiques`, `croisement` if there | How many projects make it to a recent Sonar measure |
+| Activity × quality | `croisement` | Lines changed against issues/kLOC, one dot per paired project |
+| Issue density drift | `croisement` | Where each project started and where it is now. The start is rebuilt from the slope: an order of magnitude |
+| Practices by namespace | `pratiques` | Share of each team's projects following each practice |
+| Map of the estate | `croisement` | Commits by namespace, coloured by quality gate, dark where Sonar sees nothing |
+| History | `inventaire-historique.csv`, `croisement` if there | Issues/kLOC over time, one small chart per project |
+
+`SonarAuditCheck --csv x.csv` writes `x-historique.csv` next to it: one row per
+project and analysis date, with `violations`, `ncloc` and `sqale_debt_ratio`,
+the raw series behind the trend slopes. Nothing is written with `--no-trend`.
+
+**Adding or removing a chart.** One chart is one file in `viz/charts/`, and one
+`<script>` line in `viz/index.html`. Delete the line and the chart is gone. A
+new chart calls `Viz.add({ id, title, help, needs, spec })`, where `spec`
+receives the loaded tables and returns a Vega-Lite (or Vega) spec. Shared
+helpers — number parsing, namespace grouping, the "paired" test — are in
+`viz/app.js`. Every chart's `…` menu opens its spec in the Vega editor, the
+quickest place to tweak one.
 
 ### Not yet done
 

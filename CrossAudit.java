@@ -408,7 +408,7 @@ public class CrossAudit implements Callable<Integer> {
             "key", "name", "analysisDate", "days_since_analysis", "ncloc",
             "coverage", "new_coverage", "tests", "test_failures", "lines_to_cover",
             "uncovered_lines", "sqale_index", "sqale_debt_ratio",
-            "bugs", "vulnerabilities", "code_smells",
+            "bugs", "vulnerabilities", "code_smells", "violations",
             "new_lines", "new_violations", "alert_status",
             "alm", "alm_repository", "liens",
             "tendance_analyses", "tendance_jours", "violations_pente_mois",

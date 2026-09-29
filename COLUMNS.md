@@ -164,6 +164,11 @@ project is moving.
 | `violations_kloc_pente_pct_mois` | Slope of issues/kLOC, as a % of its mean, per 30 days. **The column to rank on.** Negative means the code is getting cleaner |
 | `dette_ratio_pente_pct_mois` | The same for `sqale_debt_ratio`, so effort-weighted |
 
+The series these slopes are computed from are written next to the inventory, as
+`<name>-historique.csv`: `key`, `date`, then `violations`, `ncloc`,
+`sqale_debt_ratio`, one row per analysis date. An empty cell is a measure absent
+on that date, not zero. `viz/index.html` draws them.
+
 **Slopes come from a least-squares fit, not last minus first.** Analyses land
 when CI runs, not on a schedule, and a single outlier at one end (a quality
 profile tightened the day before) would otherwise set the whole trend.
