@@ -1,6 +1,7 @@
 # Audit output — may contain project names, author names and internal URLs
 *.csv
 .sonar-keys.json
+namespace-mapping.yaml
 captures/
 dumps/
 

@@ -3,6 +3,7 @@
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.17.2
 //DEPS com.opencsv:opencsv:5.9
 //DEPS info.picocli:picocli:4.7.6
+//DEPS org.yaml:snakeyaml:2.2
 //SOURCES ConsoleOut.java
 //SOURCES Csv.java
 //SOURCES NameMatcher.java
@@ -15,6 +16,7 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -30,6 +32,7 @@ import java.util.concurrent.Callable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.yaml.snakeyaml.Yaml;
 
 /**
  * Apparier les lignes de deux CSV, et dire ce que vaut chaque manière de le
@@ -138,6 +141,36 @@ public class ProjectMapper implements Callable<Integer> {
             description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
     String colorMode;
 
+    private static final Map<String, String> GL_TO_SONAR = new HashMap<>();
+    private static final Map<String, String> SONAR_TO_GL = new HashMap<>();
+
+    static {
+        loadNamespaceMapping("namespace-mapping.yaml");
+    }
+
+    static void loadNamespaceMapping(String filename) {
+        try {
+            Path mappingFile = Path.of(filename);
+            if (!Files.exists(mappingFile)) {
+                System.err.println("Avertissement : fichier de mapping " + filename + " introuvable — le matching namespace sera désactivé");
+                return;
+            }
+            Yaml yaml = new Yaml();
+            try (InputStream is = Files.newInputStream(mappingFile)) {
+                @SuppressWarnings("unchecked")
+                Map<String, String> data = yaml.load(is);
+                if (data != null) {
+                    data.forEach((gl, sonar) -> {
+                        GL_TO_SONAR.put(gl.trim(), sonar.trim());
+                        SONAR_TO_GL.put(sonar.trim(), gl.trim());
+                    });
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Erreur lecture mapping : " + e.getMessage());
+        }
+    }
+
     public static void main(String[] args) {
         ConsoleOut.install();
         System.exit(new CommandLine(new ProjectMapper()).execute(args));
@@ -190,7 +223,7 @@ public class ProjectMapper implements Callable<Integer> {
     // Ce qu'on demande
     // ----------------------------------------------------------------------
 
-    enum Kind { EXACT, DERIVED, LINK }
+    enum Kind { EXACT, DERIVED, LINK, MAPPED }
 
     enum Confidence { EXACT, DERIVED, SUGGESTION, NONE }
 
@@ -219,6 +252,7 @@ public class ProjectMapper implements Callable<Integer> {
             return switch (kind) {
                 case EXACT -> Confidence.EXACT;
                 case DERIVED -> Confidence.DERIVED;
+                case MAPPED -> Confidence.DERIVED;
                 case LINK -> Confidence.NONE;
             };
         }
@@ -264,6 +298,9 @@ public class ProjectMapper implements Callable<Integer> {
                     // Ce que SonarQube a enregistré en important le dépôt.
                     new KeyMethod("liaison", "liaison DevOps Sonar → GitLab", Kind.EXACT,
                             "id", "alm_repository", "alm", "gitlab"),
+                    // Mapping namespace GitLab → préfixe Sonar + nom court extrait.
+                    new KeyMethod("ns_map", "mapping namespace GL→Sonar", Kind.MAPPED,
+                            "path", "key", null, null),
                     // Le chemin normalisé comme une clé Sonar l'est souvent.
                     new KeyMethod("chemin", "clé normalisée = chemin GitLab", Kind.DERIVED,
                             "path", "key", null, null),
@@ -407,10 +444,14 @@ public class ProjectMapper implements Callable<Integer> {
             if (names.pathLike()) {
                 // Le dernier segment compte double : le namespace aide à
                 // départager, il ne doit pas suffire à rapprocher.
+                // On retire le numéro de ticket du dernier segment pour
+                // améliorer la similarité avec la clé Sonar.
                 int cut = v.lastIndexOf('/');
-                NameMatcher.addTokens(tf, v.substring(cut + 1), 2.0);
+                String lastSeg = cut >= 0 ? v.substring(cut + 1) : v;
+                lastSeg = stripTicketNumber(lastSeg);
+                NameMatcher.addTokens(tf, lastSeg, 2.0);
                 if (cut > 0) NameMatcher.addTokens(tf, v.substring(0, cut), 1.0);
-                srcNum.add(NameMatcher.numbers(v.substring(cut + 1)));
+                srcNum.add(NameMatcher.numbers(lastSeg));
             } else {
                 NameMatcher.addTokens(tf, v, 1.0);
                 srcNum.add(NameMatcher.numbers(v));
@@ -500,6 +541,7 @@ public class ProjectMapper implements Callable<Integer> {
         return switch (m.kind()) {
             case EXACT -> v.trim();
             case DERIVED -> normalise(v);
+            case MAPPED -> mapPathToSonarKey(v);
             case LINK -> v.trim().toLowerCase(Locale.ROOT);
         };
     }
@@ -509,6 +551,7 @@ public class ProjectMapper implements Callable<Integer> {
         return switch (m.kind()) {
             case EXACT -> List.of(v.trim());
             case DERIVED -> List.of(normalise(v));
+            case MAPPED -> mappedSonarKey(v);
             case LINK -> linkedPaths(v);
         };
     }
@@ -545,6 +588,185 @@ public class ProjectMapper implements Callable<Integer> {
             if (path.contains("/") && !path.contains("://") && !out.contains(path)) out.add(path);
         }
         return out;
+    }
+
+    /**
+     * Mapping namespace GitLab → préfixe Sonar, puis extraction du nom court
+     * (dernier segment, sans numéro de ticket) pour construire une clé Sonar
+     * approximative.
+     *
+     * Méthode en deux niveaux :
+     * 1. leftValue() retourne le nom court seul (sans namespace) pour matcher
+     *    contre la partie après le ":" dans les clés Sonar.
+     * 2. rightValues() retourne la clé normalisée + variantes avec namespace
+     *    GitLab reconstruit.
+     *
+     * Exemples :
+     *   DEVELOPPEUR-LOGEMENT/6496-sidlo/sidlo  → sidlo
+     *   DEVELOPPEUR-AFC/afc.refonte/AFC_rtaxpm → afc-rtaxpm
+     *   DEVELOPPEUR-PHP/9949-fao              → fao
+     *   INFRA/terraform-module-openshift-x    → terraform-module-openshift-x
+     */
+    static String mapPathToSonarKey(String gitlabPath) {
+        if (gitlabPath == null || gitlabPath.isBlank()) return "";
+        String[] parts = gitlabPath.split("/");
+        if (parts.length < 2) return normalise(gitlabPath);
+
+        // Nom court = dernier segment, sans numéro de ticket en début
+        String shortName = parts[parts.length - 1];
+        shortName = stripTicketNumber(shortName);
+
+        // Si le chemin a des segments intermédiaires, les inclure
+        // mais sans le namespace GitLab (qui ne correspond pas au prefix Sonar)
+        if (parts.length >= 3) {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 1; i < parts.length; i++) {
+                String clean = stripTicketNumber(parts[i]);
+                if (!clean.isEmpty()) sb.append("-").append(normalise(clean));
+            }
+            return sb.toString().replaceAll("^-+|-+$", "");
+        }
+
+        return normalise(shortName);
+    }
+
+    /**
+     * Variantes du mapping : pour matcher plus de clés Sonar, on produit
+     * plusieurs variantes à partir du chemin GitLab.
+     *
+     * Variante 1 : namespace mappé + tous les segments (sans ticket numbers)
+     * Variante 2 : namespace mappé + nom court uniquement (sans segments intermédiaires)
+     * Variante 3 : nom court seul (sans namespace)
+     */
+    static List<String> mappedGitlabPaths(String gitlabPath) {
+        List<String> result = new ArrayList<>();
+        if (gitlabPath == null || gitlabPath.isBlank()) return result;
+
+        String[] parts = gitlabPath.split("/");
+        if (parts.length < 2) {
+            result.add(normalise(gitlabPath));
+            return result;
+        }
+
+        String mappedPrefix = mapNamespace(parts[0]);
+        List<String> cleanedSegments = new ArrayList<>();
+        for (int i = 1; i < parts.length; i++) {
+            String clean = stripTicketNumber(parts[i]);
+            if (!clean.isEmpty()) cleanedSegments.add(normalise(clean));
+        }
+
+        // Variante 1 : namespace + tous les segments nettoyés
+        StringBuilder full = new StringBuilder(mappedPrefix);
+        for (String seg : cleanedSegments) {
+            full.append("-").append(seg);
+        }
+        result.add(full.toString().replaceAll("^-+|-+$", ""));
+
+        // Variante 2 : namespace + nom court uniquement (sans segments intermédiaires)
+        if (cleanedSegments.size() > 1) {
+            StringBuilder shortPath = new StringBuilder(mappedPrefix);
+            shortPath.append("-").append(cleanedSegments.get(cleanedSegments.size() - 1));
+            result.add(shortPath.toString().replaceAll("^-+|-+$", ""));
+        }
+
+        // Variante 3 : nom court seul (pour matcher les clés Sonar sans namespace)
+        if (!cleanedSegments.isEmpty()) {
+            result.add(String.join("-", cleanedSegments));
+        }
+
+        return result;
+    }
+
+    /**
+     * Version "droite" : pour les clés Sonar, on retourne la clé normalisée
+     * + le nom court extrait (sans namespace) pour matcher avec le chemin
+     * GitLab correspondant.
+     *
+     * Exemples :
+     *   ch.ge.logement.sidlo:sidlo          → [ch-ge-logement-sidlo-sidlo, sidlo]
+     *   ch.ge.afc.refonte.rtaxpm:AFC_rtaxpm → [ch-ge-afc-refonte-rtaxpm-afc-rtaxpm, afc-rtaxpm]
+     *   9949-fao                           → [9949-fao, fao]
+     */
+    static List<String> mappedSonarKey(String sonarKey) {
+        List<String> result = new ArrayList<>();
+        result.add(normalise(sonarKey));
+
+        if (sonarKey == null || sonarKey.isBlank()) return result;
+
+        // Extraire le nom court (après le ":" ou dernier segment)
+        String shortName = extractShortName(sonarKey);
+        if (!shortName.isEmpty() && !shortName.equals(sonarKey)) {
+            result.add(normalise(shortName));
+        }
+
+        return result;
+    }
+
+    /**
+     * Extrait le nom court d'une clé Sonar : après le ":" ou le dernier segment.
+     * {@code ch.ge.afc.refonte.rtaxpm:AFC_rtaxpm} → {@code AFC_rtaxpm}
+     * {@code ch.ge.ael:ge-televerse-back} → {@code ge-televerse-back}
+     * {@code 9949-fao} → {@code fao} (sans numéro de ticket)
+     */
+    static String extractShortName(String sonarKey) {
+        // D'abord essayer après le ":"
+        int colon = sonarKey.indexOf(':');
+        if (colon >= 0) {
+            return stripTicketNumber(sonarKey.substring(colon + 1).trim());
+        }
+        // Sinon, le nom après le dernier "-" ou "_" (sans numéro de ticket)
+        int lastDash = sonarKey.lastIndexOf('-');
+        int lastUnderscore = sonarKey.lastIndexOf('_');
+        int lastSep = Math.max(lastDash, lastUnderscore);
+        if (lastSep >= 0) {
+            return stripTicketNumber(sonarKey.substring(lastSep + 1).trim());
+        }
+        return stripTicketNumber(sonarKey.trim());
+    }
+
+    /**
+     * Mappe un namespace GitLab vers un préfixe Sonar.
+     * Charge d'abord namespace-mapping.yaml, puis fallback sur le mapping hardcodé.
+     */
+    private static String mapNamespace(String gitlabNs) {
+        String mapped = GL_TO_SONAR.get(gitlabNs.toUpperCase(Locale.ROOT));
+        if (mapped != null) return mapped;
+        return normalise(gitlabNs);
+    }
+
+    /**
+     * Mappe en arrière : préfixe Sonar → namespace GitLab.
+     * Utilisé pour générer des variantes de la clé Sonar.
+     */
+    private static String reverseMapNamespace(String sonarPrefix) {
+        return SONAR_TO_GL.get(sonarPrefix.toLowerCase(Locale.ROOT));
+    }
+
+    /**
+     * Retire un numéro de ticket en début de nom : {@code 9949-fao} → {@code fao}.
+     */
+    static String stripTicketNumber(String name) {
+        String trimmed = name.trim();
+        int dash = trimmed.indexOf('-');
+        if (dash > 0 && trimmed.substring(0, dash).matches("\\d+")) {
+            return trimmed.substring(dash + 1);
+        }
+        return trimmed;
+    }
+
+    /**
+     * Extrait le préfixe Sonar d'une clé : {@code ch.ge.afc.refonte.rtaxpm:AFC_rtaxpm}
+     * → {@code ch.ge.afc}.
+     */
+    private static String extractSonarPrefix(String sonarKey) {
+        String key = sonarKey.split("[:_\\-]")[0]; // premier segment
+        if (key.startsWith("ch.ge.")) {
+            String[] parts = key.split("[._]");
+            if (parts.length >= 3) {
+                return parts[0] + "_" + parts[1] + "_" + parts[2]; // ch_ge_afc
+            }
+        }
+        return null;
     }
 
     // ----------------------------------------------------------------------
