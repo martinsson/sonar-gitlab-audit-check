@@ -149,6 +149,37 @@ integration. A project born from `-Dsonar.projectKey=…` in a pipeline has
 none, so a low count here describes how the estate was set up, not a failure.
 Links are typed by hand and never checked by the instance.
 
+### Trend over `--activity-days`
+
+One more call per project (`api/measures/search_history`, skip it with
+`--no-trend`) reads every analysis in the window, on the same branch the
+measures come from. The other columns are a snapshot; these say which way the
+project is moving.
+
+| Column | Meaning |
+|---|---|
+| `tendance_analyses` | Distinct analysis dates in the window with at least one of the three metrics |
+| `tendance_jours` | Days between the first and last of those analyses. **Not** the window you asked for: 3 analyses 12 days apart in a 90-day window measure 12 days |
+| `violations_pente_mois` | Slope of the raw issue count, in issues per 30 days |
+| `violations_kloc_pente_pct_mois` | Slope of issues/kLOC, as a % of its mean, per 30 days. **The column to rank on.** Negative means the code is getting cleaner |
+| `dette_ratio_pente_pct_mois` | The same for `sqale_debt_ratio`, so effort-weighted |
+
+**Slopes come from a least-squares fit, not last minus first.** Analyses land
+when CI runs, not on a schedule, and a single outlier at one end (a quality
+profile tightened the day before) would otherwise set the whole trend.
+
+**Read the density column, not the raw count.** A growing project gains issues
+even when every line is cleaner than before: the fixture `org:sain` gains 15
+issues a month while its issues/kLOC falls 2.7 % a month.
+
+**Empty means "cannot say", not "stable".** A slope needs at least 3 analyses
+spanning 14 days. A relative slope also needs a non-zero mean, because a
+project with no issues has no percentage change. Sonar's housekeeping thins
+old snapshots (about one a week after a month), so windows longer than a few
+months have fewer points than analyses were run. A quality-profile change shows
+up as a step in the series. Check `api/project_analyses/search` events before
+blaming the team for it.
+
 ---
 
 ## 2. `classement.csv` — `SonarRank`
@@ -329,6 +360,15 @@ it only exists for the ~200 that the funnel chose.
 | `source_cle_sonar` | Where the key was read: `sonar-project.properties`, `ci/lint`, `includes suivis`, or why it is empty |
 | `fichiers` | Space-separated list of watched files found: `.gitlab-ci.yml`, `README.md`, `CODEOWNERS`, `Dockerfile`, `renovate.json` |
 | `id` | GitLab project ID. Joined against the Sonar inventory's `alm_repository` |
+| `fenetre_j` | The `--since` window, in days. What `CrossAudit` multiplies the Sonar slope by |
+| `lignes_modifiees` | Lines added + deleted on the default branch over the window (`with_stats`), bots and merge commits excluded. Empty if the commits could not be read |
+| `commits_lignes` | Commits those lines were summed over. Lower than `commits_window`, which counts merges |
+| `lignes_tronquees` | `true` = pagination stopped at `--max-commit-pages`, so `lignes_modifiees` is undercounted |
+
+**`lignes_modifiees` counts everything in the repository**, including lockfiles,
+generated code and docs, while Sonar only counts the code it analyses. A
+regenerated `package-lock.json` can add thousands of lines and no issues at all.
+Treat a low ratio on a project with a large lockfile as unproven.
 
 ### Three columns that will mislead you if read plainly
 
@@ -402,6 +442,7 @@ thing without the `gl_`/`sq_` columns.
 
 | Column | Meaning |
 |---|---|
+| `projet` | GitLab path of the project. First on purpose: freeze this column in the spreadsheet and every row stays identifiable while you scroll right |
 | `methode_jointure` | How the pair was made, tried in this order: `clé lue dans la CI`, `liaison DevOps Sonar → GitLab`, `clé normalisée = chemin GitLab`, `noms ressemblants (TF-IDF)`, or `aucune` |
 | `confiance` | `exact`, `derived`, `suggestion`, `none` |
 | `candidat_nom` | Best name-similarity candidate, when the safer methods failed. Filled **even when it was rejected** (see `rejet_nom`) |
@@ -414,6 +455,15 @@ thing without the `gl_`/`sq_` columns.
 | `m_noms_libre` | The name-similarity candidate against **all** Sonar projects, ignoring what was already matched, with its score and, if it would have been rejected, why. This is what the matching report is evaluated on |
 | `gl_…` | Columns carried over from `pratiques.csv` |
 | `sq_…` | Columns carried over from the Sonar inventory. **All empty when nothing matched** |
+| `issues_par_kloc_modifie` | Issues gained over the GitLab window per 1000 lines changed: `sq_violations_pente_mois / 30 × gl_fenetre_j ÷ (gl_lignes_modifiees / 1000)`. Negative = changes remove more issues than they add |
+| `issues_par_commit` | The same numerator divided by `gl_commits_lignes` |
+
+The two ratios use the Sonar **slope** scaled to the GitLab window rather than
+a Sonar delta, because the two windows never line up: analyses fall when CI
+runs. Both are empty for unmatched rows, when Sonar has no slope, or when
+`gl_lignes_tronquees` is `true`, because an undercounted denominator would
+inflate the ratio with no warning. The console finding lists only pairs with at
+least 5 analyses and 500 changed lines. Below that, the ratio is noise.
 
 **How the name similarity works.** Names are split into words: accents,
 case, and the space/dash/dot/underscore separators are ignored, and camelCase

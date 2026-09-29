@@ -994,6 +994,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                 pipelines(p, r);
                 delivery(p, r);
                 files(p, r);
+                churn(p, r);
             });
             reportCiRoutes();
             coverage();
@@ -1160,6 +1161,46 @@ public class GitlabActivityAudit implements Callable<Integer> {
             } else if (df.status() == 403 || df.status() == 404) {
                 r.doraUnavailable = true;
             }
+        }
+
+        /**
+         * Lignes ajoutées + supprimées sur la fenêtre : le dénominateur que
+         * CrossAudit rapporte à la pente des issues Sonar.
+         *
+         * Une passe séparée de pageCommits, et seulement ici : with_stats fait
+         * calculer à GitLab le diff de chaque commit, ce qui ne se paie pas sur
+         * tout le parc. Les merges sont écartés — leur diff contre le premier
+         * parent recompte la branche fusionnée, déjà comptée commit par commit —
+         * et les bots aussi, comme dans commits_window.
+         *
+         * Le chiffre compte tout ce que le dépôt contient : lockfiles, code
+         * généré, documentation. Sonar ne compte que le code qu'il analyse.
+         * L'écart est un biais connu, pas corrigible sans lire chaque diff.
+         */
+        private void churn(Proj p, Prat r) {
+            long lines = 0;
+            int counted = 0;
+            for (int page = 1; page <= maxCommitPages; page++) {
+                Gitlab.Response resp = gl.get("projects/" + p.id + "/repository/commits", Map.of(
+                        "ref_name", p.defaultBranch, "since", iso(windowStart),
+                        "with_stats", "true", "per_page", "100", "page", String.valueOf(page)));
+                // Illisible n'est pas « aucune ligne » : la colonne reste vide.
+                if (resp.status() != 200) return;
+                JsonNode arr = resp.json();
+                if (!arr.isArray() || arr.isEmpty()) break;
+                for (JsonNode c : arr) {
+                    if (Gitlab.isBot(bots, text(c, "author_email"), text(c, "author_name"))) continue;
+                    if (Gitlab.isMerge(c)) continue;
+                    JsonNode st = c.path("stats");
+                    if (st.isMissingNode()) continue;
+                    lines += st.path("additions").asLong(0) + st.path("deletions").asLong(0);
+                    counted++;
+                }
+                if (arr.size() < 100) break;
+                if (page == maxCommitPages) r.churnTruncated = true;
+            }
+            r.linesChanged = lines;
+            r.churnCommits = counted;
         }
 
         private static final List<String> WATCHED = List.of(
@@ -1559,10 +1600,11 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     "auto_approbation", "pipelines", "taux_succes", "incidents_rouges",
                     "retour_au_vert_h", "rouge_non_resolu", "environnements",
                     "deploiements", "dora_indispo", "ci_sonar", "ci_securite",
-                    "cle_sonar", "source_cle_sonar", "fichiers", "id"};
+                    "cle_sonar", "source_cle_sonar", "fichiers", "id",
+                    "fenetre_j", "lignes_modifiees", "commits_lignes", "lignes_tronquees"};
             try (CSVWriter w = Csv.writer(pratiquesCsv, comma)) {
                 w.writeNext(header);
-                for (Proj p : selected) w.writeNext(p.pratRow());
+                for (Proj p : selected) w.writeNext(p.pratRow(sinceDays));
             }
             System.out.printf("%n  Pratiques : %d lignes.%n", selected.size());
         }
@@ -1633,7 +1675,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     String.valueOf(selected), orEmpty(selectionReason)};
         }
 
-        String[] pratRow() {
+        String[] pratRow(int windowDays) {
             Prat r = prat == null ? new Prat() : prat;
             return new String[]{
                     orEmpty(path), orEmpty(selectionReason), bucket, num(commits), num(authors),
@@ -1645,7 +1687,9 @@ public class GitlabActivityAudit implements Callable<Integer> {
                     num(r.unresolvedRed), num(r.environments), dec(r.deployments),
                     String.valueOf(r.doraUnavailable), String.valueOf(r.ciSonar),
                     String.valueOf(r.ciSecurity), orEmpty(r.sonarKey), orEmpty(r.sonarKeySource),
-                    String.join(" ", r.files), String.valueOf(id)};
+                    String.join(" ", r.files), String.valueOf(id),
+                    String.valueOf(windowDays), num(r.linesChanged), num(r.churnCommits),
+                    String.valueOf(r.churnTruncated)};
         }
     }
 
@@ -1653,7 +1697,9 @@ public class GitlabActivityAudit implements Callable<Integer> {
         boolean defaultProtected, pushLocked, ciSonar, ciSecurity, doraUnavailable;
         String sonarKey, sonarKeySource;
         int mergedMrs, selfMerged, selfApproved, pipelines;
-        Integer approvalSample, environments, redIncidents, unresolvedRed;
+        Integer approvalSample, environments, redIncidents, unresolvedRed, churnCommits;
+        Long linesChanged;
+        boolean churnTruncated;
         Double medianTtmDays, notesPerMr, approvedShare, pipelineSuccess, deployments,
                 recoveryMedianHours;
         final List<String> files = new ArrayList<>();

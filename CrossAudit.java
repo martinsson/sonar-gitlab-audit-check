@@ -307,6 +307,56 @@ public class CrossAudit implements Callable<Integer> {
                         + "regarde que le pourcentage.",
                 unwired, p -> "%s — %s tests, couverture 0 %%".formatted(
                         p.gl().str("path"), p.sq().str("tests")));
+
+        // 7. La dérivée rapportée au travail fait. La pente seule confond « le
+        //    projet grossit » et « chaque modification abîme » ; divisée par les
+        //    lignes réellement modifiées, elle dit ce que coûte une modification.
+        List<Pair> degrading = ok.stream()
+                .filter(p -> perKlocChanged(p) != null && perKlocChanged(p) > 0)
+                .filter(p -> nz(p.sq(), "tendance_analyses") >= 5)
+                .filter(p -> nz(p.gl(), "lignes_modifiees") >= 500)
+                .sorted(Comparator.comparingDouble(CrossAudit::perKlocChanged).reversed())
+                .toList();
+        finding("Chaque modification ajoute des issues", degrading.size(),
+                "Pente des issues Sonar sur la fenêtre, rapportée aux lignes modifiées "
+                        + "dans\n    GitLab. Au moins 5 analyses et 500 lignes, sinon "
+                        + "c'est du bruit.",
+                degrading, p -> "%s — %+.1f issues / kLOC modifié, %s lignes".formatted(
+                        p.gl().str("path"), perKlocChanged(p), p.gl().str("lignes_modifiees")));
+    }
+
+    // ----------------------------------------------------------------------
+    // La tendance rapportée au travail fait
+    // ----------------------------------------------------------------------
+
+    /**
+     * Les issues gagnées sur la fenêtre GitLab : la pente Sonar (régression sur
+     * les analyses, par jour) multipliée par la durée de la fenêtre.
+     *
+     * La pente plutôt que (dernière − première valeur) : les deux fenêtres ne
+     * coïncident jamais — les analyses tombent quand la CI tourne — et la pente
+     * se ramène à n'importe quelle durée. Null dès qu'un morceau manque, et
+     * aussi quand GitLab a tronqué sa pagination : un dénominateur sous-compté
+     * gonflerait le ratio sans que rien ne le signale.
+     */
+    static Double issuesOverWindow(Pair p) {
+        if (!p.joined()) return null;
+        Double perMonth = num(p.sq(), "violations_pente_mois");
+        Double days = num(p.gl(), "fenetre_j");
+        if (perMonth == null || days == null || p.gl().flag("lignes_tronquees")) return null;
+        return perMonth / 30 * days;
+    }
+
+    static Double perKlocChanged(Pair p) {
+        Double issues = issuesOverWindow(p);
+        Double lines = num(p.gl(), "lignes_modifiees");
+        return issues == null || lines == null || lines == 0 ? null : issues / (lines / 1000);
+    }
+
+    static Double perCommit(Pair p) {
+        Double issues = issuesOverWindow(p);
+        Double commits = num(p.gl(), "commits_lignes");
+        return issues == null || commits == null || commits == 0 ? null : issues / commits;
     }
 
     /** Un constat, son effectif, sa lecture, et au plus cinq exemples nommés. */
@@ -332,8 +382,10 @@ public class CrossAudit implements Callable<Integer> {
      */
     private static final List<String> GL_COLUMNS = List.of(
             "path", "bucket", "commits_window", "authors_window", "mr_fusionnees",
-            "branche_protegee", "taux_succes", "ci_sonar", "ci_securite",
-            "cle_sonar", "source_cle_sonar", "id");
+            "auto_merge", "part_approuvee", "branche_protegee", "taux_succes",
+            "rouge_non_resolu", "ci_sonar", "ci_securite",
+            "cle_sonar", "source_cle_sonar", "id",
+            "fenetre_j", "lignes_modifiees", "commits_lignes", "lignes_tronquees");
 
     private static final List<String> SQ_COLUMNS = List.of(
             "key", "name", "analysisDate", "days_since_analysis", "ncloc",
@@ -341,25 +393,36 @@ public class CrossAudit implements Callable<Integer> {
             "uncovered_lines", "sqale_index", "sqale_debt_ratio",
             "bugs", "vulnerabilities", "code_smells",
             "new_lines", "new_violations", "alert_status",
-            "alm", "alm_repository", "liens");
+            "alm", "alm_repository", "liens",
+            "tendance_analyses", "tendance_jours", "violations_pente_mois",
+            "violations_kloc_pente_pct_mois", "dette_ratio_pente_pct_mois");
+
+    /** Calculées ici, à partir des deux côtés : ni gl_ ni sq_. */
+    private static final List<String> CROSS_COLUMNS = List.of(
+            "issues_par_kloc_modifie", "issues_par_commit");
 
     private void write(ProjectMapper.Result mapping, List<Pair> pairs) throws IOException {
         Path dir = out.toAbsolutePath().getParent();
         if (dir != null) Files.createDirectories(dir);
 
-        List<String> header = new ArrayList<>(List.of("methode_jointure", "confiance"));
+        // « projet » en tête : la colonne qu'on fige dans le tableur pour
+        // savoir de quel projet on lit la ligne en défilant vers la droite.
+        List<String> header = new ArrayList<>(List.of("projet", "methode_jointure", "confiance"));
         header.addAll(ProjectMapper.detailHeader(mapping));
         GL_COLUMNS.forEach(c -> header.add("gl_" + c));
         SQ_COLUMNS.forEach(c -> header.add("sq_" + c));
+        header.addAll(CROSS_COLUMNS);
 
         try (CSVWriter w = Csv.writer(out, comma)) {
             w.writeNext(header.toArray(String[]::new));
             for (Pair p : pairs) {
-                List<String> row = new ArrayList<>(List.of(p.m().label(),
+                List<String> row = new ArrayList<>(List.of(p.gl().str("path"), p.m().label(),
                         p.m().confidence().name().toLowerCase(Locale.ROOT)));
                 row.addAll(ProjectMapper.detailCells(mapping, p.m()));
                 GL_COLUMNS.forEach(col -> row.add(p.gl().str(col)));
                 SQ_COLUMNS.forEach(col -> row.add(p.sq() == null ? "" : p.sq().str(col)));
+                row.add(dec(perKlocChanged(p)));
+                row.add(dec(perCommit(p)));
                 w.writeNext(row.toArray(String[]::new));
             }
         }
@@ -399,6 +462,10 @@ public class CrossAudit implements Callable<Integer> {
     static double nz(Csv.Row r, String column) {
         Double d = num(r, column);
         return d == null ? 0 : d;
+    }
+
+    static String dec(Double d) {
+        return d == null ? "" : String.format(Locale.ROOT, "%.2f", d);
     }
 
     static String pct(long n, long total) {

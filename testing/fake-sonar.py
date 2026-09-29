@@ -127,6 +127,10 @@ HISTORY = {
     "org:sain": {
         "ncloc": [(90, "10000"), (45, "11000"), (2, "12000")],
         "sqale_index": [(90, "4000"), (45, "4400"), (2, "4800")],
+        # Les issues montent en valeur absolue, moins vite que le code : la
+        # densité baisse. Une tendance lue sur le compte brut dirait l'inverse.
+        "violations": [(90, "400"), (45, "420"), (2, "443")],
+        "sqale_debt_ratio": [(90, "2.0"), (45, "2.05"), (2, "2.1")],
     },
     "org:un-point": {"ncloc": [(5, "900")], "sqale_index": [(5, "600")]},
     "org:trou": {

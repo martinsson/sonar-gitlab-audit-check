@@ -73,7 +73,7 @@ ACTIVITY = {
 }
 
 
-def commits_for(pid):
+def commits_for(pid, with_stats=False):
     human, authors, bots = ACTIVITY.get(pid, (0, 0, 0))
     out = []
     for i in range(human):
@@ -89,6 +89,9 @@ def commits_for(pid):
             "title": ("Revert \"correction hâtive\"" if i % 13 == 0
                       else "Documente le revert de la migration" if i % 17 == 0
                       else f"Modification {i}"),
+            # Stats présentes seulement quand with_stats est demandé, comme GitLab.
+            **({"stats": {"additions": 10 + i % 30, "deletions": i % 12,
+                          "total": 10 + i % 30 + i % 12}} if with_stats else {}),
             # parent_ids parfois absent : le taux de merge doit rester calculable.
             **({"parent_ids": ["a", "b"]} if i % 7 == 0 else {} if i % 11 == 0 else {"parent_ids": ["a"]}),
         })
@@ -276,7 +279,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if path.endswith("/repository/commits"):
             since = q.get("since", "")
-            all_c = commits_for(pid)
+            all_c = commits_for(pid, q.get("with_stats") == "true")
             per = int(q.get("per_page", 20))
             page = int(q.get("page", 1))
             chunk = all_c[(page - 1) * per: page * per]

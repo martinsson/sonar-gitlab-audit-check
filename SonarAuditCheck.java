@@ -123,6 +123,11 @@ public class SonarAuditCheck implements Callable<Integer> {
                     + "côté Sonar)")
     boolean noBindings;
 
+    @Option(names = "--no-trend",
+            description = "ne pas lire l'historique de chaque projet (un appel de moins par "
+                    + "projet ; les colonnes de tendance restent vides)")
+    boolean noTrend;
+
     @Option(names = "--stale-days", defaultValue = "90",
             description = "seuil d'obsolescence (défaut : ${DEFAULT-VALUE})")
     int staleDays;
@@ -506,9 +511,10 @@ public class SonarAuditCheck implements Callable<Integer> {
         reportMissingCoverage(projects, measures);
 
         Map<String, Attachments> attachments = fetchAttachments(projects);
+        Map<String, Trend> trends = fetchTrends(projects);
 
         if (csv != null) {
-            writeCsv(projects, measures, attachments);
+            writeCsv(projects, measures, attachments, trends);
             System.out.println();
             System.out.println("  CSV écrit : " + c(csv.toString(), BOLD));
             System.out.println(c(Csv.openingHint(csv, comma), DIM));
@@ -752,6 +758,156 @@ public class SonarAuditCheck implements Callable<Integer> {
         return new Attachments(alm, repository, links);
     }
 
+    // ----------------------------------------------------------------------
+    // Tendance : la dérivée, pas la photo
+    // ----------------------------------------------------------------------
+
+    private static final List<String> TREND_METRICS = List.of(
+            "violations", "ncloc", "sqale_debt_ratio");
+
+    /**
+     * Un appel {@code search_history} par projet, sur la fenêtre --activity-days.
+     *
+     * La photo dit où en est un projet ; elle ne dit pas s'il s'améliore. Deux
+     * projets à 40 issues/kLOC, l'un qui en perd 5 % par mois et l'autre qui en
+     * gagne autant, appellent des réponses opposées et sortent identiques de
+     * measures/search. La dérivée les sépare.
+     */
+    private Map<String, Trend> fetchTrends(List<Component> projects) {
+        if (noTrend || projects.isEmpty()) return Map.of();
+        String metrics = TREND_METRICS.stream().filter(supportedMetrics::contains)
+                .collect(Collectors.joining(","));
+        if (metrics.isEmpty()) return Map.of();
+        String since = LocalDateTime.now().minusDays(activityDays)
+                .format(DateTimeFormatter.ISO_LOCAL_DATE);
+
+        Progress bar = new Progress("  Historiques lus", projects.size());
+        List<Trend> read = sq.map(projects, concurrency, p -> {
+            // L'historique vit sur la branche dont viennent les mesures : lire
+            // la principale d'un projet scanné ailleurs rendrait une série vide.
+            Map<String, String> q = new LinkedHashMap<>(params("component", p.key(),
+                    "metrics", metrics, "from", since, "ps", "1000"));
+            if (p.onOtherBranch()) q.put("branch", p.branch());
+            SearchHistory h = sq.get("api/measures/search_history", q).as(SearchHistory.class);
+            bar.tick();
+            return h == null ? null : trend(h);
+        });
+        bar.done();
+
+        Map<String, Trend> byKey = new HashMap<>();
+        for (int i = 0; i < projects.size(); i++) {
+            if (read.get(i) != null) byKey.put(projects.get(i).key(), read.get(i));
+        }
+        reportTrends(projects.size(), byKey.values());
+        return byKey;
+    }
+
+    private void reportTrends(int total, Collection<Trend> trends) {
+        long up = 0, down = 0, flat = 0;
+        for (Trend t : trends) {
+            Double d = t.densityPctPerMonth();
+            if (d == null) continue;
+            if (d > TREND_FLAT_PCT) up++;
+            else if (d < -TREND_FLAT_PCT) down++;
+            else flat++;
+        }
+        long measured = up + down + flat;
+        System.out.println();
+        System.out.printf("  Tendance des issues/kLOC sur %d j (%d projets mesurables) :%n",
+                activityDays, measured);
+        System.out.printf("    en hausse (> +%.0f %%/mois)    : %s%n", TREND_FLAT_PCT,
+                c(String.valueOf(up), up > 0 ? YELLOW : GREEN));
+        System.out.printf("    en baisse (< -%.0f %%/mois)    : %s%n", TREND_FLAT_PCT,
+                c(String.valueOf(down), GREEN));
+        System.out.printf("    stables                      : %d%n", flat);
+        System.out.printf("    non mesurables               : %d%n", total - measured);
+        System.out.println(c(("    (moins de %d analyses ou moins de %d j d'historique dans la "
+                + "fenêtre, ou\n     aucune issue : une pente relative à zéro n'existe pas)")
+                .formatted(TREND_MIN_POINTS, TREND_MIN_SPAN_DAYS), DIM));
+    }
+
+    static final int TREND_MIN_POINTS = 3;
+    static final int TREND_MIN_SPAN_DAYS = 14;
+    static final double TREND_FLAT_PCT = 2;
+
+    /**
+     * Pentes par régression linéaire sur toutes les analyses de la fenêtre,
+     * ramenées à 30 jours.
+     *
+     * Régression plutôt que (dernier − premier) : les analyses tombent quand la
+     * CI tourne, pas au calendrier, et un seul point aberrant en bout de série
+     * — un profil qualité durci la veille — ferait à lui seul la tendance.
+     *
+     * Les pentes « pct » sont relatives : pente divisée par la moyenne de la
+     * série. C'est ce qui rend comparables un projet de 2 000 lignes et un de
+     * 400 000. Null, jamais zéro, quand la série ne permet pas de conclure.
+     */
+    record Trend(int points, long spanDays, Double violationsPerMonth,
+                 Double densityPctPerMonth, Double debtRatioPctPerMonth) {
+
+        /** Pente absolue des issues, par jour — ce que CrossAudit multiplie par sa fenêtre. */
+        Double violationsPerDay() {
+            return violationsPerMonth == null ? null : violationsPerMonth / 30;
+        }
+    }
+
+    static Trend trend(SearchHistory h) {
+        TreeMap<LocalDateTime, Double> violations = series(h.pointsFor("violations"));
+        TreeMap<LocalDateTime, Double> ncloc = series(h.pointsFor("ncloc"));
+        TreeMap<LocalDateTime, Double> ratio = series(h.pointsFor("sqale_debt_ratio"));
+
+        // Densité : seulement aux dates où les deux mesures existent.
+        TreeMap<LocalDateTime, Double> density = new TreeMap<>();
+        violations.forEach((d, v) -> {
+            Double n = ncloc.get(d);
+            if (n != null && n > 0) density.put(d, v / n * 1000);
+        });
+
+        TreeSet<LocalDateTime> dates = new TreeSet<>();
+        dates.addAll(violations.keySet());
+        dates.addAll(ncloc.keySet());
+        dates.addAll(ratio.keySet());
+        long span = dates.size() < 2 ? 0 : ChronoUnit.DAYS.between(dates.first(), dates.last());
+
+        Double vSlope = slopePerDay(violations);
+        return new Trend(dates.size(), span,
+                vSlope == null ? null : vSlope * 30,
+                relativePerMonth(density), relativePerMonth(ratio));
+    }
+
+    private static TreeMap<LocalDateTime, Double> series(List<HistoryPoint> points) {
+        TreeMap<LocalDateTime, Double> out = new TreeMap<>();
+        for (HistoryPoint p : points) {
+            LocalDateTime d = parseDate(p.date());
+            Double v = numeric(p.value());
+            if (d != null && v != null) out.put(d, v);
+        }
+        return out;
+    }
+
+    /** Moindres carrés, x en jours. Null sous les seuils : trop peu pour une pente. */
+    static Double slopePerDay(TreeMap<LocalDateTime, Double> s) {
+        if (s.size() < TREND_MIN_POINTS) return null;
+        LocalDateTime t0 = s.firstKey();
+        if (ChronoUnit.DAYS.between(t0, s.lastKey()) < TREND_MIN_SPAN_DAYS) return null;
+        double n = s.size(), sx = 0, sy = 0, sxx = 0, sxy = 0;
+        for (var e : s.entrySet()) {
+            double x = ChronoUnit.MINUTES.between(t0, e.getKey()) / 1440.0;
+            double y = e.getValue();
+            sx += x; sy += y; sxx += x * x; sxy += x * y;
+        }
+        double var = n * sxx - sx * sx;
+        return var == 0 ? null : (n * sxy - sx * sy) / var;
+    }
+
+    /** Pente sur 30 j en % de la moyenne ; null si la moyenne est nulle. */
+    static Double relativePerMonth(TreeMap<LocalDateTime, Double> s) {
+        Double slope = slopePerDay(s);
+        if (slope == null) return null;
+        double mean = s.values().stream().mapToDouble(Double::doubleValue).average().orElse(0);
+        return mean <= 0 ? null : slope * 30 / mean * 100;
+    }
+
     private void reportMissingCoverage(List<Component> projects,
                                        Map<String, Map<String, String>> measures) {
         long missing = projects.stream()
@@ -777,14 +933,20 @@ public class SonarAuditCheck implements Callable<Integer> {
     private static final List<String> ATTACHMENT_COLUMNS = List.of(
             "alm", "alm_repository", "liens");
 
+    private static final List<String> TREND_COLUMNS = List.of(
+            "tendance_analyses", "tendance_jours", "violations_pente_mois",
+            "violations_kloc_pente_pct_mois", "dette_ratio_pente_pct_mois");
+
     private void writeCsv(List<Component> projects,
                           Map<String, Map<String, String>> measures,
-                          Map<String, Attachments> attachments) throws IOException {
+                          Map<String, Attachments> attachments,
+                          Map<String, Trend> trends) throws IOException {
         List<String> header = new ArrayList<>(
                 List.of("key", "name", "analysisDate", "days_since_analysis"));
         header.addAll(METRIC_COLUMNS);
         header.addAll(BRANCH_COLUMNS);
         header.addAll(ATTACHMENT_COLUMNS);
+        header.addAll(TREND_COLUMNS);
 
         LocalDateTime now = LocalDateTime.now();
         // Le même écrivain que les trois autres outils : un inventaire qui
@@ -796,13 +958,13 @@ public class SonarAuditCheck implements Callable<Integer> {
             w.writeNext(header.toArray(String[]::new));
             for (Component p : projects) {
                 w.writeNext(csvRow(p, measures.getOrDefault(p.key(), Map.of()),
-                        attachments.get(p.key()), now));
+                        attachments.get(p.key()), trends.get(p.key()), now));
             }
         }
     }
 
     private String[] csvRow(Component p, Map<String, String> m, Attachments a,
-                            LocalDateTime now) {
+                            Trend t, LocalDateTime now) {
         LocalDateTime d = parseDate(p.analysisDate());
         List<String> row = new ArrayList<>(List.of(
                 orEmpty(p.key()),
@@ -818,6 +980,13 @@ public class SonarAuditCheck implements Callable<Integer> {
         row.add(a == null ? "" : a.alm());
         row.add(a == null ? "" : a.repository());
         row.add(a == null ? "" : a.links());
+        // Vides avec --no-trend, comme au-dessus. Vides aussi, colonne par
+        // colonne, quand la série ne suffit pas : absent n'est pas « stable ».
+        row.add(t == null ? "" : String.valueOf(t.points()));
+        row.add(t == null ? "" : String.valueOf(t.spanDays()));
+        row.add(t == null ? "" : dec(t.violationsPerMonth()));
+        row.add(t == null ? "" : dec(t.densityPctPerMonth()));
+        row.add(t == null ? "" : dec(t.debtRatioPctPerMonth()));
         return row.toArray(String[]::new);
     }
 
@@ -1353,6 +1522,11 @@ public class SonarAuditCheck implements Callable<Integer> {
         Map<String, String> m = new LinkedHashMap<>();
         for (int i = 0; i + 1 < pairs.length; i += 2) m.put(pairs[i], pairs[i + 1]);
         return m;
+    }
+
+    /** Point décimal quelle que soit la locale : le CSV est relu par d'autres outils. */
+    static String dec(Double d) {
+        return d == null ? "" : String.format(Locale.ROOT, "%.2f", d);
     }
 
     static int orZero(Integer i) { return i == null ? 0 : i; }

@@ -122,9 +122,9 @@ fi
 # minimal suffit — ce qui est vérifié ici, c'est que la jointure trouve la clé
 # écrite par la passe profonde, et que les suggestions ne comptent pas.
 cat > "$OUT/sonar.csv" <<'SONAR'
-key,name,analysisDate,days_since_analysis,ncloc,coverage,tests,sqale_index,new_lines,new_violations,alert_status
-equipe-a-service-actif,service-actif,2026-08-30,2,42000,12.4,0,18400,1200,64,ERROR
-equipe-c_mono-auteur,mono-auteur,2026-06-02,91,8600,0.0,412,4200,0,0,OK
+key,name,analysisDate,days_since_analysis,ncloc,coverage,tests,sqale_index,new_lines,new_violations,alert_status,tendance_analyses,violations_pente_mois
+equipe-a-service-actif,service-actif,2026-08-30,2,42000,12.4,0,18400,1200,64,ERROR,12,30
+equipe-c_mono-auteur,mono-auteur,2026-06-02,91,8600,0.0,412,4200,0,0,OK,2,
 SONAR
 runx() {
     if [[ -n "${AUDIT_CP:-}" ]]; then
@@ -144,6 +144,10 @@ check "$OUT/appariement.json" '"thresholds"' "rapport d'appariement écrit"
 # rapport ne peut produire seul, et qui a motivé l'ajout de la métrique tests.
 check "$OUT/croisement.txt" "la couverture n'arrive pas : 1" \
     "tests sans couverture repérés par le croisement"
+# Pente Sonar × lignes GitLab : seul le projet à 12 analyses porte un ratio ;
+# celui à 2 analyses n'a pas de pente et doit rester vide, pas à zéro.
+check "$OUT/croisement.txt" 'Chaque modification ajoute des issues : 1' \
+    "issues par kLOC modifié calculées sur la paire jointe"
 
 check "$OUT/cp850-relu.txt" 'Filtre de fraîcheur' "accents intacts sur une console cp850"
 if grep -q '—' "$OUT/cp850-relu.txt"; then
