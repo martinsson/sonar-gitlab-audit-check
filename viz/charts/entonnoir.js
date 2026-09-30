@@ -4,11 +4,15 @@ Viz.add({
   help: 'Combien de projets GitLab arrivent jusqu\'à une mesure Sonar récente. Chaque marche perdue est un constat. '
       + 'Les étapes ne sont pas strictement emboîtées : un projet peut être apparié sans que sa CI mentionne Sonar.',
   needs: ['gitlab'],
+  uses: ['pratiques', 'croisement'],
   spec(d, h) {
+    // La liste d'exclusion retire ce que l'audit a décidé de ne pas regarder :
+    // ce n'est pas une perte de l'entonnoir.
+    const parc = d.gitlab.filter(r => r.exclu !== 'liste d\'exclusion');
     const stages = [
-      ['Projets GitLab', d.gitlab.length],
-      ['Non exclus (actifs, ni archive, ni fork, ni miroir)', d.gitlab.filter(r => !r.exclu).length],
-      ['Sélectionnés pour l\'analyse fine', d.gitlab.filter(r => h.bool(r.selectionne)).length],
+      ['Projets GitLab (hors liste d\'exclusion)', parc.length],
+      ['Non exclus (actifs, ni archive, ni fork, ni miroir)', parc.filter(r => !r.exclu).length],
+      ['Sélectionnés pour l\'analyse fine', parc.filter(r => h.bool(r.selectionne)).length],
     ];
     if (d.pratiques) stages.push(['Sonar mentionné dans la CI', d.pratiques.filter(r => h.bool(r.ci_sonar)).length]);
     if (d.croisement) {

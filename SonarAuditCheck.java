@@ -6,6 +6,7 @@
 //SOURCES ConsoleOut.java
 //SOURCES Sonar.java
 //SOURCES Csv.java
+//SOURCES Exclusions.java
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.opencsv.CSVWriter;
@@ -95,6 +96,10 @@ public class SonarAuditCheck implements Callable<Integer> {
 
     @Option(names = "--csv", description = "chemin du CSV d'inventaire à écrire")
     Path csv;
+
+    @Option(names = "--exclusions", description = "fichier de clés à exclure, une par ligne, "
+            + "* et ** permis (sinon : exclusions.txt s'il existe)")
+    Path exclusionsFile;
 
     @Option(names = "--comma",
             description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
@@ -504,6 +509,7 @@ public class SonarAuditCheck implements Callable<Integer> {
                 + c(String.valueOf(projects.size()), BOLD));
 
         reportScopeGap(projects.size());
+        projects = exclude(projects);
         projects = resolveLatestBranch(projects);
         reportFreshness(projects);
 
@@ -524,6 +530,19 @@ public class SonarAuditCheck implements Callable<Integer> {
                 System.out.println("  Historique écrit : " + c(history.toString(), BOLD));
             }
         }
+    }
+
+    /**
+     * La liste d'exclusion retire les projets de l'inventaire, mais le dit : un
+     * total amputé sans le dire se lit comme complet.
+     */
+    private List<Component> exclude(List<Component> projects) throws IOException {
+        Exclusions ex = Exclusions.load(exclusionsFile);
+        if (ex.isEmpty()) return projects;
+        List<Component> kept = projects.stream().filter(p -> ex.match(p.key()) == null).toList();
+        System.out.printf("  Exclus par %s : %s (%d entrées)%n", ex.file(),
+                c(String.valueOf(projects.size() - kept.size()), BOLD), ex.entries().size());
+        return kept;
     }
 
     private List<Component> fetchAllProjects() {

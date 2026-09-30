@@ -6,6 +6,7 @@
 //SOURCES ConsoleOut.java
 //SOURCES Gitlab.java
 //SOURCES Csv.java
+//SOURCES Exclusions.java
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.opencsv.CSVWriter;
@@ -122,6 +123,10 @@ public class GitlabActivityAudit implements Callable<Integer> {
 
     @Option(names = "--projects", description = "fichier de chemins de projets, un par ligne")
     Path projectsFile;
+
+    @Option(names = "--exclusions", description = "fichier de chemins à exclure, un par ligne, "
+            + "* et ** permis (sinon : exclusions.txt s'il existe)")
+    Path exclusionsFile;
 
     @Option(names = "--since", defaultValue = "90",
             description = "fenêtre d'activité en jours (défaut : ${DEFAULT-VALUE})")
@@ -366,8 +371,14 @@ public class GitlabActivityAudit implements Callable<Integer> {
         // Les exclusions sont comptées, jamais escamotées. Un parc où 30 % des
         // dépôts sont des miroirs n'est pas le même parc que 30 % d'archivés,
         // et un total sans dénominateur se lit comme complet alors qu'il ne l'est pas.
+        Exclusions exclusions = Exclusions.load(exclusionsFile);
+        if (!exclusions.isEmpty()) {
+            System.out.printf("  Liste d'exclusion               : %s (%d entrées)%n",
+                    exclusions.file(), exclusions.entries().size());
+        }
         for (Proj p : all) {
-            if (p.archived && !includeArchived) p.excluded = "archivé";
+            if (exclusions.match(p.path) != null) p.excluded = "liste d'exclusion";
+            else if (p.archived && !includeArchived) p.excluded = "archivé";
             else if (p.emptyRepo) p.excluded = "dépôt vide";
             else if (p.mirror) p.excluded = "miroir";
             else if (p.forkedFrom != null && p.lastActivity != null && p.created != null

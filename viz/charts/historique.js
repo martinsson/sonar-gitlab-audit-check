@@ -8,6 +8,7 @@ Viz.add({
       + `comparer les formes, pas les hauteurs. Avec croisement.csv, seuls les projets appariés, `
       + `les ${HISTORIQUE_MAX} plus modifiés côté GitLab ; sinon les ${HISTORIQUE_MAX} premiers.`,
   needs: ['historique'],
+  uses: ['croisement'],
   spec(d, h) {
     let keys = [...new Set(d.historique.map(r => r.key))];
     const label = {};

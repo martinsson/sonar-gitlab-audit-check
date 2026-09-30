@@ -8,24 +8,52 @@
 <script src="https://cdn.jsdelivr.net/npm/vega-lite@5.23.0/build/vega-lite.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/vega-embed@6.29.0/build/vega-embed.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js"></script>
-<link rel="stylesheet" href="style.css">
+<style>
+:root { --fg: #1d2330; --muted: #5b6475; --bg: #f7f8fa; --card: #fff; --line: #dde1e8; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg: #e6e9ef; --muted: #9aa3b2; --bg: #14171c; --card: #1c2027; --line: #2c323c; }
+}
+body { margin: 0; font: 14px/1.45 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+button { font: inherit; margin-right: 16px; }
+header, main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+header.dragging { outline: 2px dashed var(--muted); }
+h1 { margin: 0 0 4px; font-size: 22px; }
+h2 { margin: 0 0 4px; font-size: 17px; }
+p, .help { color: var(--muted); margin: 0 0 12px; }
+#files-needed { border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+#files-needed th, #files-needed td { text-align: left; padding: 4px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+#files-needed th { color: var(--muted); font-weight: 600; }
+#files-needed tr.absent td:first-child { color: #c0392b; }
+#files-needed tr.ok td:first-child { color: #2e8b57; }
+#files-needed .cmd { font-family: ui-monospace, monospace; font-size: 12px; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+          padding: 16px; margin-bottom: 20px; overflow-x: auto; }
+.missing { font-style: italic; color: var(--muted); }
+.error { color: #c0392b; white-space: pre-wrap; }
+</style>
 </head>
 <body>
 <header>
   <h1>Audit Sonar × GitLab</h1>
   <p>Déposer ici, ou choisir, les CSV de l'audit. Ils sont lus dans le navigateur, rien n'est envoyé.</p>
   <input type="file" id="files" multiple accept=".csv">
+  <button id="export" type="button">Exporter une page autonome</button>
   <label>Regrouper les namespaces sur
     <select id="depth"><option>1</option><option selected>2</option><option>3</option></select>
     niveau(x)</label>
-  <ul id="loaded"></ul>
+  <table id="files-needed">
+    <thead><tr><th>état</th><th>fichier</th><th>produit par</th><th>graphiques</th></tr></thead>
+    <tbody></tbody>
+  </table>
 </header>
 <main id="charts"></main>
 
 <script src="app.js"></script>
+<script src="export.js"></script>
 <!-- Un graphique = un fichier. Retirer une ligne retire le graphique. -->
 <script src="charts/entonnoir.js"></script>
 <script src="charts/quadrant.js"></script>
+<script src="charts/non-apparies.js"></script>
 <script src="charts/fleches.js"></script>
 <script src="charts/pratiques.js"></script>
 <script src="charts/treemap.js"></script>

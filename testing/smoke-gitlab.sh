@@ -26,7 +26,7 @@ set -euo pipefail
 
 PORT="${PORT:-8099}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
-OUT="$(mktemp -d)"
+OUT="${KEEP_OUT:-$(mktemp -d)}"
 
 cleanup() {
     [[ -n "${SERVER_PID:-}" ]] && kill "$SERVER_PID" 2>/dev/null || true
@@ -66,6 +66,12 @@ fi
 JVM_OPTS="-Daudit.console.charset=IBM850" GITLAB_URL="http://127.0.0.1:$PORT" GITLAB_TOKEN=faux \
     run --top 4 > "$OUT/cp850.txt" 2>&1 || true
 iconv -f CP850 -t UTF-8 "$OUT/cp850.txt" > "$OUT/cp850-relu.txt"
+
+# Liste d'exclusion : glob sur le chemin, commentaire après #.
+printf '%s\n' '# projets hors audit' 'EQUIPE-A/**   # casse ignorée' > "$OUT/exclusions.txt"
+GITLAB_URL="http://127.0.0.1:$PORT" GITLAB_TOKEN=faux \
+    run --top 4 --exclusions "$OUT/exclusions.txt" --csv "$OUT/inventaire-exclu.csv" \
+    > "$OUT/exclu.txt" 2>&1 || true
 
 echo
 echo "--- vérifications ---"
@@ -203,6 +209,16 @@ check "$OUT/croisement-essentiel.csv" '^.\?"projet";"confiance";"sq_violations_k
 check "$OUT/croisement-derive.csv" '"equipe-a/service-actif";"[^"]*modifs ajoutent des issues' \
     "vue dérive : signaux nommés, projet le plus inquiétant en tête"
 check "$OUT/vues.txt" 'Vue dérive    : 4 projets appariés' "vue dérive limitée aux paires jointes"
+check "$OUT/croisement-non-apparies.csv" '^.\?"projet";"confiance";"gl_commits_window"' \
+    "vue non appariés écrite"
+if grep -qE '"(exact|derived|manuel)"' "$OUT/croisement-non-apparies.csv"; then
+    echo "  ÉCHEC un projet apparié figure dans la vue non appariés"
+    fail=1
+fi
+
+check "$OUT/inventaire-exclu.csv" "\"equipe-a/service-actif\".*\"liste d'exclusion\"" \
+    "projet exclu par la liste, gardé dans l'inventaire avec sa raison"
+check "$OUT/exclu.txt" "exclu — liste d'exclusion *: 3" "exclusions comptées dans l'entonnoir"
 
 check "$OUT/cp850-relu.txt" 'Filtre de fraîcheur' "accents intacts sur une console cp850"
 if grep -q '—' "$OUT/cp850-relu.txt"; then

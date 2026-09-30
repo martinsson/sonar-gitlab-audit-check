@@ -315,7 +315,7 @@ next to `mr_fusionnees` in `pratiques.csv` before concluding anything.
 | `selectionne` | `true` = in the deep-analysis budget |
 | `motif_selection` | *Why* it was selected — see below |
 
-`exclu` values: `archivé`, `dépôt vide`, `miroir`, `fork non divergé`,
+`exclu` values: `liste d'exclusion` (see README, *Leaving projects out*), `archivé`, `dépôt vide`, `miroir`, `fork non divergé`,
 `sans branche par défaut`, `inactif > Nj`, `sous le plancher (N commits)`,
 `activité robotique seule (N commits de bots)`,
 `activité non mesurable (HTTP 403)`.
@@ -549,3 +549,11 @@ The thresholds are prototype choices:
 | `sans appsec` | `gl_ci_securite` = `false` (an empty cell is not `false`) |
 | `quality gate rouge` | `sq_alert_status` = `ERROR` |
 | `analyse périmée` | ≥ 20 commits and last analysis > 30 days old: the slope describes old code |
+
+**`croisement-non-apparies.csv`** has the projects that nothing pairs with Sonar
+(`suggestion`, `none`, `rejete`) and that have at least one human commit in the
+window, most active first (`gl_commits_window`, then `gl_lignes_modifiees`). The
+columns are the clues for finding the key by hand: what the CI and the pom say
+(`gl_cle_sonar`, `gl_source_cle_sonar`, `gl_cle_pom`, `gl_nom_pom`) and the
+name candidates (`candidat_nom`, `score_nom`, `rejet_nom`, `m_noms_libre`). Only
+the `pratiques.csv` sample is there: a project outside the selection has no row.
