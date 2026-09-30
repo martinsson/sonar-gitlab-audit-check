@@ -1,5 +1,5 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
-//JAVA 25
+//JAVA 26
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.17.2
 //DEPS info.picocli:picocli:4.7.6
 //SOURCES ConsoleOut.java
