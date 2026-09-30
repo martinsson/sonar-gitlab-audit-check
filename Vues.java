@@ -43,6 +43,7 @@ import java.util.concurrent.Callable;
             "Écrit, à côté du fichier lu :",
             "  <nom>-essentiel.csv  toutes les colonnes, les importantes d'abord",
             "  <nom>-derive.csv     projets appariés, triés du plus inquiétant au moins",
+            "  <nom>-non-apparies.csv  projets actifs sans projet Sonar, les plus actifs d'abord",
             "",
             "Aucun appel réseau. Relancer ne coûte rien.",
         })
@@ -96,6 +97,18 @@ public class Vues implements Callable<Integer> {
             "sq_ncloc", "sq_sqale_debt_ratio",
             "confiance");
 
+    /**
+     * Ce qui travaille sans que Sonar le voie : de quoi retrouver la clé à la
+     * main (les indices des méthodes d'abord), ou constater l'absence d'analyse.
+     */
+    static final List<String> UNPAIRED = List.of(
+            "projet", "confiance",
+            "gl_commits_window", "gl_lignes_modifiees", "gl_authors_window",
+            "gl_ci_sonar", "gl_cle_sonar", "gl_source_cle_sonar", "gl_cle_pom", "gl_nom_pom",
+            "candidat_nom", "score_nom", "rejet_nom", "m_noms_libre");
+
+    static final Set<String> PAIRED = Set.of("exact", "derived", "manuel");
+
     @Override
     public Integer call() throws IOException {
         ConsoleOut.colorMode(colorMode);
@@ -111,7 +124,7 @@ public class Vues implements Callable<Integer> {
 
         // Appariés seulement : sans côté Sonar, il n'y a pas de pente à lire.
         List<Csv.Row> joined = new ArrayList<>(t.rows().stream()
-                .filter(r -> Set.of("exact", "derived", "manuel").contains(r.str("confiance")))
+                .filter(r -> PAIRED.contains(r.str("confiance")))
                 .toList());
         joined.sort(Comparator.comparingInt((Csv.Row r) -> signals(r).size()).reversed()
                 .thenComparing(Comparator.comparingDouble(
@@ -119,12 +132,26 @@ public class Vues implements Callable<Integer> {
         Path drift = sibling(in, "derive");
         write(drift, DRIFT, joined);
 
+        // Actif = au moins un commit humain sur la fenêtre GitLab.
+        List<Csv.Row> unpaired = new ArrayList<>(t.rows().stream()
+                .filter(r -> !PAIRED.contains(r.str("confiance")) && nz(r, "gl_commits_window") > 0)
+                .toList());
+        unpaired.sort(Comparator.comparingDouble((Csv.Row r) -> nz(r, "gl_commits_window"))
+                .thenComparingDouble(r -> nz(r, "gl_lignes_modifiees")).reversed());
+        Path unpairedFile = sibling(in, "non-apparies");
+        write(unpairedFile, UNPAIRED, unpaired);
+
         List<String> missing = DRIFT.stream()
                 .filter(c -> !c.equals("signaux") && !t.has(c)).toList();
         System.out.printf("  Vue essentiel : %d lignes → %s%n", t.rows().size(), essential.toAbsolutePath());
         System.out.printf("  Vue dérive    : %d projets appariés → %s%n", joined.size(), drift.toAbsolutePath());
         System.out.println(ConsoleOut.color(
                 "    Triée par nombre de signaux, puis par pente de la densité d'issues.", DIM));
+        System.out.printf("  Vue non appariés : %d projets actifs sans projet Sonar → %s%n",
+                unpaired.size(), unpairedFile.toAbsolutePath());
+        System.out.println(ConsoleOut.color(
+                "    Les plus actifs d'abord. Seulement l'échantillon de pratiques.csv : "
+                + "un projet hors sélection n'y est pas.", DIM));
         if (!missing.isEmpty()) {
             System.out.println(ConsoleOut.color(("  Colonnes absentes du croisement, laissées vides : %s%n"
                     + "    Un croisement plus ancien : relancer les trois outils les remplit.")

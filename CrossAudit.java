@@ -410,6 +410,7 @@ public class CrossAudit implements Callable<Integer> {
             "uncovered_lines", "sqale_index", "sqale_debt_ratio",
             "bugs", "vulnerabilities", "code_smells", "violations",
             "new_lines", "new_violations", "alert_status",
+            "duplicated_lines_density", "new_duplicated_lines_density",
             "alm", "alm_repository", "liens",
             "tendance_analyses", "tendance_jours", "violations_pente_mois",
             "violations_kloc_pente_pct_mois", "dette_ratio_pente_pct_mois");

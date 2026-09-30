@@ -6,23 +6,34 @@
 const Viz = {
   charts: [],
   data: {},
+  /** Les vues Vega rendues, par id : pour les inspecter depuis la console. */
+  views: {},
+  /** Les specs rendues, avec leurs données : ce que l'export emporte. */
+  specs: {},
   opts: { depth: 2 },
 
   /**
    * { id, title, help, needs: ['croisement', …], spec: (data, h) => spec }
-   * `needs` liste les fichiers sans lesquels le graphique n'a pas de sens.
+   * `needs` liste les fichiers sans lesquels le graphique n'a pas de sens,
+   * `uses` ceux qu'il lit en plus s'ils sont là.
    */
   add(chart) { this.charts.push(chart); },
 
   // Chaque fichier est reconnu par des colonnes qui lui sont propres, pas par
   // son nom : les deux inventaires s'appellent inventaire.csv.
   kinds: [
-    { kind: 'croisement', label: 'croisement.csv (CrossAudit)', has: ['projet', 'confiance'] },
-    { kind: 'appariement', label: 'appariement.csv', has: ['gauche_path', 'droite_key'] },
-    { kind: 'pratiques', label: 'pratiques.csv (GitLab --deep)', has: ['path', 'ci_sonar'] },
-    { kind: 'gitlab', label: 'inventaire.csv GitLab', has: ['path', 'selectionne'] },
-    { kind: 'historique', label: 'historique Sonar', has: ['key', 'date', 'violations'] },
-    { kind: 'sonar', label: 'inventaire.csv Sonar', has: ['key', 'analysisDate'] },
+    { kind: 'gitlab', label: 'inventaire.csv (GitLab)', has: ['path', 'selectionne'],
+      cmd: 'GitlabActivityAudit --out-dir ./audit' },
+    { kind: 'pratiques', label: 'pratiques.csv', has: ['path', 'ci_sonar'],
+      cmd: 'GitlabActivityAudit --deep --out-dir ./audit' },
+    { kind: 'croisement', label: 'croisement.csv', has: ['projet', 'confiance'],
+      cmd: 'CrossAudit --out ./audit/croisement.csv' },
+    { kind: 'historique', label: 'inventaire-historique.csv (Sonar)', has: ['key', 'date', 'violations'],
+      cmd: 'SonarAuditCheck --csv inventaire.csv' },
+    { kind: 'sonar', label: 'inventaire.csv (Sonar)', has: ['key', 'analysisDate'],
+      cmd: 'SonarAuditCheck --csv inventaire.csv' },
+    { kind: 'appariement', label: 'appariement.csv', has: ['gauche_path', 'droite_key'],
+      cmd: 'CrossAudit' },
   ],
 
   start() {
@@ -53,21 +64,37 @@ const Viz = {
       this.data[k.kind] = parsed.data;
       this.data[k.kind].file = f.name;
     }
-    const list = document.getElementById('loaded');
-    list.innerHTML = '';
-    for (const k of this.kinds) {
-      const rows = this.data[k.kind];
-      if (!rows) continue;
-      const li = document.createElement('li');
-      li.textContent = `${k.label} : ${rows.file}, ${rows.length} lignes`;
-      list.append(li);
-    }
     this.render();
   },
 
+  /** Les fichiers que les graphiques déclarés lisent, chargés ou non. */
+  renderFiles() {
+    const used = new Set(this.charts.flatMap(c => [...(c.needs || []), ...(c.uses || [])]));
+    const tbody = document.querySelector('#files-needed tbody');
+    tbody.innerHTML = '';
+    for (const k of this.kinds.filter(k => used.has(k.kind))) {
+      const rows = this.data[k.kind];
+      const charts = this.charts.filter(c => (c.needs || []).includes(k.kind)).map(c => c.title);
+      const optional = this.charts.filter(c => (c.uses || []).includes(k.kind)).map(c => c.title);
+      const tr = document.createElement('tr');
+      tr.className = rows ? 'ok' : 'absent';
+      [rows ? `✓ ${rows.file} (${rows.length} lignes)` : '✗ manquant', k.label, k.cmd,
+       [...charts, ...optional.map(t => t + ' (en plus)')].join(', ')]
+        .forEach((text, i) => {
+          const td = document.createElement('td');
+          td.textContent = text;
+          if (i === 2) td.className = 'cmd';
+          tr.append(td);
+        });
+      tbody.append(tr);
+    }
+  },
+
   render() {
+    this.renderFiles();
     const main = document.getElementById('charts');
     main.innerHTML = '';
+    this.specs = {};
     for (const c of this.charts) {
       const s = document.createElement('section');
       s.id = c.id;
@@ -79,15 +106,18 @@ const Viz = {
       const missing = (c.needs || []).filter(n => !this.data[n]);
       if (missing.length) {
         plot.className = 'missing';
-        plot.textContent = 'Il manque : ' + missing.join(', ');
+        plot.textContent = 'Il manque : '
+          + missing.map(n => this.kinds.find(k => k.kind === n)?.label || n).join(', ');
         continue;
       }
       try {
         const spec = c.spec(this.data, H);
         if (!spec) { plot.className = 'missing'; plot.textContent = 'Aucune donnée à tracer.'; continue; }
+        this.specs[c.id] = spec;
         vegaEmbed(plot, spec, {
           theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : undefined,
           actions: { export: true, source: true, editor: true, compiled: false } })
+          .then(res => { this.views[c.id] = res.view; })
           .catch(e => this.fail(plot, e));
       } catch (e) {
         this.fail(plot, e);

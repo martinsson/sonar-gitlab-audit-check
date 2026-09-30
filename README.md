@@ -55,7 +55,8 @@ jbang CrossAudit.java --sonar inventaire.csv --gitlab ./audit/pratiques.csv \
 ```
 
 ```bash
-# 4b. Views of the crossing: important columns first, and projects drifting badly
+# 4b. Views of the crossing: important columns first, projects drifting badly,
+#     and active projects Sonar does not see, most active first
 jbang Vues.java --in ./audit/croisement.csv
 ```
 
@@ -1003,6 +1004,34 @@ a method or `namespace-mapping.yaml` — and still keeps `manuel` and `rejete`,
 the only rows that cost a person time. To forget those as well, delete the
 file.
 
+**Sharing: the export button.** *Exporter une page autonome* downloads one HTML
+file (about 1 MB) holding the charts as they are drawn, their data and the
+libraries. It opens offline, with no CSV to load. It carries only what the
+charts plot, not the CSVs; still, project names and quality figures are in it,
+so check who receives it. Many mail servers block `.html` attachments: send it
+zipped. The same file can be published as is on GitLab Pages, where the
+instance has Pages with access control.
+
+### Leaving projects out
+
+Both `GitlabActivityAudit` and `SonarAuditCheck` read an exclusion list:
+`--exclusions <file>`, or `exclusions.txt` in the current directory when it
+exists. One entry per line, matched against the GitLab path on one side and the
+Sonar key on the other. `*` covers one path segment, `**` any number, and case is
+ignored. Anything after `#` is a comment: write down why.
+
+```text
+equipe-x/bac-a-sable      # throwaway prototype
+formation/**              # training exercises
+org.exemple:*-demo        # Sonar keys work the same way
+```
+
+On the GitLab side an excluded project stays in `inventaire.csv`, with `exclu` =
+`liste d'exclusion`, and is counted in the console like every other exclusion:
+a total that shrinks without saying so reads as complete. On the Sonar side it
+is dropped from the inventory, and the console says how many were. Neither is
+then in `pratiques.csv` or `croisement.csv`.
+
 ### Charts: `viz/index.html`
 
 A static page. Open it, then drop the CSVs on it, or pick them with the file
@@ -1015,14 +1044,22 @@ Each file is recognised by its columns, not its name: the two inventories are
 both called `inventaire.csv`. A chart whose files are missing says which ones,
 and the others render anyway.
 
+The top of the page lists every file the charts read, whether it is loaded,
+and the command that produces it.
+
 | Chart | Reads | Question |
 |---|---|---|
-| Coverage funnel | GitLab inventory, then `pratiques`, `croisement` if there | How many projects make it to a recent Sonar measure |
-| Activity × quality | `croisement` | Lines changed against issues/kLOC, one dot per paired project |
+| Coverage funnel | GitLab inventory, then `pratiques`, `croisement` if there | How many projects make it to a recent Sonar measure. Projects on the exclusion list are left out of the first bar |
+| Activity × *measure* | `croisement` | Lines changed against a Sonar measure, one dot per paired project. One chart per measure: issues/kLOC, new code coverage, new issues per new kLOC, coverage, debt ratio, new code duplication. Wheel zooms the y axis only, drag pans it, double-click resets |
+| Active projects without Sonar | `croisement` | The 40 most active unpaired projects, coloured by whether the CI mentions Sonar |
 | Issue density drift | `croisement` | Where each project started and where it is now. The start is rebuilt from the slope: an order of magnitude |
 | Practices by namespace | `pratiques` | Share of each team's projects following each practice |
 | Map of the estate | `croisement` | Commits by namespace, coloured by quality gate, dark where Sonar sees nothing |
 | History | `inventaire-historique.csv`, `croisement` if there | Issues/kLOC over time, one small chart per project |
+
+The measures of the activity charts are a list at the top of
+`viz/charts/quadrant.js`: one line per measure, with `lowerIsWorse` to flip the
+axis so the corner to look at stays top right.
 
 `SonarAuditCheck --csv x.csv` writes `x-historique.csv` next to it: one row per
 project and analysis date, with `violations`, `ncloc` and `sqale_debt_ratio`,
@@ -1030,7 +1067,9 @@ the raw series behind the trend slopes. Nothing is written with `--no-trend`.
 
 **Adding or removing a chart.** One chart is one file in `viz/charts/`, and one
 `<script>` line in `viz/index.html`. Delete the line and the chart is gone. A
-new chart calls `Viz.add({ id, title, help, needs, spec })`, where `spec`
+new chart calls `Viz.add({ id, title, help, needs, uses, spec })` — `needs`
+the files it cannot do without, `uses` the ones it reads if they are there —
+and `spec`
 receives the loaded tables and returns a Vega-Lite (or Vega) spec. Shared
 helpers — number parsing, namespace grouping, the "paired" test — are in
 `viz/app.js`. Every chart's `…` menu opens its spec in the Vega editor, the

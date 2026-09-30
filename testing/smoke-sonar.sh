@@ -58,6 +58,9 @@ export SONAR_TOKEN=squ_faux
 
 run --csv "$OUT/inventaire.csv" --dump-dir "$OUT/captures" > "$OUT/live.txt" 2>&1
 
+printf '%s\n' 'org:jam*   # jamais analysé' > "$OUT/exclusions.txt"
+run --csv "$OUT/exclu.csv" --no-trend --exclusions "$OUT/exclusions.txt" > "$OUT/exclu.txt" 2>&1 || true
+
 # Un projet dont l'historique n'a qu'un point : le calcul de vélocité doit se
 # taire. C'est un projet témoin séparé, donc un second passage.
 run --project org:un-point --csv "$OUT/jetable.csv" > "$OUT/un-point.txt" 2>&1
@@ -106,6 +109,11 @@ check "$OUT/live.txt" 'Δ lignes sur 90 j (88 j mesurés)' "fenêtre réellement
 check "$OUT/inventaire.csv" '"org:sain".*"3";"88";"14.[0-9]*";"-2.[0-9]*";"1.[0-9]*"' \
     "pentes de tendance écrites, densité en baisse malgré plus d'issues"
 check "$OUT/live.txt" 'en baisse (< -2 %/mois)    : 1' "tendance comptée en baisse"
+check "$OUT/exclu.txt" 'Exclus par .*exclusions.txt : 1' "liste d'exclusion appliquée aux clés Sonar"
+if grep -q '"org:jamais"' "$OUT/exclu.csv"; then
+    echo "  ÉCHEC projet exclu présent dans l'inventaire Sonar"
+    fail=1
+fi
 check "$OUT/inventaire-historique.csv" '"org:sain";"[0-9T:-]*+0000";"443";"12000";"2.1"' \
     "séries brutes écrites dans inventaire-historique.csv"
 
