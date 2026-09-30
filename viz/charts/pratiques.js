@@ -1,3 +1,6 @@
+// Les namespaces de moins de projets que ça sont regroupés sur une ligne « autres ».
+const PRATIQUES_MIN = 3;
+
 // Les pratiques en colonnes. Ajouter une colonne = ajouter une ligne ici.
 const PRATIQUES = [
   ['branche protégée', r => H.bool(r.branche_protegee)],
@@ -18,13 +21,18 @@ Viz.add({
   id: 'pratiques',
   title: 'Pratiques par namespace',
   help: 'Part des projets analysés de chaque namespace qui suivent la pratique. Une vue d\'équipe, '
-      + 'pas de projet. Le nombre entre parenthèses est l\'effectif : 100 % sur 1 projet ne dit pas grand-chose.',
+      + 'pas de projet. Le nombre entre parenthèses est l\'effectif ; les namespaces de moins de '
+      + `${PRATIQUES_MIN} projets analysés sont regroupés dans « autres ». Les plus gros en haut.`,
   needs: ['pratiques'],
   spec(d, h) {
-    const groups = {};
-    for (const r of d.pratiques) (groups[h.ns(r.path)] ||= []).push(r);
+    const byNs = {};
+    for (const r of d.pratiques) (byNs[h.ns(r.path)] ||= []).push(r);
+    const groups = Object.entries(byNs).filter(([, rows]) => rows.length >= PRATIQUES_MIN)
+      .sort((a, b) => b[1].length - a[1].length);
+    const rest = Object.values(byNs).filter(rows => rows.length < PRATIQUES_MIN).flat();
+    if (rest.length) groups.push(['autres', rest]);
     const values = [];
-    for (const [ns, rows] of Object.entries(groups)) {
+    for (const [ns, rows] of groups) {
       for (const [pratique, test] of PRATIQUES) {
         const n = rows.filter(test).length;
         values.push({ equipe: `${ns} (${rows.length})`, pratique, part: n / rows.length, n, total: rows.length });
@@ -36,7 +44,8 @@ Viz.add({
       encoding: {
         x: { field: 'pratique', type: 'nominal', sort: PRATIQUES.map(p => p[0]), title: null,
              axis: { labelAngle: -35, labelLimit: 200, orient: 'top' } },
-        y: { field: 'equipe', type: 'nominal', title: null, axis: { labelLimit: 300 } },
+        y: { field: 'equipe', type: 'nominal', title: null, axis: { labelLimit: 300 },
+             sort: groups.map(([ns, rows]) => `${ns} (${rows.length})`) },
       },
       layer: [
         { mark: 'rect', encoding: {

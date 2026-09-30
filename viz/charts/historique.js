@@ -1,21 +1,27 @@
 // Combien de petits graphiques au plus, les projets les plus modifiés d'abord.
 const HISTORIQUE_MAX = 24;
+// Moins d'analyses que ça, il n'y a pas de courbe à lire.
+const HISTORIQUE_MIN_POINTS = 3;
 
 Viz.add({
   id: 'historique',
   title: 'Historique des issues / kLOC',
   help: `Une courbe par projet, sur la fenêtre --activity-days de SonarAuditCheck. Échelles indépendantes : `
       + `comparer les formes, pas les hauteurs. Avec croisement.csv, seuls les projets appariés, `
-      + `les ${HISTORIQUE_MAX} plus modifiés côté GitLab ; sinon les ${HISTORIQUE_MAX} premiers.`,
+      + `les ${HISTORIQUE_MAX} plus modifiés côté GitLab ; sinon les ${HISTORIQUE_MAX} premiers. `
+      + `Seuls les projets avec au moins ${HISTORIQUE_MIN_POINTS} analyses.`,
   needs: ['historique'],
   uses: ['croisement'],
   spec(d, h) {
-    let keys = [...new Set(d.historique.map(r => r.key))];
+    const points = {};
+    for (const r of d.historique) points[r.key] = (points[r.key] || 0) + 1;
+    let keys = Object.keys(points).filter(k => points[k] >= HISTORIQUE_MIN_POINTS);
     const label = {};
     if (d.croisement) {
       const paired = d.croisement.filter(r => h.paired(r) && r.sq_key)
         .sort((a, b) => (h.num(b.gl_lignes_modifiees) || 0) - (h.num(a.gl_lignes_modifiees) || 0));
-      paired.forEach(r => { label[r.sq_key] = r.projet; });
+      const seen = new Set();
+      paired.forEach(r => { label[r.sq_key] = h.short(r.projet, seen); });
       keys = paired.map(r => r.sq_key).filter(k => keys.includes(k));
     }
     keys = new Set(keys.slice(0, HISTORIQUE_MAX));

@@ -23,17 +23,23 @@ for (const axis of QUADRANT_AXES) {
     title: `Activité × ${axis.label}`,
     help: 'Un point par projet apparié. En haut à droite : beaucoup de changements, et la mesure est mauvaise — '
         + 'là où agir d\'abord' + (axis.lowerIsWorse ? ' (axe retourné : bas en haut)' : '') + '. '
-        + 'Lignes grises = médianes. Taille = lignes de code. Molette = zoom vertical, glisser = déplacer, '
-        + 'double-clic = revenir. Clic sur la légende = un seul namespace.',
+        + 'Lignes grises = médianes. Taille = lignes de code. ▲ = au-delà du haut de l\'échelle, posé sur le bord. '
+        + 'Molette = zoom vertical, glisser = déplacer, double-clic = revenir. '
+        + 'Couleur = les 10 namespaces les plus représentés ; clic sur la légende = un seul namespace.',
     needs: ['croisement'],
     spec(d, h) {
       const values = d.croisement.filter(h.paired).map(r => ({
-        projet: r.projet, cle: r.sq_key, ns: h.ns(r.projet),
+        projet: r.projet, cle: r.sq_key, ns: h.ns(r.projet), namespace: h.ns(r.projet),
         churn: h.num(r.gl_lignes_modifiees), y: axis.value(r, h),
-        ncloc: h.num(r.sq_ncloc), commits: h.num(r.gl_commits_window),
+        ncloc: h.num(r.sq_ncloc) || 0, commits: h.num(r.gl_commits_window),
         gate: r.sq_alert_status || '—',
       })).filter(v => v.churn > 0 && v.y !== null);
-      if (!values.length) return null;
+      if (!values.length) return `Aucun projet apparié n'a de valeur pour « ${axis.label} » dans croisement.csv.`;
+      const domain = h.top(values, 'ns');
+      // Les pourcentages ont déjà une échelle naturelle ; les densités ont des
+      // valeurs extrêmes qui écraseraient le reste.
+      const cap = axis.lowerIsWorse ? null : h.cap(values.map(v => v.y));
+      values.forEach(v => { v.hors = cap !== null && v.y > cap; });
       return {
         $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
         width: 800, height: 500, data: { values },
@@ -44,20 +50,23 @@ for (const axis of QUADRANT_AXES) {
               // Zoom sur l'axe des y seulement : x reste l'activité, lue en entier.
               { name: 'zoom', select: { type: 'interval', encodings: ['y'] }, bind: 'scales' },
             ],
-            mark: { type: 'circle', stroke: 'white', strokeWidth: 0.5, clip: true },
+            mark: { type: 'point', filled: true, stroke: 'white', strokeWidth: 0.5, clip: true },
             encoding: {
               x: { field: 'churn', type: 'quantitative', scale: { type: 'log' },
-                   title: 'lignes modifiées sur la fenêtre GitLab' },
+                   axis: h.logAxis('lignes modifiées sur la fenêtre GitLab') },
               y: { field: 'y', type: 'quantitative', title: axis.label,
-                   scale: { reverse: !!axis.lowerIsWorse } },
-              size: { field: 'ncloc', type: 'quantitative', title: 'lignes de code', scale: { range: [20, 1200] } },
-              color: { field: 'ns', type: 'nominal', title: 'namespace', scale: { scheme: 'tableau20' } },
+                   scale: { reverse: !!axis.lowerIsWorse, clamp: true, ...(cap !== null ? { domain: [0, cap] } : {}) } },
+              size: { field: 'ncloc', type: 'quantitative', title: 'lignes de code', scale: { range: [25, 1200] } },
+              shape: { field: 'hors', type: 'nominal', legend: null,
+                       scale: { domain: [false, true], range: ['circle', 'triangle-up'] } },
+              color: { field: 'ns', type: 'nominal', title: 'namespace', scale: h.colors(domain),
+                       legend: { labelLimit: 260 } },
               opacity: { condition: { param: 'ns', value: 0.8 }, value: 0.08 },
               tooltip: [
-                { field: 'projet' }, { field: 'cle', title: 'clé Sonar' },
-                { field: 'churn', title: 'lignes modifiées' }, { field: 'commits' },
+                { field: 'projet' }, { field: 'namespace' }, { field: 'cle', title: 'clé Sonar' },
+                { field: 'churn', title: 'lignes modifiées', format: ',' }, { field: 'commits' },
                 { field: 'y', title: axis.label, format: '.1f' },
-                { field: 'ncloc' }, { field: 'gate', title: 'quality gate' },
+                { field: 'ncloc', title: 'lignes de code', format: ',' }, { field: 'gate', title: 'quality gate' },
               ],
             },
           },

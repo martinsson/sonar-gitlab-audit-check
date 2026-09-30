@@ -3,7 +3,8 @@ Viz.add({
   title: 'Dérive de la densité d\'issues',
   help: 'Chaque flèche va de la densité estimée en début d\'historique Sonar à la densité actuelle. '
       + 'Rouge = le code se charge, vert = il s\'allège. Le point de départ est reconstitué depuis la pente '
-      + '(sq_violations_kloc_pente_pct_mois × durée de l\'historique) : un ordre de grandeur, pas une mesure.',
+      + '(sq_violations_kloc_pente_pct_mois × durée de l\'historique) : un ordre de grandeur, pas une mesure. '
+      + 'Les quelques densités extrêmes sont posées sur le bord haut ; molette = zoom vertical, double-clic = revenir.',
   needs: ['croisement'],
   spec(d, h) {
     const values = d.croisement.filter(h.paired).map(r => {
@@ -25,17 +26,21 @@ Viz.add({
       { field: 'maintenant', title: 'issues/kLOC maintenant', format: '.1f' },
       { field: 'pente', title: '% par mois', format: '+.1f' }, { field: 'churn', title: 'lignes modifiées' },
     ];
-    const x = { field: 'churn', type: 'quantitative', scale: { type: 'log' }, title: 'lignes modifiées sur la fenêtre GitLab' };
+    const x = { field: 'churn', type: 'quantitative', scale: { type: 'log' },
+                axis: h.logAxis('lignes modifiées sur la fenêtre GitLab') };
+    const cap = h.cap(values.flatMap(v => [v.avant, v.maintenant]));
+    const yScale = { clamp: true, ...(cap !== null ? { domain: [0, cap] } : {}) };
     const color = { field: 'sens', type: 'nominal', title: null,
                     scale: { domain: ['se charge', 's\'allège'], range: ['#d62728', '#2ca02c'] } };
     return {
       $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
       width: 800, height: 500, data: { values },
       layer: [
-        { mark: { type: 'rule', strokeWidth: 2 },
-          encoding: { x, y: { field: 'avant', type: 'quantitative', title: 'issues / kLOC' },
+        { params: [{ name: 'zoom', select: { type: 'interval', encodings: ['y'] }, bind: 'scales' }],
+          mark: { type: 'rule', strokeWidth: 2, clip: true },
+          encoding: { x, y: { field: 'avant', type: 'quantitative', title: 'issues / kLOC', scale: yScale },
                       y2: { field: 'maintenant' }, color, tooltip } },
-        { mark: { type: 'point', filled: true, size: 90 },
+        { mark: { type: 'point', filled: true, size: 90, clip: true },
           encoding: { x, y: { field: 'maintenant', type: 'quantitative' }, color, tooltip,
                       shape: { field: 'sens', type: 'nominal', legend: null,
                                scale: { domain: ['se charge', 's\'allège'], range: ['triangle-up', 'triangle-down'] } } } },

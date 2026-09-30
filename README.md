@@ -1049,13 +1049,13 @@ and the command that produces it.
 
 | Chart | Reads | Question |
 |---|---|---|
-| Coverage funnel | GitLab inventory, then `pratiques`, `croisement` if there | How many projects make it to a recent Sonar measure. Projects on the exclusion list are left out of the first bar |
-| Activity × *measure* | `croisement` | Lines changed against a Sonar measure, one dot per paired project. One chart per measure: issues/kLOC, new code coverage, new issues per new kLOC, coverage, debt ratio, new code duplication. Wheel zooms the y axis only, drag pans it, double-click resets |
+| Coverage funnel | GitLab inventory, then `pratiques`, `croisement` if there | How many projects make it to a recent Sonar measure. Projects on the exclusion list are left out of the first bar. Square-root scale, so the last steps stay visible next to the whole estate |
+| Activity × *measure* | `croisement` | Lines changed against a Sonar measure, one dot per paired project. One chart per measure: issues/kLOC, new code coverage, new issues per new kLOC, coverage, debt ratio, new code duplication. Wheel zooms the y axis only, drag pans it, double-click resets. When a few extreme values would squash the rest, the scale stops a little above the 95th percentile and those projects sit on the top edge as ▲. The ten namespaces with the most projects get a colour, the others are grey |
 | Active projects without Sonar | `croisement` | The 40 most active unpaired projects, coloured by whether the CI mentions Sonar |
-| Issue density drift | `croisement` | Where each project started and where it is now. The start is rebuilt from the slope: an order of magnitude |
-| Practices by namespace | `pratiques` | Share of each team's projects following each practice |
+| Issue density drift | `croisement` | Where each project started and where it is now. The start is rebuilt from the slope: an order of magnitude. Same y cap and y zoom as above |
+| Practices by namespace | `pratiques` | Share of each team's projects following each practice. Biggest namespaces first; those with fewer than 3 analysed projects share an « autres » row |
 | Map of the estate | `croisement` | Commits by namespace, coloured by quality gate, dark where Sonar sees nothing |
-| History | `inventaire-historique.csv`, `croisement` if there | Issues/kLOC over time, one small chart per project |
+| History | `inventaire-historique.csv`, `croisement` if there | Issues/kLOC over time, one small chart per project with at least 3 analyses |
 
 The measures of the activity charts are a list at the top of
 `viz/charts/quadrant.js`: one line per measure, with `lowerIsWorse` to flip the
@@ -1071,7 +1071,8 @@ new chart calls `Viz.add({ id, title, help, needs, uses, spec })` — `needs`
 the files it cannot do without, `uses` the ones it reads if they are there —
 and `spec`
 receives the loaded tables and returns a Vega-Lite (or Vega) spec. Shared
-helpers — number parsing, namespace grouping, the "paired" test — are in
+helpers — number parsing, namespace grouping, the "paired" test, the outlier cap, the
+top-10 colours, short path labels — are in
 `viz/app.js`. Every chart's `…` menu opens its spec in the Vega editor, the
 quickest place to tweak one.
 

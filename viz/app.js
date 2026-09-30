@@ -112,7 +112,12 @@ const Viz = {
       }
       try {
         const spec = c.spec(this.data, H);
-        if (!spec) { plot.className = 'missing'; plot.textContent = 'Aucune donnée à tracer.'; continue; }
+        // Un graphique sans rien à tracer rend null, ou une phrase qui dit pourquoi.
+        if (!spec || typeof spec === 'string') {
+          plot.className = 'missing';
+          plot.textContent = spec || 'Aucune donnée à tracer.';
+          continue;
+        }
         this.specs[c.id] = spec;
         vegaEmbed(plot, spec, {
           theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : undefined,
@@ -160,6 +165,50 @@ const H = {
       v = parts.reduce((a, b) => a + (b || 0), 0);
     }
     return v / ncloc * 1000;
+  },
+  /** Le quantile q (0–1) des nombres donnés. */
+  quantile(xs, q) {
+    const s = xs.filter(x => x !== null && Number.isFinite(x)).sort((a, b) => a - b);
+    return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : null;
+  },
+  /**
+   * Le haut d'échelle qui laisse voir le gros des points : quelques valeurs
+   * extrêmes écrasent sinon tout le reste en bas. null si rien ne dépasse vraiment.
+   */
+  cap(xs) {
+    const q = H.quantile(xs, 0.95), max = Math.max(...xs.filter(x => x !== null));
+    return q !== null && max > 1.5 * q ? q * 1.2 : null;
+  },
+  /**
+   * Les n valeurs les plus fréquentes de `field` ; les autres deviennent
+   * « autres ». Au-delà d'une dizaine, les couleurs ne se distinguent plus.
+   */
+  top(values, field, n = 10) {
+    const count = {};
+    for (const v of values) count[v[field]] = (count[v[field]] || 0) + 1;
+    const keep = Object.keys(count).sort((a, b) => count[b] - count[a]).slice(0, n);
+    const set = new Set(keep);
+    for (const v of values) if (!set.has(v[field])) v[field] = 'autres';
+    return keep.length < Object.keys(count).length ? [...keep, 'autres'] : keep;
+  },
+  /** Couleurs pour H.top : tableau10, gris pour « autres ». */
+  colors(domain) {
+    const t10 = ['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f', '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#17becf'];
+    return { domain, range: domain.map((d, i) => d === 'autres' ? '#bab0ac' : t10[i % t10.length]) };
+  },
+  /** Un axe log lisible : une graduation par puissance de 10, « 10k », « 1M ». */
+  logAxis(title) {
+    return { title, values: [1, 10, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8], format: '~s' };
+  },
+  /**
+   * Un libellé court pour un chemin GitLab : le premier et les deux derniers
+   * segments. `seen` garde les libellés déjà pris, pour qu'ils restent uniques.
+   */
+  short(path, seen) {
+    const p = String(path).split('/');
+    let s = p.length > 3 ? `${p[0]}/…/${p.slice(-2).join('/')}` : String(path);
+    if (seen) { if (seen.has(s)) s = String(path); seen.add(s); }
+    return s;
   },
   /** Dates Sonar (« 2026-08-30T10:00:00+0200 ») en millisecondes. */
   date(v) {

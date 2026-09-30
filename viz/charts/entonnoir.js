@@ -2,6 +2,7 @@ Viz.add({
   id: 'entonnoir',
   title: 'Entonnoir de couverture',
   help: 'Combien de projets GitLab arrivent jusqu\'à une mesure Sonar récente. Chaque marche perdue est un constat. '
+      + 'Échelle en racine carrée, pour que les dernières marches restent visibles à côté du parc entier. '
       + 'Les étapes ne sont pas strictement emboîtées : un projet peut être apparié sans que sa CI mentionne Sonar.',
   needs: ['gitlab'],
   uses: ['pratiques', 'croisement'],
@@ -31,7 +32,7 @@ Viz.add({
       width: 700, data: { values },
       encoding: {
         y: { field: 'etape', sort: { field: 'ordre' }, title: null, axis: { labelLimit: 360 } },
-        x: { field: 'n', type: 'quantitative', title: 'projets' },
+        x: { field: 'n', type: 'quantitative', title: 'projets (échelle racine carrée)', scale: { type: 'sqrt' } },
         tooltip: [{ field: 'etape' }, { field: 'n' }, { field: 'part', format: '.0%', title: 'du total' }],
       },
       layer: [

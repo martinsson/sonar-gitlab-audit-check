@@ -41,9 +41,10 @@ Viz.add({
       marks: [
         { type: 'rect', from: { data: 'groups' }, encode: { enter: {
             x: { field: 'x0' }, y: { field: 'y0' }, x2: { field: 'x1' }, y2: { field: 'y1' },
-            fill: { value: '#8882' }, stroke: { value: '#8886' } } } },
+            fill: { value: '#8882' }, stroke: { value: '#8886' },
+            tooltip: { signal: "{'namespace': datum.id, 'commits': datum.value}" } } } },
         { type: 'text', from: { data: 'groups' }, encode: { enter: {
-            x: { signal: 'datum.x0 + 4' }, y: { signal: 'datum.y0 + 12' }, text: { field: 'id' },
+            x: { signal: 'datum.x0 + 4' }, y: { signal: 'datum.y0 + 12' }, text: { field: 'name' },
             fontSize: { value: 11 }, fontWeight: { value: 'bold' }, fill: { value: '#666' },
             limit: { signal: 'datum.x1 - datum.x0 - 8' } } } },
         { type: 'rect', from: { data: 'leaves' }, encode: {

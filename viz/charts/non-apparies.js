@@ -19,12 +19,14 @@ Viz.add({
       .sort((a, b) => b.commits - a.commits || (b.lignes || 0) - (a.lignes || 0))
       .slice(0, NON_APPARIES_MAX);
     if (!values.length) return null;
+    const seen = new Set();
+    values.forEach(v => { v.libelle = h.short(v.projet, seen); });
     return {
       $schema: 'https://vega.github.io/schema/vega-lite/v5.json',
       width: 600, data: { values },
       mark: 'bar',
       encoding: {
-        y: { field: 'projet', type: 'nominal', sort: '-x', title: null, axis: { labelLimit: 360 } },
+        y: { field: 'libelle', type: 'nominal', sort: '-x', title: null, axis: { labelLimit: 360 } },
         x: { field: 'commits', type: 'quantitative', title: 'commits sur la fenêtre GitLab' },
         color: { field: 'sonar_ci', type: 'nominal', title: null,
                  scale: { domain: ['Sonar dans la CI', 'pas de Sonar dans la CI'], range: ['#f28e2b', '#4e79a7'] } },
