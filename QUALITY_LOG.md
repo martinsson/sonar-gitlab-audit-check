@@ -95,3 +95,18 @@ question. One entry per choice: what, why, and what the alternative would have b
   the internet); reads dates in the system time zone.
 - Cosmetic: "1 réponses 403", "1 projets", `→  (manuel)` double space, uneven indentation in the
   "Aucune MR créée" block, a trailing space in the ci/lint refusal message.
+
+## CrossAudit, SonarToGitlab, SonarRank, Vues
+
+- Required picocli options (`--in`, `--sonar`, `--gitlab`) are `@Nullable` fields, checked with
+  `Objects.requireNonNull` in `call()`: picocli rejects a missing required option before `call()`,
+  but NullAway cannot know that. Options with a `defaultValue` also get it as field initializer.
+- `SonarToGitlab.map` went from 7 to 5 parameters through records `Rejections` and
+  `NameThresholds` (ParameterNumber 5).
+- `Signal` (SonarRank) replaced its `Function` field by a `severity(row)` switch (Error Prone
+  ImmutableEnumChecker); tests call `severity(r)` instead of `severity.apply(r)`.
+- Classes that call package-private `ProjectMapper` code stay in package `cli`, so `cli` holds
+  more classes than a clean layout would (SonarToGitlab's parts, CrossAudit's parts).
+- Tests updated to reach moved code (`rank.*`, `CrossPair`, `CrossReport`, `CrossCsv`,
+  `SonarToGitlabCsv`, `SonarToGitlabReport`); VuesCliTest's long fixture method builds the same
+  rows from compact strings. No asserted value changed.

@@ -90,7 +90,11 @@ delta -> team-b/delta | croisement : nom du pom = nom Sonar | derived | - |  |\s
             "k-ok,Poiuyt,gitlab,1,,");
     SonarToGitlab.Result r =
         SonarToGitlab.map(
-            sonar, inv, List.of(), Set.of("k-rejected\nteam-a/two-repo"), Set.of(), 0.5, 0.1);
+            sonar,
+            inv,
+            List.of(),
+            new SonarToGitlab.Rejections(Set.of("k-rejected\nteam-a/two-repo"), Set.of()),
+            new SonarToGitlab.NameThresholds(0.5, 0.1));
     expectSelfie(describe(r))
         .toBe(
 """
@@ -145,10 +149,9 @@ qqq ->  | aucune | none | - |  | aucun candidat""");
             sonar,
             inv,
             List.of(),
-            Set.of("rep-a\nteam-q/report-engine"),
-            Set.of("team-p/payment-gateway"),
-            0.5,
-            0.1);
+            new SonarToGitlab.Rejections(
+                Set.of("rep-a\nteam-q/report-engine"), Set.of("team-p/payment-gateway")),
+            new SonarToGitlab.NameThresholds(0.5, 0.1));
     expectSelfie(describe(r))
         .toBe(
 """
@@ -164,9 +167,22 @@ rep-a ->  | aucune | none | - |  | aucun candidat""");
             "team-n/orders-service,orders-service,1,false,5,2026-01-01,false,false,",
             "team-n/orders-service-v2,orders-service-v2,2,false,5,2026-01-01,false,false,");
     Csv.Table sonar = sonar(dir, "orders-x,Orders Service Thing,,,,");
-    String loose = describe(SonarToGitlab.map(sonar, inv, List.of(), Set.of(), Set.of(), 0.0, 0.0));
+    String loose =
+        describe(
+            SonarToGitlab.map(
+                sonar,
+                inv,
+                List.of(),
+                new SonarToGitlab.Rejections(Set.of(), Set.of()),
+                new SonarToGitlab.NameThresholds(0.0, 0.0)));
     String strict =
-        describe(SonarToGitlab.map(sonar, inv, List.of(), Set.of(), Set.of(), 0.99, 0.0));
+        describe(
+            SonarToGitlab.map(
+                sonar,
+                inv,
+                List.of(),
+                new SonarToGitlab.Rejections(Set.of(), Set.of()),
+                new SonarToGitlab.NameThresholds(0.99, 0.0)));
     expectSelfie(loose + "\n" + strict)
         .toBe(
 """

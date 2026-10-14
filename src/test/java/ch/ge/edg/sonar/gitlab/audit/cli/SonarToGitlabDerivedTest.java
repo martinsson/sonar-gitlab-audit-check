@@ -86,7 +86,11 @@ team-h/import-me_0123abcd-0123-4567-89ab-0123456789aZ ->  | aucune | none | - | 
     Csv.Table sonar = sonar(dir, "team-h:plain,plain,,,,");
     SonarToGitlab.Result r =
         SonarToGitlab.map(
-            sonar, inv(), List.of(), Set.of("team-h:plain\nteam-h/plain"), Set.of(), 0.5, 0.1);
+            sonar,
+            inv(),
+            List.of(),
+            new SonarToGitlab.Rejections(Set.of("team-h:plain\nteam-h/plain"), Set.of()),
+            new SonarToGitlab.NameThresholds(0.5, 0.1));
     expectSelfie(describe(r))
         .toBe(
             "team-h:plain ->  | aucune | none | - | team-h/uuid-repo (0.10), team-h/import-me (0.08) | sous le seuil");

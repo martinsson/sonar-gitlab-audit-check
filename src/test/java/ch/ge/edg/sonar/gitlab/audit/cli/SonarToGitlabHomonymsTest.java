@@ -100,7 +100,12 @@ same ->  | aucune | none | - | team-c/same (0.92), team-d/same (0.92) | homonyme
             "team-b/dup,dup,2,false,0,2025-01-01,false,false,");
     Csv.Table sonar = sonar(dir, "dup,Dup,,,,");
     SonarToGitlab.Result r =
-        SonarToGitlab.map(sonar, inv, List.of(), Set.of(), Set.of("team-a/dup"), 0.5, 0.1);
+        SonarToGitlab.map(
+            sonar,
+            inv,
+            List.of(),
+            new SonarToGitlab.Rejections(Set.of(), Set.of("team-a/dup")),
+            new SonarToGitlab.NameThresholds(0.5, 0.1));
     expectSelfie(describe(r))
         .toBe(
             "dup ->  | aucune | none | - | team-a/dup (0.84), team-b/dup (0.84) | homonymes non départagés (nom court de la clé = dernier segment / nom GitLab)");

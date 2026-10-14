@@ -34,7 +34,12 @@ final class SonarToGitlabFixtures {
   }
 
   static SonarToGitlab.Result map(Csv.Table sonar, Csv.Table inventory, List<Match> cross) {
-    return SonarToGitlab.map(sonar, inventory, cross, Set.of(), Set.of(), 0.5, 0.1);
+    return SonarToGitlab.map(
+        sonar,
+        inventory,
+        cross,
+        new SonarToGitlab.Rejections(Set.of(), Set.of()),
+        new SonarToGitlab.NameThresholds(0.5, 0.1));
   }
 
   /** key → path | method | confidence | score | candidates | reason, one line per pair. */
