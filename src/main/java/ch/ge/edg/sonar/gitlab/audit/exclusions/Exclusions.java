@@ -1,3 +1,5 @@
+package ch.ge.edg.sonar.gitlab.audit.exclusions;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -23,7 +25,7 @@ import java.util.regex.Pattern;
  * Sans --exclusions, {@code exclusions.txt} du répertoire courant est lu s'il
  * existe : la liste se tient une fois et vaut pour tous les outils.
  */
-record Exclusions(Path file, List<String> entries, List<Pattern> patterns) {
+public record Exclusions(Path file, List<String> entries, List<Pattern> patterns) {
 
     static final Path DEFAULT = Path.of("exclusions.txt");
 
@@ -32,7 +34,7 @@ record Exclusions(Path file, List<String> entries, List<Pattern> patterns) {
     }
 
     /** Le fichier donné, ou exclusions.txt s'il est là, ou rien. */
-    static Exclusions load(Path explicit) throws IOException {
+    public static Exclusions load(Path explicit) throws IOException {
         Path file = explicit != null ? explicit : Files.exists(DEFAULT) ? DEFAULT : null;
         if (file == null) return none();
         List<String> entries = new ArrayList<>();
@@ -47,10 +49,10 @@ record Exclusions(Path file, List<String> entries, List<Pattern> patterns) {
         return new Exclusions(file, entries, patterns);
     }
 
-    boolean isEmpty() { return patterns.isEmpty(); }
+    public boolean isEmpty() { return patterns.isEmpty(); }
 
     /** L'entrée qui exclut cet identifiant, ou null. */
-    String match(String id) {
+    public String match(String id) {
         if (id == null) return null;
         for (int i = 0; i < patterns.size(); i++) {
             if (patterns.get(i).matcher(id).matches()) return entries.get(i);

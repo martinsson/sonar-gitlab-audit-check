@@ -1,9 +1,8 @@
-///usr/bin/env jbang "$0" "$@" ; exit $?
-//JAVA 26
-//DEPS com.opencsv:opencsv:5.9
-//DEPS info.picocli:picocli:4.7.6
-//SOURCES ConsoleOut.java
-//SOURCES Csv.java
+package ch.ge.edg.sonar.gitlab.audit.cli;
+
+import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+
 
 import com.opencsv.CSVWriter;
 import picocli.CommandLine;

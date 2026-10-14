@@ -20,7 +20,9 @@
 #     invérifiable autrement depuis une machine Unix.
 #
 # Usage :  ./testing/smoke-gitlab.sh
-# Prérequis : python3, jbang — ou un JDK 25+ avec AUDIT_CP pointant les jars.
+# Prérequis : python3, jbang — ou un JDK 26+ avec AUDIT_CP pointant les jars
+# et target/classes (mvn package dependency:copy-dependencies
+# -DoutputDirectory=target/libs, puis AUDIT_CP="target/classes:target/libs/*").
 
 set -euo pipefail
 

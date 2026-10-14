@@ -1,4 +1,4 @@
-//JAVA 26
+package ch.ge.edg.sonar.gitlab.audit.naming;
 
 import java.text.Normalizer;
 import java.util.ArrayList;
@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
  * Rien ici ne décide d'une jointure : le score sort en suggestion, et
  * {@link CrossAudit} ne le compte nulle part.
  */
-final class NameMatcher {
+public final class NameMatcher {
 
     /** Deux mots distincts se rejoignent à partir de cette ressemblance. */
     static final double TOKEN_SIMILARITY = 0.9;
@@ -55,7 +55,7 @@ final class NameMatcher {
     record Doc(Map<String, Double> weights, Set<String> numbers) { }
 
     /** Un candidat et son score, 0–1. */
-    record Scored(int index, double score) { }
+    public record Scored(int index, double score) { }
 
     private final List<Doc> sources;
     private final List<Doc> targets;
@@ -67,7 +67,7 @@ final class NameMatcher {
      * et en nombres portés (voir {@link #numbers}). Les deux côtés forment le
      * corpus : un mot banal d'un côté l'est aussi de l'autre.
      */
-    NameMatcher(List<Map<String, Double>> sourceTf, List<Set<String>> sourceNumbers,
+    public NameMatcher(List<Map<String, Double>> sourceTf, List<Set<String>> sourceNumbers,
                 List<Map<String, Double>> targetTf, List<Set<String>> targetNumbers) {
         Map<String, Integer> df = new HashMap<>();
         for (Map<String, Double> tf : sourceTf) tf.keySet().forEach(t -> df.merge(t, 1, Integer::sum));
@@ -100,12 +100,12 @@ final class NameMatcher {
      * Les candidats d'une source, du meilleur au moins bon. Un candidat dont
      * les nombres contredisent ceux de la source n'y figure pas.
      */
-    List<Scored> rank(int source) {
+    public List<Scored> rank(int source) {
         return rank(source, i -> true);
     }
 
     /** Les mêmes, parmi les seules cibles que {@code allowed} laisse passer. */
-    List<Scored> rank(int source, IntPredicate allowed) {
+    public List<Scored> rank(int source, IntPredicate allowed) {
         Doc s = sources.get(source);
         Set<Integer> candidates = new LinkedHashSet<>();
         for (String t : s.weights().keySet()) {
@@ -127,12 +127,12 @@ final class NameMatcher {
      * Le score d'une paire précise, hors blocage et hors veto : de quoi dire à
      * quel point deux noms qu'on sait appariés se ressemblent.
      */
-    double score(int source, int target) {
+    public double score(int source, int target) {
         return similarity(sources.get(source), targets.get(target));
     }
 
     /** Vrai quand la source avait un candidat écarté pour ses seuls nombres. */
-    boolean hasNumberVeto(int source) {
+    public boolean hasNumberVeto(int source) {
         Doc s = sources.get(source);
         if (s.numbers().isEmpty()) return false;
         for (String t : s.weights().keySet()) {
@@ -210,7 +210,7 @@ final class NameMatcher {
      * ignorée, espace, tiret, point et souligné équivalents, camelCase
      * découpé, nombres sortis, mots d'une lettre écartés — `v` de `v2` compris.
      */
-    static List<String> tokens(String s) {
+    public static List<String> tokens(String s) {
         if (s == null) return List.of();
         String plain = Normalizer.normalize(s, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
         plain = CAMEL.matcher(plain).replaceAll(" ").toLowerCase(Locale.ROOT);
@@ -222,7 +222,7 @@ final class NameMatcher {
     }
 
     /** Les nombres portés par un nom, sans zéros de tête : `app-02` et `app2` portent « 2 ». */
-    static Set<String> numbers(String s) {
+    public static Set<String> numbers(String s) {
         Set<String> out = new HashSet<>();
         if (s == null) return out;
         Matcher m = DIGITS.matcher(s);
@@ -231,7 +231,7 @@ final class NameMatcher {
     }
 
     /** Ajoute les mots de {@code s} à {@code tf}, chacun compté {@code weight} fois. */
-    static void addTokens(Map<String, Double> tf, String s, double weight) {
+    public static void addTokens(Map<String, Double> tf, String s, double weight) {
         for (String t : tokens(s)) tf.merge(t, weight, Double::sum);
     }
 

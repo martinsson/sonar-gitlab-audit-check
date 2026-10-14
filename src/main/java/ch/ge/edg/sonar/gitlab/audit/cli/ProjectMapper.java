@@ -1,12 +1,9 @@
-///usr/bin/env jbang "$0" "$@" ; exit $?
-//JAVA 26
-//DEPS com.fasterxml.jackson.core:jackson-databind:2.17.2
-//DEPS com.opencsv:opencsv:5.9
-//DEPS info.picocli:picocli:4.7.6
-//DEPS org.yaml:snakeyaml:2.2
-//SOURCES ConsoleOut.java
-//SOURCES Csv.java
-//SOURCES NameMatcher.java
+package ch.ge.edg.sonar.gitlab.audit.cli;
+
+import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.naming.NameMatcher;
+
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;

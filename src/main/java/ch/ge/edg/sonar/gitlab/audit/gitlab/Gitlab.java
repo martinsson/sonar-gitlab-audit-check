@@ -1,5 +1,6 @@
-//JAVA 26
+package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
+import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

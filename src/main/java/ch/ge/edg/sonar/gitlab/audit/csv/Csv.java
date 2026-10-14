@@ -1,4 +1,4 @@
-//JAVA 26
+package ch.ge.edg.sonar.gitlab.audit.csv;
 
 import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReaderBuilder;

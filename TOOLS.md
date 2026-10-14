@@ -5,32 +5,19 @@ and the tools used less often. Options are in each tool's `--help`.
 
 ## Running without JBang
 
-Any JDK 26+ and Maven. The `//DEPS` lines at the top of each file are the
-dependencies; Maven needs them in a POM to resolve their transitives:
+Any JDK 26+ and Maven. The code is a Maven project under `src/main/java`
+(package `ch.ge.edg.sonar.gitlab.audit`); the `.java` files at the root are
+only JBang entry points that point at it with `//SOURCES`.
 
 ```bash
-cat > pom.xml <<'EOF'
-<project xmlns="http://maven.apache.org/POM/4.0.0">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>x</groupId><artifactId>sonar-audit-check</artifactId><version>1</version>
-  <dependencies>
-    <dependency><groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId><version>2.17.2</version></dependency>
-    <dependency><groupId>com.opencsv</groupId>
-      <artifactId>opencsv</artifactId><version>5.9</version></dependency>
-    <dependency><groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId><version>4.7.6</version></dependency>
-  </dependencies>
-</project>
-EOF
-
-mvn -q dependency:copy-dependencies -DoutputDirectory=libs
-javac -cp "libs/*" -d out SonarAuditCheck.java Sonar.java Csv.java Exclusions.java ConsoleOut.java
-java -cp "out:libs/*" SonarAuditCheck --url "$SONAR_URL" --token "$SONAR_TOKEN"
+mvn -q package dependency:copy-dependencies -DoutputDirectory=target/libs
+java -cp "target/classes:target/libs/*" ch.ge.edg.sonar.gitlab.audit.cli.SonarAuditCheck \
+    --url "$SONAR_URL" --token "$SONAR_TOKEN"
 ```
 
-Compile each tool with the files its `//SOURCES` line names. On Windows the
-classpath separator is `;`.
+Every tool is in the `cli` package under the same name as its root script. On
+Windows the classpath separator is `;`. The dependency versions are in
+`pom.xml` and in the `//DEPS` lines of the root scripts: keep the two in sync.
 
 ## Windows
 
@@ -46,7 +33,7 @@ through Excel and back still loads.
 page when talking to a terminal and in UTF-8 when redirected, and turn `—`, `≥`,
 `→` into ASCII where the code page lacks them, so `chcp 65001` is not needed.
 Colour is off in conhost unless the terminal announces itself; `--color
-always|never` or `NO_COLOR` override it. The logic is in `ConsoleOut.java`.
+always|never` or `NO_COLOR` override it. The logic is in `console/ConsoleOut.java`.
 
 ## Captures: `--dump-dir` and `--replay-dir`
 
@@ -112,8 +99,8 @@ Checked against gitlab.com:
 - A high squash rate turns commit timestamps into merge times; the findings say
   so.
 
-`Gitlab.java` holds what both GitLab tools share: the client, `BOT_PATTERN`,
-`identity()` and `isMerge()`. `Sonar.java` is its counterpart.
+`gitlab/Gitlab.java` holds what both GitLab tools share: the client, `BOT_PATTERN`,
+`identity()` and `isMerge()`. `sonar/Sonar.java` is its counterpart.
 
 ## The matcher on its own: `ProjectMapper.java`
 

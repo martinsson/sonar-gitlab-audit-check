@@ -1,4 +1,4 @@
-//JAVA 26
+package ch.ge.edg.sonar.gitlab.audit.console;
 
 import java.io.Console;
 import java.io.FileDescriptor;

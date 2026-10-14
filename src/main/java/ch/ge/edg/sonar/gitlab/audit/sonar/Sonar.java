@@ -1,4 +1,4 @@
-//JAVA 26
+package ch.ge.edg.sonar.gitlab.audit.sonar;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.DeserializationFeature;
