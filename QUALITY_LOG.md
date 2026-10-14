@@ -144,3 +144,19 @@ question. One entry per choice: what, why, and what the alternative would have b
   order, so `--help` is unchanged (snapshot).
 - Tests: the stderr-capture test passes its buffer as the warnings stream instead of swapping
   `System.err`; helpers tests moved to `cli/sonaraudit/` and split for the coupling limit.
+
+## GitLabProjectReport
+
+- `MergeRequest` needs 9 fields (RecordComponentNumber 8): a Jackson delegating creator reads two
+  sub-records from the same flat JSON object (Jackson 2.17 can't `@JsonUnwrapped` on input).
+  A test covers that parsing.
+- **Small behaviour change at the edges:** record fields the report never reads were dropped
+  (`Project.name`, `Commit.id/short_id/title`, `Stats.total`, `MergeRequest.title/closed_at/
+  target_branch/draft`, the unused `GitLabError`). Before, a non-scalar value in one of those made
+  the whole page "illisible"; now it is ignored.
+- `toLowerCase()` → `toLowerCase(Locale.ROOT)` (differs only on a Turkish locale).
+- The report reads the clock once at the start instead of in each section.
+- Most of `GitLabProjectReportUnitTest` moved to `projectreport/ProjectReportUnitTest` (helpers are
+  package-private there); one test added (blank `--bot-pattern` keeps the default).
+- Uncovered: `main()` and the `https://gitlab.com` fallback on a blank `--url` (would hit the
+  internet).
