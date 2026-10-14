@@ -2,14 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli;
 
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
-import ch.ge.edg.sonar.gitlab.audit.naming.NameMatcher;
-
-
 import com.opencsv.CSVWriter;
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,537 +13,672 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 /**
  * Le croisement Sonar × GitLab, enfin écrit.
  *
- * Il était conçu depuis le début — GITLAB_ANALYSIS.md §6 en donne la méthode et
- * les quatre affirmations qu'il rend possibles — et le README le rangeait dans
- * « pas encore fait ». Il n'y était pas : aucun outil ne lisait les deux côtés,
- * aucun CSV ne portait une colonne des deux. Ce fichier est cette pièce
- * manquante, et rien d'autre.
+ * <p>Il était conçu depuis le début — GITLAB_ANALYSIS.md §6 en donne la méthode et les quatre
+ * affirmations qu'il rend possibles — et le README le rangeait dans « pas encore fait ». Il n'y
+ * était pas : aucun outil ne lisait les deux côtés, aucun CSV ne portait une colonne des deux. Ce
+ * fichier est cette pièce manquante, et rien d'autre.
  *
- * Trois principes, tous hérités de §6 :
+ * <p>Trois principes, tous hérités de §6 :
  *
- *   ADDITIF        Il lit deux CSV déjà produits et n'appelle aucune API. On
- *                  peut le relancer, changer de seuil, refaire la jointure
- *                  autrement, sans repayer l'un ou l'autre audit — et sans
- *                  qu'un échec ici n'invalide quoi que ce soit là-bas.
+ * <p>ADDITIF Il lit deux CSV déjà produits et n'appelle aucune API. On peut le relancer, changer de
+ * seuil, refaire la jointure autrement, sans repayer l'un ou l'autre audit — et sans qu'un échec
+ * ici n'invalide quoi que ce soit là-bas.
  *
- *   ÉTIQUETÉ       Chaque appariement porte la méthode qui l'a produit et sa
- *                  confiance. Un rapprochement par ressemblance de nom n'a pas
- *                  à ressembler, dans un tableau, à une clé lue dans la CI.
+ * <p>ÉTIQUETÉ Chaque appariement porte la méthode qui l'a produit et sa confiance. Un rapprochement
+ * par ressemblance de nom n'a pas à ressembler, dans un tableau, à une clé lue dans la CI.
  *
- *   JAMAIS PORTEUR Seules les jointures exactes et dérivées alimentent une
- *                  affirmation. Les suggestions sortent dans le CSV, marquées,
- *                  pour qu'un humain tranche — jamais dans un compte.
+ * <p>JAMAIS PORTEUR Seules les jointures exactes et dérivées alimentent une affirmation. Les
+ * suggestions sortent dans le CSV, marquées, pour qu'un humain tranche — jamais dans un compte.
  *
- * Le taux d'appariement est lui-même un résultat : un taux bas ne dit pas que
- * l'outil a échoué, il dit que l'intégration GitLab↔SonarQube n'est pas
- * configurée, ce qui est la même classe de constat que les projets jamais
- * analysés.
+ * <p>Le taux d'appariement est lui-même un résultat : un taux bas ne dit pas que l'outil a échoué,
+ * il dit que l'intégration GitLab↔SonarQube n'est pas configurée, ce qui est la même classe de
+ * constat que les projets jamais analysés.
  *
- * Usage :
- *   jbang SonarAuditCheck.java --csv projets.csv
- *   jbang GitlabActivityAudit.java --group mon/groupe --deep --out-dir ./audit
- *   jbang CrossAudit.java --sonar projets.csv --gitlab ./audit/pratiques.csv \
- *       --out croisement.csv
+ * <p>Usage : jbang SonarAuditCheck.java --csv projets.csv jbang GitlabActivityAudit.java --group
+ * mon/groupe --deep --out-dir ./audit jbang CrossAudit.java --sonar projets.csv --gitlab
+ * ./audit/pratiques.csv \ --out croisement.csv
  */
-@Command(name = "CrossAudit", mixinStandardHelpOptions = true,
-        sortOptions = false, usageHelpAutoWidth = true,
-        description = "Croise l'inventaire SonarQube et les pratiques GitLab.",
-        synopsisHeading = "",
-        customSynopsis = {
-            "Usage : CrossAudit --sonar <projets.csv> --gitlab <pratiques.csv>",
-            "                   [--out <croisement.csv>]",
-        },
-        footer = {
-            "",
-            "Les deux fichiers d'entrée viennent des deux autres outils :",
-            "",
-            "  1. SonarAuditCheck --csv projets.csv",
-            "  2. GitlabActivityAudit --group mon/groupe --deep --out-dir ./audit",
-            "  3. CrossAudit --sonar projets.csv --gitlab ./audit/pratiques.csv \\",
-            "         --out ./audit/croisement.csv",
-            "",
-            "Aucun appel réseau : tout se lit dans les deux CSV. Relancer coûte",
-            "zéro appel, donc les seuils se règlent sans repayer un audit.",
-            "",
-            "Avec l'inventaire GitLab complet (inventaire.csv, écrit à côté de",
-            "pratiques.csv), chaque projet Sonar est aussi cherché dans TOUT GitLab,",
-            "pas seulement dans la sélection : sonar-gitlab.csv, une ligne par",
-            "projet Sonar.",
-            "",
-            "Les colonnes qui font la jointure sont cle_sonar (clé lue dans la",
-            "CI) et cle_pom (groupId:artifactId du pom), écrites par",
-            "GitlabActivityAudit --deep. Sans elles, seul le rapprochement par",
-            "nom reste possible, et il ne sort qu'en suggestions.",
-        })
+@Command(
+    name = "CrossAudit",
+    mixinStandardHelpOptions = true,
+    sortOptions = false,
+    usageHelpAutoWidth = true,
+    description = "Croise l'inventaire SonarQube et les pratiques GitLab.",
+    synopsisHeading = "",
+    customSynopsis = {
+      "Usage : CrossAudit --sonar <projets.csv> --gitlab <pratiques.csv>",
+      "                   [--out <croisement.csv>]",
+    },
+    footer = {
+      "",
+      "Les deux fichiers d'entrée viennent des deux autres outils :",
+      "",
+      "  1. SonarAuditCheck --csv projets.csv",
+      "  2. GitlabActivityAudit --group mon/groupe --deep --out-dir ./audit",
+      "  3. CrossAudit --sonar projets.csv --gitlab ./audit/pratiques.csv \\",
+      "         --out ./audit/croisement.csv",
+      "",
+      "Aucun appel réseau : tout se lit dans les deux CSV. Relancer coûte",
+      "zéro appel, donc les seuils se règlent sans repayer un audit.",
+      "",
+      "Avec l'inventaire GitLab complet (inventaire.csv, écrit à côté de",
+      "pratiques.csv), chaque projet Sonar est aussi cherché dans TOUT GitLab,",
+      "pas seulement dans la sélection : sonar-gitlab.csv, une ligne par",
+      "projet Sonar.",
+      "",
+      "Les colonnes qui font la jointure sont cle_sonar (clé lue dans la",
+      "CI) et cle_pom (groupId:artifactId du pom), écrites par",
+      "GitlabActivityAudit --deep. Sans elles, seul le rapprochement par",
+      "nom reste possible, et il ne sort qu'en suggestions.",
+    })
 public class CrossAudit implements Callable<Integer> {
 
-    @Option(names = "--sonar", required = true,
-            description = "CSV d'inventaire de SonarAuditCheck --csv")
-    Path sonarCsv;
+  @Option(
+      names = "--sonar",
+      required = true,
+      description = "CSV d'inventaire de SonarAuditCheck --csv")
+  Path sonarCsv;
 
-    @Option(names = "--gitlab", required = true,
-            description = "pratiques.csv de GitlabActivityAudit --deep")
-    Path gitlabCsv;
+  @Option(
+      names = "--gitlab",
+      required = true,
+      description = "pratiques.csv de GitlabActivityAudit --deep")
+  Path gitlabCsv;
 
-    @Option(names = "--out", description = "CSV du croisement (sinon : rien n'est écrit)")
-    Path out;
+  @Option(names = "--out", description = "CSV du croisement (sinon : rien n'est écrit)")
+  Path out;
 
-    @Option(names = "--inventaire",
-            description = "inventaire.csv de GitlabActivityAudit (tout GitLab) : chaque projet "
-                    + "Sonar y est cherché (défaut : inventaire.csv à côté de --gitlab, s'il y est)")
-    Path inventoryCsv;
+  @Option(
+      names = "--inventaire",
+      description =
+          "inventaire.csv de GitlabActivityAudit (tout GitLab) : chaque projet "
+              + "Sonar y est cherché (défaut : inventaire.csv à côté de --gitlab, s'il y est)")
+  Path inventoryCsv;
 
-    @Option(names = "--sonar-gitlab",
-            description = "CSV de chaque projet Sonar contre tout GitLab "
-                    + "(défaut : sonar-gitlab.csv à côté de --out, sinon de --gitlab)")
-    Path sonarGitlabCsv;
+  @Option(
+      names = "--sonar-gitlab",
+      description =
+          "CSV de chaque projet Sonar contre tout GitLab "
+              + "(défaut : sonar-gitlab.csv à côté de --out, sinon de --gitlab)")
+  Path sonarGitlabCsv;
 
-    @Option(names = "--appariement",
-            description = "appariement à reprendre et à compléter "
-                    + "(défaut : appariement.csv à côté de --gitlab)")
-    Path mappingFile;
+  @Option(
+      names = "--appariement",
+      description =
+          "appariement à reprendre et à compléter "
+              + "(défaut : appariement.csv à côté de --gitlab)")
+  Path mappingFile;
 
-    @Option(names = "--reapparier",
-            description = "recalculer les paires exact/derived de l'appariement "
-                    + "(les lignes manuel et rejete restent)")
-    boolean recompute;
+  @Option(
+      names = "--reapparier",
+      description =
+          "recalculer les paires exact/derived de l'appariement "
+              + "(les lignes manuel et rejete restent)")
+  boolean recompute;
 
-    @Option(names = "--seuil-nom", defaultValue = "0.5",
-            description = "score de ressemblance minimal d'une suggestion, 0–1 "
-                    + "(défaut : ${DEFAULT-VALUE})")
-    double nameThreshold;
+  @Option(
+      names = "--seuil-nom",
+      defaultValue = "0.5",
+      description =
+          "score de ressemblance minimal d'une suggestion, 0–1 " + "(défaut : ${DEFAULT-VALUE})")
+  double nameThreshold;
 
-    @Option(names = "--marge-nom", defaultValue = "0.1",
-            description = "écart minimal entre le meilleur candidat et le suivant ; "
-                    + "en dessous, aucun n'est proposé (défaut : ${DEFAULT-VALUE})")
-    double nameMargin;
+  @Option(
+      names = "--marge-nom",
+      defaultValue = "0.1",
+      description =
+          "écart minimal entre le meilleur candidat et le suivant ; "
+              + "en dessous, aucun n'est proposé (défaut : ${DEFAULT-VALUE})")
+  double nameMargin;
 
-    @Option(names = "--report",
-            description = "rapport JSON d'évaluation des méthodes d'appariement")
-    Path report;
+  @Option(names = "--report", description = "rapport JSON d'évaluation des méthodes d'appariement")
+  Path report;
 
-    @Option(names = "--examples", defaultValue = "15",
-            description = "exemples par rubrique du rapport (défaut : ${DEFAULT-VALUE})")
-    int examples;
+  @Option(
+      names = "--examples",
+      defaultValue = "15",
+      description = "exemples par rubrique du rapport (défaut : ${DEFAULT-VALUE})")
+  int examples;
 
-    @Option(names = "--comma",
-            description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
-    boolean comma;
+  @Option(
+      names = "--comma",
+      description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
+  boolean comma;
 
-    @Option(names = "--color", defaultValue = "auto",
-            description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
-    String colorMode;
+  @Option(
+      names = "--color",
+      defaultValue = "auto",
+      description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
+  String colorMode;
 
-    public static void main(String[] args) {
-        ConsoleOut.install();
-        System.exit(new CommandLine(new CrossAudit()).execute(args));
+  public static void main(String[] args) {
+    ConsoleOut.install();
+    System.exit(new CommandLine(new CrossAudit()).execute(args));
+  }
+
+  /** L'inventaire GitLab complet, s'il est là ; null sinon, et on dit pourquoi. */
+  private Csv.Table inventory() throws IOException {
+    Path f =
+        inventoryCsv != null
+            ? inventoryCsv
+            : gitlabCsv.toAbsolutePath().resolveSibling("inventaire.csv");
+    if (!Files.exists(f)) {
+      if (inventoryCsv != null) throw new IOException("introuvable : " + f);
+      System.out.println(
+          c("\n  Pas d'inventaire GitLab à côté de pratiques.csv : les projets Sonar ne", YELLOW));
+      System.out.println(
+          c("  sont cherchés que dans la sélection. --inventaire <inventaire.csv> pour", YELLOW));
+      System.out.println(c("  les chercher dans tout GitLab.", YELLOW));
+      return null;
+    }
+    Csv.Table t = Csv.read(f);
+    t.require(f, "GitlabActivityAudit (inventaire.csv)", "path", "selectionne");
+    System.out.printf("  Tout GitLab  : %d projets (%s)%n", t.rows().size(), f);
+    return t;
+  }
+
+  @Override
+  public Integer call() throws Exception {
+    ConsoleOut.colorMode(colorMode);
+
+    Csv.Table sonar = Csv.read(sonarCsv);
+    sonar.require(sonarCsv, "SonarAuditCheck --csv", "key", "ncloc", "analysisDate");
+    Csv.Table gitlab = Csv.read(gitlabCsv);
+    gitlab.require(gitlabCsv, "GitlabActivityAudit --deep", "path", "commits_window");
+
+    System.out.println(c("\nCroisement SonarQube × GitLab", BOLD));
+    System.out.printf("  Côté Sonar   : %d projets (%s)%n", sonar.rows().size(), sonarCsv);
+    System.out.printf("  Côté GitLab  : %d projets (%s)%n", gitlab.rows().size(), gitlabCsv);
+
+    if (!gitlab.has("cle_sonar")) {
+      System.out.println(c("\n  pratiques.csv ne porte pas de colonne cle_sonar.", YELLOW));
+      System.out.println(
+          c("  Elle vient de GitlabActivityAudit --deep : sans elle, la seule", YELLOW));
+      System.out.println(
+          c("  jointure possible est le rapprochement de noms, qui ne sort", YELLOW));
+      System.out.println(
+          c("  qu'en suggestions à confirmer. Relancer l'audit GitLab donne", YELLOW));
+      System.out.println(c("  la jointure exacte.", YELLOW));
     }
 
-    /** L'inventaire GitLab complet, s'il est là ; null sinon, et on dit pourquoi. */
-    private Csv.Table inventory() throws IOException {
-        Path f = inventoryCsv != null ? inventoryCsv
-                : gitlabCsv.toAbsolutePath().resolveSibling("inventaire.csv");
-        if (!Files.exists(f)) {
-            if (inventoryCsv != null) throw new IOException("introuvable : " + f);
-            System.out.println(c("\n  Pas d'inventaire GitLab à côté de pratiques.csv : les projets Sonar ne", YELLOW));
-            System.out.println(c("  sont cherchés que dans la sélection. --inventaire <inventaire.csv> pour", YELLOW));
-            System.out.println(c("  les chercher dans tout GitLab.", YELLOW));
-            return null;
-        }
-        Csv.Table t = Csv.read(f);
-        t.require(f, "GitlabActivityAudit (inventaire.csv)", "path", "selectionne");
-        System.out.printf("  Tout GitLab  : %d projets (%s)%n", t.rows().size(), f);
-        return t;
+    // L'appariement est repris d'un lancement à l'autre : les paires déjà
+    // trouvées ne bougent plus, et une correction saisie à la main
+    // (manuel, rejete) survit aux audits suivants.
+    Path file =
+        mappingFile != null
+            ? mappingFile
+            : gitlabCsv.toAbsolutePath().resolveSibling("appariement.csv");
+    // Lu avant que l'appariement ne soit réécrit : un rejet ne garde
+    // ensuite que son chemin, et la passe sur tout GitLab doit le respecter.
+    Set<String> rejected = new HashSet<>(), rejectedPaths = new HashSet<>();
+    if (Files.exists(file)) {
+      for (Csv.Row r : Csv.read(file).rows()) {
+        if (ProjectMapper.Confidence.parse(r.str("confiance")) != ProjectMapper.Confidence.REJETE)
+          continue;
+        if (r.str("droite_key").isEmpty()) rejectedPaths.add(r.str("gauche_path"));
+        else rejected.add(r.str("droite_key") + "\n" + r.str("gauche_path"));
+      }
+    }
+    ProjectMapper.Result mapping =
+        ProjectMapper.mapAndKeep(
+            ProjectMapper.Spec.sonarGitlab(nameThreshold, nameMargin),
+            gitlab,
+            sonar,
+            file,
+            recompute,
+            comma,
+            new ProjectMapper.Reuse[1]);
+    ProjectMapper.Report rep = ProjectMapper.evaluate(mapping, examples);
+    List<Pair> pairs = mapping.matches().stream().map(Pair::new).toList();
+    Csv.Table inventory = inventory();
+    SonarToGitlab.Result wide =
+        inventory == null
+            ? null
+            : SonarToGitlab.map(
+                sonar,
+                inventory,
+                mapping.matches(),
+                rejected,
+                rejectedPaths,
+                nameThreshold,
+                nameMargin);
+    matchRate(pairs, sonar, rep, wide != null);
+    if (wide != null) {
+      title("1b. Chaque projet Sonar contre tout GitLab");
+      System.out.println(
+          c("  La sélection ne contient que les projets GitLab retenus ; ici, chaque", DIM));
+      System.out.println(
+          c("  projet Sonar est cherché dans tout l'inventaire. Mêmes règles : seules", DIM));
+      System.out.println(
+          c("  les paires exactes et dérivées comptent, les suggestions sont à vérifier.", DIM));
+      Path wideFile =
+          sonarGitlabCsv != null
+              ? sonarGitlabCsv
+              : (out != null ? out : gitlabCsv).toAbsolutePath().resolveSibling("sonar-gitlab.csv");
+      SonarToGitlab.write(wide, wideFile, comma);
+      SonarToGitlab.print(wide, wideFile);
+    }
+    findings(pairs, wide == null ? Set.of() : wide.joinedPaths());
+    if (out != null) write(mapping, pairs);
+    if (report != null) {
+      ProjectMapper.writeReport(rep, report);
+      System.out.printf("  Rapport d'appariement : %s%n", report.toAbsolutePath());
+    }
+    return 0;
+  }
+
+  // ----------------------------------------------------------------------
+  // La jointure — faite par ProjectMapper, préréglage Sonar × GitLab
+  // ----------------------------------------------------------------------
+
+  /**
+   * Un projet GitLab et, s'il en a un, son homologue Sonar. L'appariement et son évaluation vivent
+   * dans {@link ProjectMapper}, qui tourne aussi seul : ce qui suit n'est que la lecture qu'en font
+   * les constats.
+   */
+  record Pair(ProjectMapper.Match m) {
+
+    Csv.Row gl() {
+      return m.left();
     }
 
-    @Override
-    public Integer call() throws Exception {
-        ConsoleOut.colorMode(colorMode);
-
-        Csv.Table sonar = Csv.read(sonarCsv);
-        sonar.require(sonarCsv, "SonarAuditCheck --csv", "key", "ncloc", "analysisDate");
-        Csv.Table gitlab = Csv.read(gitlabCsv);
-        gitlab.require(gitlabCsv, "GitlabActivityAudit --deep", "path", "commits_window");
-
-        System.out.println(c("\nCroisement SonarQube × GitLab", BOLD));
-        System.out.printf("  Côté Sonar   : %d projets (%s)%n", sonar.rows().size(), sonarCsv);
-        System.out.printf("  Côté GitLab  : %d projets (%s)%n", gitlab.rows().size(), gitlabCsv);
-
-        if (!gitlab.has("cle_sonar")) {
-            System.out.println(c("\n  pratiques.csv ne porte pas de colonne cle_sonar.", YELLOW));
-            System.out.println(c("  Elle vient de GitlabActivityAudit --deep : sans elle, la seule", YELLOW));
-            System.out.println(c("  jointure possible est le rapprochement de noms, qui ne sort", YELLOW));
-            System.out.println(c("  qu'en suggestions à confirmer. Relancer l'audit GitLab donne", YELLOW));
-            System.out.println(c("  la jointure exacte.", YELLOW));
-        }
-
-        // L'appariement est repris d'un lancement à l'autre : les paires déjà
-        // trouvées ne bougent plus, et une correction saisie à la main
-        // (manuel, rejete) survit aux audits suivants.
-        Path file = mappingFile != null ? mappingFile
-                : gitlabCsv.toAbsolutePath().resolveSibling("appariement.csv");
-        // Lu avant que l'appariement ne soit réécrit : un rejet ne garde
-        // ensuite que son chemin, et la passe sur tout GitLab doit le respecter.
-        Set<String> rejected = new HashSet<>(), rejectedPaths = new HashSet<>();
-        if (Files.exists(file)) {
-            for (Csv.Row r : Csv.read(file).rows()) {
-                if (ProjectMapper.Confidence.parse(r.str("confiance")) != ProjectMapper.Confidence.REJETE) continue;
-                if (r.str("droite_key").isEmpty()) rejectedPaths.add(r.str("gauche_path"));
-                else rejected.add(r.str("droite_key") + "\n" + r.str("gauche_path"));
-            }
-        }
-        ProjectMapper.Result mapping = ProjectMapper.mapAndKeep(
-                ProjectMapper.Spec.sonarGitlab(nameThreshold, nameMargin), gitlab, sonar,
-                file, recompute, comma, new ProjectMapper.Reuse[1]);
-        ProjectMapper.Report rep = ProjectMapper.evaluate(mapping, examples);
-        List<Pair> pairs = mapping.matches().stream().map(Pair::new).toList();
-        Csv.Table inventory = inventory();
-        SonarToGitlab.Result wide = inventory == null ? null : SonarToGitlab.map(sonar, inventory,
-                mapping.matches(), rejected, rejectedPaths, nameThreshold, nameMargin);
-        matchRate(pairs, sonar, rep, wide != null);
-        if (wide != null) {
-            title("1b. Chaque projet Sonar contre tout GitLab");
-            System.out.println(c("  La sélection ne contient que les projets GitLab retenus ; ici, chaque", DIM));
-            System.out.println(c("  projet Sonar est cherché dans tout l'inventaire. Mêmes règles : seules", DIM));
-            System.out.println(c("  les paires exactes et dérivées comptent, les suggestions sont à vérifier.", DIM));
-            Path wideFile = sonarGitlabCsv != null ? sonarGitlabCsv
-                    : (out != null ? out : gitlabCsv).toAbsolutePath().resolveSibling("sonar-gitlab.csv");
-            SonarToGitlab.write(wide, wideFile, comma);
-            SonarToGitlab.print(wide, wideFile);
-        }
-        findings(pairs, wide == null ? Set.of() : wide.joinedPaths());
-        if (out != null) write(mapping, pairs);
-        if (report != null) {
-            ProjectMapper.writeReport(rep, report);
-            System.out.printf("  Rapport d'appariement : %s%n", report.toAbsolutePath());
-        }
-        return 0;
+    Csv.Row sq() {
+      return m.right();
     }
 
-    // ----------------------------------------------------------------------
-    // La jointure — faite par ProjectMapper, préréglage Sonar × GitLab
-    // ----------------------------------------------------------------------
+    /** Ni suggestion, ni absence : les seules paires qui alimentent un constat. */
+    boolean joined() {
+      return m.joined();
+    }
+  }
 
-    /**
-     * Un projet GitLab et, s'il en a un, son homologue Sonar. L'appariement et
-     * son évaluation vivent dans {@link ProjectMapper}, qui tourne aussi seul :
-     * ce qui suit n'est que la lecture qu'en font les constats.
-     */
-    record Pair(ProjectMapper.Match m) {
+  // ----------------------------------------------------------------------
+  // Le taux d'appariement, qui est un résultat et pas une note d'exécution
+  // ----------------------------------------------------------------------
 
-        Csv.Row gl() { return m.left(); }
+  private void matchRate(
+      List<Pair> pairs, Csv.Table sonar, ProjectMapper.Report rep, boolean wide) {
+    title("1. Appariement");
+    System.out.println(c("  Méthodes appliquées dans l'ordre ; les suggestions de noms ne", DIM));
+    System.out.println(c("  comptent dans aucun constat, elles sortent dans le CSV pour", DIM));
+    System.out.println(c("  qu'un humain tranche.", DIM));
+    ProjectMapper.print(rep);
 
-        Csv.Row sq() { return m.right(); }
-
-        /** Ni suggestion, ni absence : les seules paires qui alimentent un constat. */
-        boolean joined() { return m.joined(); }
+    long joined = pairs.stream().filter(Pair::joined).count();
+    if (joined < pairs.size() * 0.5) {
+      System.out.println();
+      for (String l :
+          List.of(
+              "Moins d'un projet sur deux apparié. Ce n'est pas un échec de l'outil,",
+              "c'est le constat : l'intégration GitLab↔SonarQube n'est pas configurée,",
+              "et personne ne peut aujourd'hui répondre « ce dépôt est-il analysé ? »",
+              "sans le faire à la main. Même classe de trou de gouvernance que les",
+              "projets jamais analysés.")) {
+        System.out.println(c("  " + l, YELLOW));
+      }
     }
 
-    // ----------------------------------------------------------------------
-    // Le taux d'appariement, qui est un résultat et pas une note d'exécution
-    // ----------------------------------------------------------------------
-
-    private void matchRate(List<Pair> pairs, Csv.Table sonar, ProjectMapper.Report rep, boolean wide) {
-        title("1. Appariement");
-        System.out.println(c("  Méthodes appliquées dans l'ordre ; les suggestions de noms ne", DIM));
-        System.out.println(c("  comptent dans aucun constat, elles sortent dans le CSV pour", DIM));
-        System.out.println(c("  qu'un humain tranche.", DIM));
-        ProjectMapper.print(rep);
-
-        long joined = pairs.stream().filter(Pair::joined).count();
-        if (joined < pairs.size() * 0.5) {
-            System.out.println();
-            for (String l : List.of(
-                    "Moins d'un projet sur deux apparié. Ce n'est pas un échec de l'outil,",
-                    "c'est le constat : l'intégration GitLab↔SonarQube n'est pas configurée,",
-                    "et personne ne peut aujourd'hui répondre « ce dépôt est-il analysé ? »",
-                    "sans le faire à la main. Même classe de trou de gouvernance que les",
-                    "projets jamais analysés.")) {
-                System.out.println(c("  " + l, YELLOW));
-            }
-        }
-
-        long sonarUnmatched = sonar.rows().size() - pairs.stream()
-                .filter(Pair::joined).map(p -> p.sq().str("key")).distinct().count();
-        System.out.printf("%n  Projets Sonar sans dépôt GitLab apparié : %d%n", sonarUnmatched);
-        if (wide) {
-            System.out.println(c("    Dans la sélection seulement : la section suivante les cherche dans tout GitLab.", DIM));
-            return;
-        }
-        System.out.println(c("    Attention au dénominateur : pratiques.csv ne contient que les", DIM));
-        System.out.println(c("    projets sélectionnés par l'audit GitLab, pas tout le parc. Un", DIM));
-        System.out.println(c("    projet Sonar non apparié peut simplement ne pas avoir été tiré.", DIM));
+    long sonarUnmatched =
+        sonar.rows().size()
+            - pairs.stream().filter(Pair::joined).map(p -> p.sq().str("key")).distinct().count();
+    System.out.printf("%n  Projets Sonar sans dépôt GitLab apparié : %d%n", sonarUnmatched);
+    if (wide) {
+      System.out.println(
+          c(
+              "    Dans la sélection seulement : la section suivante les cherche dans tout GitLab.",
+              DIM));
+      return;
     }
+    System.out.println(c("    Attention au dénominateur : pratiques.csv ne contient que les", DIM));
+    System.out.println(c("    projets sélectionnés par l'audit GitLab, pas tout le parc. Un", DIM));
+    System.out.println(
+        c("    projet Sonar non apparié peut simplement ne pas avoir été tiré.", DIM));
+  }
 
-    // ----------------------------------------------------------------------
-    // Ce que ni l'un ni l'autre ne pouvait dire seul
-    // ----------------------------------------------------------------------
+  // ----------------------------------------------------------------------
+  // Ce que ni l'un ni l'autre ne pouvait dire seul
+  // ----------------------------------------------------------------------
 
-    /**
-     * @param wideJoined les dépôts qu'un projet Sonar désigne sûrement dans la
-     *                   passe sur tout GitLab : un dépôt resté sans paire dans
-     *                   la sélection peut y avoir trouvé la sienne.
-     */
-    private void findings(List<Pair> pairs, Set<String> wideJoined) {
-        title("2. Ce qu'aucun des deux rapports ne pouvait dire seul");
-        List<Pair> ok = pairs.stream().filter(Pair::joined).toList();
-        List<Pair> unpaired = pairs.stream()
-                .filter(p -> !p.joined() && !wideJoined.contains(p.gl().str("path"))).toList();
+  /**
+   * @param wideJoined les dépôts qu'un projet Sonar désigne sûrement dans la passe sur tout GitLab
+   *     : un dépôt resté sans paire dans la sélection peut y avoir trouvé la sienne.
+   */
+  private void findings(List<Pair> pairs, Set<String> wideJoined) {
+    title("2. Ce qu'aucun des deux rapports ne pouvait dire seul");
+    List<Pair> ok = pairs.stream().filter(Pair::joined).toList();
+    List<Pair> unpaired =
+        pairs.stream()
+            .filter(p -> !p.joined() && !wideJoined.contains(p.gl().str("path")))
+            .toList();
 
-        // 1. Vivant dans GitLab, absent de Sonar. La distinction que le seul
-        //    inventaire Sonar ne permet pas : un dépôt absent y est indiscernable
-        //    d'un dépôt mort, et c'est l'inverse qui est intéressant.
-        List<Pair> active = unpaired.stream()
-                .filter(p -> num(p.gl(), "commits_window") != null
-                        && num(p.gl(), "commits_window") >= 20)
-                .sorted(Comparator.comparingDouble((Pair p) -> num(p.gl(), "commits_window")).reversed())
-                .toList();
-        finding("Actifs dans GitLab, absents de SonarQube", active.size(),
-                "Vivants et non analysés. Séparés enfin des dépôts morts, qu'un "
-                        + "inventaire\n    Sonar seul confond avec eux.",
-                active, p -> "%s — %s commits".formatted(p.gl().str("path"),
-                        p.gl().str("commits_window")));
+    // 1. Vivant dans GitLab, absent de Sonar. La distinction que le seul
+    //    inventaire Sonar ne permet pas : un dépôt absent y est indiscernable
+    //    d'un dépôt mort, et c'est l'inverse qui est intéressant.
+    List<Pair> active =
+        unpaired.stream()
+            .filter(
+                p -> num(p.gl(), "commits_window") != null && num(p.gl(), "commits_window") >= 20)
+            .sorted(
+                Comparator.comparingDouble((Pair p) -> num(p.gl(), "commits_window")).reversed())
+            .toList();
+    finding(
+        "Actifs dans GitLab, absents de SonarQube",
+        active.size(),
+        "Vivants et non analysés. Séparés enfin des dépôts morts, qu'un "
+            + "inventaire\n    Sonar seul confond avec eux.",
+        active,
+        p -> "%s — %s commits".formatted(p.gl().str("path"), p.gl().str("commits_window")));
 
-        // 2. La CI dit qu'elle lance Sonar, et Sonar n'a rien. Vérifiable en une
-        //    minute par n'importe qui, ce qui en fait le constat le plus utile
-        //    du lot : soit le job échoue en silence, soit il pousse ailleurs.
-        List<Pair> claimed = unpaired.stream()
-                .filter(p -> p.gl().flag("ci_sonar"))
-                .toList();
-        finding("CI configurée pour Sonar, sans projet Sonar apparié", claimed.size(),
-                "Le pipeline dit lancer une analyse ; rien ne la reçoit sous une clé\n"
-                        + "    qu'on sache rattacher. Job en échec silencieux, ou clé "
-                        + "qui ne correspond\n    à rien. Constat concret, vérifiable projet par projet.",
-                claimed, p -> p.gl().str("path")
-                        + (p.gl().str("cle_sonar").isEmpty() ? "" : " → " + p.gl().str("cle_sonar")));
+    // 2. La CI dit qu'elle lance Sonar, et Sonar n'a rien. Vérifiable en une
+    //    minute par n'importe qui, ce qui en fait le constat le plus utile
+    //    du lot : soit le job échoue en silence, soit il pousse ailleurs.
+    List<Pair> claimed = unpaired.stream().filter(p -> p.gl().flag("ci_sonar")).toList();
+    finding(
+        "CI configurée pour Sonar, sans projet Sonar apparié",
+        claimed.size(),
+        "Le pipeline dit lancer une analyse ; rien ne la reçoit sous une clé\n"
+            + "    qu'on sache rattacher. Job en échec silencieux, ou clé "
+            + "qui ne correspond\n    à rien. Constat concret, vérifiable projet par projet.",
+        claimed,
+        p ->
+            p.gl().str("path")
+                + (p.gl().str("cle_sonar").isEmpty() ? "" : " → " + p.gl().str("cle_sonar")));
 
-        // 3. Dette qui se crée, revue qui ne l'arrête pas. Sonar dit que la dette
-        //    arrive ; GitLab dit que rien ne la relit. Ni l'un ni l'autre ne peut
-        //    l'affirmer seul, et c'est le signal « cette équipe a besoin d'aide ».
-        List<Pair> unreviewed = ok.stream()
-                .filter(p -> nz(p.sq(), "new_violations") > 0)
-                .filter(p -> nz(p.gl(), "commits_window") >= 20)
-                .filter(p -> nz(p.gl(), "mr_fusionnees") == 0)
-                .sorted(Comparator.comparingDouble((Pair p) -> nz(p.sq(), "new_violations")).reversed())
-                .toList();
-        finding("Dette créée sur du code que personne n'a relu", unreviewed.size(),
-                "Sonar voit des violations sur le code neuf ; GitLab voit ce code "
-                        + "atteindre\n    la branche par défaut sans une seule MR fusionnée.",
-                unreviewed, p -> "%s — %s violations neuves, %s commits, 0 MR".formatted(
-                        p.gl().str("path"), p.sq().str("new_violations"),
-                        p.gl().str("commits_window")));
+    // 3. Dette qui se crée, revue qui ne l'arrête pas. Sonar dit que la dette
+    //    arrive ; GitLab dit que rien ne la relit. Ni l'un ni l'autre ne peut
+    //    l'affirmer seul, et c'est le signal « cette équipe a besoin d'aide ».
+    List<Pair> unreviewed =
+        ok.stream()
+            .filter(p -> nz(p.sq(), "new_violations") > 0)
+            .filter(p -> nz(p.gl(), "commits_window") >= 20)
+            .filter(p -> nz(p.gl(), "mr_fusionnees") == 0)
+            .sorted(Comparator.comparingDouble((Pair p) -> nz(p.sq(), "new_violations")).reversed())
+            .toList();
+    finding(
+        "Dette créée sur du code que personne n'a relu",
+        unreviewed.size(),
+        "Sonar voit des violations sur le code neuf ; GitLab voit ce code "
+            + "atteindre\n    la branche par défaut sans une seule MR fusionnée.",
+        unreviewed,
+        p ->
+            "%s — %s violations neuves, %s commits, 0 MR"
+                .formatted(
+                    p.gl().str("path"),
+                    p.sq().str("new_violations"),
+                    p.gl().str("commits_window")));
 
-        // 4. Sans test et sans revue : les deux filets à la fois. Aucun des deux
-        //    rapports ne peut le dire, et c'est la seule intersection qui justifie
-        //    d'intervenir avant que quelque chose casse.
-        List<Pair> naked = ok.stream()
-                .filter(p -> num(p.sq(), "coverage") != null && nz(p.sq(), "coverage") < 20)
-                .filter(p -> nz(p.gl(), "commits_window") >= 20)
-                .filter(p -> nz(p.gl(), "mr_fusionnees") == 0)
-                .sorted(Comparator.comparingDouble((Pair p) -> nz(p.gl(), "commits_window")).reversed())
-                .toList();
-        finding("Ni tests ni revue, sur du code qui bouge", naked.size(),
-                "Couverture sous 20 %, aucune MR fusionnée, activité soutenue. Les "
-                        + "deux\n    filets manquent en même temps.",
-                naked, p -> "%s — couverture %s %%, %s commits".formatted(
-                        p.gl().str("path"), p.sq().str("coverage"), p.gl().str("commits_window")));
+    // 4. Sans test et sans revue : les deux filets à la fois. Aucun des deux
+    //    rapports ne peut le dire, et c'est la seule intersection qui justifie
+    //    d'intervenir avant que quelque chose casse.
+    List<Pair> naked =
+        ok.stream()
+            .filter(p -> num(p.sq(), "coverage") != null && nz(p.sq(), "coverage") < 20)
+            .filter(p -> nz(p.gl(), "commits_window") >= 20)
+            .filter(p -> nz(p.gl(), "mr_fusionnees") == 0)
+            .sorted(Comparator.comparingDouble((Pair p) -> nz(p.gl(), "commits_window")).reversed())
+            .toList();
+    finding(
+        "Ni tests ni revue, sur du code qui bouge",
+        naked.size(),
+        "Couverture sous 20 %, aucune MR fusionnée, activité soutenue. Les "
+            + "deux\n    filets manquent en même temps.",
+        naked,
+        p ->
+            "%s — couverture %s %%, %s commits"
+                .formatted(
+                    p.gl().str("path"), p.sq().str("coverage"), p.gl().str("commits_window")));
 
-        // 5. Dette portée sans être créée. Le confirmer par une source
-        //    indépendante, plutôt que de le déduire d'une date d'analyse ancienne
-        //    — qui ne dit rien de ce qui se passe dans le dépôt.
-        List<Pair> carrying = ok.stream()
-                .filter(p -> nz(p.sq(), "sqale_index") > 0)
-                .filter(p -> num(p.gl(), "commits_window") != null
-                        && nz(p.gl(), "commits_window") == 0)
-                .sorted(Comparator.comparingDouble((Pair p) -> nz(p.sq(), "sqale_index")).reversed())
-                .toList();
-        finding("Dette portée, pas créée", carrying.size(),
-                "De la dette au bilan, zéro commit sur la fenêtre. Confirmé par le "
-                        + "dépôt\n    lui-même, pas déduit d'une date d'analyse ancienne.",
-                carrying, p -> "%s — %s min de dette, 0 commit".formatted(
-                        p.gl().str("path"), p.sq().str("sqale_index")));
+    // 5. Dette portée sans être créée. Le confirmer par une source
+    //    indépendante, plutôt que de le déduire d'une date d'analyse ancienne
+    //    — qui ne dit rien de ce qui se passe dans le dépôt.
+    List<Pair> carrying =
+        ok.stream()
+            .filter(p -> nz(p.sq(), "sqale_index") > 0)
+            .filter(p -> num(p.gl(), "commits_window") != null && nz(p.gl(), "commits_window") == 0)
+            .sorted(Comparator.comparingDouble((Pair p) -> nz(p.sq(), "sqale_index")).reversed())
+            .toList();
+    finding(
+        "Dette portée, pas créée",
+        carrying.size(),
+        "De la dette au bilan, zéro commit sur la fenêtre. Confirmé par le "
+            + "dépôt\n    lui-même, pas déduit d'une date d'analyse ancienne.",
+        carrying,
+        p ->
+            "%s — %s min de dette, 0 commit"
+                .formatted(p.gl().str("path"), p.sq().str("sqale_index")));
 
-        // 6. Le cas qui ne se voit que depuis les deux côtés : des tests existent,
-        //    et SonarQube n'en sait rien. Sans le compte de tests, « couverture 0 »
-        //    et « pas de tests » sont la même cellule vide.
-        List<Pair> unwired = ok.stream()
-                .filter(p -> nz(p.sq(), "tests") > 0)
-                .filter(p -> num(p.sq(), "coverage") != null && nz(p.sq(), "coverage") == 0)
-                .toList();
-        finding("Des tests tournent, la couverture n'arrive pas", unwired.size(),
-                "Tests comptés par SonarQube, couverture à zéro : le rapport de "
-                        + "couverture\n    n'est pas branché. Problème de tuyauterie CI, pas "
-                        + "d'ingénierie — et les\n    deux se ressemblent tant qu'on ne "
-                        + "regarde que le pourcentage.",
-                unwired, p -> "%s — %s tests, couverture 0 %%".formatted(
-                        p.gl().str("path"), p.sq().str("tests")));
+    // 6. Le cas qui ne se voit que depuis les deux côtés : des tests existent,
+    //    et SonarQube n'en sait rien. Sans le compte de tests, « couverture 0 »
+    //    et « pas de tests » sont la même cellule vide.
+    List<Pair> unwired =
+        ok.stream()
+            .filter(p -> nz(p.sq(), "tests") > 0)
+            .filter(p -> num(p.sq(), "coverage") != null && nz(p.sq(), "coverage") == 0)
+            .toList();
+    finding(
+        "Des tests tournent, la couverture n'arrive pas",
+        unwired.size(),
+        "Tests comptés par SonarQube, couverture à zéro : le rapport de "
+            + "couverture\n    n'est pas branché. Problème de tuyauterie CI, pas "
+            + "d'ingénierie — et les\n    deux se ressemblent tant qu'on ne "
+            + "regarde que le pourcentage.",
+        unwired,
+        p -> "%s — %s tests, couverture 0 %%".formatted(p.gl().str("path"), p.sq().str("tests")));
 
-        // 7. La dérivée rapportée au travail fait. La pente seule confond « le
-        //    projet grossit » et « chaque modification abîme » ; divisée par les
-        //    lignes réellement modifiées, elle dit ce que coûte une modification.
-        List<Pair> degrading = ok.stream()
-                .filter(p -> perKlocChanged(p) != null && perKlocChanged(p) > 0)
-                .filter(p -> nz(p.sq(), "tendance_analyses") >= 5)
-                .filter(p -> nz(p.gl(), "lignes_modifiees") >= 500)
-                .sorted(Comparator.comparingDouble(CrossAudit::perKlocChanged).reversed())
-                .toList();
-        finding("Chaque modification ajoute des issues", degrading.size(),
-                "Pente des issues Sonar sur la fenêtre, rapportée aux lignes modifiées "
-                        + "dans\n    GitLab. Au moins 5 analyses et 500 lignes, sinon "
-                        + "c'est du bruit.",
-                degrading, p -> "%s — %+.1f issues / kLOC modifié, %s lignes".formatted(
-                        p.gl().str("path"), perKlocChanged(p), p.gl().str("lignes_modifiees")));
+    // 7. La dérivée rapportée au travail fait. La pente seule confond « le
+    //    projet grossit » et « chaque modification abîme » ; divisée par les
+    //    lignes réellement modifiées, elle dit ce que coûte une modification.
+    List<Pair> degrading =
+        ok.stream()
+            .filter(p -> perKlocChanged(p) != null && perKlocChanged(p) > 0)
+            .filter(p -> nz(p.sq(), "tendance_analyses") >= 5)
+            .filter(p -> nz(p.gl(), "lignes_modifiees") >= 500)
+            .sorted(Comparator.comparingDouble(CrossAudit::perKlocChanged).reversed())
+            .toList();
+    finding(
+        "Chaque modification ajoute des issues",
+        degrading.size(),
+        "Pente des issues Sonar sur la fenêtre, rapportée aux lignes modifiées "
+            + "dans\n    GitLab. Au moins 5 analyses et 500 lignes, sinon "
+            + "c'est du bruit.",
+        degrading,
+        p ->
+            "%s — %+.1f issues / kLOC modifié, %s lignes"
+                .formatted(p.gl().str("path"), perKlocChanged(p), p.gl().str("lignes_modifiees")));
+  }
+
+  // ----------------------------------------------------------------------
+  // La tendance rapportée au travail fait
+  // ----------------------------------------------------------------------
+
+  /**
+   * Les issues gagnées sur la fenêtre GitLab : la pente Sonar (régression sur les analyses, par
+   * jour) multipliée par la durée de la fenêtre.
+   *
+   * <p>La pente plutôt que (dernière − première valeur) : les deux fenêtres ne coïncident jamais —
+   * les analyses tombent quand la CI tourne — et la pente se ramène à n'importe quelle durée. Null
+   * dès qu'un morceau manque, et aussi quand GitLab a tronqué sa pagination : un dénominateur
+   * sous-compté gonflerait le ratio sans que rien ne le signale.
+   */
+  static Double issuesOverWindow(Pair p) {
+    if (!p.joined()) return null;
+    Double perMonth = num(p.sq(), "violations_pente_mois");
+    Double days = num(p.gl(), "fenetre_j");
+    if (perMonth == null || days == null || p.gl().flag("lignes_tronquees")) return null;
+    return perMonth / 30 * days;
+  }
+
+  static Double perKlocChanged(Pair p) {
+    Double issues = issuesOverWindow(p);
+    Double lines = num(p.gl(), "lignes_modifiees");
+    return issues == null || lines == null || lines == 0 ? null : issues / (lines / 1000);
+  }
+
+  static Double perCommit(Pair p) {
+    Double issues = issuesOverWindow(p);
+    Double commits = num(p.gl(), "commits_lignes");
+    return issues == null || commits == null || commits == 0 ? null : issues / commits;
+  }
+
+  /** Un constat, son effectif, sa lecture, et au plus cinq exemples nommés. */
+  private void finding(
+      String title,
+      int n,
+      String reading,
+      List<Pair> examples,
+      java.util.function.Function<Pair, String> line) {
+    System.out.printf("%n  %s : %s%n", title, c(String.valueOf(n), n > 0 ? YELLOW : GREEN));
+    if (n == 0) return;
+    System.out.println(c("    " + reading, DIM));
+    examples.stream().limit(5).forEach(p -> System.out.println("      " + line.apply(p)));
+    if (n > 5) System.out.printf("      … et %d autres, dans le CSV.%n", n - 5);
+  }
+
+  // ----------------------------------------------------------------------
+  // CSV
+  // ----------------------------------------------------------------------
+
+  /**
+   * Les colonnes des deux côtés, plus la méthode d'appariement. Le préfixe dit d'où vient chaque
+   * valeur : sans lui, {@code coverage} et {@code commits} dans la même ligne laissent croire à une
+   * mesure unique alors que ce sont deux systèmes, deux dates et deux définitions.
+   */
+  private static final List<String> GL_COLUMNS =
+      List.of(
+          "path",
+          "bucket",
+          "commits_window",
+          "authors_window",
+          "mr_fusionnees",
+          "auto_merge",
+          "part_approuvee",
+          "branche_protegee",
+          "taux_succes",
+          "rouge_non_resolu",
+          "ci_sonar",
+          "ci_securite",
+          "cle_sonar",
+          "source_cle_sonar",
+          "cle_pom",
+          "nom_pom",
+          "id",
+          "fenetre_j",
+          "lignes_modifiees",
+          "commits_lignes",
+          "lignes_tronquees");
+
+  private static final List<String> SQ_COLUMNS =
+      List.of(
+          "key",
+          "name",
+          "analysisDate",
+          "days_since_analysis",
+          "ncloc",
+          "coverage",
+          "new_coverage",
+          "tests",
+          "test_failures",
+          "lines_to_cover",
+          "uncovered_lines",
+          "sqale_index",
+          "sqale_debt_ratio",
+          "bugs",
+          "vulnerabilities",
+          "code_smells",
+          "violations",
+          "new_lines",
+          "new_violations",
+          "alert_status",
+          "duplicated_lines_density",
+          "new_duplicated_lines_density",
+          "alm",
+          "alm_repository",
+          "liens",
+          "tendance_analyses",
+          "tendance_jours",
+          "violations_pente_mois",
+          "violations_kloc_pente_pct_mois",
+          "dette_ratio_pente_pct_mois");
+
+  /** Calculées ici, à partir des deux côtés : ni gl_ ni sq_. */
+  private static final List<String> CROSS_COLUMNS =
+      List.of("issues_par_kloc_modifie", "issues_par_commit");
+
+  private void write(ProjectMapper.Result mapping, List<Pair> pairs) throws IOException {
+    Path dir = out.toAbsolutePath().getParent();
+    if (dir != null) Files.createDirectories(dir);
+
+    // « projet » en tête : la colonne qu'on fige dans le tableur pour
+    // savoir de quel projet on lit la ligne en défilant vers la droite.
+    List<String> header = new ArrayList<>(List.of("projet", "methode_jointure", "confiance"));
+    header.addAll(ProjectMapper.detailHeader(mapping));
+    GL_COLUMNS.forEach(c -> header.add("gl_" + c));
+    SQ_COLUMNS.forEach(c -> header.add("sq_" + c));
+    header.addAll(CROSS_COLUMNS);
+
+    try (CSVWriter w = Csv.writer(out, comma)) {
+      w.writeNext(header.toArray(String[]::new));
+      for (Pair p : pairs) {
+        List<String> row =
+            new ArrayList<>(List.of(p.gl().str("path"), p.m().label(), p.m().confidence().code()));
+        row.addAll(ProjectMapper.detailCells(mapping, p.m()));
+        GL_COLUMNS.forEach(col -> row.add(p.gl().str(col)));
+        SQ_COLUMNS.forEach(col -> row.add(p.sq() == null ? "" : p.sq().str(col)));
+        row.add(dec(perKlocChanged(p)));
+        row.add(dec(perCommit(p)));
+        w.writeNext(row.toArray(String[]::new));
+      }
     }
+    System.out.printf("%n  Croisement : %d lignes → %s%n", pairs.size(), out.toAbsolutePath());
+    System.out.println(c(Csv.openingHint(out, comma), DIM));
+    System.out.println(
+        c("    Une ligne par projet GitLab, appariée ou non. " + "Filtrer sur confiance", DIM));
+    System.out.println(
+        c("    = suggestion donne la liste des rapprochements " + "qu'un humain doit", DIM));
+    System.out.println(
+        c("    confirmer ; ils ne comptent dans aucun des constats " + "ci-dessus.", DIM));
+  }
 
-    // ----------------------------------------------------------------------
-    // La tendance rapportée au travail fait
-    // ----------------------------------------------------------------------
+  // ----------------------------------------------------------------------
+  // Utilitaires
+  // ----------------------------------------------------------------------
 
-    /**
-     * Les issues gagnées sur la fenêtre GitLab : la pente Sonar (régression sur
-     * les analyses, par jour) multipliée par la durée de la fenêtre.
-     *
-     * La pente plutôt que (dernière − première valeur) : les deux fenêtres ne
-     * coïncident jamais — les analyses tombent quand la CI tourne — et la pente
-     * se ramène à n'importe quelle durée. Null dès qu'un morceau manque, et
-     * aussi quand GitLab a tronqué sa pagination : un dénominateur sous-compté
-     * gonflerait le ratio sans que rien ne le signale.
-     */
-    static Double issuesOverWindow(Pair p) {
-        if (!p.joined()) return null;
-        Double perMonth = num(p.sq(), "violations_pente_mois");
-        Double days = num(p.gl(), "fenetre_j");
-        if (perMonth == null || days == null || p.gl().flag("lignes_tronquees")) return null;
-        return perMonth / 30 * days;
-    }
+  static final String BOLD = "\033[1m", DIM = "\033[2m";
+  static final String GREEN = "\033[32m", YELLOW = "\033[33m";
 
-    static Double perKlocChanged(Pair p) {
-        Double issues = issuesOverWindow(p);
-        Double lines = num(p.gl(), "lignes_modifiees");
-        return issues == null || lines == null || lines == 0 ? null : issues / (lines / 1000);
-    }
+  static String c(String text, String color) {
+    return ConsoleOut.color(text, color);
+  }
 
-    static Double perCommit(Pair p) {
-        Double issues = issuesOverWindow(p);
-        Double commits = num(p.gl(), "commits_lignes");
-        return issues == null || commits == null || commits == 0 ? null : issues / commits;
-    }
+  static void title(String text) {
+    System.out.println();
+    System.out.println(c(text, BOLD));
+    System.out.println(c("-".repeat(Math.min(text.length(), 72)), DIM));
+  }
 
-    /** Un constat, son effectif, sa lecture, et au plus cinq exemples nommés. */
-    private void finding(String title, int n, String reading,
-                         List<Pair> examples, java.util.function.Function<Pair, String> line) {
-        System.out.printf("%n  %s : %s%n", title,
-                c(String.valueOf(n), n > 0 ? YELLOW : GREEN));
-        if (n == 0) return;
-        System.out.println(c("    " + reading, DIM));
-        examples.stream().limit(5).forEach(p -> System.out.println("      " + line.apply(p)));
-        if (n > 5) System.out.printf("      … et %d autres, dans le CSV.%n", n - 5);
-    }
+  /** {@code null} quand la cellule est vide : absent n'est pas zéro. */
+  static Double num(Csv.Row r, String column) {
+    return r == null ? null : r.num(column);
+  }
 
-    // ----------------------------------------------------------------------
-    // CSV
-    // ----------------------------------------------------------------------
+  /** La même, ramenée à zéro là où un seuil a besoin d'un nombre. */
+  static double nz(Csv.Row r, String column) {
+    Double d = num(r, column);
+    return d == null ? 0 : d;
+  }
 
-    /**
-     * Les colonnes des deux côtés, plus la méthode d'appariement. Le préfixe dit
-     * d'où vient chaque valeur : sans lui, {@code coverage} et {@code commits}
-     * dans la même ligne laissent croire à une mesure unique alors que ce sont
-     * deux systèmes, deux dates et deux définitions.
-     */
-    private static final List<String> GL_COLUMNS = List.of(
-            "path", "bucket", "commits_window", "authors_window", "mr_fusionnees",
-            "auto_merge", "part_approuvee", "branche_protegee", "taux_succes",
-            "rouge_non_resolu", "ci_sonar", "ci_securite",
-            "cle_sonar", "source_cle_sonar", "cle_pom", "nom_pom", "id",
-            "fenetre_j", "lignes_modifiees", "commits_lignes", "lignes_tronquees");
+  static String dec(Double d) {
+    return d == null ? "" : String.format(Locale.ROOT, "%.2f", d);
+  }
 
-    private static final List<String> SQ_COLUMNS = List.of(
-            "key", "name", "analysisDate", "days_since_analysis", "ncloc",
-            "coverage", "new_coverage", "tests", "test_failures", "lines_to_cover",
-            "uncovered_lines", "sqale_index", "sqale_debt_ratio",
-            "bugs", "vulnerabilities", "code_smells", "violations",
-            "new_lines", "new_violations", "alert_status",
-            "duplicated_lines_density", "new_duplicated_lines_density",
-            "alm", "alm_repository", "liens",
-            "tendance_analyses", "tendance_jours", "violations_pente_mois",
-            "violations_kloc_pente_pct_mois", "dette_ratio_pente_pct_mois");
-
-    /** Calculées ici, à partir des deux côtés : ni gl_ ni sq_. */
-    private static final List<String> CROSS_COLUMNS = List.of(
-            "issues_par_kloc_modifie", "issues_par_commit");
-
-    private void write(ProjectMapper.Result mapping, List<Pair> pairs) throws IOException {
-        Path dir = out.toAbsolutePath().getParent();
-        if (dir != null) Files.createDirectories(dir);
-
-        // « projet » en tête : la colonne qu'on fige dans le tableur pour
-        // savoir de quel projet on lit la ligne en défilant vers la droite.
-        List<String> header = new ArrayList<>(List.of("projet", "methode_jointure", "confiance"));
-        header.addAll(ProjectMapper.detailHeader(mapping));
-        GL_COLUMNS.forEach(c -> header.add("gl_" + c));
-        SQ_COLUMNS.forEach(c -> header.add("sq_" + c));
-        header.addAll(CROSS_COLUMNS);
-
-        try (CSVWriter w = Csv.writer(out, comma)) {
-            w.writeNext(header.toArray(String[]::new));
-            for (Pair p : pairs) {
-                List<String> row = new ArrayList<>(List.of(p.gl().str("path"), p.m().label(),
-                        p.m().confidence().code()));
-                row.addAll(ProjectMapper.detailCells(mapping, p.m()));
-                GL_COLUMNS.forEach(col -> row.add(p.gl().str(col)));
-                SQ_COLUMNS.forEach(col -> row.add(p.sq() == null ? "" : p.sq().str(col)));
-                row.add(dec(perKlocChanged(p)));
-                row.add(dec(perCommit(p)));
-                w.writeNext(row.toArray(String[]::new));
-            }
-        }
-        System.out.printf("%n  Croisement : %d lignes → %s%n", pairs.size(), out.toAbsolutePath());
-        System.out.println(c(Csv.openingHint(out, comma), DIM));
-        System.out.println(c("    Une ligne par projet GitLab, appariée ou non. "
-                + "Filtrer sur confiance", DIM));
-        System.out.println(c("    = suggestion donne la liste des rapprochements "
-                + "qu'un humain doit", DIM));
-        System.out.println(c("    confirmer ; ils ne comptent dans aucun des constats "
-                + "ci-dessus.", DIM));
-    }
-
-    // ----------------------------------------------------------------------
-    // Utilitaires
-    // ----------------------------------------------------------------------
-
-    static final String BOLD = "\033[1m", DIM = "\033[2m";
-    static final String GREEN = "\033[32m", YELLOW = "\033[33m";
-
-    static String c(String text, String color) {
-        return ConsoleOut.color(text, color);
-    }
-
-    static void title(String text) {
-        System.out.println();
-        System.out.println(c(text, BOLD));
-        System.out.println(c("-".repeat(Math.min(text.length(), 72)), DIM));
-    }
-
-    /** {@code null} quand la cellule est vide : absent n'est pas zéro. */
-    static Double num(Csv.Row r, String column) {
-        return r == null ? null : r.num(column);
-    }
-
-    /** La même, ramenée à zéro là où un seuil a besoin d'un nombre. */
-    static double nz(Csv.Row r, String column) {
-        Double d = num(r, column);
-        return d == null ? 0 : d;
-    }
-
-    static String dec(Double d) {
-        return d == null ? "" : String.format(Locale.ROOT, "%.2f", d);
-    }
-
-    static String pct(long n, long total) {
-        return total == 0 ? "—" : "%.0f %%".formatted(100.0 * n / total);
-    }
+  static String pct(long n, long total) {
+    return total == 0 ? "—" : "%.0f %%".formatted(100.0 * n / total);
+  }
 }
