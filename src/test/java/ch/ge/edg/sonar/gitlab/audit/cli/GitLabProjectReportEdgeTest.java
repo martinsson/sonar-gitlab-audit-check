@@ -12,6 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 /** Thin, empty, refused or capped answers: what the report says when GitLab gives little. */
@@ -19,7 +20,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
 
   static final String MON = "2024-03-04T10:00:00+02:00";
 
-  Map<String, Object> oneCommit(String name, String email, int daysAgo) {
+  Map<String, Object> oneCommit(@Nullable String name, @Nullable String email, int daysAgo) {
     return commit(name, email, MON, fx.ago(daysAgo, 0), new int[] {3, 1});
   }
 

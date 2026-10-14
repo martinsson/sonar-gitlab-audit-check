@@ -1,6 +1,9 @@
 package ch.ge.edg.sonar.gitlab.audit.cli;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.ProjectMapper.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Choice;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Match;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -8,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 /** Small tables and a one-line rendering of SonarToGitlab results, for its unit tests. */
 final class SonarToGitlabFixtures {
@@ -25,13 +29,17 @@ final class SonarToGitlabFixtures {
         dir, "inventaire.csv", CrossAuditFixtures.INVENTORY_HEADER, rows);
   }
 
-  static ProjectMapper.Match match(Csv.Row gitlab, Csv.Row sonar, Confidence c, String label) {
-    return new ProjectMapper.Match(0, gitlab, sonar, "m", label, c, Map.of(), null, null);
+  static Match match(Csv.Row gitlab, Csv.@Nullable Row sonar, Confidence c, String label) {
+    return new Match(0, gitlab, new Choice(sonar, "m", label, c), Map.of(), null, null);
   }
 
-  static SonarToGitlab.Result map(
-      Csv.Table sonar, Csv.Table inventory, List<ProjectMapper.Match> cross) {
-    return SonarToGitlab.map(sonar, inventory, cross, Set.of(), Set.of(), 0.5, 0.1);
+  static SonarToGitlab.Result map(Csv.Table sonar, Csv.Table inventory, List<Match> cross) {
+    return SonarToGitlab.map(
+        sonar,
+        inventory,
+        cross,
+        new SonarToGitlab.Rejections(Set.of(), Set.of()),
+        new SonarToGitlab.NameThresholds(0.5, 0.1));
   }
 
   /** key → path | method | confidence | score | candidates | reason, one line per pair. */
@@ -44,7 +52,7 @@ final class SonarToGitlabFixtures {
                     p.key() + " -> " + p.path(),
                     p.method(),
                     p.confidence().code(),
-                    p.score() == null ? "-" : ProjectMapper.score(p.score()),
+                    p.score() == null ? "-" : Fmt.score(p.score()),
                     p.candidates(),
                     p.reason()))
         .collect(Collectors.joining("\n"));

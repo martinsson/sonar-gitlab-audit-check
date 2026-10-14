@@ -1,0 +1,120 @@
+package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
+
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.GREEN;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
+
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * 5. Constats. Rien ici n'est calculé : la section relit ce que les précédentes ont mesuré et n'en
+ * retient que ce qui sort de l'ordinaire. Les seuils sont grossiers et assumés comme tels — ils
+ * servent à orienter un entretien, pas à noter une équipe.
+ */
+final class Findings {
+
+  private final Report report;
+  private final LocalDateTime now;
+  private final List<String> found = new ArrayList<>();
+
+  Findings(Report report, LocalDateTime now) {
+    this.report = report;
+    this.now = now;
+  }
+
+  void print(Project p, Commits commits, Cadence cadence, People people, Reviews reviews) {
+    report.title("5. Constats");
+    activity(p, cadence);
+    review(cadence, reviews);
+    team(people);
+    habits(commits, cadence, reviews);
+
+    if (found.isEmpty()) {
+      report.println("  Rien de saillant sur les seuils retenus.", GREEN);
+      return;
+    }
+    for (String s : found) report.println("  → " + s, YELLOW);
+    report.println();
+    report.println(
+        """
+          Ces constats décrivent un procédé, pas une qualité de code. Le croisement
+          avec Sonar — fréquence de modification contre complexité, quality gate
+          contre MR fusionnées — reste à faire.\
+        """,
+        DIM);
+  }
+
+  private void activity(Project p, Cadence cadence) {
+    if (Boolean.TRUE.equals(p.archived())) {
+      found.add("Projet archivé : lecture historique seulement.");
+    }
+    LocalDateTime lastCommit = cadence.lastCommit();
+    if (lastCommit == null) return;
+    long idle = ChronoUnit.DAYS.between(lastCommit, now);
+    if (idle > 90) found.add("Dernier commit il y a %d j : dépôt dormant.".formatted(idle));
+    LocalDateTime activity = Dates.parseLocal(p.lastActivityAt());
+    if (activity != null && idle > 180 && ChronoUnit.DAYS.between(activity, now) < 90) {
+      found.add(
+          "Le dépôt bouge encore (MR, tickets) mais plus la branche par défaut :"
+              + " le travail vit ailleurs, ou personne ne fusionne plus.");
+    }
+  }
+
+  private void review(Cadence cadence, Reviews reviews) {
+    if (cadence.commits() > 0 && reviews.noMrs()) {
+      found.add(
+          "%d commits, aucune MR : le code arrive sans revue sur la branche par défaut."
+              .formatted(cadence.commits()));
+    }
+    if (reviews.selfMergedShare() > 50) {
+      found.add(
+          "%.0f %% des MR sont fusionnées par leur auteur : la revue est facultative."
+              .formatted(reviews.selfMergedShare()));
+    }
+    if (reviews.mrs() > 0 && reviews.silentShare() > 60) {
+      found.add(
+          "%.0f %% des MR n'ont aucun commentaire : la revue est un tampon."
+              .formatted(reviews.silentShare()));
+    }
+    if (reviews.leadP90() > 30 * 24) {
+      found.add(
+          "9e décile du délai de fusion à %s : une MR sur dix traîne un mois."
+              .formatted(Format.hours(reviews.leadP90())));
+    }
+  }
+
+  private void team(People people) {
+    if (people.authors() > 0 && people.busFactor() <= 1) {
+      found.add(
+          "Une seule personne signe 80 %% des commits (%.0f %% pour la première)."
+              .formatted(people.topShare()));
+    }
+    if (people.authors() > 2 && people.activeRecently() <= 1) {
+      found.add(
+          "%d auteurs sur la fenêtre, %d actif sur 90 j : l'équipe s'est vidée."
+              .formatted(people.authors(), people.activeRecently()));
+    }
+  }
+
+  private void habits(Commits commits, Cadence cadence, Reviews reviews) {
+    if (cadence.bigCommitShare() > 10) {
+      found.add(
+          "%.0f %% des commits dépassent %d lignes : imports, code généré ou gros lots."
+              .formatted(cadence.bigCommitShare(), CadenceSection.BIG_COMMIT));
+    }
+    if (cadence.weekendShare() > 25) {
+      found.add("%.0f %% des commits le week-end.".formatted(cadence.weekendShare()));
+    }
+    if (reviews.squashShare() > 80) {
+      found.add(
+          "Squash quasi systématique : l'historique par commit n'existe plus,"
+              + " la cadence ci-dessus mesure le bouton « fusionner ».");
+    }
+    if (!commits.bots().isEmpty() && commits.bots().size() > commits.humans().size()) {
+      found.add("Plus de commits de bots que d'humains : dépôt surtout maintenu par l'outillage.");
+    }
+  }
+}

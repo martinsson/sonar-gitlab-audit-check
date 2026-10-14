@@ -6,9 +6,9 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlabFixtures.sonar;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.ProjectMapper.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Check;
 import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Pair;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import java.io.ByteArrayOutputStream;
@@ -86,7 +86,7 @@ class SonarToGitlabOutputTest {
   @Test
   void write_gives_one_row_per_sonar_project_with_its_repository_counts() throws IOException {
     Path file = dir.resolve("deep").resolve("sg.csv");
-    SonarToGitlab.write(result(), file, true);
+    SonarToGitlabCsv.write(result(), file, true);
     expectSelfie(read(file)).toMatchDisk();
   }
 
@@ -94,7 +94,7 @@ class SonarToGitlabOutputTest {
   void write_in_excel_format_by_default() throws IOException {
     Path file = dir.resolve("sg.csv");
     SonarToGitlab.Result r = new SonarToGitlab.Result(List.of(result().pairs().get(5)), List.of());
-    SonarToGitlab.write(r, file, false);
+    SonarToGitlabCsv.write(r, file, false);
     assertThat(read(file))
         .startsWith("﻿\"sonar_key\";\"sonar_name\";\"gitlab_path\"")
         .endsWith(
@@ -105,14 +105,15 @@ class SonarToGitlabOutputTest {
   void print_sums_up_by_confidence_outside_selection_reasons_and_checks() throws IOException {
     SonarToGitlab.Result r = result();
     Path file = dir.resolve("sg.csv");
-    String out = captured(() -> SonarToGitlab.print(r, file));
+    String out = captured(() -> new SonarToGitlabReport(System.out).print(r, file));
     expectSelfie(CrossAuditFixtures.scrub(out, dir)).toMatchDisk();
   }
 
   @Test
   void print_of_nothing() {
     SonarToGitlab.Result r = new SonarToGitlab.Result(List.of(), List.of());
-    String out = captured(() -> SonarToGitlab.print(r, dir.resolve("sg.csv")));
+    String out =
+        captured(() -> new SonarToGitlabReport(System.out).print(r, dir.resolve("sg.csv")));
     expectSelfie(CrossAuditFixtures.scrub(out, dir)).toMatchDisk();
   }
 

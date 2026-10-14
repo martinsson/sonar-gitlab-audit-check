@@ -1,9 +1,7 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarAuditCheck.Progress;
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarAuditCheck.Verdict;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -12,7 +10,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 /** Console helpers: progress counter, titles, verdict lines, colors. */
-class SonarAuditCheckPresentationTest {
+class PresentationTest {
 
   @AfterEach
   void noColors() {
@@ -41,7 +39,7 @@ class SonarAuditCheckPresentationTest {
     String out =
         capture(
             () -> {
-              Progress p = new Progress("x", 30);
+              Progress p = new Progress(System.out, "x", 30);
               tick(p, 30);
               p.done();
             });
@@ -54,7 +52,7 @@ class SonarAuditCheckPresentationTest {
     String out =
         capture(
             () -> {
-              Progress p = new Progress("x", 0);
+              Progress p = new Progress(System.out, "x", 0);
               p.done();
             });
     assertThat(out).isEmpty();
@@ -66,7 +64,7 @@ class SonarAuditCheckPresentationTest {
     String out =
         capture(
             () -> {
-              Progress p = new Progress("x", 25);
+              Progress p = new Progress(System.out, "x", 25);
               tick(p, 25);
               p.done();
             });
@@ -75,28 +73,28 @@ class SonarAuditCheckPresentationTest {
 
   @Test
   void titlePadsToSixtySixWithEquals() {
-    String out = capture(() -> SonarAuditCheck.title("abc"));
+    String out = capture(() -> Presentation.title(System.out, "abc"));
     assertThat(out).isEqualTo("\n=== abc " + "=".repeat(63) + "\n");
     String longTitle = "t".repeat(70);
-    assertThat(capture(() -> SonarAuditCheck.title(longTitle)))
+    assertThat(capture(() -> Presentation.title(System.out, longTitle)))
         .isEqualTo("\n=== " + longTitle + " \n");
   }
 
   @Test
   void lineAlignsLabelAndDropsBlankDetail() {
-    assertThat(capture(() -> SonarAuditCheck.line("lbl", Verdict.OK, "d")))
+    assertThat(capture(() -> Presentation.line(System.out, "lbl", Verdict.OK, "d")))
         .isEqualTo("  OK       lbl" + " ".repeat(39) + " d\n");
-    assertThat(capture(() -> SonarAuditCheck.line("lbl", Verdict.ERROR, " ")))
+    assertThat(capture(() -> Presentation.line(System.out, "lbl", Verdict.ERROR, " ")))
         .isEqualTo("  ERREUR   lbl" + " ".repeat(39) + " \n");
   }
 
   @Test
   void colorsWrapWhenEnabled() {
     ConsoleOut.colorMode("always");
-    assertThat(SonarAuditCheck.c("t", SonarAuditCheck.RED)).isEqualTo("\033[31mt\033[0m");
-    assertThat(capture(() -> SonarAuditCheck.line("l", Verdict.DENIED, "d")))
+    assertThat(Presentation.c("t", Presentation.RED)).isEqualTo("\033[31mt\033[0m");
+    assertThat(capture(() -> Presentation.line(System.out, "l", Verdict.DENIED, "d")))
         .isEqualTo("  \033[31mREFUSE  \033[0m l" + " ".repeat(41) + " \033[2md\033[0m\n");
     ConsoleOut.colorMode("never");
-    assertThat(SonarAuditCheck.c("t", SonarAuditCheck.RED)).isEqualTo("t");
+    assertThat(Presentation.c("t", Presentation.RED)).isEqualTo("t");
   }
 }

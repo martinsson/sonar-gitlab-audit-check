@@ -1,0 +1,140 @@
+package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
+
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.BOLD;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.GREEN;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.RED;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.totalOf;
+
+import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
+import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ProjectSearch;
+import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
+import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.List;
+import org.jspecify.annotations.Nullable;
+
+/** Les projets visibles, ce qui échappe au jeton, et la fraîcheur de leurs analyses. */
+final class Projects {
+
+  private static final int PAGE_SIZE = 500;
+  private static final int MAX_PAGES = 40;
+
+  private final Session session;
+  private final PrintStream out;
+
+  Projects(Session session) {
+    this.session = session;
+    this.out = session.out();
+  }
+
+  List<Component> fetchAll() {
+    List<Component> all = new ArrayList<>();
+    int page = 1;
+    while (page <= MAX_PAGES) {
+      Sonar.Response r =
+          session
+              .sq()
+              .get(
+                  "api/components/search_projects",
+                  params(
+                      "ps",
+                      String.valueOf(PAGE_SIZE),
+                      "p",
+                      String.valueOf(page),
+                      "f",
+                      "analysisDate,leakPeriodDate"));
+      ProjectSearch p = r.as(ProjectSearch.class);
+      if (p == null) {
+        out.println(
+            c("  Échec de la pagination page %d : HTTP %d".formatted(page, r.status()), RED));
+        break;
+      }
+      List<Component> batch = orEmptyList(p.components());
+      all.addAll(batch);
+      if (batch.isEmpty() || all.size() >= totalOf(p.paging())) break;
+      page++;
+    }
+    if (page > MAX_PAGES) out.println(c("  Pagination interrompue à 20 000 projets.", YELLOW));
+    return all;
+  }
+
+  /**
+   * La liste d'exclusion retire les projets de l'inventaire, mais le dit : un total amputé sans le
+   * dire se lit comme complet.
+   */
+  List<Component> exclude(List<Component> projects, @Nullable Path exclusionsFile)
+      throws IOException {
+    Exclusions ex = Exclusions.load(exclusionsFile);
+    if (ex.isEmpty()) return projects;
+    List<Component> kept = projects.stream().filter(p -> ex.match(p.key()) == null).toList();
+    out.printf(
+        "  Exclus par %s : %s (%d entrées)%n",
+        ex.file(), c(String.valueOf(projects.size() - kept.size()), BOLD), ex.entries().size());
+    return kept;
+  }
+
+  /** L'écart entre ce que je vois et ce qui existe : le point aveugle de l'audit. */
+  void reportScopeGap(int visible) {
+    ProjectSearch p = session.read("api/projects/search", params("ps", "1"), ProjectSearch.class);
+    // paging absent = réponse illisible, pas « zéro projet » : ne rien affirmer.
+    Integer real = (p == null || p.paging() == null) ? null : p.paging().total();
+    if (real == null) {
+      out.println(
+          c(
+              // Le délimiteur fermant, deux colonnes à gauche, garde le retrait du texte.
+              """
+                  Total réel indisponible (nécessite 'Administer System').
+                    Fais comparer ce chiffre à un admin : l'écart est le point aveugle
+                    de ton audit, et il n'apparaît dans aucune réponse d'erreur.
+                """
+                  .stripTrailing(),
+              YELLOW));
+      return;
+    }
+    int gap = real - visible;
+    out.println("  Projets réellement présents    : " + c(String.valueOf(real), BOLD));
+    if (gap > 0 && real > 0) {
+      out.println(
+          c(
+              ("  → %d projet(s) hors de ton périmètre. Ton classement sera "
+                      + "tronqué%n    de %.0f%% sans aucun message d'erreur.")
+                  .formatted(gap, 100.0 * gap / real),
+              RED));
+    } else {
+      out.println(c("  → Périmètre complet.", GREEN));
+    }
+  }
+
+  void reportFreshness(List<Component> projects, int staleDays) {
+    LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
+    int never = 0;
+    int stale = 0;
+    int fresh = 0;
+    for (Component p : projects) {
+      LocalDateTime d = parseDate(p.analysisDate());
+      if (d == null) never++;
+      else if (ChronoUnit.DAYS.between(d, now) > staleDays) stale++;
+      else fresh++;
+    }
+    out.println();
+    out.printf("  Analysés il y a < %d j        : %d%n", staleDays, fresh);
+    out.printf(
+        "  Analysés il y a > %d j        : %s%n", staleDays, c(String.valueOf(stale), YELLOW));
+    out.printf("  Jamais analysés                : %s%n", c(String.valueOf(never), YELLOW));
+    if (never > 0) {
+      out.println(c("    (projets créés puis abandonnés, " + "ou analyse jamais configurée)", DIM));
+    }
+  }
+}

@@ -38,6 +38,23 @@ question. One entry per choice: what, why, and what the alternative would have b
   pass an explicit empty `--exclusions`). Running `mvn` from a checkout that has a real
   `namespace-mapping.yaml` would break ProjectMapper snapshots.
 
+## Shared libraries (gitlab, csv, console, exclusions, naming)
+
+- `@SuppressWarnings("SystemConsoleNull")` on `ConsoleOut.terminal()`: Error Prone assumes
+  `System.console()` is never null, but on JDK 22+ it is null when stdin/stdout are redirected;
+  the check has to stay.
+- `@SuppressWarnings("PMD.ReturnEmptyCollectionRatherThanNull")` on `Gitlab.Response.asList`:
+  null means "unreadable", distinct from an empty list, and callers/tests rely on it.
+- `Gitlab` keeps its old constructor, which passes `System.out`/`System.err` as default streams;
+  a new `Gitlab(Connection, PrintStream, PrintStream)` lets commands pass theirs.
+- `GitlabHttp` catches `IOException | IllegalArgumentException` instead of `Exception` (the second
+  is a malformed URL).
+- `Csv.Row` became a record over a `List`, so its equality is by value instead of array identity
+  (nothing compares rows).
+- New `parallel/Parallel` (bounded map/forEach), shared by Gitlab and Sonar (CPD duplication).
+- Tests that reached moved code now call `JaroWinkler` / `SoftTfIdf`; four GitLab tests build their
+  client inside the output capture. No asserted value changed.
+
 ## Suspected bugs pinned by the tests (behaviour unchanged)
 
 - ProjectMapper `mappedSonarKey(null)` throws NPE before its own null check.
@@ -78,3 +95,68 @@ question. One entry per choice: what, why, and what the alternative would have b
   the internet); reads dates in the system time zone.
 - Cosmetic: "1 réponses 403", "1 projets", `→  (manuel)` double space, uneven indentation in the
   "Aucune MR créée" block, a trailing space in the ci/lint refusal message.
+
+## CrossAudit, SonarToGitlab, SonarRank, Vues
+
+- Required picocli options (`--in`, `--sonar`, `--gitlab`) are `@Nullable` fields, checked with
+  `Objects.requireNonNull` in `call()`: picocli rejects a missing required option before `call()`,
+  but NullAway cannot know that. Options with a `defaultValue` also get it as field initializer.
+- `SonarToGitlab.map` went from 7 to 5 parameters through records `Rejections` and
+  `NameThresholds` (ParameterNumber 5).
+- `Signal` (SonarRank) replaced its `Function` field by a `severity(row)` switch (Error Prone
+  ImmutableEnumChecker); tests call `severity(r)` instead of `severity.apply(r)`.
+- Classes that call package-private `ProjectMapper` code stay in package `cli`, so `cli` holds
+  more classes than a clean layout would (SonarToGitlab's parts, CrossAudit's parts).
+- Tests updated to reach moved code (`rank.*`, `CrossPair`, `CrossReport`, `CrossCsv`,
+  `SonarToGitlabCsv`, `SonarToGitlabReport`); VuesCliTest's long fixture method builds the same
+  rows from compact strings. No asserted value changed.
+
+## ProjectMapper
+
+- `Summary` and `NameStats` had more than 8 components (RecordComponentNumber 8): each got a
+  `@JsonUnwrapped` sub-record (`Guards`, `Vocabulary`) so the JSON report is byte-identical.
+- The namespace-mapping warning still prints once per JVM at class load (static initialiser in
+  `Keys`, triggered from `ProjectMapper`), as before. `NamespaceMapping.load(file, err)` is now a
+  seam, but the default table is still static.
+- Two dead private methods and the reverse namespace map they used were removed.
+- `mappedSonarKey` takes `@Nullable` and calls `requireNonNull` first, to keep the NPE the tests
+  pin (see suspected bugs).
+- `KeyMethod.parse` / `NameSpec.parse` throw `IllegalArgumentException`; the command turns it into
+  the same picocli `ParameterException` as before.
+- `String.split` (Error Prone StringSplitter) replaced by precompiled `Pattern.split`;
+  `linkedPaths` uses `split(…, -1)`, same result since empty entries never yield a path.
+- Moved tests: `KeysTest`, `SpecTest`, `NamespaceMappingTest` (now against `load(file, err)`
+  instead of the global table) live in `cli/mapper/`.
+
+## Sonar, SonarAuditCheck
+
+- **Narrowed catch-alls, a small behaviour change at the edges.** `Transport.send` catches
+  `IOException | IllegalArgumentException` instead of `Exception` (PMD
+  AvoidCatchingGenericException): any other runtime exception from the HTTP client now escapes
+  instead of becoming "status 0". Same pattern in `GitlabHttp`. `parseDate` catches
+  `DateTimeException`, which is everything those parses throw.
+- The `safely` catch-all around probe hints was removed; the hints handle missing fields
+  themselves. The one pinned case (`"scm": [null]` → empty description) is reproduced explicitly
+  in `ScmResponse.describe()`.
+- Two multi-line messages became text blocks with `.stripTrailing()`: Error Prone flags the old
+  `\s` trick (MisleadingEscapedSpace) and the plain concatenation (StringConcatToTextBlock).
+- `SonarAuditCheck` options are split into three picocli `@Mixin` groups declared in the same
+  order, so `--help` is unchanged (snapshot).
+- Tests: the stderr-capture test passes its buffer as the warnings stream instead of swapping
+  `System.err`; helpers tests moved to `cli/sonaraudit/` and split for the coupling limit.
+
+## GitLabProjectReport
+
+- `MergeRequest` needs 9 fields (RecordComponentNumber 8): a Jackson delegating creator reads two
+  sub-records from the same flat JSON object (Jackson 2.17 can't `@JsonUnwrapped` on input).
+  A test covers that parsing.
+- **Small behaviour change at the edges:** record fields the report never reads were dropped
+  (`Project.name`, `Commit.id/short_id/title`, `Stats.total`, `MergeRequest.title/closed_at/
+  target_branch/draft`, the unused `GitLabError`). Before, a non-scalar value in one of those made
+  the whole page "illisible"; now it is ignored.
+- `toLowerCase()` → `toLowerCase(Locale.ROOT)` (differs only on a Turkish locale).
+- The report reads the clock once at the start instead of in each section.
+- Most of `GitLabProjectReportUnitTest` moved to `projectreport/ProjectReportUnitTest` (helpers are
+  package-private there); one test added (blank `--bot-pattern` keeps the default).
+- Uncovered: `main()` and the `https://gitlab.com` fallback on a blank `--url` (would hit the
+  internet).

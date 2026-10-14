@@ -44,6 +44,21 @@ class GitLabProjectReportOptionsTest extends GitLabProjectReportHarness {
   }
 
   @Test
+  void a_blank_bot_pattern_keeps_the_default_one() {
+    project(fx.project(ID, PATH, "main", false));
+    commits(
+        List.of(
+            commit("Alice", "alice@example.com", null, fx.ago(1, 0), new int[] {1, 0}),
+            commit("dependabot", "dependabot@example.com", null, fx.ago(2, 0), new int[] {1, 0})));
+    contributors(1);
+    server.json(GitLabProjectReportFakeGitlab.API + ID + "/merge_requests", "[]");
+
+    Cli.Result r = run("--bot-pattern", " ");
+
+    assertThat(r.out()).contains("  Commits de bots écartés         : 1");
+  }
+
+  @Test
   void insecure_and_timeout_still_read_a_plain_http_instance() {
     smallProject();
     String before = System.getProperty(NO_HOSTNAME_CHECK);
