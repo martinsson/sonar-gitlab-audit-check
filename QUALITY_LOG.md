@@ -1,0 +1,80 @@
+# Quality-gate log
+
+Choices made while bringing the code under the gates of `./verify` that a reviewer may want to
+question. One entry per choice: what, why, and what the alternative would have been.
+
+## Environment
+
+- **Maven must run on JDK 26.** The pom targets `release 26`; Maven on JDK 25 fails with
+  "release version 26 not supported". Used `JAVA_HOME=~/.jbang/cache/jdks/26` (the JDK JBang
+  downloads for the scripts' `//JAVA 26`).
+- **A lenient copy of the pom while writing tests.** The code had ~240 Error Prone / NullAway
+  errors, so nothing compiled under the real pom and no test could run. The tests were written
+  against a local, untracked `pom-lenient.xml` (the real pom minus Error Prone, `-Werror`,
+  Spotless, Checkstyle, PMD, CPD and the JaCoCo gate). It never reached the repo.
+
+## Tests
+
+- **Fake HTTP server on a raw socket.** Checkstyle bans `com.sun.*`, which rules out the JDK's
+  `com.sun.net.httpserver`. `FakeHttpServer` speaks just enough HTTP/1.1 for `java.net.http`.
+- **`*.csv` is git-ignored** (audit output may hold client data). Added a negation for
+  `src/test/resources/**/*.csv` so synthetic fixtures can be committed.
+- **JBang scripts source the whole tree.** Each root script now has one
+  `//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/**/*.java` instead of a hand-kept list.
+  Splitting the big classes (Checkstyle's FileLength 800 / MethodLength 50 / fan-out limits)
+  creates many files; keeping seven lists in sync by hand would have broken a script sooner or
+  later. Cost: each script compiles all ~10k lines on first run. `org.jspecify:jspecify` was
+  added to the `//DEPS` since NullAway fixes bring `@Nullable` into the sources.
+- **Selfie snapshots are only created with `-Dselfie=overwrite`** (this environment runs Selfie
+  read-only by default). Never run that while refactoring: a snapshot that changes is a
+  behaviour change.
+- **Tests pin the current behaviour, bugs included.** The suspected bugs the test writers found
+  are listed below, not fixed: fixing them is a behaviour change, to decide separately.
+- **No clock / sleeper seams yet.** Code calls `now()` and sleeps on retries. Tests use dates
+  relative to now (or far in the past/future) and normalise them in snapshots; the retry tests
+  really sleep (~10 s in total). A `Clock` and a sleeper would be cleaner.
+- **Working-directory files.** `ProjectMapper` loads `namespace-mapping.yaml` and the tools load
+  `exclusions.txt` from the working directory. Tests assume neither exists at the repo root (or
+  pass an explicit empty `--exclusions`). Running `mvn` from a checkout that has a real
+  `namespace-mapping.yaml` would break ProjectMapper snapshots.
+
+## Suspected bugs pinned by the tests (behaviour unchanged)
+
+- ProjectMapper `mappedSonarKey(null)` throws NPE before its own null check.
+- ProjectMapper `mapNamespace` upper-cases the GitLab namespace but YAML keys are kept as written:
+  lowercase keys never match.
+- ProjectMapper: only `IOException` is caught when loading the YAML; a non-string value or a
+  directory escapes the static initialiser.
+- ProjectMapper `?col=val` filter: the value is not trimmed, `? kind = v` never matches.
+- ProjectMapper reuse: a manual row whose key vanished is counted in no total (totals don't add
+  up), and is replaced by the fresh match in the rewritten file; a manual pair does not withdraw
+  a suggestion of the same right row to another left row.
+- CrossAudit / SonarToGitlab: a rejected pair comes back on the second run — the rewritten
+  `appariement.csv` clears `droite_key` on a rejected row, so the rejection only covers the path.
+- SonarToGitlab: the tie-break between originals with 0 commits ignores `last_activity_at`
+  although the comparator's doc says "puis la plus récente".
+- ConsoleOut `Recoding`: the decoder reports malformed input instead of replacing it; one invalid
+  UTF-8 byte silences everything written after it. `if (r.isError()) r.isMalformed();` is a no-op.
+- Locale: CrossAudit (`%+.1f`), SonarRank, GitLabProjectReport and GitlabActivityAudit format
+  decimals with the default locale (a French machine writes `1,50` in CSVs). Tests pin
+  `Locale.ROOT`.
+- SonarRank `truncate` returns `max+2` characters; projects excluded for too few signals still
+  weigh in their stratum's percentiles and quota; "Actifs (< 90 j)" includes exactly 90 days.
+- GitlabActivityAudit selection: `--top 1` selects 3 projects; the single-author and random
+  witness slices ignore the budget and the per-namespace cap.
+- GitlabActivityAudit: a project GraphQL says has no recent commit gets 0 commits but blank
+  merges/active days.
+- Gitlab: with all parameters null the URL still ends in `?`. Commit queries build their
+  parameters with `Map.of`, whose order varies between JVM runs, so `--dump-dir` file names are
+  not reproducible.
+- SonarAuditCheck `parseDate`: `ISO_OFFSET_DATE_TIME` rejects Sonar's `+0200`, so the offset is
+  always dropped (the opposite of the comment).
+- Sonar replay: captures keep the body, not the status: a 403 replays as "no binding", a 404
+  history as an empty series.
+- SonarAuditCheck: "interrompue à 20 000 projets" is really 40 pages of whatever page size;
+  analysis cadence divides by the number of analyses instead of gaps; the `project_links` probe
+  counts blank URLs the CSV leaves out.
+- GitLabProjectReport: falls back to `https://gitlab.com` on a blank `--url` (untested: would hit
+  the internet); reads dates in the system time zone.
+- Cosmetic: "1 réponses 403", "1 projets", `→  (manuel)` double space, uneven indentation in the
+  "Aucune MR créée" block, a trailing space in the ci/lint refusal message.
