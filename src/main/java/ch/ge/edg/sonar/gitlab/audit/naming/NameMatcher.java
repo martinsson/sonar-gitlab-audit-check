@@ -1,5 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.naming;
 
+import static ch.ge.edg.sonar.gitlab.audit.naming.SoftTfIdf.MIN_FUZZY_LENGTH;
+import static ch.ge.edg.sonar.gitlab.audit.naming.SoftTfIdf.numbersConflict;
+import static ch.ge.edg.sonar.gitlab.audit.naming.SoftTfIdf.similarity;
+
+import ch.ge.edg.sonar.gitlab.audit.naming.SoftTfIdf.Doc;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -11,8 +16,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.IntPredicate;
+import java.util.function.ToDoubleFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Ressemblance de noms entre un chemin GitLab et un projet Sonar, pondérée par la rareté des mots
@@ -36,28 +44,18 @@ import java.util.regex.Pattern;
  */
 public final class NameMatcher {
 
-  /** Deux mots distincts se rejoignent à partir de cette ressemblance. */
-  static final double TOKEN_SIMILARITY = 0.9;
-
-  /** En dessous, un mot est trop court pour qu'une ressemblance veuille dire quelque chose. */
-  static final int MIN_FUZZY_LENGTH = 4;
-
   /** Un mot porté par plus de cette part du parc ne sert pas à proposer des candidats. */
   private static final double BLOCKING_MAX_SHARE = 0.2;
-
-  /** Un nom prêt à comparer : mots pondérés (norme 1) et nombres portés. */
-  record Doc(Map<String, Double> weights, Set<String> numbers) {}
 
   /** Un candidat et son score, 0–1. */
   public record Scored(int index, double score) {}
 
   private final List<Doc> sources;
   private final List<Doc> targets;
-  private final Map<String, Double> idf;
   private final Map<String, List<Integer>> blocks = new HashMap<>();
 
   /** Le même blocage côté sources, construit au premier {@link #rankSources}. */
-  private Map<String, List<Integer>> sourceBlocks;
+  private @Nullable Map<String, List<Integer>> sourceBlocks;
 
   /**
    * Sources et cibles arrivent en mots comptés (tf, voir {@link #addTokens}) et en nombres portés
@@ -76,16 +74,16 @@ public final class NameMatcher {
     for (Map<String, Double> tf : sourceTf) tf.keySet().forEach(t -> df.merge(t, 1, Integer::sum));
     for (Map<String, Double> tf : targetTf) tf.keySet().forEach(t -> df.merge(t, 1, Integer::sum));
     int n = sourceTf.size() + targetTf.size();
-    this.idf = new HashMap<>();
+    Map<String, Double> idf = new HashMap<>();
     df.forEach((t, d) -> idf.put(t, Math.log((1.0 + n) / (1.0 + d)) + 1.0));
 
     this.targets = new ArrayList<>();
     this.sources = new ArrayList<>();
     for (int i = 0; i < targetTf.size(); i++) {
-      targets.add(doc(targetTf.get(i), targetNumbers.get(i)));
+      targets.add(SoftTfIdf.doc(targetTf.get(i), targetNumbers.get(i), idf));
     }
     for (int i = 0; i < sourceTf.size(); i++) {
-      sources.add(doc(sourceTf.get(i), sourceNumbers.get(i)));
+      sources.add(SoftTfIdf.doc(sourceTf.get(i), sourceNumbers.get(i), idf));
     }
 
     block(targetTf, blocks);
@@ -98,7 +96,7 @@ public final class NameMatcher {
     int limit = Math.max(3, (int) Math.ceil(tfs.size() * BLOCKING_MAX_SHARE));
     for (int i = 0; i < tfs.size(); i++) {
       for (String t : tfs.get(i).keySet()) {
-        if (df.get(t) > limit) continue;
+        if (df.getOrDefault(t, 0) > limit) continue;
         for (String b : blockingKeys(t)) into.computeIfAbsent(b, k -> new ArrayList<>()).add(i);
       }
     }
@@ -115,20 +113,7 @@ public final class NameMatcher {
   /** Les mêmes, parmi les seules cibles que {@code allowed} laisse passer. */
   public List<Scored> rank(int source, IntPredicate allowed) {
     Doc s = sources.get(source);
-    Set<Integer> candidates = new LinkedHashSet<>();
-    for (String t : s.weights().keySet()) {
-      for (String b : blockingKeys(t)) candidates.addAll(blocks.getOrDefault(b, List.of()));
-    }
-    List<Scored> out = new ArrayList<>();
-    for (int i : candidates) {
-      if (!allowed.test(i)) continue;
-      Doc t = targets.get(i);
-      if (numbersConflict(s.numbers(), t.numbers())) continue;
-      double score = similarity(s, t);
-      if (score > 0) out.add(new Scored(i, score));
-    }
-    out.sort(Comparator.comparingDouble(Scored::score).reversed());
-    return out;
+    return ranked(s, blocks, targets, allowed, t -> similarity(s, t));
   }
 
   /**
@@ -137,25 +122,44 @@ public final class NameMatcher {
    * tout un parc de chemins, celui qui va à un nom donné, sans changer la mesure qu'on a validée.
    */
   public List<Scored> rankSources(int target, IntPredicate allowed) {
-    if (sourceBlocks == null) {
-      sourceBlocks = new HashMap<>();
-      block(sourceTf, sourceBlocks);
+    Map<String, List<Integer>> bySource = sourceBlocks;
+    if (bySource == null) {
+      bySource = new HashMap<>();
+      block(sourceTf, bySource);
+      sourceBlocks = bySource;
     }
     Doc t = targets.get(target);
-    Set<Integer> candidates = new LinkedHashSet<>();
-    for (String w : t.weights().keySet()) {
-      for (String b : blockingKeys(w)) candidates.addAll(sourceBlocks.getOrDefault(b, List.of()));
-    }
+    return ranked(t, bySource, sources, allowed, s -> similarity(s, t));
+  }
+
+  /**
+   * Les candidats que le blocage propose pour {@code probe}, pris dans {@code pool}, sans ceux que
+   * {@code allowed} écarte ni ceux dont les nombres contredisent, triés par score décroissant.
+   */
+  private static List<Scored> ranked(
+      Doc probe,
+      Map<String, List<Integer>> index,
+      List<Doc> pool,
+      IntPredicate allowed,
+      ToDoubleFunction<Doc> score) {
     List<Scored> out = new ArrayList<>();
-    for (int i : candidates) {
+    for (int i : candidates(probe, index)) {
       if (!allowed.test(i)) continue;
-      Doc s = sources.get(i);
-      if (numbersConflict(s.numbers(), t.numbers())) continue;
-      double score = similarity(s, t);
-      if (score > 0) out.add(new Scored(i, score));
+      Doc other = pool.get(i);
+      if (numbersConflict(probe.numbers(), other.numbers())) continue;
+      double sc = score.applyAsDouble(other);
+      if (sc > 0) out.add(new Scored(i, sc));
     }
     out.sort(Comparator.comparingDouble(Scored::score).reversed());
     return out;
+  }
+
+  private static Set<Integer> candidates(Doc probe, Map<String, List<Integer>> index) {
+    Set<Integer> candidates = new LinkedHashSet<>();
+    for (String t : probe.weights().keySet()) {
+      for (String b : blockingKeys(t)) candidates.addAll(index.getOrDefault(b, List.of()));
+    }
+    return candidates;
   }
 
   /**
@@ -170,55 +174,10 @@ public final class NameMatcher {
   public boolean hasNumberVeto(int source) {
     Doc s = sources.get(source);
     if (s.numbers().isEmpty()) return false;
-    for (String t : s.weights().keySet()) {
-      for (String b : blockingKeys(t)) {
-        for (int i : blocks.getOrDefault(b, List.of())) {
-          if (numbersConflict(s.numbers(), targets.get(i).numbers())) return true;
-        }
-      }
+    for (int i : candidates(s, blocks)) {
+      if (numbersConflict(s.numbers(), targets.get(i).numbers())) return true;
     }
     return false;
-  }
-
-  private Doc doc(Map<String, Double> tf, Set<String> numbers) {
-    Map<String, Double> w = new HashMap<>();
-    double norm = 0;
-    for (var e : tf.entrySet()) {
-      double v = e.getValue() * idf.getOrDefault(e.getKey(), 1.0);
-      w.put(e.getKey(), v);
-      norm += v * v;
-    }
-    double len = Math.sqrt(norm);
-    if (len > 0) w.replaceAll((k, v) -> v / len);
-    return new Doc(w, numbers);
-  }
-
-  /**
-   * Pour chaque mot de la source, le mot le plus proche de la cible, s'il l'est assez. Borné à 1 :
-   * deux mots proches d'un même mot ne font pas plus qu'une identité.
-   */
-  static double similarity(Doc a, Doc b) {
-    double sum = 0;
-    for (var ea : a.weights().entrySet()) {
-      double best = 0;
-      for (var eb : b.weights().entrySet()) {
-        double s = tokenSimilarity(ea.getKey(), eb.getKey());
-        if (s > 0) best = Math.max(best, eb.getValue() * s);
-      }
-      sum += ea.getValue() * best;
-    }
-    return Math.min(1.0, sum);
-  }
-
-  static double tokenSimilarity(String a, String b) {
-    if (a.equals(b)) return 1.0;
-    if (a.length() < MIN_FUZZY_LENGTH || b.length() < MIN_FUZZY_LENGTH) return 0;
-    double jw = jaroWinkler(a, b);
-    return jw >= TOKEN_SIMILARITY ? jw : 0;
-  }
-
-  static boolean numbersConflict(Set<String> a, Set<String> b) {
-    return !a.isEmpty() && !b.isEmpty() && !a.equals(b);
   }
 
   /**
@@ -238,25 +197,26 @@ public final class NameMatcher {
   private static final Pattern CAMEL =
       Pattern.compile("(?<=\\p{Ll})(?=\\p{Lu})|(?<=\\p{Lu})(?=\\p{Lu}\\p{Ll})");
   private static final Pattern DIGITS = Pattern.compile("\\d+");
+  private static final Pattern NON_LETTERS = Pattern.compile("[^a-z]+");
 
   /**
    * `MonApi_Service-v2` → [mon, api, service]. Accents retirés, casse ignorée, espace, tiret, point
    * et souligné équivalents, camelCase découpé, nombres sortis, mots d'une lettre écartés — `v` de
    * `v2` compris.
    */
-  public static List<String> tokens(String s) {
+  public static List<String> tokens(@Nullable String s) {
     if (s == null) return List.of();
     String plain = Normalizer.normalize(s, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
     plain = CAMEL.matcher(plain).replaceAll(" ").toLowerCase(Locale.ROOT);
-    List<String> out = new ArrayList<>();
-    for (String t : plain.split("[^a-z]+")) {
-      if (t.length() >= 2) out.add(t);
-    }
-    return out;
+    // Les morceaux vides que laisse un séparateur en tête sont écartés avec les mots d'une lettre.
+    return NON_LETTERS
+        .splitAsStream(plain)
+        .filter(t -> t.length() >= 2)
+        .collect(Collectors.toCollection(ArrayList::new));
   }
 
   /** Les nombres portés par un nom, sans zéros de tête : `app-02` et `app2` portent « 2 ». */
-  public static Set<String> numbers(String s) {
+  public static Set<String> numbers(@Nullable String s) {
     Set<String> out = new HashSet<>();
     if (s == null) return out;
     Matcher m = DIGITS.matcher(s);
@@ -265,43 +225,7 @@ public final class NameMatcher {
   }
 
   /** Ajoute les mots de {@code s} à {@code tf}, chacun compté {@code weight} fois. */
-  public static void addTokens(Map<String, Double> tf, String s, double weight) {
+  public static void addTokens(Map<String, Double> tf, @Nullable String s, double weight) {
     for (String t : tokens(s)) tf.merge(t, weight, Double::sum);
-  }
-
-  // ----------------------------------------------------------------------
-  // Jaro-Winkler
-  // ----------------------------------------------------------------------
-
-  static double jaroWinkler(String a, String b) {
-    if (a.equals(b)) return 1.0;
-    int window = Math.max(0, Math.max(a.length(), b.length()) / 2 - 1);
-    boolean[] ma = new boolean[a.length()];
-    boolean[] mb = new boolean[b.length()];
-    int matches = 0;
-    for (int i = 0; i < a.length(); i++) {
-      int from = Math.max(0, i - window), to = Math.min(b.length() - 1, i + window);
-      for (int j = from; j <= to; j++) {
-        if (!mb[j] && a.charAt(i) == b.charAt(j)) {
-          ma[i] = mb[j] = true;
-          matches++;
-          break;
-        }
-      }
-    }
-    if (matches == 0) return 0;
-    int transpositions = 0;
-    for (int i = 0, j = 0; i < a.length(); i++) {
-      if (!ma[i]) continue;
-      while (!mb[j]) j++;
-      if (a.charAt(i) != b.charAt(j)) transpositions++;
-      j++;
-    }
-    double m = matches;
-    double jaro = (m / a.length() + m / b.length() + (m - transpositions / 2.0) / m) / 3.0;
-    int prefix = 0;
-    while (prefix < Math.min(4, Math.min(a.length(), b.length()))
-        && a.charAt(prefix) == b.charAt(prefix)) prefix++;
-    return jaro + prefix * 0.1 * (1 - jaro);
   }
 }

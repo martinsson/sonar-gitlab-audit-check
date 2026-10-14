@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.Locale;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Sortie console partagée par les trois scripts. Tout l'affichage est en français : l'encodage
@@ -69,21 +70,34 @@ public final class ConsoleOut {
     if (forced != null && !forced.isBlank()) {
       try {
         return Charset.forName(forced.trim());
-      } catch (Exception e) {
+      } catch (IllegalArgumentException e) {
+        // IllegalCharsetNameException ou UnsupportedCharsetException : un nom
+        // forcé qu'on ne connaît pas ne doit pas empêcher d'afficher.
         return StandardCharsets.UTF_8;
       }
     }
-    Console c = System.console();
     // isTerminal() est la question qui compte, et pas « console non nulle » :
     // depuis JDK 22 System.console() répond même quand la sortie est
     // redirigée, et sa charset vaut alors l'encodage natif — celui qui
     // massacre les accents en CI. C'est le piège que corrigeait le code
     // précédent, et il fallait éviter de le réintroduire en le corrigeant.
-    if (c != null && c.isTerminal()) {
+    Console c = terminal();
+    if (c != null) {
       Charset cs = c.charset();
       if (cs != null) return cs;
     }
     return StandardCharsets.UTF_8;
+  }
+
+  /**
+   * La console, si la JVM parle à un terminal. System.console() peut encore rendre null : depuis
+   * JDK 25 il le fait de nouveau quand l'entrée et la sortie sont redirigées (vérifié sur JDK 26),
+   * alors que SystemConsoleNull d'Error Prone date du comportement de JDK 22, d'où la suppression.
+   */
+  @SuppressWarnings("SystemConsoleNull")
+  private static @Nullable Console terminal() {
+    Console c = System.console();
+    return c != null && c.isTerminal() ? c : null;
   }
 
   /**
@@ -94,8 +108,7 @@ public final class ConsoleOut {
    */
   private static boolean autoColors() {
     if (System.getenv("NO_COLOR") != null) return false;
-    Console c = System.console();
-    if (c == null || !c.isTerminal()) return false;
+    if (terminal() == null) return false;
     if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) return true;
     return System.getenv("WT_SESSION") != null
         || System.getenv("ConEmuANSI") != null
@@ -108,13 +121,14 @@ public final class ConsoleOut {
   }
 
   /** auto | always | never — l'option en ligne de commande a le dernier mot. */
-  public static void colorMode(String mode) {
+  public static void colorMode(@Nullable String mode) {
     if (mode == null) return;
-    switch (mode.toLowerCase(Locale.ROOT)) {
-      case "always" -> colors = true;
-      case "never" -> colors = false;
-      default -> colors = autoColors();
-    }
+    colors =
+        switch (mode.toLowerCase(Locale.ROOT)) {
+          case "always" -> true;
+          case "never" -> false;
+          default -> autoColors();
+        };
   }
 
   public static String color(String text, String code) {
