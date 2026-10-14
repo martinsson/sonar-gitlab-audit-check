@@ -110,3 +110,20 @@ question. One entry per choice: what, why, and what the alternative would have b
 - Tests updated to reach moved code (`rank.*`, `CrossPair`, `CrossReport`, `CrossCsv`,
   `SonarToGitlabCsv`, `SonarToGitlabReport`); VuesCliTest's long fixture method builds the same
   rows from compact strings. No asserted value changed.
+
+## ProjectMapper
+
+- `Summary` and `NameStats` had more than 8 components (RecordComponentNumber 8): each got a
+  `@JsonUnwrapped` sub-record (`Guards`, `Vocabulary`) so the JSON report is byte-identical.
+- The namespace-mapping warning still prints once per JVM at class load (static initialiser in
+  `Keys`, triggered from `ProjectMapper`), as before. `NamespaceMapping.load(file, err)` is now a
+  seam, but the default table is still static.
+- Two dead private methods and the reverse namespace map they used were removed.
+- `mappedSonarKey` takes `@Nullable` and calls `requireNonNull` first, to keep the NPE the tests
+  pin (see suspected bugs).
+- `KeyMethod.parse` / `NameSpec.parse` throw `IllegalArgumentException`; the command turns it into
+  the same picocli `ParameterException` as before.
+- `String.split` (Error Prone StringSplitter) replaced by precompiled `Pattern.split`;
+  `linkedPaths` uses `split(…, -1)`, same result since empty entries never yield a path.
+- Moved tests: `KeysTest`, `SpecTest`, `NamespaceMappingTest` (now against `load(file, err)`
+  instead of the global table) live in `cli/mapper/`.
