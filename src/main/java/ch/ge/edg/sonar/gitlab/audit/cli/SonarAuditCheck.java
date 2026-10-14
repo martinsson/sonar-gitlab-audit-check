@@ -3,7 +3,9 @@ package ch.ge.edg.sonar.gitlab.audit.cli;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
+import ch.ge.edg.sonar.gitlab.audit.sonar.Captures;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.sonar.SonarConnection;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
@@ -191,7 +193,10 @@ public class SonarAuditCheck implements Callable<Integer> {
       System.err.println("--replay-dir : " + replayDir + " n'est pas un répertoire.");
       return 2;
     }
-    sq = new Sonar(url, token, organization, timeout, insecure, dumpDir, replayDir);
+    sq =
+        new Sonar(
+            new SonarConnection(url, token, organization, timeout, insecure),
+            new Captures(dumpDir, replayDir, System.err));
 
     System.out.println(
         c("\nInstance : " + (sq.replaying() ? "rejeu de " + replayDir : sq.base), BOLD));

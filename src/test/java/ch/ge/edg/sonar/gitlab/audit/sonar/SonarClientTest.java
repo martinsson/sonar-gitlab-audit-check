@@ -24,7 +24,7 @@ class SonarClientTest {
   }
 
   private Sonar client(String organization) throws Exception {
-    return new Sonar(server.url() + "//", "tok-1", organization, 5, false, null, null);
+    return new Sonar(new SonarConnection(server.url() + "//", "tok-1", organization, 5, false));
   }
 
   @Test
@@ -46,7 +46,7 @@ class SonarClientTest {
 
   @Test
   void baseIsEmptyWhenUrlIsNull() throws Exception {
-    assertThat(new Sonar(null, "t", null, 1, false, null, null).base).isEmpty();
+    assertThat(new Sonar(new SonarConnection(null, "t", null, 1, false)).base).isEmpty();
   }
 
   @Test
@@ -187,7 +187,7 @@ class SonarClientTest {
     try (ServerSocket s = new ServerSocket(0)) {
       port = s.getLocalPort();
     }
-    Sonar sq = new Sonar("http://127.0.0.1:" + port, "t", null, 2, false, null, null);
+    Sonar sq = new Sonar(new SonarConnection("http://127.0.0.1:" + port, "t", null, 2, false));
     Sonar.Response r = sq.get("api/system/status", Map.of());
     assertThat(r.unreachable()).isTrue();
     // "ConnectException: Connection refused" on macOS and Linux; the class name always leads.
@@ -197,7 +197,7 @@ class SonarClientTest {
 
   @Test
   void malformedUrlIsReportedAsUnreachable() throws Exception {
-    Sonar sq = new Sonar("not a url", "t", null, 2, false, null, null);
+    Sonar sq = new Sonar(new SonarConnection("not a url", "t", null, 2, false));
     Sonar.Response r = sq.get("api/x", Map.of());
     assertThat(r.status()).isZero();
     assertThat(r.body()).startsWith("IllegalArgumentException: ");
@@ -205,7 +205,7 @@ class SonarClientTest {
 
   @Test
   void urlWithoutSchemeIsReportedWithTheExceptionMessage() throws Exception {
-    Sonar sq = new Sonar("", "t", null, 2, false, null, null);
+    Sonar sq = new Sonar(new SonarConnection("", "t", null, 2, false));
     assertThat(sq.get("api/x", Map.of()))
         .isEqualTo(new Sonar.Response(0, "IllegalArgumentException: URI with undefined scheme"));
   }
@@ -228,9 +228,9 @@ class SonarClientTest {
   void insecureClientStillTalksPlainHttp() throws Exception {
     server.json("/api/x", "{\"v\":1}");
     System.clearProperty("jdk.internal.httpclient.disableHostnameVerification");
-    new Sonar(server.url(), "t", null, 5, false, null, null);
+    new Sonar(new SonarConnection(server.url(), "t", null, 5, false));
     assertThat(System.getProperty("jdk.internal.httpclient.disableHostnameVerification")).isNull();
-    Sonar sq = new Sonar(server.url(), "t", null, 5, true, null, null);
+    Sonar sq = new Sonar(new SonarConnection(server.url(), "t", null, 5, true));
     assertThat(sq.get("api/x", Map.of()).body()).isEqualTo("{\"v\":1}");
     assertThat(System.getProperty("jdk.internal.httpclient.disableHostnameVerification"))
         .isEqualTo("true");
