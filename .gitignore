@@ -22,3 +22,8 @@ target/
 .vscode/
 *.iml
 .DS_Store
+
+# Local working data (client data)
+work/
+dump/
+audit/
