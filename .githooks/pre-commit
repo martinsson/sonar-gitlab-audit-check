@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Formats the staged Java files and re-stages them. Never blocks a commit: saving work comes first,
+# design and structure are checked on push (pre-push) and in CI, where the whole change is visible.
+cd "$(git rev-parse --show-toplevel)" || exit 0
+exec ./verify --format-staged

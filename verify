@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+# Single entry point for deterministic feedback. Humans, git hooks, CI and agents all run this.
+#
+#   ./verify                 fast gates (seconds to ~1 min): format, structure, static analysis,
+#                            compile with Error Prone + NullAway, PMD, unit/property/architecture/
+#                            snapshot tests, coverage gate, ratchet (no gate got looser)
+#   ./verify --full          everything above + Docker integration tests (Testcontainers),
+#                            mutation testing (PIT), copy-paste detection (CPD)
+#   ./verify --fix           auto-format with Spotless first, then run the fast gates
+#   ./verify --snapshots     re-record Selfie snapshots after an intentional behaviour change
+#   ./verify --baseline      record today's violations in config/baseline (adopting in a legacy repo)
+#   ./verify --install-hooks pre-commit formats staged files, pre-push runs ./verify
+#   ./verify --format-staged what the pre-commit hook runs; never blocks a commit
+#
+# Exit code 0 = everything green. Output is deliberately short; full log: target/verify.log
+# RATCHET_BASE=<git ref> sets what the ratchet compares with (default: merge-base with origin).
+set -uo pipefail
+cd "$(dirname "$0")" || exit 2
+
+MVN=./mvnw
+[ -x "$MVN" ] || MVN=mvn
+
+# The ratchet (tools/ratchet) needs the JDK the build targets. When `java` on the PATH is older,
+# use the one Maven runs on.
+JAVA=java
+[ -n "${JAVA_HOME:-}" ] && JAVA="$JAVA_HOME/bin/java"
+if ! "$JAVA" -version 2>&1 | grep -q -E 'version "(2[5-9]|[3-9][0-9])'; then
+  runtime=$("$MVN" -v 2>/dev/null | sed -n 's/.*runtime: //p')
+  [ -x "$runtime/bin/java" ] && JAVA="$runtime/bin/java"
+fi
+
+mode=fast
+action=verify
+for arg in "$@"; do
+  case "$arg" in
+    --full) mode=full ;;
+    --fix) action=fix ;;
+    --snapshots) action=snapshots ;;
+    --baseline) action=baseline ;;
+    --install-hooks) action=install-hooks ;;
+    --format-staged) action=format-staged ;;
+    -h | --help)
+      sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+      exit 0
+      ;;
+    *)
+      echo "unknown option: $arg (try --help)" >&2
+      exit 2
+      ;;
+  esac
+done
+
+mkdir -p target
+log=target/verify.log
+
+install_hooks() {
+  git config core.hooksPath .githooks
+  echo "HOOKS INSTALLED: pre-commit formats staged Java files, pre-push runs ./verify"
+  echo "Skip once with --no-verify; CI runs every gate anyway."
+}
+
+# Formats the staged Java files and re-stages them. Lenient on purpose: committing to save work must
+# never be blocked, so every problem is a warning and pre-push / CI do the enforcing.
+format_staged() {
+  local staged=() partial=() whole=() patterns="" f
+  while IFS= read -r f; do staged+=("$f"); done < <(git diff --cached --name-only --diff-filter=ACMR -- '*.java')
+  [ "${#staged[@]}" -eq 0 ] && return 0
+  for f in "${staged[@]}"; do
+    # Formatting a file that also has unstaged changes would sneak those changes into the commit.
+    if git diff --quiet -- "$f"; then whole+=("$f"); else partial+=("$f"); fi
+  done
+  for f in "${partial[@]+"${partial[@]}"}"; do
+    echo "pre-commit: not formatted, has unstaged changes: $f (./verify --fix before pushing)"
+  done
+  [ "${#whole[@]}" -eq 0 ] && return 0
+  for f in "${whole[@]}"; do
+    # shellcheck disable=SC2016 # the $ in the sed expression is a literal regex character
+    patterns="$patterns,.*$(printf '%s' "$f" | sed 's/[][\.*^$()+?{}|]/\\&/g')"
+  done
+  if "$MVN" -q spotless:apply -DspotlessFiles="${patterns#,}" >"$log" 2>&1; then
+    git add -- "${whole[@]}"
+  else
+    echo "pre-commit: could not format (syntax error?), committing as is. Details: $log"
+  fi
+  return 0
+}
+
+record_baseline() {
+  local empty=target/baseline-empty
+  mkdir -p "$empty"
+  printf '<?xml version="1.0"?>\n<!DOCTYPE suppressions PUBLIC "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN" "https://checkstyle.org/dtds/suppressions_1_2.dtd">\n<suppressions/>\n' >"$empty/checkstyle.xml"
+  : >"$empty/pmd.properties"
+  : >"$empty/cpd.txt"
+  echo "Recording current violations (static analysis + ArchUnit)..."
+  # Report everything (old baseline switched off), fail on nothing, refreeze the ArchUnit store.
+  if ! "$MVN" test -Pfull \
+    -Dspotless.check.skip=true \
+    -Dcheckstyle.failOnViolation=false -Dcheckstyle.baseline="$empty/checkstyle.xml" \
+    -Dpmd.failOnViolation=false -Dpmd.baseline="$empty/pmd.properties" \
+    -Dcpd.failOnViolation=false -Dcpd.baseline="$empty/cpd.txt" \
+    -Dmaven.test.failure.ignore=true \
+    -Darchunit.freeze.store.default.allowStoreCreation=true -Darchunit.freeze.refreeze=true \
+    >"$log" 2>&1; then
+    echo "BASELINE FAILED: the code must compile first (Error Prone/NullAway cannot be baselined: narrow"
+    echo "NullAway:AnnotatedPackages or switch single checks to WARN instead). See $log"
+    exit 1
+  fi
+  "$JAVA" tools/ratchet/Ratchet.java baseline || exit 1
+  echo "BASELINE RECORDED. Review and commit config/baseline. From now on it may only shrink."
+  git status --short config/baseline
+}
+
+# The shell scripts get a linter too, when shellcheck is installed (it is on GitHub runners).
+lint_scripts() {
+  command -v shellcheck >/dev/null || return 0
+  shellcheck -f gcc verify .githooks/*
+}
+
+ratchet() {
+  local base="${RATCHET_BASE:-}" ref
+  if [ -z "$base" ]; then
+    for ref in origin/HEAD origin/main origin/master; do
+      if git rev-parse -q --verify "$ref^{commit}" >/dev/null; then
+        base=$(git merge-base HEAD "$ref") && break
+      fi
+    done
+  fi
+  # Nothing to compare with: first push of a new repository, or a branch created in CI.
+  if [ -z "$base" ] || [ "$base" = none ] || [[ "$base" =~ ^0+$ ]]; then
+    return 0
+  fi
+  if ! git rev-parse -q --verify "$base^{commit}" >/dev/null; then
+    echo "RATCHET: cannot find $base (shallow clone? fetch the full history)"
+    return 1
+  fi
+  "$JAVA" tools/ratchet/Ratchet.java check "$base"
+}
+
+case "$action" in
+  install-hooks)
+    install_hooks
+    exit 0
+    ;;
+  format-staged)
+    format_staged
+    exit 0
+    ;;
+  baseline)
+    record_baseline
+    exit 0
+    ;;
+  snapshots)
+    echo "Re-recording Selfie snapshots (review the git diff afterwards)..."
+    "$MVN" test -Dselfie=overwrite >"$log" 2>&1 || {
+      echo "SNAPSHOT RUN FAILED (see $log)"
+      exit 1
+    }
+    echo "SNAPSHOTS UPDATED"
+    exit 0
+    ;;
+  fix)
+    "$MVN" spotless:apply >"$log" 2>&1 || {
+      echo "SPOTLESS:APPLY FAILED (see $log)"
+      exit 1
+    }
+    ;;
+esac
+
+args=(verify)
+[ "$mode" = full ] && args+=(-Pfull)
+
+"$MVN" "${args[@]}" >"$log" 2>&1
+build=$?
+# A PMD older than the JDK cannot read its class files. PMD only logs that, turns type resolution
+# off and passes, so type-based rules quietly stop working. Treat it as the failure it is.
+grep -q -E 'Unsupported class file major version|Parsing failed in ParseLock' "$log" && build=1
+checks_out=$(ratchet)
+checks_status=$?
+lint_out=$(lint_scripts)
+[ -n "$lint_out" ] && checks_out="${checks_out:+$checks_out
+}$lint_out" && checks_status=1
+
+if [ -z "${CI:-}" ] && [ "$(git config core.hooksPath)" != .githooks ]; then
+  echo "TIP: ./verify --install-hooks formats on commit and runs these gates on push"
+fi
+
+if [ "$build" -eq 0 ] && [ "$checks_status" -eq 0 ]; then
+  [ -n "$checks_out" ] && echo "$checks_out"
+  echo "VERIFY OK ($mode)"
+  exit 0
+fi
+
+echo "VERIFY FAILED ($mode). First problems (full log: $log):"
+[ -n "$checks_out" ] && echo "$checks_out"
+[ "$build" -eq 0 ] && exit 1
+
+# Keep the lines that name a file, a rule or a failing test; drop Maven boilerplate; print each once.
+grep -E '^\[ERROR\]|^\[WARN(ING)?\].*\.java|PMD Failure:|Tests run:.*(Failures|Errors): [1-9]|^(Class|Method|Field|Constructor|Package|Cycle detected)|Snapshot mismatch|is below threshold|Survived' "$log" |
+  grep -v -E 'To see the full stack trace|Re-run Maven|For more information|^\[ERROR\] \[Help 1\]|^\[ERROR\] *$|You have 0 Checkstyle violations|See dump files|^\[ERROR\] Failures: *$' |
+  sed -E -e 's/^\[ERROR\] +//' -e 's/ -> \[Help 1\]$//' |
+  sed "s|$PWD/||g" |
+  awk '!seen[$0]++' |
+  head -60
+
+# Hints the agent can act on directly. Each one keys on a failure message, never on a plugin name,
+# because plugin names appear in every log.
+grep -q 'Failed to execute goal com.diffplug.spotless' "$log" &&
+  echo "HINT: formatting problem -> run ./verify --fix"
+grep -q 'Failed to execute goal org.apache.maven.plugins:maven-checkstyle-plugin' "$log" &&
+  echo "HINT: structure limit hit -> find the concept that wants out of this method/class/package; limits in config/checkstyle/checkstyle.xml"
+grep -q 'Unsupported class file major version' "$log" &&
+  echo "HINT: a tool is older than the JDK -> bump it; for PMD that is pmd.version (pmd-java + pmd-core plugin dependencies) in pom.xml"
+grep -q 'Failed to execute goal org.apache.maven.plugins:maven-pmd-plugin' "$log" &&
+  echo "HINT: PMD rule broken -> see target/pmd.xml (or target/cpd.xml for duplication); rules in config/pmd/ruleset.xml"
+grep -q 'Architecture Violation' "$log" &&
+  echo "HINT: architecture rule broken -> the 'because' text says why; rules in ArchitectureTest"
+grep -q 'is below threshold' "$log" &&
+  echo "HINT: surviving mutants -> open target/pit-reports/index.html and add assertions"
+grep -q 'Rule violated for bundle' "$log" &&
+  echo "HINT: coverage below threshold -> see target/site/jacoco/index.html"
+grep -q 'Snapshot mismatch' "$log" &&
+  echo "HINT: snapshot differs -> if intended, run ./verify --snapshots"
+# Structure and design gates point at a design problem, not at the line to tweak.
+if grep -q -E 'Failed to execute goal org.apache.maven.plugins:maven-(checkstyle|pmd)-plugin|Architecture Violation' "$log"; then
+  echo "NOTE: these gates reveal design problems; the right answer may be broader than the flagged line."
+  echo "      If the only fix you see adds no design value (mechanical splits, moving code to fit a number),"
+  echo "      stop and ask a human or a design-focused agent rather than satisfying the gate to the letter."
+fi
+grep -q 'Creating new violation store is disabled' "$log" &&
+  echo "HINT: ArchUnit store missing -> run ./verify --baseline once and commit config/baseline/archunit"
+exit 1
