@@ -33,12 +33,6 @@ class VuesCliTest {
     return new ArrayList<>(cols);
   }
 
-  static Map<String, String> m(String... kv) {
-    Map<String, String> out = new LinkedHashMap<>();
-    for (int i = 0; i < kv.length; i += 2) out.put(kv[i], kv[i + 1]);
-    return out;
-  }
-
   static String csv(List<String> header, List<Map<String, String>> rows) {
     StringBuilder sb = new StringBuilder(String.join(",", header)).append('\n');
     for (Map<String, String> r : rows) {
@@ -48,86 +42,40 @@ class VuesCliTest {
     return sb.toString();
   }
 
+  /** One row as {@code key=value} pairs separated by {@code ;}, an empty value allowed. */
+  static Map<String, String> row(String spec) {
+    Map<String, String> out = new LinkedHashMap<>();
+    for (String kv : spec.split(";")) {
+      String[] parts = kv.split("=", 2);
+      out.put(parts[0], parts[1]);
+    }
+    return out;
+  }
+
   static List<Map<String, String>> sampleRows() {
     return List.of(
-        m(
-            "projet",
-            "alpha-service",
-            "confiance",
-            "exact",
-            "gl_commits_window",
-            "40",
-            "gl_mr_fusionnees",
-            "0",
-            "sq_violations_kloc_pente_pct_mois",
-            "1.5",
-            "sq_alert_status",
-            "ERROR",
-            "zz_extra",
-            "x1"),
-        m(
-            "projet",
-            "beta-api",
-            "confiance",
-            "derived",
-            "sq_violations_kloc_pente_pct_mois",
-            "7",
-            "gl_commits_window",
-            "3",
-            "gl_mr_fusionnees",
-            "2",
-            "gl_ci_sonar",
-            "true"),
-        m(
-            "projet",
-            "gamma-ui",
-            "confiance",
-            "manuel",
-            "sq_violations_kloc_pente_pct_mois",
-            "3",
-            "issues_par_kloc_modifie",
-            "0.4",
-            "sq_new_coverage",
-            "20"),
-        m("projet", "delta-batch", "confiance", "exact"),
-        m(
-            "projet",
-            "epsilon-lib",
-            "confiance",
-            "exact",
-            "sq_violations_kloc_pente_pct_mois",
-            "9",
-            "gl_ci_securite",
-            "false",
-            "sq_new_coverage",
-            "10"),
-        m(
-            "projet",
-            "team-a/zeta",
-            "confiance",
-            "",
-            "gl_commits_window",
-            "12",
-            "gl_lignes_modifiees",
-            "300",
-            "candidat_nom",
-            "zeta-old",
-            "score_nom",
-            "0.7"),
-        m(
-            "projet",
-            "team-a/eta",
-            "confiance",
-            "name",
-            "gl_commits_window",
-            "12",
-            "gl_lignes_modifiees",
-            "900",
-            "gl_cle_sonar",
-            "eta-key"),
-        m("projet", "team-b/theta", "confiance", "", "gl_commits_window", "50"),
-        m("projet", "team-b/iota", "confiance", "", "gl_commits_window", "0"),
-        m("projet", "team-b/kappa", "confiance", ""));
+        row(
+            "projet=alpha-service;confiance=exact;gl_commits_window=40;gl_mr_fusionnees=0;"
+                + "sq_violations_kloc_pente_pct_mois=1.5;sq_alert_status=ERROR;zz_extra=x1"),
+        row(
+            "projet=beta-api;confiance=derived;sq_violations_kloc_pente_pct_mois=7;"
+                + "gl_commits_window=3;gl_mr_fusionnees=2;gl_ci_sonar=true"),
+        row(
+            "projet=gamma-ui;confiance=manuel;sq_violations_kloc_pente_pct_mois=3;"
+                + "issues_par_kloc_modifie=0.4;sq_new_coverage=20"),
+        row("projet=delta-batch;confiance=exact"),
+        row(
+            "projet=epsilon-lib;confiance=exact;sq_violations_kloc_pente_pct_mois=9;"
+                + "gl_ci_securite=false;sq_new_coverage=10"),
+        row(
+            "projet=team-a/zeta;confiance=;gl_commits_window=12;gl_lignes_modifiees=300;"
+                + "candidat_nom=zeta-old;score_nom=0.7"),
+        row(
+            "projet=team-a/eta;confiance=name;gl_commits_window=12;gl_lignes_modifiees=900;"
+                + "gl_cle_sonar=eta-key"),
+        row("projet=team-b/theta;confiance=;gl_commits_window=50"),
+        row("projet=team-b/iota;confiance=;gl_commits_window=0"),
+        row("projet=team-b/kappa;confiance="));
   }
 
   Path writeInput(String name, String content) throws IOException {
