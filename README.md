@@ -1,1024 +1,188 @@
 # sonar-audit-check
 
-A read-only diagnostic you run **before** auditing a SonarQube portfolio.
+Read-only diagnostics for auditing a SonarQube portfolio and the GitLab projects
+behind it. Java, run with JBang. Every call is a GET; nothing is written to
+either instance.
 
-It answers four questions:
+| Tool | What it answers |
+|---|---|
+| `SonarAuditCheck` | What can my token see, how much is invisible to it, and what does each project measure |
+| `SonarRank` | Which Sonar projects to look at first, from that inventory, with no API call |
+| `GitlabActivityAudit` | Which GitLab projects are really worked on, and with what practices |
+| `CrossAudit` | Which Sonar project is which GitLab project, and what the two say together |
+| `Vues` | Readable extracts of the crossing |
+| `viz/index.html` | Charts of all of the above, in the browser |
+| `GitLabProjectReport` | How one project you already picked is worked on |
 
-1. Does the API respond, and is my token valid?
-2. Which of the queries that actually matter am I allowed to make?
-3. How many projects can I see — and how many are invisible to me?
-4. What activity signals can I get without Git access?
-
-Then a second step, `SonarRank.java`, turns that inventory into a shortlist
-without touching the API again.
-
-Two tools read GitLab. `GitlabActivityAudit.java` ranks a whole group by commit
-activity and measures practice on the selection; `GitLabProjectReport.java` takes
-**one** project you already know the path of and reads its working pattern in
-detail — cadence, concentration, review latency. Portfolio first, then one project
-up close.
-
-Java, run with JBang.
-
-There was a parallel Python port. It was removed rather than fixed: it silently
-dropped every `new_*` metric from its CSV — reading only the root `value`, which
-those metrics do not have — and two people running "the same" tool got different
-numbers. See `KNOWLEDGE.md` for what that cost and what it taught.
+Further reading: `COLUMNS.md` (every CSV column), `TOOLS.md` (running without
+JBang, Windows, captures, tests, the less-used tools), `ANALYSIS.md` and
+`GITLAB_ANALYSIS.md` (the method on each side), `KNOWLEDGE.md` (what the
+SonarQube API really returns).
 
 ---
 
-## Common use cases
+## The usual run: Sonar, GitLab, then both
 
-The workflow, in four commands. All read-only. The first three walk a portfolio
-down to a shortlist; the fourth is a separate entry point for a project you have
-already picked.
+The most common use: inventory Sonar, audit GitLab, cross the two, then read
+the result as views and charts. The first two steps call the instances; the
+rest works from the CSVs on disk and can be re-run freely.
 
 ```bash
-# 1. Sonar: check what the token can see, and inventory the portfolio
-export SONAR_URL=https://sonar.example.com SONAR_TOKEN=squ_xxxxxxxx
+export SONAR_URL=https://sonar.example.com   SONAR_TOKEN=squ_xxxxxxxx
+export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxxxxxx
+
+# 1. Sonar inventory: inventaire.csv, plus inventaire-historique.csv (the history series)
 jbang SonarAuditCheck.java --csv inventaire.csv
 
-# 2. Rank it. No API calls, so re-run freely with different thresholds
-jbang SonarRank.java --in inventaire.csv --out classement.csv
+# 2. GitLab, the whole instance: rank by commit activity, then measure practice
+#    on the selection → ./audit/inventaire.csv and ./audit/pratiques.csv
+jbang GitlabActivityAudit.java --deep --out-dir ./audit
 
-# 3. GitLab: rank by commit activity, then measure practice on the selection
-export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxxxxxx
-jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
-```
-
-```bash
-# 4. Cross the two. No API calls — both sides are already on disk.
-#    The Sonar ↔ GitLab pairs are kept in ./audit/appariement.csv and reused
-#    on every later run; correct a pair there once and it stays corrected.
+# 3. Cross the two → ./audit/croisement.csv (and ./audit/appariement.csv, kept between runs)
 jbang CrossAudit.java --sonar inventaire.csv --gitlab ./audit/pratiques.csv \
     --out ./audit/croisement.csv
-```
 
-```bash
-# 4b. Views of the crossing: important columns first, projects drifting badly,
-#     and active projects Sonar does not see, most active first
+# 4. Views: important columns first, projects drifting badly, active projects Sonar does not see
 jbang Vues.java --in ./audit/croisement.csv
-```
 
-```bash
-# 4c. Charts: open viz/index.html in a browser and drop the CSVs on it
+# 5. Charts: open the page, drop the four CSVs on it
 open viz/index.html
 ```
 
+`--deep` is what makes step 3 possible: it reads the Sonar key out of each
+project's CI and `pom.xml`. Without it you get the GitLab funnel and shortlist
+only, for far fewer calls.
+
+A project to leave out of everything goes in `exclusions.txt` (see
+[Leaving projects out](#leaving-projects-out)); both steps 1 and 2 read it.
+
+Other entry points:
+
 ```bash
-# 5. One project you already care about, read closely
-jbang GitLabProjectReport.java --path my/group/project
+jbang SonarRank.java --in inventaire.csv --out classement.csv   # Sonar shortlist, no API call
+jbang GitLabProjectReport.java --path my/group/project          # one project, read closely
 ```
 
-Drop `--deep` from the third one to stop after selection — you get the funnel and
-the shortlist without the expensive per-project pass. Keep it if you want step 4:
-`cle_sonar`, the column the crossing joins on, is written by the deep pass.
+Each tool's `--help` lists its options and ends with more recipes:
+whole-instance runs, longer windows, SonarQube Cloud.
 
-Each tool's `--help` ends with the rest of the recipes: whole-instance runs,
-project lists, longer windows, SonarQube Cloud.
+---
+
+## Setup
+
+- **JBang**: `curl -Ls https://sh.jbang.dev | bash -s - app setup`, or `brew
+  install jbangdev/tap/jbang`, `sdk install jbang`, `choco install jbang`. It
+  fetches a JDK and the dependencies on first run. Without JBang: `TOOLS.md`.
+- **Sonar token**: a **User token** (`squ_…`, My Account → Security). An
+  analysis token cannot read these endpoints. `Browse` per project is enough;
+  Administer System adds the real project total, See Source Code adds blame.
+  The tool says what it could not reach. Prefer a dedicated audit account: an
+  admin token sees everything and hides the gap you are trying to measure.
+- **GitLab token**: a personal access token with `read_api`. Approvals, DORA
+  and push rules need GitLab Enterprise; the tool reads the plan up front and
+  leaves those columns empty on Community, rather than guessing.
+
+The output is in French.
 
 ---
 
 ## Why this exists
 
-Auditing a SonarQube portfolio usually means ranking projects by technical debt.
-That ranking is misleading in two ways, and this tool exists to expose both
-before you start.
+A SonarQube ranking is misleading before it starts:
 
-**`api/components/search_projects` filters silently.** It returns only the
-projects your token can browse. A missing permission produces no error, no
-warning, no 403 — just a shorter list. The projects that fall out are
-statistically the ones with the worst practices, because neglected projects tend
-to have neglected permissions. Your ranking comes out truncated and looks
-complete.
+- **`search_projects` filters silently.** It returns only what your token can
+  browse — no error, just a shorter list, and the projects that fall out tend to
+  be the neglected ones. `SonarAuditCheck` compares visible against real and
+  prints the gap:
 
-**Absent is not zero — but rarer than you would think.** A project with no
-`coverage` measure at all does not appear in a coverage ranking: it sorts below
-nothing, because it *is* nothing.
+  ```
+    Projets visibles avec ce token : 4
+    Projets réellement présents    : 6
+    → 2 projet(s) hors de ton périmètre. Ton classement sera tronqué
+      de 33% sans aucun message d'erreur.
+  ```
 
-Measured against a real instance (SonarQube 26.8, Java), the case is narrower
-than that framing suggests. A project *analysed* without any coverage report
-still gets `coverage = "0.0"`, derived from `lines_to_cover` — it is present,
-and it does sort last. The measure is genuinely absent mainly for projects that
-have **never been analysed at all**, and for languages whose analyser reports no
-lines to cover. So read the "no coverage data" count below largely as a
-never-analysed count, alongside `Jamais analysés`.
+  `Total réel indisponible` means the token lacks Administer System: the gap is
+  unknown, not zero.
+- **The main branch is not the last scan.** A project scanned only on `develop`
+  looks never analysed. The tool reads each project's most recently analysed
+  branch (`--main-branch-only` restores the naive read).
+- **Absent is not zero.** A missing measure stays empty in every CSV; it is never
+  ranked as a zero.
+- **Sonar says nothing about projects never onboarded**, nor about how code is
+  worked on. That is the GitLab side's job, and the crossing tells the two apart.
 
-**The main branch is not the last scan.** `search_projects` and
-`api/measures/search` only return the main branch. A project whose CI scans
-`develop` and nothing else comes back with no date and no measures, exactly like
-a project never analysed. The tool asks `api/project_branches/list` for every
-project, keeps the most recently analysed branch, and reads its measures through
-`api/measures/component?branch=`. The CSV names the branch it used, and
-`--main-branch-only` restores the naive read.
-
-The tool reports all three: the gap between what you see and what exists, the
-projects whose last scan lives on a non-main branch, and the count of projects
-with no coverage data whatsoever.
+The framing throughout is **debt velocity, not debt level**: new-code metrics
+over overall ones, debt ratio over debt size, trends over the activity window.
 
 ---
 
-## What it measures
+## The GitLab side
 
-The framing throughout is **debt velocity, not debt level**. A large old codebase
-with high `sqale_index` is carrying debt. A small project whose debt-per-line-written
-is climbing is *creating* it. Only the second one tells you a team needs help.
+`GitlabActivityAudit` spends its calls where they matter. A funnel —
+inventory, recency gate, real commit counts, activity floor, then a quota
+across size strata, namespaces and a random control sample — picks ~200
+projects; only those get the expensive practice pass (`--deep`: branch
+protection, MRs and approvals, pipelines, CI contents, the Sonar key).
+Every exclusion is counted with its reason in `inventaire.csv`, so the
+percentages in `pratiques.csv` always have a population behind them. The method
+is in `GITLAB_ANALYSIS.md`.
 
-Accordingly the tool leans on:
-
-- New-code metrics (`new_coverage`, `new_violations`, `new_duplicated_lines_density`)
-  over their overall equivalents
-- `sqale_debt_ratio` over `sqale_index`, since the latter mostly ranks projects by size
-- Δ`sqale_index` / Δ`ncloc` over a window — debt added per line written
-- Author concentration via the `author` facet on issues, as a bus-factor proxy
-- Analysis cadence and version events from `project_analyses`
+**The Sonar key is the hard part.** The Sonar job usually comes from a shared
+template through `include:`, so the tool asks GitLab for the expanded CI
+(`ci/lint`), resolves `${CI_PROJECT_PATH_SLUG}`-style variables, and for Maven
+reads `groupId:artifactId` from the `pom.xml`. Keys are cached by commit SHA in
+`.sonar-keys.json`. An unresolved key stays empty: a wrong join is worse than
+none.
 
 ---
 
-## Requirements
+## Crossing the two: `CrossAudit`
 
-The token must be a **User token** (`squ_...`) — not a project or global
-analysis token. Analysis tokens cannot read these endpoints.
+Reads both CSVs, makes no API calls. Every pair carries the method that made it
+and a confidence:
 
-No admin rights are needed. `Browse` on each project is enough for everything
-except two things:
-
-| Endpoint | Extra permission |
+| Method | Confidence |
 |---|---|
-| `api/projects/search` (the real project total) | Administer System |
-| `api/sources/scm` (blame data) | See Source Code |
-
-Both are optional. The tool degrades gracefully and tells you what it could not
-reach and why it matters.
-
-For a recurring audit, prefer a dedicated account over your own: a token with
-`admin` sees everything, which means the diagnostic no longer reflects the
-scope a restricted audit account would have. The tool warns you if it detects this.
-
----
-
-## Running it
-
-### 1. Get a token
-
-In SonarQube: **My Account → Security → Generate Tokens**, type **User Token**.
-It starts with `squ_`. An analysis token will not work — it cannot read these
-endpoints.
-
-### 2. Install JBang
-
-```bash
-curl -Ls https://sh.jbang.dev | bash -s - app setup
-```
-
-Or `sdk install jbang` (SDKMAN), `brew install jbangdev/tap/jbang` (Homebrew),
-`choco install jbang` (Windows). JBang fetches its own JDK if you don't have
-one, and resolves the three dependencies (Jackson, OpenCSV, picocli) on first
-run — so nothing else needs installing.
-
-### 3. Run
-
-```bash
-export SONAR_URL=https://sonar.example.com
-export SONAR_TOKEN=squ_xxxxxxxx
-
-jbang SonarAuditCheck.java                                  # diagnostic only
-jbang SonarAuditCheck.java --csv projects.csv               # + inventory CSV
-jbang SonarAuditCheck.java --csv projects.csv --stale-days 120
-jbang SonarAuditCheck.java --organization my-org            # SonarQube Cloud
-```
-
-Everything is a GET; the tool never writes to your instance.
-
-The cost is dominated by one thing: since the tool resolves the latest analysed
-branch, it asks `api/project_branches/list` once **per project**. A run is
-roughly 30 calls, plus one per 100 projects for the bulk measures, plus one per
-project for its branches, plus one more for each project last scanned somewhere
-other than its main branch.
-
-| Portfolio | Calls | Wall clock, `--concurrency 8` |
-|---|---|---|
-| 7 projects (the fake instance) | 35 | under a second |
-| 500 projects | ~540 | a few seconds |
-
-Calls overlap eight at a time by default. `--concurrency 1` restores the old
-sequential behaviour, and `--main-branch-only` skips the per-project pass
-entirely at the cost of losing every project scanned on another branch.
-
-Or put it on your PATH:
-
-```bash
-jbang app install --name sonar-audit-check SonarAuditCheck.java
-sonar-audit-check --csv projects.csv
-```
-
-### Without JBang
-
-If JBang is not an option (locked-down machine, air-gapped CI), any JDK 25+ and
-Maven will do. The `//DEPS` lines at the top of the file are the three
-dependencies; Maven needs them in a POM to resolve their transitives, so write
-a throwaway one:
-
-```bash
-cat > pom.xml <<'EOF'
-<project xmlns="http://maven.apache.org/POM/4.0.0">
-  <modelVersion>4.0.0</modelVersion>
-  <groupId>x</groupId><artifactId>sonar-audit-check</artifactId><version>1</version>
-  <dependencies>
-    <dependency><groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId><version>2.17.2</version></dependency>
-    <dependency><groupId>com.opencsv</groupId>
-      <artifactId>opencsv</artifactId><version>5.9</version></dependency>
-    <dependency><groupId>info.picocli</groupId>
-      <artifactId>picocli</artifactId><version>4.7.6</version></dependency>
-  </dependencies>
-</project>
-EOF
-
-mvn -q dependency:copy-dependencies -DoutputDirectory=libs
-javac -cp "libs/*" -d out SonarAuditCheck.java SonarRank.java
-java -cp "out:libs/*" SonarAuditCheck --url "$SONAR_URL" --token "$SONAR_TOKEN"
-```
-
-That pulls 11 jars (the three above plus opencsv's transitives). On Windows,
-use `out;libs/*` as the classpath separator.
-
-### What a run looks like
-
-Four sections: connectivity and identity, which endpoints your token can
-actually reach, the project inventory, and activity signals. The line that
-matters most is in section 3:
-
-```
-  Projets visibles avec ce token : 4
-  Projets réellement présents    : 6
-  → 2 projet(s) hors de ton périmètre. Ton classement sera tronqué
-    de 33% sans aucun message d'erreur.
-```
-
-If the second line reads `Total réel indisponible`, your token lacks Administer
-System and the gap is unknown rather than zero — have an admin compare the
-numbers. The interface is in French.
-
-### Options
-
-| Option | Default | Meaning |
-|---|---|---|
-| `--url` | `$SONAR_URL` | Instance URL |
-| `--token` | `$SONAR_TOKEN` | User token |
-| `--organization` | `$SONAR_ORG` | SonarQube Cloud organization |
-| `--project` | first visible | Sample project used for capability probes |
-| `--csv` | — | Write the project inventory here |
-| `--comma` | off | Write that CSV with commas and no BOM, for another tool rather than Excel |
-| `--dump-dir` | — | Log every raw API response here |
-| `--replay-dir` | — | Replay a `--dump-dir` instead of calling the instance; needs no URL or token |
-| `--concurrency` | 8 | Calls in flight at once; `1` restores the old sequential behaviour |
-| `--main-branch-only` | off | Read only the main branch, like `search_projects` does; skips the per-project branch lookup |
-| `--stale-days` | 90 | Age past which a project counts as stale |
-| `--activity-days` | 90 | Activity window |
-| `--timeout` | 30 | Per-request timeout, seconds |
-| `--insecure` | off | Skip TLS validation |
-
----
-
-## Ranking: `SonarRank.java`
-
-The diagnostic tells you what you can see. `SonarRank.java` turns the inventory
-CSV into a shortlist. It makes **no API calls at all** — it only re-reads the
-CSV, so it is free to re-run with different thresholds until the shortlist looks
-right. The method is in `ANALYSIS.md`; the short version:
-
-- **Cohorts first.** Never-analysed and stale projects are not ranked. They are
-  governance findings, and a stale project has no velocity to measure.
-- **Percentiles within size strata.** Active projects are bucketed by `ncloc`
-  (`<1k`, `1k-10k`, `10k-100k`, `>100k`) and each signal becomes a percentile
-  rank *inside its own bucket*, so small projects and monoliths stop competing.
-- **Four signals**: new issues per 1000 new lines, new-code coverage, new-code
-  duplication, and `sqale_debt_ratio` at half weight.
-- **Absent is never zero.** A missing metric is dropped from the mean, and the
-  `signaux_presents` column (0-4) tells you how much of the score is real.
-  Anything below two signals is not shortlisted.
-- **Exclusions are counted, not hidden.** Too small, no new code in the window,
-  too few signals — each is reported with its count and written to the CSV.
-
-```bash
-jbang SonarAuditCheck.java --csv projets.csv       # 1. inventory (hits the API)
-jbang SonarRank.java --in projets.csv              # 2. ranking (pure local)
-```
-
-Output is one `classement.csv` holding three lists, distinguished by the `liste`
-column: `VELOCITE` (creating debt), `DETTE_PORTEE` (carrying it, no new code),
-`ABANDON_RECENT` (stale 90-365d and in bad shape). Filter `retenu = O` for the
-shortlist.
-
-| Option | Default | Meaning |
-|---|---|---|
-| `--in` | — | Inventory CSV from `--csv` (required) |
-| `--out` | `classement.csv` | Where to write the ranking |
-| `--stale-days` | 90 | Same threshold as the diagnostic |
-| `--abandoned-days` | 365 | Past this, a stale project is dormant, not abandoned |
-| `--min-ncloc` | 500 | Below this, ratios are noise |
-| `--top-percent` | 10 | Share of each stratum shortlisted |
-| `--min-signals` | 2 | Signals required before a score is trusted |
-| `--comma` | off | Comma-separated, no BOM — for tools rather than Excel |
-
-### Opening the CSV in Excel (Windows)
-
-`classement.csv` is written **for Excel by default**: semicolon-separated, with
-a UTF-8 BOM and CRLF line endings. That combination matters more than it should.
-Without the BOM, Excel reads UTF-8 as ANSI and mangles every accent; with commas
-under a French locale, it drops the whole row into column A. Getting one of the
-two wrong makes the tool look broken.
-
-So a double-click works. From a terminal:
-
-```bat
-rem Command Prompt
-start classement.csv
-```
-
-```powershell
-# PowerShell
-Invoke-Item .\classement.csv        # or: start .\classement.csv
-```
-
-To force Excel specifically (useful when .csv is associated with something else):
-
-```bat
-start excel "%CD%\classement.csv"
-```
-
-Chain the whole thing in one line:
-
-```powershell
-jbang SonarRank.java --in projets.csv --out classement.csv; Invoke-Item .\classement.csv
-```
-
-Two things worth doing once the file is open, both one click: freeze the header
-row (View → Freeze Panes → Freeze Top Row) and turn on filters (Ctrl+Shift+L).
-Filtering `liste` then `retenu` is the entire intended workflow.
-
-The GitLab CSVs follow the same rule as `classement.csv` — see their own section.
-The inventory CSV from `SonarAuditCheck --csv` is comma-separated machine format
-by design — `SonarRank` reads it, and it sniffs the separator, so an inventory
-that has been through Excel and back still loads. If you want to look at the raw
-inventory in Excel, use Data → From Text/CSV rather than double-clicking, and
-set the origin to UTF-8.
-
-On macOS or Linux, `open classement.csv` and `xdg-open classement.csv`
-respectively.
-
----
-
-## The GitLab side: `GitlabActivityAudit.java`
-
-SonarQube answers *what is the code like*. It cannot answer *how is it being
-worked on*, and it says nothing at all about projects that were never onboarded
-— which, on the portfolio this was built against, is 26% of them.
-
-`GitlabActivityAudit.java` is the second half. It ranks projects by **commit
-activity**, picks the ~200 worth a deep look, and then measures practice on
-those. The full method is in `GITLAB_ANALYSIS.md`; the short version:
-
-```bash
-export GITLAB_URL=https://gitlab.example.com
-export GITLAB_TOKEN=glpat-xxxxxxxx          # read_api scope is enough
-
-# One run, one directory: inventaire.csv + pratiques.csv
-jbang GitlabActivityAudit.java --group my/group --deep --out-dir ./audit
-
-# Selection only, no practice signals — cheaper, and enough to size the work
-jbang GitlabActivityAudit.java --group my/group --out-dir ./audit
-```
-
-**The two files are read together.** `pratiques.csv` holds only the selected
-projects; `inventaire.csv` holds the portfolio they were drawn from, with every
-exclusion and its reason. A percentage computed from the practices file alone
-has no population behind it, which is why asking for practices now writes the
-inventory beside it whether or not you asked for one.
-
-**Two reports, not one.** The GitLab report is complete and publishable without
-a single Sonar project matched to it. Joining the two is an overlay attempted
-after both exist — never a precondition for either. Match rates on this kind of
-join are poor, and an analysis that collapses when the join fails is not worth
-building.
-
-**Why a funnel.** The deep pass costs ~25 calls per project. Run naively over
-2000 projects that is 50k calls and a report nobody reads. The funnel spends
-~90–850 calls to choose who earns the deep pass:
-
-| Stage | Cost | What it does |
-|---|---|---|
-| 0 — inventory | ~20 calls | archived, empty, mirrors, undiverged forks, 403s — all counted |
-| 1 — recency gate | free | `last_activity_at` older than the window |
-| 2 — real commit volume | ~40 (GraphQL) or ~800 (REST) | commits, authors, merge ratio, spread |
-| 3 — activity floor | free | below it, the deep signals are arithmetic on noise |
-| 4 — quota selection | free | strata, namespace cap, bus-factor slots, random control |
-
-**`last_activity_at` is a filter, never a ranking.** Any issue comment moves it,
-so a dead repo with a chatty tracker reads as active. But it fails in the *safe*
-direction — it is inflated by non-commit events, so anything with commits in the
-window necessarily has a recent `last_activity_at`. It over-includes; it does not
-under-include. That makes it worthless for ranking and exactly right for
-excluding, and it is the largest single cut in the pipeline, for free.
-
-The tool does not ask you to take that on faith. It samples projects from
-*below* the cut, counts their commits for real, and reports the false-negative
-rate. Zero means the gate holds. Non-zero gives you a number to publish instead
-of an assumption.
-
-**Quota, not top-N.** Taking the 200 busiest projects is the same mistake as
-ranking Sonar projects by `sqale_index`: you get the big active monoliths of two
-or three teams and learn what you already knew. The budget is spent instead
-across size strata, with a namespace cap, dedicated slots for single-author
-high-activity projects, and a **random control sample**. The control slice is
-what lets the final report say "practice coverage is X among the selected, Y
-among a random draw of the rest" — and if those diverge, the selection rule is
-itself the finding.
-
-**Three ways commit counts lie**, all handled explicitly:
-
-- *Squash-merge teams look 5–10× less active.* Merged-MR counts are carried
-  alongside, so the two can be read together.
-- *Bots inflate.* Renovate and friends are filtered, but counted separately — a
-  repo whose only activity is Renovate is a finding, not an empty row.
-- *Author identity fragments.* One person commits under several addresses;
-  identities are normalised, and the author count is worth ±1. It feeds a bus
-  factor judgement, so it only has to be right about 1 versus 5.
-
-**Where DORA is unavailable.** DORA needs declared environments; on an instance
-that has none, `deploiements` stays empty rather than becoming a zero. Two
-substitutes are computed instead, both from data already fetched, at no extra API
-cost: `retour_au_vert_h`, the median time the default branch stays broken between
-a failing pipeline and the next passing one, and `reverts`, commits whose title
-starts with `Revert`. Neither is labelled DORA, because without a production
-event neither lead time to production nor change failure rate is knowable.
-
-**Absent is not zero, here too.** A 403 on a project's commits is recorded as
-*activité non mesurable*, never as zero commits. Reading a permission gap as
-inactivity would drop exactly the projects most likely to need attention — the
-same failure mode as `search_projects` filtering silently on the Sonar side.
-
-### Options
-
-| Option | Default | What it does |
-|---|---|---|
-| `--out-dir` | — | Write `inventaire.csv`, and `pratiques.csv` with `--deep` |
-| `--csv`, `--pratiques` | — | Explicit paths, if the standard names do not suit |
-| `--group` | — | Scope to one group; instance-wide otherwise |
-| `--since` | 90 | Activity window, in days |
-| `--top` | 200 | Deep-analysis budget, spent by quota |
-| `--floor` | derived | Activity floor; `-1` derives it from the distribution |
-| `--active-within` | 0 | Only pay the REST pass for projects that committed in the last N days; 0 = the whole `--since` window |
-| `--concurrency` | 8 | GitLab calls in flight at once; `1` restores the old sequential behaviour |
-| `--cache` | `.sonar-keys.json` in `--out-dir` | Where the Sonar-key cache lives |
-| `--no-cache` | off | Neither read nor write that cache |
-| `--validation-sample` | 30 | Projects drawn below the recency gate to validate it |
-| `--graphql` | on | Try the batched GraphQL route, fall back to REST |
-| `--deep` | off | Run the practice signals on the selected projects |
-| `--seed` | fixed | Seeds the random control draw, so runs are reproducible |
-| `--comma` | off | Comma-separated, no BOM — for tools rather than Excel |
-
-Both CSVs are written **for Excel by default**, exactly like `classement.csv`:
-semicolon-separated, UTF-8 BOM, CRLF. So `start inventaire.csv` opens with the
-columns split and the accents intact. Pass `--comma` for the machine format.
-
-### What is Enterprise-only
-
-Approvals, DORA and push rules need Enterprise. The tool reads
-`api/v4/metadata` up front and says which plan it found, because discovering it
-after designing the analysis is the expensive mistake. On Community the
-approval columns stay empty rather than being silently replaced by a proxy.
-
-Two data-availability traps are reported as findings rather than scores: DORA
-reads zero for a project that deploys daily without a registered environment,
-and *no vulnerabilities* renders identically to *no scanning*.
-
----
-
-## Running under PowerShell
-
-The output is in French, and the console encoding is not a cosmetic detail — it
-is the difference between a readable report and a page of mojibake. Two halves
-of the problem pull in opposite directions, and fixing one alone breaks the
-other.
-
-**Redirected** (file, pipe, CI): `stdout.encoding` falls back to the native
-encoding. Under a C locale — the norm in a container where `LANG` is unset —
-that is ANSI_X3.4-1968 and every accent becomes `?`. So the output must be
-forced to UTF-8 there.
-
-**A Windows terminal**: PowerShell renders using the console code page, usually
-cp850 or cp1252, never UTF-8 unless you have run `chcp 65001` first. Sending it
-UTF-8 produces exactly the reported symptom — `Ã©` where `é` belongs.
-
-The tools therefore write in the *console's* encoding when talking to a
-terminal, and in UTF-8 as soon as the output is redirected. All French accents
-exist in cp850 and cp1252, so they survive. Characters a legacy code page has
-never heard of — `—`, `≥`, `→`, `…` — are transliterated to ASCII rather than
-replaced by `?`.
-
-You do not need `chcp 65001`. If you prefer it, it works too: the console then
-reports UTF-8 and the tools use it.
-
-ANSI colours are the second Windows symptom. conhost does not interpret them
-until a program enables VT mode, so PowerShell 5.1 shows literal `←[1m`. Colour
-is therefore off by default on Windows unless the emulator announces itself
-(Windows Terminal, ConEmu, ANSICON). Override with `--color always|never`, or
-set `NO_COLOR` to silence it everywhere.
-
-`ConsoleOut.java` holds this logic for every script and is pulled in with
-JBang's `//SOURCES`. Running without JBang, pass it to `javac` alongside the
-script, or let `java GitlabActivityAudit.java` resolve it — JDK 25 compiles
-neighbouring source files on its own.
-
----
-
-## `--dump-dir` and `--replay-dir`
-
-Not debug scaffolding — a permanent feature, for three reasons.
-
-Jackson is configured with `FAIL_ON_UNKNOWN_PROPERTIES=false`, so a new field in
-a later SonarQube version is absorbed silently and a removed field becomes null.
-Neither shows up as an error. Diffing dumps between instances or versions is the
-only way to see that drift.
-
-Second, the response shapes that break naive parsing only appear in unhealthy
-projects — the ones this tool exists to find. Capture three references
-deliberately: a normal project, one that has never been analysed, and one with
-no coverage report. A sample taken only from healthy projects will not show you
-what the payloads look like when fields go missing.
-
-Third, a capture replays. `--replay-dir` points the tool at a directory written
-by `--dump-dir` and runs the whole audit from disk, with no URL, no token and no
-instance:
-
-```bash
-jbang SonarAuditCheck.java --csv inventaire.csv --dump-dir ./captures
-jbang SonarAuditCheck.java --replay-dir ./captures --csv rejoue.csv   # hors ligne
-```
-
-The two CSVs are identical, and that equality is what `testing/smoke-sonar.sh`
-asserts. It also means a colleague can hand you a capture of an instance you
-cannot reach, and you can rank it.
-
-Captures are named after the request — path plus a short hash of the parameters
-— not after the order they were made in, because calls now overlap and their
-order is no longer stable. `index.txt` in the same directory records the
-sequence and the full query of each one.
-
----
-
-## Known response shapes
-
-Documented here because a single sample from a healthy project will not reveal
-any of them:
-
-- **Measure values are JSON strings, not numbers.** `"12.5"`, not `12.5`.
-- **`new_*` metrics nest their value under `period`** — or under a `periods`
-  array on older versions. The top-level `value` is absent for these.
-- **`api/issues/search` puts `total` at the root**, while every other paginated
-  endpoint uses `paging.total`.
-- **`search_projects` and `measures/search` are main-branch only.** A project
-  scanned on another branch has no `analysisDate` and no measures there, and
-  nothing hints that other branches exist. Only `api/project_branches/list`
-  tells you; `api/measures/component` takes a `branch` parameter.
-- **`api/sources/scm` returns positional arrays**: `[line, author, date, revision]`,
-  and entries are sometimes shorter than four elements. The line number is a JSON
-  number, not a string.
-- **`api/sources/scm` returns one entry per changeset, not per line.** Consecutive
-  lines sharing a commit are collapsed onto the first. Measured on 26.8: a 30-line
-  file returned 3 entries, at lines 1, 13 and 21. Any "first N lines" framing is
-  really counting changesets.
-- **A file indexed without SCM metadata still returns 200**, with `author` and
-  `revision` as empty strings rather than an error or an empty list. Emptiness is
-  therefore not how you detect a shallow clone — blank authors are.
-
-The Java implementation handles all of these, and keeps every numeric field boxed
-so that absent stays null rather than binding to `0.0`. Verified against a live
-SonarQube 26.8 by `testing/verify-against-real-sonarqube.sh`.
-
----
-
-## Blame data and shallow clones
-
-If `api/sources/scm` returns nothing, there are two possible causes: the token
-lacks See Source Code, or the scanner runs without SCM metadata — which is what
-happens with `fetch-depth: 1` in CI.
-
-The second case is itself a finding. A team whose CI strips blame metadata has
-also disabled Sonar's ability to attribute issues to authors and to compute new
-code correctly.
-
----
-
-## Verifying a change
-
-`testing/verify-against-real-sonarqube.sh` starts a real SonarQube in Docker,
-creates six projects, grants a restricted audit token Browse on only four, runs
-two real analyses, and points the tool at the result. Expected output is
-`4 visible / 6 real / gap 2 (33%)` and a blame section reporting **no SCM
-metadata** — the analysis runs without a git repository, which is the
-`fetch-depth: 1` case.
-
-Prefer it to a mock for anything about **what the API says**. A mock replays
-whatever its author believed the API does; if it is written from this README it
-confirms the README rather than testing it. Three of the response behaviours
-documented above were found only by querying a real instance, and a
-README-derived mock had asserted the opposite.
-
-`testing/smoke-sonar.sh` covers the other half — **what this tool does with an
-answer** — against `testing/fake-sonar.py`, and runs in about a second without
-Docker. It is the Sonar counterpart of `testing/smoke-gitlab.sh`, and it exists
-for the cases a real instance will not produce on demand: `new_*` values under
-`periods` rather than `period`, a project analysed only on `develop`, a history
-with a single point or a blank value, a 429 with `Retry-After`, an isolated 502
-in the middle of a concurrent pass. The last two assertions replay the captures
-offline and require the CSV to come out byte-identical.
-
----
-
-## One project up close: `GitLabProjectReport.java`
-
-Sonar describes the state of the code at analysis time. GitLab describes the
-process that produced it — and for a single project, the process is usually the
-more interesting half. This tool answers one question: **what does the way this
-team works look like?**
-
-It is a separate entry point, not a step in the portfolio pipeline. Three distinct
-use cases:
-
-- *Which Sonar projects are worst?* → `SonarAuditCheck` + `SonarRank`.
-- *Which GitLab projects deserve a look?* → `GitlabActivityAudit`, above.
-- *How does this one project work?* → this tool.
-
-Where `GitlabActivityAudit --deep` produces one row per project — comparable
-across a portfolio, necessarily flat — this one produces a report on a single
-project: distributions rather than means, the ninth decile beside the median, the
-gaps between commits, the hour of day. The two overlap on purpose (bots, merge
-commits, truncation-as-floor are handled the same way in both) and answer
-different questions.
-
-It needs no Sonar at all. A repository that has never been analysed is perfectly
-legible here, and the crossings with Sonar (change frequency against complexity,
-stale against abandoned, quality gate against merged MRs) come later, on top.
-
-### Running it
-
-```bash
-export GITLAB_URL=https://gitlab.example.com     # default: https://gitlab.com
-export GITLAB_TOKEN=glpat_xxxxxxxx               # personal access token, read_api
-
-jbang GitLabProjectReport.java --path group/subgroup/project
-jbang GitLabProjectReport.java --path 918776 --days 365
-jbang GitLabProjectReport.java --path https://gitlab.com/group/proj/-/tree/main
-```
-
-The path accepts what you have in front of you: a namespace path, a numeric id,
-or a browser URL — the `/-/tree/main` tail and a trailing `.git` are stripped.
-Everything is a GET. A run is 5-20 calls plus one per 100 commits and one per
-sampled merge request.
-
-The token may be omitted for a **public** project, which is how the tool is
-verified against a real instance without owning one. It is not an audit mode:
-merge request notes return 401 anonymously, so the review-delay section goes
-missing — reported, not silently dropped.
-
-| Option | Default | Meaning |
-|---|---|---|
-| `--url` | `$GITLAB_URL`, else gitlab.com | Instance URL |
-| `--token` | `$GITLAB_TOKEN` | PAT, `read_api` scope; optional on a public project |
-| `--path` | — | `group/sub/project`, a numeric id, or a URL (required) |
-| `--days` | 180 | Observation window |
-| `--max-commits` | 5000 | Cap on commits fetched |
-| `--max-mrs` | 500 | Cap on merge requests fetched |
-| `--sample` | 30 | MRs sampled for review latency (one call each) |
-| `--include-bots` | off | Count bots as contributors |
-| `--bot-pattern` | see below | Regex identifying bots |
-| `--dump-dir` | — | Log every raw API response here |
-| `--timeout` | 30 | Per-request timeout, seconds |
-| `--insecure` | off | Skip TLS validation |
-
-### What it measures
-
-Five sections: the project, cadence, contributors, merge requests, and findings.
-
-**Cadence** — commits per week, days with any commit, median gap and longest
-silence, weekday distribution, weekend share, share outside 8h-19h *in the
-author's own timezone offset* rather than the auditor's. Then commit size
-(median, ninth decile, share above 2000 lines) and **lines touched over net
-lines**: the net figure hides rework, since a file rewritten five times moves
-nothing.
-
-**Contributors** — distinct authors, the bus factor (how many people it takes to
-cover 80% of commits), the top author's share, and how many were still active
-recently. Identity is the email address, the only stable key; the count of
-distinct *names* is printed alongside, because the gap between the two is itself
-the signal.
-
-**Merge requests** — created, merged, closed; lead time from creation to merge
-(median and ninth decile); share with no comment at all; share merged by their
-own author; squash rate. Then, on a sample, the delay until the first review
-comment by someone other than the author.
-
-**Findings** — nothing new is computed here. The section rereads the three above
-and keeps what stands out. The thresholds are coarse and meant to be: they orient
-a conversation, they do not grade a team.
-
-### Traps, and what a live run confirmed
-
-Verified against gitlab.com, not against the documentation:
-
-- **Merge commits are not work.** They carry no lines of their own and their date
-  is the moment someone clicked *merge*, so counting them crowns the maintainer
-  top contributor. On `gitlab-org/cli`, excluding them moved the top author from
-  35% to 26% — and changed who it was. Every measurement here excludes them,
-  detected via `parent_ids` having more than one entry.
-- **Notes require a token, even on a public project** — 401, where the project,
-  commits and contributors endpoints all answer anonymously.
-- **`statistics=true` is ignored below Reporter**, silently: no error, the field
-  is simply absent. Absent is reported as absent, never as zero.
-- **Bots dominate if unfiltered.** Renovate and friends finish first contributor
-  and distort cadence, concentration and commit size alike. The default pattern is
-  shared with the portfolio pass and deliberately narrow — `bot` glued to other
-  letters would catch *Abbot* — and the identities it excludes are printed, not
-  hidden.
-- **Pagination is by header.** `x-next-page` is empty on the last page; a full
-  batch can be the last one, so batch size cannot be used to detect the end.
-- **A cap changes the denominator.** When `--max-commits` or `--max-mrs` is hit,
-  the rate is computed over the span actually covered, not over `--days`, and says
-  so. Otherwise a truncated fetch reads as a slow team.
-- **Squash destroys per-commit history.** Where the squash rate is high, the
-  commit timestamps are merge times and the cadence measures the merge button. The
-  findings section says this rather than letting the numbers imply otherwise.
-- **Dates carry an offset** (`2026-08-18T09:12:33.000+02:00`). Hour-of-day is read
-  in that offset — the committer's local time — while ages are normalised to local
-  time.
-
-### What the two GitLab tools share
-
-`Gitlab.java` holds the HTTP client and three conventions. Both tools include it
-with `//SOURCES`, the way every script includes `ConsoleOut.java`.
-
-`Sonar.java` is its counterpart on the other side, and was extracted for the same
-reason one release later: the inventory now costs one call per project, and doing
-those one at a time wastes minutes on a portfolio of any size. It holds the GET,
-the bounded concurrency, the retry on 429 and 5xx, and capture/replay. What it
-deliberately does not hold is any verdict about what an answer means — the audit
-decides that, which is why `Verdict` stayed in `SonarAuditCheck.java`.
-
-It exists because the two tools were written separately and independently agreed
-on the three traps that matter — bots, merge commits, and a capped page count
-that has to read as a floor rather than a total. Two accidental agreements do not
-survive the first fix applied to one side only, so the agreement is now written
-down once:
-
-- **`BOT_PATTERN`** — the union of the two patterns each tool had given itself.
-- **`identity(email, name)`** — the local part of the address, falling back to the
-  name, both normalised into one namespace. Without that last step a commit signed
-  `Dev 0` with no address and one from `dev0@example.com` count as two people, and
-  the bus factor silently doubles.
-- **`isMerge(commit)`** — more than one parent. No lines of its own, and dated by
-  whoever pressed *merge*.
-
-The client itself is the union too: the retry on 429 honouring `Retry-After`, the
-`HEAD` existence probe and the GraphQL call come from the portfolio pass; the
-typed pagination that reports truncation as distinct from refusal comes from the
-per-project one. It also holds `parallel`/`map`, which run independent calls with
-a bounded number in flight — the bound is the point, since the alternative to
-waiting on one call at a time is discovering the instance's rate limiter.
-
-They still differ where they should. The portfolio pass counts merge commits
-inside `commits_window`; the per-project report excludes them everywhere. That is
-a live disagreement, not an oversight — one ranks, the other attributes — but it
-means `commits_per_week` is not comparable between a project that merges and one
-that squashes.
-
-### The Sonar key, and why finding it is the hard part
-
-`pratiques.csv` carries `cle_sonar` — the `sonar.projectKey` the scanner
-actually sends to SonarQube. That column is the join against the Sonar
-inventory, and getting it right is most of the work on this side.
-
-The naive read — grep the project's `.gitlab-ci.yml` for `sonar` — is wrong on
-the parc this was built against, and wrong in the direction that hides the
-problem. **The Sonar job is almost never in the project's own file.** It arrives
-through `include: project:` from a shared CI template, which frequently includes
-another template in turn. A grep on the raw file sees nothing and concludes
-*no Sonar* — across most of the estate.
-
-Chasing those includes by hand was the wrong fix. Doing it correctly means
-resolving project paths to IDs, following nesting, handling an absent `ref:`, a
-list-valued `file:`, `component:`, `local:` and `remote:` — reimplementing
-GitLab's include engine against a moving target. GitLab already does it and will
-hand over the result: **`GET /projects/:id/ci/lint` returns `merged_yaml`, the
-whole include tree expanded, in one call.** That is the route. The hand-rolled
-chase remains as a fallback for instances that refuse `ci/lint` to a Reporter
-token, and the run says which route produced the numbers — because the fallback
-sees less, so a parc read mostly through it has a `ci_sonar` that undercounts.
-
-A shared template cannot hard-code a key, so it writes
-`-Dsonar.projectKey=${CI_PROJECT_PATH_SLUG}`. That is a key, not a failure:
-GitLab's predefined variables are computed here from what the inventory already
-knows about the project, at no extra call. What stays unresolved is reported as
-unresolved and the key is left empty — a wrong join against Sonar is worse than
-no join.
-
-**For Maven projects the key is not in the CI at all.** The shared Sonar
-component takes an optional `project_key` input; left empty, `sonar-maven-plugin`
-uses `groupId:artifactId` from the `pom.xml`. The deep pass therefore reads the
-root `pom.xml` when the tree lists one (one call, cached with the rest) and
-writes `cle_pom`, joined as an exact method of its own, plus `nom_pom`, the
-display name Sonar shows.
-
-**The key is cached on disk**, indexed by the head of the default branch. It is
-the only thing this audit measures that is not windowed: commits, MRs and
-pipelines are stale the next day, while the key holds until `.gitlab-ci.yml`
-changes. The index is the SHA rather than a date, because a date that moves
-backwards — an import, a history rewrite — would keep serving a stale answer,
-while a different SHA always invalidates in the safe direction.
-
-### Speed, and where it went
-
-The cost of this tool is not computation, it is waiting: a GitLab call is
-100–300 ms, and every one of them used to be made one after the other. Nothing
-in the per-project passes depends on the order, so they now overlap, bounded by
-`--concurrency` so the instance's rate limiter is not the thing that discovers
-the change. Measured against a 414-project stand-in at 40 ms per call, `--top 60`:
-
-| | wall clock | calls | Sonar found on |
-|---|---|---|---|
-| sequential, includes chased by hand | 75 s | 1673 | 1 of 60 |
-| same work, `--concurrency 8` | 10 s | 1422 | 51 of 60 |
-| `--concurrency 16`, warm key cache | 7 s | 1371 | 51 of 60 |
-
-Fewer calls *and* fifty more projects correctly identified: the old detection
-was fast in the way that a wrong answer is always fast.
-
-Three further reductions, none of which change a measurement:
-
-- **One tree listing, not five HEAD probes.** The five watched root files are
-  answered by a single `repository/tree` call.
-- **`--active-within N`.** The last-commit date already cost one call per fifty
-  projects on the GraphQL pass, so it can decide for free who is worth the REST
-  pagination — the only per-project call in the selection funnel. Projects below
-  the cut are reported as *not looked at*, never as zero.
-- **The key cache**, above.
-
----
-
-## Crossing the two: `CrossAudit.java`
-
-This was designed in `GITLAB_ANALYSIS.md` §6 from the start and listed here as
-*not yet done*. It genuinely was not done: no tool read both sides, and no CSV
-carried a column from both. `CrossAudit.java` is that missing piece.
-
-It reads the two CSVs the other tools already wrote and **makes no API calls**,
-so re-running it — different thresholds, a different join — costs nothing and
-cannot invalidate either audit.
-
-```bash
-jbang CrossAudit.java --sonar inventaire.csv --gitlab ./audit/pratiques.csv \
-    --out ./audit/croisement.csv
-```
-
-**The join, and how it is labelled.** Every pair carries the method that made it
-and a confidence, per §6:
-
-| Method | Confidence | Counts toward findings |
-|---|---|---|
-| `cle_sonar` — the key read out of the CI — matches a Sonar `key` | exact | yes |
-| `cle_pom` — `groupId:artifactId` of the root `pom.xml` — matches a Sonar `key` | exact | yes |
-| Sonar's own GitLab binding (`alm_repository`) matches the GitLab project `id` | exact | yes |
-| Sonar key normalised against `path_with_namespace` | derived | yes |
-| `nom_pom` equals a Sonar `name`, and no other Sonar project has that name | derived | yes |
-| TF-IDF-weighted name similarity, typo-tolerant, with a threshold, an ambiguity margin and one-to-one matching | suggestion | **no** |
-
-The join is done by `ProjectMapper.java` (below), which CrossAudit calls with
-its Sonar × GitLab preset. `--report rapport.json` writes the evaluation of
-every method.
-
-The links typed into Sonar projects (`api/project_links/search`) do not join
-anything. The run reports how many there are, and how many confirm a join,
-contradict one, or would have created one, so you can judge whether they
-deserve to become a method. It also reports every binding that contradicts
-the CI key.
-
-Suggestions go into `croisement.csv` marked as such, for a human to confirm.
-They never enter a count. Two projects called `api` in different namespaces
-match perfectly and are not the same project.
-
-**The match rate is a finding, not a status line.** A low rate does not mean the
-tool failed — it means the GitLab↔SonarQube integration is not configured, and
-nobody can currently answer *is this repo analysed?* without checking by hand.
-That is the same class of governance gap as the never-analysed projects.
-
-Six claims come out, none of which either report supports alone:
-
-- **Active in GitLab, absent from Sonar** — live projects with no scanner, separated at last from dead repos.
-- **CI configured for Sonar, no matched Sonar project** — the pipeline says it analyses; nothing receives it under a key we can attach. A silently failing job, or a key pointing nowhere. Checkable project by project in a minute.
-- **Debt created on code nobody reviewed** — Sonar sees violations on new code; GitLab sees that code reach the default branch with no merged MR.
-- **Neither tests nor review, on code that moves** — coverage under 20%, no merged MRs, sustained activity. Both safety nets missing at once.
-- **Debt carried, not created** — debt on the books, zero commits in the window. Confirmed by the repo itself rather than inferred from a stale analysis date.
-- **Tests run, coverage never arrives** — SonarQube counts tests and reports 0% coverage: the coverage report is not wired up. A CI plumbing problem, not an engineering one, and the two are indistinguishable if you only look at the percentage.
-
-The output caveat worth repeating: `pratiques.csv` holds only the projects the
-GitLab audit *selected*, not the whole estate. A Sonar project with no GitLab
-match may simply not have been drawn. The run says so.
-
-### The matcher on its own: `ProjectMapper.java`
-
-It matches the rows of one CSV to the rows of another, and grades each way of
-doing it. It knows nothing about Sonar or GitLab beyond a preset, which is what
-it uses when no method is given:
-
-```bash
-# Sonar × GitLab, as CrossAudit does it
-jbang ProjectMapper.java --left ./audit/pratiques.csv --right inventaire.csv \
-    --out correspondances.csv --report rapport-appariement.json
-
-# Anything else: name the columns
-jbang ProjectMapper.java --left cmdb.csv --right jira.csv \
-    --left-key appli --right-key ref \
-    --exact code:code=code_appli --names appli=libelle --plain-names
-```
-
-Methods are written `id:left_column=right_column[?column=value]`.
-`--exact` needs strict equality. `--derived` compares after normalisation.
-`--link` reads repository URLs on the right and is informative only. They are
-applied in order, and name similarity (`--names`) runs last, on whatever is
-left, and only produces suggestions.
-
-**The report is the point.** Every method is also run on its own, on every
-row, so the report can show:
-
-- **Coverage.** What each method proposes, how often it is ambiguous, how
-  often it decided, and how often it is the only method with an answer, which
-  is what you would lose without it.
-- **Agreement.** How often each pair of methods agrees or disagrees, with
-  examples. A CI key that contradicts Sonar's own binding shows up here.
-- **Links.** Whether they confirm a join, contradict one, or would have created
-  one.
-- **Name similarity, graded against the sure pairs.** Score distribution of
-  right and wrong answers, then precision and recall at each threshold. Use it
-  to pick `--seuil-nom` from evidence rather than taste.
-- **Examples of failure.** Wrong proposals on sure pairs, sure pairs whose
-  names diverge, near misses, frequent words in unmatched rows that never
-  appear on the other side, and key prefixes of unmatched right rows. These are
-  the leads for the next improvement: an abbreviation to expand, a prefix to
-  strip, a naming convention to learn.
-
-The JSON report is meant to be read back, by a person or an assistant, to
-decide what to improve next. It contains project names, so handle it like the
-CSVs.
-
-### The mapping is kept, and corrected by hand
-
-The pairs are written once and **reused by default**. `CrossAudit` keeps them
-in `appariement.csv` next to `pratiques.csv` (`--appariement` to put it
-elsewhere); `ProjectMapper` keeps them in its `--out` file. Both tools read
-the same format, so the mapper can be run alone first, corrected, and the
-crossing will pick it up.
-
-On each run the file is replayed over a fresh computation, row by row, on the
-`confiance` column:
-
-| `confiance` in the file | What the next run does |
+| Key read from the CI, or `groupId:artifactId` from the pom, equals a Sonar key | exact |
+| Sonar's own GitLab binding points at the project | exact |
+| Sonar key normalised against the GitLab path; unique pom name equals a Sonar name | derived |
+| Name similarity (TF-IDF, typo-tolerant, one-to-one) | suggestion — never counted |
+
+The match rate is itself a finding: a low one means nobody can tell whether a
+repo is analysed without checking by hand. The run then reports what neither
+side shows alone: active projects Sonar never sees, CI configured for Sonar with
+nothing received, debt created on unreviewed code, code that moves with neither
+tests nor review, debt carried by dead repos, tests that run while coverage
+never arrives. `pratiques.csv` holds only the selected projects, so a Sonar
+project without a GitLab match may simply not have been drawn.
+
+### Correcting the pairs by hand
+
+The pairs are kept in `appariement.csv` next to `pratiques.csv` and replayed on
+each run, row by row, on the `confiance` column:
+
+| `confiance` | Next run |
 |---|---|
-| `manuel` | **Set by hand.** Pairs with the key in `droite_key`, whatever the methods say. Counts as a sure pair in the findings |
-| `rejete` | **Rejected by hand.** No pair, and none is proposed again |
-| `exact`, `derived` | Kept as they were. Recomputed only if the Sonar key no longer exists (renamed or deleted project), and the run lists those |
-| `suggestion`, `none` | Recomputed: a method added since — the `pom.xml` key, say — may now find them |
+| `manuel` | Paired with the key in `droite_key`, whatever the methods say |
+| `rejete` | No pair, never proposed again |
+| `exact`, `derived` | Kept; recomputed only if the Sonar key disappeared |
+| `suggestion`, `none` | Recomputed, since a newer method may find them |
 
-So to confirm a name suggestion, change `suggestion` to `manuel`; to fix a
-wrong pair, put the right key in `droite_key` and write `manuel`; to refuse
-one, write `rejete`. Accents and English (`manual`, `rejected`) are accepted.
+To confirm a suggestion write `manuel`; to fix a pair put the right key in
+`droite_key` and write `manuel`; to refuse one write `rejete`. `--reapparier`
+recomputes `exact` and `derived` too but keeps the hand-made rows. The previous
+file is left as `appariement.csv.bak`. `ProjectMapper.java` is the matcher on
+its own, for any two CSVs: `TOOLS.md`.
 
-Projects that appear in a new audit are computed and appended. Rows for
-projects the current audit did not select are kept untouched, so a decision
-made by hand is not lost because the sample changed. Every rewrite leaves the
-previous version in `appariement.csv.bak`.
+---
 
-`--reapparier` recomputes the `exact` and `derived` rows too — after improving
-a method or `namespace-mapping.yaml` — and still keeps `manuel` and `rejete`,
-the only rows that cost a person time. To forget those as well, delete the
-file.
+## Leaving projects out
 
-**Sharing: the export button.** *Exporter une page autonome* downloads one HTML
-file (about 1 MB) holding the charts as they are drawn, their data and the
-libraries. It opens offline, with no CSV to load. It carries only what the
-charts plot, not the CSVs; still, project names and quality figures are in it,
-so check who receives it. Many mail servers block `.html` attachments: send it
-zipped. The same file can be published as is on GitLab Pages, where the
-instance has Pages with access control.
-
-### Leaving projects out
-
-Both `GitlabActivityAudit` and `SonarAuditCheck` read an exclusion list:
-`--exclusions <file>`, or `exclusions.txt` in the current directory when it
-exists. One entry per line, matched against the GitLab path on one side and the
-Sonar key on the other. `*` covers one path segment, `**` any number, and case is
-ignored. Anything after `#` is a comment: write down why.
+`SonarAuditCheck` and `GitlabActivityAudit` read `--exclusions <file>`, or
+`exclusions.txt` in the current directory. One entry per line, matched against
+the GitLab path or the Sonar key; `*` is one path segment, `**` any number, case
+is ignored, `#` starts a comment.
 
 ```text
 equipe-x/bac-a-sable      # throwaway prototype
@@ -1026,57 +190,39 @@ formation/**              # training exercises
 org.exemple:*-demo        # Sonar keys work the same way
 ```
 
-On the GitLab side an excluded project stays in `inventaire.csv`, with `exclu` =
-`liste d'exclusion`, and is counted in the console like every other exclusion:
-a total that shrinks without saying so reads as complete. On the Sonar side it
-is dropped from the inventory, and the console says how many were. Neither is
-then in `pratiques.csv` or `croisement.csv`.
+On the GitLab side an excluded project stays in `inventaire.csv` with `exclu` =
+`liste d'exclusion`, and is counted like any other exclusion. On the Sonar side
+it is dropped, and the console says how many.
 
-### Charts: `viz/index.html`
+---
 
-A static page. Open it, then drop the CSVs on it, or pick them with the file
-button: `./audit/inventaire.csv`, `pratiques.csv`, `croisement.csv`, and the
-Sonar side's `inventaire-historique.csv`. The files are read in the browser and
-never sent anywhere. The libraries (Vega, Vega-Lite, vega-embed, PapaParse) load
-from jsDelivr, so the page needs that one site to be reachable.
+## Charts: `viz/index.html`
 
-Each file is recognised by its columns, not its name: the two inventories are
-both called `inventaire.csv`. A chart whose files are missing says which ones,
-and the others render anyway.
+A static page. Drop the CSVs on it: `./audit/inventaire.csv`, `pratiques.csv`,
+`croisement.csv` and `inventaire-historique.csv`. Files are recognised by their
+columns and read in the browser, never sent anywhere; the chart libraries load
+from jsDelivr. The top of the page lists which files each chart needs and the
+command that writes them.
 
-The top of the page lists every file the charts read, whether it is loaded,
-and the command that produces it.
+| Chart | Question |
+|---|---|
+| Coverage funnel | How many GitLab projects make it to a recent Sonar measure |
+| Activity × *measure* | Lines changed against issues/kLOC, coverage, new-code coverage, debt ratio… one dot per paired project; the top-right corner is where to act |
+| Active projects without Sonar | The most active unpaired projects, and whether their CI mentions Sonar |
+| Issue density drift | Where each project's issue density started and where it is now |
+| Practices by namespace | Share of each team's projects following each practice |
+| Map of the estate | Commits by namespace, coloured by quality gate, dark where Sonar sees nothing |
+| History | Issues/kLOC over time, one small chart per project |
 
-| Chart | Reads | Question |
-|---|---|---|
-| Coverage funnel | GitLab inventory, then `pratiques`, `croisement` if there | How many projects make it to a recent Sonar measure. Projects on the exclusion list are left out of the first bar. Square-root scale, so the last steps stay visible next to the whole estate |
-| Activity × *measure* | `croisement` | Lines changed against a Sonar measure, one dot per paired project. One chart per measure: issues/kLOC, new code coverage, new issues per new kLOC, coverage, debt ratio, new code duplication. Wheel zooms the y axis only, drag pans it, double-click resets. When a few extreme values would squash the rest, the scale stops a little above the 95th percentile and those projects sit on the top edge as ▲. The ten namespaces with the most projects get a colour, the others are grey |
-| Active projects without Sonar | `croisement` | The 40 most active unpaired projects, coloured by whether the CI mentions Sonar |
-| Issue density drift | `croisement` | Where each project started and where it is now. The start is rebuilt from the slope: an order of magnitude. Same y cap and y zoom as above |
-| Practices by namespace | `pratiques` | Share of each team's projects following each practice. Biggest namespaces first; those with fewer than 3 analysed projects share an « autres » row |
-| Map of the estate | `croisement` | Commits by namespace, coloured by quality gate, dark where Sonar sees nothing |
-| History | `inventaire-historique.csv`, `croisement` if there | Issues/kLOC over time, one small chart per project with at least 3 analyses |
+The wheel zooms the y axis only; double-click resets. **Exporter une page
+autonome** downloads one HTML file with the charts, their data and the
+libraries, which opens offline: zip it before emailing (mail servers block
+`.html`), or publish it on GitLab Pages. It holds project names and quality
+figures, so check who receives it. Adding a chart: `TOOLS.md`.
 
-The measures of the activity charts are a list at the top of
-`viz/charts/quadrant.js`: one line per measure, with `lowerIsWorse` to flip the
-axis so the corner to look at stays top right.
+---
 
-`SonarAuditCheck --csv x.csv` writes `x-historique.csv` next to it: one row per
-project and analysis date, with `violations`, `ncloc` and `sqale_debt_ratio`,
-the raw series behind the trend slopes. Nothing is written with `--no-trend`.
-
-**Adding or removing a chart.** One chart is one file in `viz/charts/`, and one
-`<script>` line in `viz/index.html`. Delete the line and the chart is gone. A
-new chart calls `Viz.add({ id, title, help, needs, uses, spec })` — `needs`
-the files it cannot do without, `uses` the ones it reads if they are there —
-and `spec`
-receives the loaded tables and returns a Vega-Lite (or Vega) spec. Shared
-helpers — number parsing, namespace grouping, the "paired" test, the outlier cap, the
-top-10 colours, short path labels — are in
-`viz/app.js`. Every chart's `…` menu opens its spec in the Vega editor, the
-quickest place to tweak one.
-
-### Not yet done
+## Not yet done
 
 Per-file work, on both sides: change frequency against complexity per file,
 exclusions against the real repository size, quality gate events against what

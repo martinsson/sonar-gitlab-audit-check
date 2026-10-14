@@ -462,7 +462,7 @@ thing without the `gl_`/`sq_` columns.
 |---|---|
 | `projet` | GitLab path of the project. First on purpose: freeze this column in the spreadsheet and every row stays identifiable while you scroll right |
 | `methode_jointure` | How the pair was made, tried in this order: `clé lue dans la CI`, `clé Maven du pom`, `liaison DevOps Sonar → GitLab`, `mapping namespace GL→Sonar`, `clé normalisée = chemin GitLab`, `nom du pom = nom Sonar` (only when that name designates a single Sonar project), `noms ressemblants (TF-IDF)`, or `aucune` |
-| `confiance` | `exact`, `derived`, `suggestion`, `none`, or, when taken from a hand-corrected `appariement.csv`, `manuel` (pair set by hand, counted as sure) and `rejete` (pair refused by hand). See README, *The mapping is kept* |
+| `confiance` | `exact`, `derived`, `suggestion`, `none`, or, when taken from a hand-corrected `appariement.csv`, `manuel` (pair set by hand, counted as sure) and `rejete` (pair refused by hand). See README, *Correcting the pairs by hand* |
 | `candidat_nom` | Best name-similarity candidate, when the safer methods failed. Filled **even when it was rejected** (see `rejet_nom`) |
 | `score_nom` | Its score, 0–1 |
 | `second_nom` | The runner-up and its score. A close runner-up is why a candidate gets rejected as ambiguous |
