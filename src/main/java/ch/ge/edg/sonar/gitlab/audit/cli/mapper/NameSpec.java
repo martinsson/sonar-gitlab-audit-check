@@ -34,40 +34,48 @@ public record NameSpec(String leftColumn, List<String> rightColumns, boolean pat
     List<Map<String, Double>> srcTf = new ArrayList<>();
     List<Set<String>> srcNum = new ArrayList<>();
     for (Csv.Row l : left.rows()) {
-      String v = l.str(leftColumn);
       Map<String, Double> tf = new HashMap<>();
-      if (pathLike) {
-        // Le dernier segment compte double : le namespace aide à
-        // départager, il ne doit pas suffire à rapprocher.
-        // On retire le numéro de ticket du dernier segment pour
-        // améliorer la similarité avec la clé Sonar.
-        int cut = v.lastIndexOf('/');
-        String lastSeg = Keys.stripTicketNumber(cut >= 0 ? v.substring(cut + 1) : v);
-        NameMatcher.addTokens(tf, lastSeg, 2.0);
-        if (cut > 0) NameMatcher.addTokens(tf, v.substring(0, cut), 1.0);
-        srcNum.add(NameMatcher.numbers(lastSeg));
-      } else {
-        NameMatcher.addTokens(tf, v, 1.0);
-        srcNum.add(NameMatcher.numbers(v));
-      }
+      srcNum.add(leftDoc(l.str(leftColumn), tf));
       srcTf.add(tf);
     }
     List<Map<String, Double>> dstTf = new ArrayList<>();
     List<Set<String>> dstNum = new ArrayList<>();
     for (Csv.Row r : right.rows()) {
       Map<String, Double> tf = new HashMap<>();
-      String numbered = "";
-      for (String col : rightColumns) {
-        String v = r.str(col);
-        NameMatcher.addTokens(tf, v, 1.0);
-        // Les nombres de la dernière colonne non vide — le nom affiché
-        // dans le préréglage : la clé porte souvent un préfixe numéroté
-        // qui ne dit rien du projet.
-        if (!v.isEmpty()) numbered = v;
-      }
+      dstNum.add(rightDoc(r, tf));
       dstTf.add(tf);
-      dstNum.add(NameMatcher.numbers(numbered));
     }
     return new NameMatcher(srcTf, srcNum, dstTf, dstNum);
+  }
+
+  /** Remplit les termes d'un nom de gauche ; rend les nombres qu'il porte. */
+  private Set<String> leftDoc(String v, Map<String, Double> tf) {
+    if (!pathLike) {
+      NameMatcher.addTokens(tf, v, 1.0);
+      return NameMatcher.numbers(v);
+    }
+    // Le dernier segment compte double : le namespace aide à
+    // départager, il ne doit pas suffire à rapprocher.
+    // On retire le numéro de ticket du dernier segment pour
+    // améliorer la similarité avec la clé Sonar.
+    int cut = v.lastIndexOf('/');
+    String lastSeg = Keys.stripTicketNumber(cut >= 0 ? v.substring(cut + 1) : v);
+    NameMatcher.addTokens(tf, lastSeg, 2.0);
+    if (cut > 0) NameMatcher.addTokens(tf, v.substring(0, cut), 1.0);
+    return NameMatcher.numbers(lastSeg);
+  }
+
+  /** Remplit les termes d'une ligne de droite, toutes colonnes ; rend les nombres retenus. */
+  private Set<String> rightDoc(Csv.Row r, Map<String, Double> tf) {
+    String numbered = "";
+    for (String col : rightColumns) {
+      String v = r.str(col);
+      NameMatcher.addTokens(tf, v, 1.0);
+      // Les nombres de la dernière colonne non vide — le nom affiché
+      // dans le préréglage : la clé porte souvent un préfixe numéroté
+      // qui ne dit rien du projet.
+      if (!v.isEmpty()) numbered = v;
+    }
+    return NameMatcher.numbers(numbered);
   }
 }

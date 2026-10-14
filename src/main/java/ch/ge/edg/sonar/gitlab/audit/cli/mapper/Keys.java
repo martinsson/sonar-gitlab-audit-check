@@ -59,7 +59,8 @@ public final class Keys {
   public static List<String> linkedPaths(@Nullable String links) {
     List<String> out = new ArrayList<>();
     if (links == null || links.isBlank()) return out;
-    for (String entry : LINK_SEPARATOR.split(links)) {
+    // Les entrées vides, en fin de liste ou non, ne donnent aucun chemin.
+    for (String entry : LINK_SEPARATOR.split(links, -1)) {
       String url = entry.contains(" ") ? entry.substring(entry.indexOf(' ') + 1) : entry;
       String path =
           url.trim()

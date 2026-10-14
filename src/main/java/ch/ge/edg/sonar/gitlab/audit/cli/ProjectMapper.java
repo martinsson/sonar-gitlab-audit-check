@@ -21,6 +21,7 @@ import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 /**
@@ -99,25 +100,7 @@ public class ProjectMapper implements Callable<Integer> {
   @Option(names = "--link", description = "méthode informative par URL de dépôt (répétable)")
   List<String> link = new ArrayList<>();
 
-  @Option(names = "--names", description = "ressemblance de noms : gauche=droite1,droite2")
-  @Nullable String names;
-
-  @Option(
-      names = "--plain-names",
-      description = "le nom de gauche n'est pas un chemin : pas de dernier segment privilégié")
-  boolean plainNames;
-
-  @Option(
-      names = "--seuil-nom",
-      defaultValue = "0.5",
-      description = "score minimal d'une suggestion, 0–1 (défaut : ${DEFAULT-VALUE})")
-  double threshold;
-
-  @Option(
-      names = "--marge-nom",
-      defaultValue = "0.1",
-      description = "écart minimal avec le candidat suivant (défaut : ${DEFAULT-VALUE})")
-  double margin;
+  @Mixin NameOptions nameOptions = new NameOptions();
 
   @Option(names = "--out", description = "CSV d'appariement, une ligne par ligne de gauche")
   @Nullable Path out;
@@ -201,8 +184,8 @@ public class ProjectMapper implements Callable<Integer> {
 
   /** Sans méthode ni noms, le préréglage Sonar × GitLab ; sinon ce que la ligne de commande dit. */
   private Spec spec() {
-    if (exact.isEmpty() && derived.isEmpty() && link.isEmpty() && names == null) {
-      Spec spec = Spec.sonarGitlab(threshold, margin);
+    if (exact.isEmpty() && derived.isEmpty() && link.isEmpty() && nameOptions.names == null) {
+      Spec spec = Spec.sonarGitlab(nameOptions.threshold, nameOptions.margin);
       if (leftKey == null && rightKey == null) return spec;
       return spec.withKeys(orElse(leftKey, spec.leftKey()), orElse(rightKey, spec.rightKey()));
     }
@@ -210,14 +193,14 @@ public class ProjectMapper implements Callable<Integer> {
     exact.forEach(m -> methods.add(method(m, Kind.EXACT)));
     derived.forEach(m -> methods.add(method(m, Kind.DERIVED)));
     link.forEach(m -> methods.add(method(m, Kind.LINK)));
-    String nameSpec = names;
+    String nameSpec = nameOptions.names;
     return new Spec(
         orElse(leftKey, "path"),
         orElse(rightKey, "key"),
         methods,
-        nameSpec == null ? null : nameSpec(nameSpec, !plainNames),
-        threshold,
-        margin);
+        nameSpec == null ? null : nameSpec(nameSpec, !nameOptions.plainNames),
+        nameOptions.threshold,
+        nameOptions.margin);
   }
 
   /** Une méthode de la ligne de commande ; illisible, l'erreur de saisie de picocli. */

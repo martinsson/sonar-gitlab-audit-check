@@ -4,20 +4,15 @@ import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Bucket;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Example;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.NameStats;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.ThresholdPoint;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.TokenCount;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Vocabulary;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.naming.NameMatcher;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -48,25 +43,15 @@ final class NameEvaluation {
   /** Une paire sûre et le score de ressemblance de son vrai homologue. */
   private record Scored(Match m, double trueScore) {}
 
+  /** Par tranche de score du meilleur candidat libre : justes et faux, sur les paires sûres. */
+  private final int[] correct = new int[10];
+
+  private final int[] wrong = new int[10];
+  private final List<Example> wrongOnSure = new ArrayList<>();
+  private final List<Scored> divergentAll = new ArrayList<>();
+
   NameStats stats() {
-    int[] correct = new int[10];
-    int[] wrong = new int[10];
-    List<Example> wrongOnSure = new ArrayList<>();
-    List<Scored> divergentAll = new ArrayList<>();
-    for (Match m : sure) {
-      Integer j = r.rightIndex().get(m.rightKey(s));
-      double ts = j == null ? 0 : matcher.score(m.index(), j);
-      if (ts < 0.3) divergentAll.add(new Scored(m, ts));
-      NameGuess f = m.free();
-      if (f == null || f.candidate().isEmpty()) continue;
-      int b = Math.min(9, (int) (f.score() * 10));
-      if (f.candidate().equals(m.rightKey(s))) {
-        correct[b]++;
-      } else {
-        wrong[b]++;
-        if (f.accepted() && wrongOnSure.size() < examples) wrongOnSure.add(wrongExample(m, f, ts));
-      }
-    }
+    sure.forEach(this::tally);
     List<Bucket> buckets = new ArrayList<>();
     for (int b = 0; b < 10; b++) {
       buckets.add(
@@ -81,9 +66,25 @@ final class NameEvaluation {
         thresholds(),
         rejections(),
         wrongOnSure,
-        divergent(divergentAll),
+        divergent(),
         nearMisses(),
-        new Vocabulary(leftTokens(), rightPrefixes()));
+        LeftoverWords.of(r, names));
+  }
+
+  /** Une paire sûre : son vrai score, et ce que la ressemblance libre en a pensé. */
+  private void tally(Match m) {
+    Integer j = r.rightIndex().get(m.rightKey(s));
+    double ts = j == null ? 0 : matcher.score(m.index(), j);
+    if (ts < 0.3) divergentAll.add(new Scored(m, ts));
+    NameGuess f = m.free();
+    if (f == null || f.candidate().isEmpty()) return;
+    int b = Math.min(9, (int) (f.score() * 10));
+    if (f.candidate().equals(m.rightKey(s))) {
+      correct[b]++;
+      return;
+    }
+    wrong[b]++;
+    if (f.accepted() && wrongOnSure.size() < examples) wrongOnSure.add(wrongExample(m, f, ts));
   }
 
   private Example wrongExample(Match m, NameGuess f, double ts) {
@@ -123,7 +124,7 @@ final class NameEvaluation {
     return f.runnerUp().isEmpty() || f.score() - f.runnerUpScore() >= s.margin();
   }
 
-  private List<Example> divergent(List<Scored> divergentAll) {
+  private List<Example> divergent() {
     List<Example> divergent = new ArrayList<>();
     divergentAll.sort(Comparator.comparingDouble(Scored::trueScore));
     for (Scored d : divergentAll.subList(0, Math.min(examples, divergentAll.size()))) {
@@ -186,58 +187,5 @@ final class NameEvaluation {
                 g.runnerUp().isEmpty()
                     ? ""
                     : ", suivant %s (%s)".formatted(g.runnerUp(), Fmt.score(g.runnerUpScore()))));
-  }
-
-  /**
-   * Les mots des lignes restées seules, et s'ils existent de l'autre côté. Un mot fréquent absent à
-   * droite est un nom qui ne s'écrit pas pareil des deux côtés : un synonyme, une abréviation, une
-   * règle à ajouter.
-   */
-  private List<TokenCount> leftTokens() {
-    Set<String> rightTokens = new HashSet<>();
-    for (Csv.Row x : r.right().rows()) {
-      for (String col : names.rightColumns()) rightTokens.addAll(NameMatcher.tokens(x.str(col)));
-    }
-    Map<String, Integer> leftCounts = new HashMap<>();
-    for (Match m : ms) {
-      if (m.right() != null) continue;
-      String v = m.left().str(names.leftColumn());
-      if (names.pathLike()) v = v.substring(v.lastIndexOf('/') + 1);
-      for (String t : new HashSet<>(NameMatcher.tokens(v))) leftCounts.merge(t, 1, Integer::sum);
-    }
-    return top(leftCounts, 20).stream()
-        .map(e -> new TokenCount(e.getKey(), e.getValue(), rightTokens.contains(e.getKey())))
-        .toList();
-  }
-
-  /**
-   * Côté droit, les préfixes des clés restées seules : une convention de nommage ({@code
-   * ch.ge.afc.}, {@code dsi_}) s'y lit d'un coup d'œil.
-   */
-  private List<TokenCount> rightPrefixes() {
-    Set<String> used =
-        ms.stream()
-            .filter(m -> m.right() != null)
-            .map(m -> m.rightKey(s))
-            .collect(Collectors.toSet());
-    Map<String, Integer> prefixes = new HashMap<>();
-    for (Csv.Row x : r.right().rows()) {
-      String k = x.str(s.rightKey());
-      if (k.isEmpty() || used.contains(k)) continue;
-      prefixes.merge(Keys.prefix(k), 1, Integer::sum);
-    }
-    return top(prefixes, 15).stream()
-        .map(e -> new TokenCount(e.getKey(), e.getValue(), true))
-        .toList();
-  }
-
-  private static List<Map.Entry<String, Integer>> top(Map<String, Integer> counts, int n) {
-    return counts.entrySet().stream()
-        .sorted(
-            Map.Entry.<String, Integer>comparingByValue()
-                .reversed()
-                .thenComparing(Map.Entry.comparingByKey()))
-        .limit(n)
-        .toList();
   }
 }

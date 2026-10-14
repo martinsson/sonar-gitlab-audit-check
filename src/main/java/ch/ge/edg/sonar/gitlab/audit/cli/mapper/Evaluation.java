@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Agreement;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Example;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Guards;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.LinkStats;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.MethodStats;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Summary;
@@ -12,8 +11,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Chaque méthode évaluée seule, sur toutes les lignes : ce qu'elle propose, ce qu'elle seule
@@ -45,7 +42,7 @@ public final class Evaluation {
   }
 
   private Report report() {
-    Summary summary = summary();
+    Summary summary = Summary.of(r);
     collectProposals();
     List<MethodStats> methods = new ArrayList<>();
     labels.forEach((id, label) -> methods.add(methodStats(id, label)));
@@ -74,34 +71,6 @@ public final class Evaluation {
         matcher == null || names == null
             ? null
             : new NameEvaluation(r, matcher, names, examples).stats());
-  }
-
-  private Summary summary() {
-    Map<String, Integer> byMethod = new LinkedHashMap<>();
-    for (KeyMethod m : r.available()) if (m.joins()) byMethod.put(m.label(), 0);
-    if (r.matcher() != null) byMethod.put(Spec.NAMES_LABEL, 0);
-    byMethod.put(Spec.NONE_LABEL, 0);
-    for (Match m : ms) byMethod.merge(m.label(), 1, Integer::sum);
-    int joined = (int) ms.stream().filter(Match::joined).count();
-    int suggestions =
-        (int) ms.stream().filter(m -> m.confidence() == Confidence.SUGGESTION).count();
-    Set<String> usedRight =
-        ms.stream()
-            .filter(m -> m.right() != null)
-            .map(m -> m.rightKey(s))
-            .collect(Collectors.toSet());
-    int rightUnmatched =
-        (int)
-            r.right().rows().stream().filter(x -> !usedRight.contains(x.str(s.rightKey()))).count();
-    return new Summary(
-        ms.size(),
-        r.right().rows().size(),
-        byMethod,
-        joined,
-        suggestions,
-        byMethod.getOrDefault(Spec.NONE_LABEL, 0),
-        rightUnmatched,
-        new Guards(s.threshold(), s.margin()));
   }
 
   /**

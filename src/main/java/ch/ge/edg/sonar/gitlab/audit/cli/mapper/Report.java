@@ -6,8 +6,11 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -34,7 +37,41 @@ public record Report(
       int suggestions,
       int unmatched,
       int rightUnmatched,
-      @JsonUnwrapped Guards guards) {}
+      @JsonUnwrapped Guards guards) {
+
+    /** Les comptes d'un appariement : méthode par méthode, sûres, suggestions, restes. */
+    static Summary of(Result r) {
+      Spec s = r.spec();
+      List<Match> ms = r.matches();
+      Map<String, Integer> byMethod = new LinkedHashMap<>();
+      for (KeyMethod m : r.available()) if (m.joins()) byMethod.put(m.label(), 0);
+      if (r.matcher() != null) byMethod.put(Spec.NAMES_LABEL, 0);
+      byMethod.put(Spec.NONE_LABEL, 0);
+      for (Match m : ms) byMethod.merge(m.label(), 1, Integer::sum);
+      int joined = (int) ms.stream().filter(Match::joined).count();
+      int suggestions =
+          (int) ms.stream().filter(m -> m.confidence() == Confidence.SUGGESTION).count();
+      Set<String> usedRight =
+          ms.stream()
+              .filter(m -> m.right() != null)
+              .map(m -> m.rightKey(s))
+              .collect(Collectors.toSet());
+      int rightUnmatched =
+          (int)
+              r.right().rows().stream()
+                  .filter(x -> !usedRight.contains(x.str(s.rightKey())))
+                  .count();
+      return new Summary(
+          ms.size(),
+          r.right().rows().size(),
+          byMethod,
+          joined,
+          suggestions,
+          byMethod.getOrDefault(Spec.NONE_LABEL, 0),
+          rightUnmatched,
+          new Guards(s.threshold(), s.margin()));
+    }
+  }
 
   /**
    * {@code proposes} : lignes où la méthode, seule, désigne quelque chose. {@code wins} : lignes
