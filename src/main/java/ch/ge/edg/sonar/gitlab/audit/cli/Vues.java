@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
@@ -51,7 +52,7 @@ import picocli.CommandLine.Option;
 public class Vues implements Callable<Integer> {
 
   @Option(names = "--in", required = true, description = "croisement.csv de CrossAudit --out")
-  Path in;
+  @Nullable Path in;
 
   @Option(
       names = "--comma",
@@ -62,7 +63,7 @@ public class Vues implements Callable<Integer> {
       names = "--color",
       defaultValue = "auto",
       description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
-  String colorMode;
+  String colorMode = "auto";
 
   public static void main(String[] args) {
     ConsoleOut.install();
@@ -156,24 +157,26 @@ public class Vues implements Callable<Integer> {
   public Integer call() throws IOException {
     PrintStream out = System.out;
     ConsoleOut.colorMode(colorMode);
-    Csv.Table t = Csv.read(in);
-    t.require(in, "CrossAudit --out", "projet", "confiance");
+    // required = true : picocli refuse la ligne de commande avant d'appeler call().
+    Path input = Objects.requireNonNull(in, "--in");
+    Csv.Table t = Csv.read(input);
+    t.require(input, "CrossAudit --out", "projet", "confiance");
 
-    Path essential = writeEssential(t);
-    List<Csv.Row> joined = writeDrift(t);
-    List<Csv.Row> unpaired = writeUnpaired(t);
+    Path essential = writeEssential(t, input);
+    List<Csv.Row> joined = writeDrift(t, input);
+    List<Csv.Row> unpaired = writeUnpaired(t, input);
 
     List<String> missing = DRIFT.stream().filter(c -> !c.equals("signaux") && !t.has(c)).toList();
     out.printf("  Vue essentiel : %d lignes → %s%n", t.rows().size(), essential.toAbsolutePath());
     out.printf(
         "  Vue dérive    : %d projets appariés → %s%n",
-        joined.size(), sibling(in, "derive").toAbsolutePath());
+        joined.size(), sibling(input, "derive").toAbsolutePath());
     out.println(
         ConsoleOut.color(
             "    Triée par nombre de signaux, puis par pente de la densité d'issues.", DIM));
     out.printf(
         "  Vue non appariés : %d projets actifs sans projet Sonar → %s%n",
-        unpaired.size(), sibling(in, "non-apparies").toAbsolutePath());
+        unpaired.size(), sibling(input, "non-apparies").toAbsolutePath());
     out.println(
         ConsoleOut.color(
             "    Les plus actifs d'abord. Seulement l'échantillon de pratiques.csv : "
@@ -191,7 +194,7 @@ public class Vues implements Callable<Integer> {
   }
 
   /** Toutes les colonnes, les importantes d'abord, toutes les lignes. */
-  private Path writeEssential(Csv.Table t) throws IOException {
+  private Path writeEssential(Csv.Table t, Path input) throws IOException {
     List<String> header =
         t.index().entrySet().stream()
             .sorted(Map.Entry.comparingByValue())
@@ -200,13 +203,13 @@ public class Vues implements Callable<Integer> {
     List<String> essentialCols =
         new ArrayList<>(
             new LinkedHashSet<>(concat(ESSENTIAL_FIRST.stream().filter(t::has).toList(), header)));
-    Path essential = sibling(in, "essentiel");
+    Path essential = sibling(input, "essentiel");
     write(essential, essentialCols, t.rows());
     return essential;
   }
 
   /** Appariés seulement : sans côté Sonar, il n'y a pas de pente à lire. */
-  private List<Csv.Row> writeDrift(Csv.Table t) throws IOException {
+  private List<Csv.Row> writeDrift(Csv.Table t, Path input) throws IOException {
     List<Csv.Row> joined =
         new ArrayList<>(
             t.rows().stream().filter(r -> PAIRED.contains(r.str("confiance"))).toList());
@@ -217,12 +220,12 @@ public class Vues implements Callable<Integer> {
                 Comparator.comparingDouble(
                         (Csv.Row r) -> orMin(r.num("sq_violations_kloc_pente_pct_mois")))
                     .reversed()));
-    write(sibling(in, "derive"), DRIFT, joined);
+    write(sibling(input, "derive"), DRIFT, joined);
     return joined;
   }
 
   /** Actif = au moins un commit humain sur la fenêtre GitLab. */
-  private List<Csv.Row> writeUnpaired(Csv.Table t) throws IOException {
+  private List<Csv.Row> writeUnpaired(Csv.Table t, Path input) throws IOException {
     List<Csv.Row> unpaired =
         new ArrayList<>(
             t.rows().stream()
@@ -232,7 +235,7 @@ public class Vues implements Callable<Integer> {
         Comparator.comparingDouble((Csv.Row r) -> nz(r, "gl_commits_window"))
             .thenComparingDouble(r -> nz(r, "gl_lignes_modifiees"))
             .reversed());
-    write(sibling(in, "non-apparies"), UNPAIRED, unpaired);
+    write(sibling(input, "non-apparies"), UNPAIRED, unpaired);
     return unpaired;
   }
 
