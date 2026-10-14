@@ -24,7 +24,7 @@ target/
 .DS_Store
 
 # Local working data (client data)
-work/
-dump/
-audit/
+/work/
+/dump/
+/audit/
 .jqwik-database
