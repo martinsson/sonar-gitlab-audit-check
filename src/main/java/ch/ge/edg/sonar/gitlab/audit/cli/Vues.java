@@ -4,14 +4,18 @@ import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import org.jspecify.annotations.Nullable;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -48,7 +52,7 @@ import picocli.CommandLine.Option;
 public class Vues implements Callable<Integer> {
 
   @Option(names = "--in", required = true, description = "croisement.csv de CrossAudit --out")
-  Path in;
+  @Nullable Path in;
 
   @Option(
       names = "--comma",
@@ -59,7 +63,7 @@ public class Vues implements Callable<Integer> {
       names = "--color",
       defaultValue = "auto",
       description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
-  String colorMode;
+  String colorMode = "auto";
 
   public static void main(String[] args) {
     ConsoleOut.install();
@@ -151,10 +155,46 @@ public class Vues implements Callable<Integer> {
 
   @Override
   public Integer call() throws IOException {
+    PrintStream out = System.out;
     ConsoleOut.colorMode(colorMode);
-    Csv.Table t = Csv.read(in);
-    t.require(in, "CrossAudit --out", "projet", "confiance");
+    // required = true : picocli refuse la ligne de commande avant d'appeler call().
+    Path input = Objects.requireNonNull(in, "--in");
+    Csv.Table t = Csv.read(input);
+    t.require(input, "CrossAudit --out", "projet", "confiance");
 
+    Path essential = writeEssential(t, input);
+    List<Csv.Row> joined = writeDrift(t, input);
+    List<Csv.Row> unpaired = writeUnpaired(t, input);
+
+    List<String> missing = DRIFT.stream().filter(c -> !c.equals("signaux") && !t.has(c)).toList();
+    out.printf("  Vue essentiel : %d lignes → %s%n", t.rows().size(), essential.toAbsolutePath());
+    out.printf(
+        "  Vue dérive    : %d projets appariés → %s%n",
+        joined.size(), sibling(input, "derive").toAbsolutePath());
+    out.println(
+        ConsoleOut.color(
+            "    Triée par nombre de signaux, puis par pente de la densité d'issues.", DIM));
+    out.printf(
+        "  Vue non appariés : %d projets actifs sans projet Sonar → %s%n",
+        unpaired.size(), sibling(input, "non-apparies").toAbsolutePath());
+    out.println(
+        ConsoleOut.color(
+            "    Les plus actifs d'abord. Seulement l'échantillon de pratiques.csv : "
+                + "un projet hors sélection n'y est pas.",
+            DIM));
+    if (!missing.isEmpty()) {
+      out.println(
+          ConsoleOut.color(
+              ("  Colonnes absentes du croisement, laissées vides : %s%n"
+                      + "    Un croisement plus ancien : relancer les trois outils les remplit.")
+                  .formatted(String.join(", ", missing)),
+              YELLOW));
+    }
+    return 0;
+  }
+
+  /** Toutes les colonnes, les importantes d'abord, toutes les lignes. */
+  private Path writeEssential(Csv.Table t, Path input) throws IOException {
     List<String> header =
         t.index().entrySet().stream()
             .sorted(Map.Entry.comparingByValue())
@@ -163,10 +203,13 @@ public class Vues implements Callable<Integer> {
     List<String> essentialCols =
         new ArrayList<>(
             new LinkedHashSet<>(concat(ESSENTIAL_FIRST.stream().filter(t::has).toList(), header)));
-    Path essential = sibling(in, "essentiel");
+    Path essential = sibling(input, "essentiel");
     write(essential, essentialCols, t.rows());
+    return essential;
+  }
 
-    // Appariés seulement : sans côté Sonar, il n'y a pas de pente à lire.
+  /** Appariés seulement : sans côté Sonar, il n'y a pas de pente à lire. */
+  private List<Csv.Row> writeDrift(Csv.Table t, Path input) throws IOException {
     List<Csv.Row> joined =
         new ArrayList<>(
             t.rows().stream().filter(r -> PAIRED.contains(r.str("confiance"))).toList());
@@ -177,10 +220,12 @@ public class Vues implements Callable<Integer> {
                 Comparator.comparingDouble(
                         (Csv.Row r) -> orMin(r.num("sq_violations_kloc_pente_pct_mois")))
                     .reversed()));
-    Path drift = sibling(in, "derive");
-    write(drift, DRIFT, joined);
+    write(sibling(input, "derive"), DRIFT, joined);
+    return joined;
+  }
 
-    // Actif = au moins un commit humain sur la fenêtre GitLab.
+  /** Actif = au moins un commit humain sur la fenêtre GitLab. */
+  private List<Csv.Row> writeUnpaired(Csv.Table t, Path input) throws IOException {
     List<Csv.Row> unpaired =
         new ArrayList<>(
             t.rows().stream()
@@ -190,34 +235,8 @@ public class Vues implements Callable<Integer> {
         Comparator.comparingDouble((Csv.Row r) -> nz(r, "gl_commits_window"))
             .thenComparingDouble(r -> nz(r, "gl_lignes_modifiees"))
             .reversed());
-    Path unpairedFile = sibling(in, "non-apparies");
-    write(unpairedFile, UNPAIRED, unpaired);
-
-    List<String> missing = DRIFT.stream().filter(c -> !c.equals("signaux") && !t.has(c)).toList();
-    System.out.printf(
-        "  Vue essentiel : %d lignes → %s%n", t.rows().size(), essential.toAbsolutePath());
-    System.out.printf(
-        "  Vue dérive    : %d projets appariés → %s%n", joined.size(), drift.toAbsolutePath());
-    System.out.println(
-        ConsoleOut.color(
-            "    Triée par nombre de signaux, puis par pente de la densité d'issues.", DIM));
-    System.out.printf(
-        "  Vue non appariés : %d projets actifs sans projet Sonar → %s%n",
-        unpaired.size(), unpairedFile.toAbsolutePath());
-    System.out.println(
-        ConsoleOut.color(
-            "    Les plus actifs d'abord. Seulement l'échantillon de pratiques.csv : "
-                + "un projet hors sélection n'y est pas.",
-            DIM));
-    if (!missing.isEmpty()) {
-      System.out.println(
-          ConsoleOut.color(
-              ("  Colonnes absentes du croisement, laissées vides : %s%n"
-                      + "    Un croisement plus ancien : relancer les trois outils les remplit.")
-                  .formatted(String.join(", ", missing)),
-              YELLOW));
-    }
-    return 0;
+    write(sibling(input, "non-apparies"), UNPAIRED, unpaired);
+    return unpaired;
   }
 
   /**
@@ -226,26 +245,48 @@ public class Vues implements Callable<Integer> {
    */
   static List<String> signals(Csv.Row r) {
     List<String> out = new ArrayList<>();
-    Double density = r.num("sq_violations_kloc_pente_pct_mois");
-    if (density != null && density > 2) out.add("densité en hausse");
-    Double perKloc = r.num("issues_par_kloc_modifie");
-    if (perKloc != null && perKloc > 0) out.add("modifs ajoutent des issues");
-    Double newLines = r.num("sq_new_lines"), newIssues = r.num("sq_new_violations");
-    if (newLines != null
-        && newLines >= 200
-        && newIssues != null
-        && newIssues / newLines * 1000 > 10) out.add("code neuf > 10 issues/kLOC");
-    Double newCov = r.num("sq_new_coverage");
-    if (newCov != null && newCov < 50) out.add("code neuf < 50 % couvert");
-    double commits = nz(r, "gl_commits_window"), merged = nz(r, "gl_mr_fusionnees");
-    if (commits >= 20 && merged == 0) out.add("aucune revue");
-    else if (merged >= 5 && nz(r, "gl_auto_merge") / merged > 0.5) out.add("auto-merge > 50 %");
+    if (above(r.num("sq_violations_kloc_pente_pct_mois"), 2)) out.add("densité en hausse");
+    if (above(r.num("issues_par_kloc_modifie"), 0)) out.add("modifs ajoutent des issues");
+    if (denseNewCode(r)) out.add("code neuf > 10 issues/kLOC");
+    if (below(r.num("sq_new_coverage"), 50)) out.add("code neuf < 50 % couvert");
+    reviewSignal(r).ifPresent(out::add);
     // Absente du fichier n'est pas « false » : on ne l'affirme que lue.
     if (r.str("gl_ci_securite").equalsIgnoreCase("false")) out.add("sans appsec");
     if (r.str("sq_alert_status").equals("ERROR")) out.add("quality gate rouge");
-    Double age = r.num("sq_days_since_analysis");
-    if (commits >= 20 && age != null && age > 30) out.add("analyse périmée");
+    if (staleAnalysis(r)) out.add("analyse périmée");
     return out;
+  }
+
+  private static boolean above(@Nullable Double d, double threshold) {
+    return d != null && d > threshold;
+  }
+
+  private static boolean below(@Nullable Double d, double threshold) {
+    return d != null && d < threshold;
+  }
+
+  /** Un projet qui travaille, et dont la dernière analyse a plus d'un mois. */
+  private static boolean staleAnalysis(Csv.Row r) {
+    return nz(r, "gl_commits_window") >= 20 && above(r.num("sq_days_since_analysis"), 30);
+  }
+
+  /** Au moins 200 lignes neuves, et plus de 10 issues neuves par kLOC. */
+  private static boolean denseNewCode(Csv.Row r) {
+    Double newLines = r.num("sq_new_lines"), newIssues = r.num("sq_new_violations");
+    return newLines != null
+        && newLines >= 200
+        && newIssues != null
+        && newIssues / newLines * 1000 > 10;
+  }
+
+  /** Projet actif sans aucune revue, ou MR fusionnées surtout en auto-merge. */
+  private static Optional<String> reviewSignal(Csv.Row r) {
+    double commits = nz(r, "gl_commits_window"), merged = nz(r, "gl_mr_fusionnees");
+    if (commits >= 20 && merged == 0) return Optional.of("aucune revue");
+    if (merged >= 5 && nz(r, "gl_auto_merge") / merged > 0.5) {
+      return Optional.of("auto-merge > 50 %");
+    }
+    return Optional.empty();
   }
 
   private void write(Path file, List<String> columns, List<Csv.Row> rows) throws IOException {
@@ -281,7 +322,7 @@ public class Vues implements Callable<Integer> {
   }
 
   /** Vide trié en dernier, jamais lu comme zéro. */
-  static double orMin(Double d) {
+  static double orMin(@Nullable Double d) {
     return d == null ? -Double.MAX_VALUE : d;
   }
 
