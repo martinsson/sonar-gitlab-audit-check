@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -107,7 +108,10 @@ class GitlabActivityAuditHelpersTest {
 
   @Test
   void parseAndEncDelegateToGitlab() {
-    assertThat(Api.parse("2099-01-01T00:00:00+02:00").getOffset().getTotalSeconds())
+    assertThat(
+            Objects.requireNonNull(Api.parse("2099-01-01T00:00:00+02:00"))
+                .getOffset()
+                .getTotalSeconds())
         .isEqualTo(7200);
     assertThat(Api.parse("nope")).isNull();
     assertThat(Api.enc("a/b c")).isEqualTo("a%2Fb+c");

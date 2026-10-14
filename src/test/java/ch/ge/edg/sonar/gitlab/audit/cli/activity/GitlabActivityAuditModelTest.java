@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.util.Locale;
+import java.util.Objects;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -240,7 +241,7 @@ class GitlabActivityAuditModelTest {
     SonarCache back = new SonarCache(file, true, System.err);
     back.load();
     assertThat(back.loadedCount()).isEqualTo(1);
-    CiFacts r = back.get("1@abc");
+    CiFacts r = Objects.requireNonNull(back.get("1@abc"));
     assertThat(r.ciSonar).isTrue();
     assertThat(r.ciSecurity).isFalse();
     assertThat(r.sonarKey).isEqualTo("k");
@@ -274,7 +275,7 @@ class GitlabActivityAuditModelTest {
     Path f = Files.writeString(tmp.resolve("c.json"), "{\"version\":2,\"entries\":{\"a\":{}}}");
     SonarCache c = new SonarCache(f, true, System.err);
     c.load();
-    CiFacts e = c.get("a");
+    CiFacts e = Objects.requireNonNull(c.get("a"));
     assertThat(e.ciSonar).isFalse();
     assertThat(e.sonarKey).isNull();
     assertThat(e.pomUnresolved).isNull();

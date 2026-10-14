@@ -10,11 +10,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 /**
  * L'entonnoir de bout en bout : préambule, inventaire, fraîcheur, activité, plancher, sélection,
@@ -47,13 +44,8 @@ public final class ActivityAudit {
       return 2;
     }
     Gitlab gl = new Gitlab(connection.get(), out, err);
-    FunnelOptions funnel = settings.funnel();
-    Pattern bots = Pattern.compile(funnel.botPattern);
-    OffsetDateTime windowStart = OffsetDateTime.now(ZoneOffset.UTC).minusDays(funnel.sinceDays);
+    AuditContext ctx = AuditContext.start(gl, out, settings.funnel());
     Outputs outputs = settings.output().resolve();
-    SonarCache cache = new SonarCache(outputs.cache(), outputs.useCache(), err);
-    AuditContext ctx =
-        new AuditContext(gl, new Console(out), funnel, windowStart, bots, new Counters());
 
     ctx.con().say("\nInstance : " + gl.base, BOLD);
     if (!new Preflight(ctx).run()) return 1;
@@ -63,25 +55,11 @@ public final class ActivityAudit {
       ctx.con().say("\n  Aucun projet dans le périmètre. Rien à faire.", YELLOW);
       return 1;
     }
-    funnel(ctx, all);
+    FunnelStages.run(ctx, all);
     write(ctx, outputs, all);
-    if (outputs.deep()) {
-      cache.load();
-      new DeepPass(ctx, outputs, cache, all).run();
-      cache.save();
-    }
+    if (outputs.deep()) DeepPass.run(ctx, outputs, all, err);
     new Summary(ctx, outputs).print(all);
     return 0;
-  }
-
-  /** Les étapes 1 à 4 : chacune resserre la liste de la précédente. */
-  private static void funnel(AuditContext ctx, List<Proj> all) {
-    RecencyGate gate = new RecencyGate(ctx);
-    List<Proj> fresh = gate.run(all);
-    gate.validate(all);
-    new CommitActivity(ctx).run(fresh);
-    new ActivityFloor(ctx).run(fresh);
-    new Selection(ctx).run(fresh);
   }
 
   private static void write(AuditContext ctx, Outputs outputs, List<Proj> all) throws IOException {

@@ -6,6 +6,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.activity.OutputOptions.Outputs;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -18,14 +19,23 @@ final class DeepPass {
   private final List<Proj> selected;
   private final SonarProbe sonar;
 
-  DeepPass(AuditContext ctx, Outputs outputs, SonarCache cache, List<Proj> all) {
+  private DeepPass(AuditContext ctx, Outputs outputs, SonarCache cache, List<Proj> all) {
     this.ctx = ctx;
     this.outputs = outputs;
     this.selected = all.stream().filter(p -> p.selected).toList();
     this.sonar = new SonarProbe(ctx, cache, new CiConfig(ctx, all));
   }
 
-  void run() throws IOException {
+  /** La passe entière, entre la lecture et l'écriture du cache des clés Sonar. */
+  static void run(AuditContext ctx, Outputs outputs, List<Proj> all, PrintStream err)
+      throws IOException {
+    SonarCache cache = new SonarCache(outputs.cache(), outputs.useCache(), err);
+    cache.load();
+    new DeepPass(ctx, outputs, cache, all).measureAll();
+    cache.save();
+  }
+
+  private void measureAll() throws IOException {
     if (selected.isEmpty()) return;
     ctx.con().title("6. Signaux de pratique sur les %d sélectionnés".formatted(selected.size()));
 

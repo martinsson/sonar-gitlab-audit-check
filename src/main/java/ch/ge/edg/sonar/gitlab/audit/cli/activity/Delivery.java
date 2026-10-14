@@ -30,7 +30,11 @@ final class Delivery {
       r.environments = environments;
     }
     if (!ctx.counters().enterprise || (environments != null && environments == 0)) return;
+    dora(p, r);
+  }
 
+  /** La fréquence de déploiement sur la fenêtre, ou le constat qu'elle n'est pas disponible. */
+  private void dora(Proj p, Prat r) {
     Gitlab.Response df =
         ctx.gl()
             .get(

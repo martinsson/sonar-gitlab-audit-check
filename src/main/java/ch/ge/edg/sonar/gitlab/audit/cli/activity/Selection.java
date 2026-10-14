@@ -8,11 +8,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Étape 4 : quotas, pas top-N.
@@ -69,26 +71,28 @@ final class Selection {
         eligible.stream()
             .sorted(byWeeklyCommits())
             .collect(Collectors.groupingBy(p -> p.bucket, TreeMap::new, Collectors.toList()));
-    Map<String, Integer> cursor = new HashMap<>();
+    // Un curseur par strate : ce qu'il a dépassé — pris, ou namespace plein — ne revient pas.
+    List<Iterator<Proj>> strata = byBucket.values().stream().map(List::iterator).toList();
     boolean progressed = true;
     while (selected.size() < coreQuota && progressed) {
       progressed = false;
-      for (var e : byBucket.entrySet()) {
+      for (Iterator<Proj> stratum : strata) {
         if (selected.size() >= coreQuota) break;
-        int i = cursor.getOrDefault(e.getKey(), 0);
-        List<Proj> list = e.getValue();
-        Proj next = null;
-        while (next == null && i < list.size()) {
-          Proj p = list.get(i++);
-          if (!p.selected && !namespaceFull(p)) next = p;
-        }
+        Proj next = nextCandidate(stratum);
         if (next != null) {
           take(next, "tête de strate " + next.bucket);
           progressed = true;
         }
-        cursor.put(e.getKey(), i);
       }
     }
+  }
+
+  private @Nullable Proj nextCandidate(Iterator<Proj> stratum) {
+    while (stratum.hasNext()) {
+      Proj p = stratum.next();
+      if (!p.selected && !namespaceFull(p)) return p;
+    }
+    return null;
   }
 
   /**
