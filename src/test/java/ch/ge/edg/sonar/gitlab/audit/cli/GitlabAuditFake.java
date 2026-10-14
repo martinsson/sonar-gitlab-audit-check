@@ -93,6 +93,11 @@ final class GitlabAuditFake implements AutoCloseable {
     return this;
   }
 
+  GitlabAuditFake prefix(String prefix, Function<Request, Response> handler) {
+    server.onPrefix(prefix, handler);
+    return this;
+  }
+
   GitlabAuditFake json(String path, String body) {
     server.json(path, body);
     return this;
