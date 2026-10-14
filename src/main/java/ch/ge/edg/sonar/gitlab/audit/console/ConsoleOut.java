@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.Locale;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Sortie console partagée par les trois scripts. Tout l'affichage est en français : l'encodage
@@ -69,17 +70,18 @@ public final class ConsoleOut {
     if (forced != null && !forced.isBlank()) {
       try {
         return Charset.forName(forced.trim());
-      } catch (Exception e) {
+      } catch (IllegalArgumentException e) {
+        // IllegalCharsetNameException ou UnsupportedCharsetException : un nom
+        // forcé qu'on ne connaît pas ne doit pas empêcher d'afficher.
         return StandardCharsets.UTF_8;
       }
     }
-    Console c = System.console();
     // isTerminal() est la question qui compte, et pas « console non nulle » :
     // depuis JDK 22 System.console() répond même quand la sortie est
     // redirigée, et sa charset vaut alors l'encodage natif — celui qui
     // massacre les accents en CI. C'est le piège que corrigeait le code
     // précédent, et il fallait éviter de le réintroduire en le corrigeant.
-    if (c != null && c.isTerminal()) {
+    if (System.console() instanceof Console c && c.isTerminal()) {
       Charset cs = c.charset();
       if (cs != null) return cs;
     }
@@ -94,8 +96,7 @@ public final class ConsoleOut {
    */
   private static boolean autoColors() {
     if (System.getenv("NO_COLOR") != null) return false;
-    Console c = System.console();
-    if (c == null || !c.isTerminal()) return false;
+    if (!(System.console() instanceof Console c) || !c.isTerminal()) return false;
     if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) return true;
     return System.getenv("WT_SESSION") != null
         || System.getenv("ConEmuANSI") != null
@@ -108,13 +109,14 @@ public final class ConsoleOut {
   }
 
   /** auto | always | never — l'option en ligne de commande a le dernier mot. */
-  public static void colorMode(String mode) {
+  public static void colorMode(@Nullable String mode) {
     if (mode == null) return;
-    switch (mode.toLowerCase(Locale.ROOT)) {
-      case "always" -> colors = true;
-      case "never" -> colors = false;
-      default -> colors = autoColors();
-    }
+    colors =
+        switch (mode.toLowerCase(Locale.ROOT)) {
+          case "always" -> true;
+          case "never" -> false;
+          default -> autoColors();
+        };
   }
 
   public static String color(String text, String code) {
