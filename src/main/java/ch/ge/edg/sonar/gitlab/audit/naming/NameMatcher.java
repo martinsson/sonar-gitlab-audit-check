@@ -61,14 +61,19 @@ public final class NameMatcher {
     private final List<Doc> targets;
     private final Map<String, Double> idf;
     private final Map<String, List<Integer>> blocks = new HashMap<>();
+    /** Le même blocage côté sources, construit au premier {@link #rankSources}. */
+    private Map<String, List<Integer>> sourceBlocks;
 
     /**
      * Sources et cibles arrivent en mots comptés (tf, voir {@link #addTokens})
      * et en nombres portés (voir {@link #numbers}). Les deux côtés forment le
      * corpus : un mot banal d'un côté l'est aussi de l'autre.
      */
+    private final List<Map<String, Double>> sourceTf;
+
     public NameMatcher(List<Map<String, Double>> sourceTf, List<Set<String>> sourceNumbers,
                 List<Map<String, Double>> targetTf, List<Set<String>> targetNumbers) {
+        this.sourceTf = sourceTf;
         Map<String, Integer> df = new HashMap<>();
         for (Map<String, Double> tf : sourceTf) tf.keySet().forEach(t -> df.merge(t, 1, Integer::sum));
         for (Map<String, Double> tf : targetTf) tf.keySet().forEach(t -> df.merge(t, 1, Integer::sum));
@@ -85,13 +90,18 @@ public final class NameMatcher {
             sources.add(doc(sourceTf.get(i), sourceNumbers.get(i)));
         }
 
-        Map<String, Integer> targetDf = new HashMap<>();
-        for (Map<String, Double> tf : targetTf) tf.keySet().forEach(t -> targetDf.merge(t, 1, Integer::sum));
-        int limit = Math.max(3, (int) Math.ceil(targetTf.size() * BLOCKING_MAX_SHARE));
-        for (int i = 0; i < targetTf.size(); i++) {
-            for (String t : targetTf.get(i).keySet()) {
-                if (targetDf.get(t) > limit) continue;
-                for (String b : blockingKeys(t)) blocks.computeIfAbsent(b, k -> new ArrayList<>()).add(i);
+        block(targetTf, blocks);
+    }
+
+    /** Un mot porté par trop de documents ne sert pas à proposer des candidats. */
+    private static void block(List<Map<String, Double>> tfs, Map<String, List<Integer>> into) {
+        Map<String, Integer> df = new HashMap<>();
+        for (Map<String, Double> tf : tfs) tf.keySet().forEach(t -> df.merge(t, 1, Integer::sum));
+        int limit = Math.max(3, (int) Math.ceil(tfs.size() * BLOCKING_MAX_SHARE));
+        for (int i = 0; i < tfs.size(); i++) {
+            for (String t : tfs.get(i).keySet()) {
+                if (df.get(t) > limit) continue;
+                for (String b : blockingKeys(t)) into.computeIfAbsent(b, k -> new ArrayList<>()).add(i);
             }
         }
     }
@@ -115,6 +125,34 @@ public final class NameMatcher {
         for (int i : candidates) {
             if (!allowed.test(i)) continue;
             Doc t = targets.get(i);
+            if (numbersConflict(s.numbers(), t.numbers())) continue;
+            double score = similarity(s, t);
+            if (score > 0) out.add(new Scored(i, score));
+        }
+        out.sort(Comparator.comparingDouble(Scored::score).reversed());
+        return out;
+    }
+
+    /**
+     * Dans l'autre sens : les sources candidates pour une cible, du meilleur
+     * au moins bon, avec le même score {@code similarity(source, cible)} et le
+     * même veto des nombres. Pour chercher, parmi tout un parc de chemins, celui
+     * qui va à un nom donné, sans changer la mesure qu'on a validée.
+     */
+    public List<Scored> rankSources(int target, IntPredicate allowed) {
+        if (sourceBlocks == null) {
+            sourceBlocks = new HashMap<>();
+            block(sourceTf, sourceBlocks);
+        }
+        Doc t = targets.get(target);
+        Set<Integer> candidates = new LinkedHashSet<>();
+        for (String w : t.weights().keySet()) {
+            for (String b : blockingKeys(w)) candidates.addAll(sourceBlocks.getOrDefault(b, List.of()));
+        }
+        List<Scored> out = new ArrayList<>();
+        for (int i : candidates) {
+            if (!allowed.test(i)) continue;
+            Doc s = sources.get(i);
             if (numbersConflict(s.numbers(), t.numbers())) continue;
             double score = similarity(s, t);
             if (score > 0) out.add(new Scored(i, score));

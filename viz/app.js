@@ -34,8 +34,8 @@ const Viz = {
       cmd: 'SonarAuditCheck --csv inventaire.csv' },
     { kind: 'appariement', label: 'appariement.csv', has: ['gauche_path', 'droite_key'],
       cmd: 'CrossAudit' },
-    { kind: 'etendu', label: 'sonar_mapped.csv (appariement étendu)', has: ['sonar_key', 'gitlab_path'],
-      cmd: 'map_sonar_gitlab.py (Sonar × tout GitLab)' },
+    { kind: 'etendu', label: 'sonar-gitlab.csv (Sonar × tout GitLab)', has: ['sonar_key', 'gitlab_path'],
+      cmd: 'CrossAudit, avec inventaire.csv à côté de pratiques.csv' },
   ],
 
   start() {

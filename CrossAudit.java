@@ -9,6 +9,7 @@
 //SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/csv/Csv.java
 //SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/naming/NameMatcher.java
 //SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/ProjectMapper.java
+//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/SonarToGitlab.java
 
 // Entry point for `jbang CrossAudit.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/CrossAudit.java.
 public class CrossAudit {

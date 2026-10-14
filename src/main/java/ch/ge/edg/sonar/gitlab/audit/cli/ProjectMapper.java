@@ -474,7 +474,7 @@ public class ProjectMapper implements Callable<Integer> {
         return new Result(spec, left, right, available, unavailable, matches, matcher, rightIndex);
     }
 
-    private static NameMatcher nameMatcher(NameSpec names, Csv.Table left, Csv.Table right) {
+    static NameMatcher nameMatcher(NameSpec names, Csv.Table left, Csv.Table right) {
         List<Map<String, Double>> srcTf = new ArrayList<>();
         List<Set<String>> srcNum = new ArrayList<>();
         for (Csv.Row l : left.rows()) {

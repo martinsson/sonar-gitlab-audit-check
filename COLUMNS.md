@@ -516,6 +516,42 @@ scale.
 
 ---
 
+## 5b. `sonar-gitlab.csv` — `CrossAudit`, every Sonar project against all of GitLab
+
+One row per Sonar project. `croisement.csv` only looks at the projects the
+GitLab audit selected, so from the Sonar side most projects look unmatched
+when their repository simply was not drawn. This file searches the whole
+`inventaire.csv`. Written when `inventaire.csv` sits next to `pratiques.csv`
+(or `--inventaire` names it), next to `--out`.
+
+Order of the methods: the sure pairs of `croisement.csv` (manual ones
+included, `rejete` never proposed again), Sonar's DevOps binding against the
+whole inventory, then derived methods that pair only when they designate a
+single repository — the import key Sonar generates (`<path>_<id>`), the key
+normalised against the full path or its tail, the key's short name
+(artifactId, or the plain key) against the last segment or GitLab name, the
+Sonar name the same way — and last, name similarity, one-to-one, as
+suggestions. Several repositories with the same name (copies, forks, personal
+namespaces) give a suggestion only, broken by name similarity or else by
+activity.
+
+| Column | Meaning |
+|---|---|
+| `sonar_key`, `sonar_name` | The Sonar project |
+| `gitlab_path`, `gitlab_id` | The repository found. Empty when none |
+| `methode` | How: `croisement : …` (taken from the crossing), `liaison DevOps Sonar → GitLab`, one of the derived methods above, `noms ressemblants (TF-IDF)`, or `aucune` |
+| `confiance` | `exact`, `derived`, `manuel` (all three counted as sure), `suggestion`, `none` |
+| `score` | Name similarity of the pair, 0–1. Empty for pairs taken from the crossing |
+| `autres_candidats` | The other repositories in play, with their scores: same-name copies, the runner-up, or the paths sharing one Sonar key |
+| `raison` | For `none`: `sous le seuil`, `ambigu`, `homonymes non départagés (…)`, `déjà proposé à <key>`, `aucun candidat` |
+| `cles_sonar_sur_ce_projet` | How many Sonar projects point at this repository. Above 1 is common: modules, branches analysed as projects, old keys |
+| `dans_selection` | `oui` if the repository is among the projects the GitLab audit selected |
+| `gl_commits_window`, `gl_last_activity_at`, `gl_exclu` | From `inventaire.csv`: is the repository alive, and why it was left out of the selection |
+| `sq_analysisDate`, `sq_ncloc` | From the Sonar inventory |
+
+The console also replays the derived methods on the exact pairs and prints
+how often they agree: that is what lets them count as sure.
+
 ## 6. Views — `Vues --in croisement.csv`
 
 Extractions of `croisement.csv`, written next to it. No API calls, no joining,

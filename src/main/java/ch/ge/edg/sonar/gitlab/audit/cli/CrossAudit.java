@@ -15,8 +15,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 /**
@@ -74,6 +76,11 @@ import java.util.concurrent.Callable;
             "Aucun appel réseau : tout se lit dans les deux CSV. Relancer coûte",
             "zéro appel, donc les seuils se règlent sans repayer un audit.",
             "",
+            "Avec l'inventaire GitLab complet (inventaire.csv, écrit à côté de",
+            "pratiques.csv), chaque projet Sonar est aussi cherché dans TOUT GitLab,",
+            "pas seulement dans la sélection : sonar-gitlab.csv, une ligne par",
+            "projet Sonar.",
+            "",
             "Les colonnes qui font la jointure sont cle_sonar (clé lue dans la",
             "CI) et cle_pom (groupId:artifactId du pom), écrites par",
             "GitlabActivityAudit --deep. Sans elles, seul le rapprochement par",
@@ -91,6 +98,16 @@ public class CrossAudit implements Callable<Integer> {
 
     @Option(names = "--out", description = "CSV du croisement (sinon : rien n'est écrit)")
     Path out;
+
+    @Option(names = "--inventaire",
+            description = "inventaire.csv de GitlabActivityAudit (tout GitLab) : chaque projet "
+                    + "Sonar y est cherché (défaut : inventaire.csv à côté de --gitlab, s'il y est)")
+    Path inventoryCsv;
+
+    @Option(names = "--sonar-gitlab",
+            description = "CSV de chaque projet Sonar contre tout GitLab "
+                    + "(défaut : sonar-gitlab.csv à côté de --out, sinon de --gitlab)")
+    Path sonarGitlabCsv;
 
     @Option(names = "--appariement",
             description = "appariement à reprendre et à compléter "
@@ -133,6 +150,23 @@ public class CrossAudit implements Callable<Integer> {
         System.exit(new CommandLine(new CrossAudit()).execute(args));
     }
 
+    /** L'inventaire GitLab complet, s'il est là ; null sinon, et on dit pourquoi. */
+    private Csv.Table inventory() throws IOException {
+        Path f = inventoryCsv != null ? inventoryCsv
+                : gitlabCsv.toAbsolutePath().resolveSibling("inventaire.csv");
+        if (!Files.exists(f)) {
+            if (inventoryCsv != null) throw new IOException("introuvable : " + f);
+            System.out.println(c("\n  Pas d'inventaire GitLab à côté de pratiques.csv : les projets Sonar ne", YELLOW));
+            System.out.println(c("  sont cherchés que dans la sélection. --inventaire <inventaire.csv> pour", YELLOW));
+            System.out.println(c("  les chercher dans tout GitLab.", YELLOW));
+            return null;
+        }
+        Csv.Table t = Csv.read(f);
+        t.require(f, "GitlabActivityAudit (inventaire.csv)", "path", "selectionne");
+        System.out.printf("  Tout GitLab  : %d projets (%s)%n", t.rows().size(), f);
+        return t;
+    }
+
     @Override
     public Integer call() throws Exception {
         ConsoleOut.colorMode(colorMode);
@@ -159,13 +193,36 @@ public class CrossAudit implements Callable<Integer> {
         // (manuel, rejete) survit aux audits suivants.
         Path file = mappingFile != null ? mappingFile
                 : gitlabCsv.toAbsolutePath().resolveSibling("appariement.csv");
+        // Lu avant que l'appariement ne soit réécrit : un rejet ne garde
+        // ensuite que son chemin, et la passe sur tout GitLab doit le respecter.
+        Set<String> rejected = new HashSet<>(), rejectedPaths = new HashSet<>();
+        if (Files.exists(file)) {
+            for (Csv.Row r : Csv.read(file).rows()) {
+                if (ProjectMapper.Confidence.parse(r.str("confiance")) != ProjectMapper.Confidence.REJETE) continue;
+                if (r.str("droite_key").isEmpty()) rejectedPaths.add(r.str("gauche_path"));
+                else rejected.add(r.str("droite_key") + "\n" + r.str("gauche_path"));
+            }
+        }
         ProjectMapper.Result mapping = ProjectMapper.mapAndKeep(
                 ProjectMapper.Spec.sonarGitlab(nameThreshold, nameMargin), gitlab, sonar,
                 file, recompute, comma, new ProjectMapper.Reuse[1]);
         ProjectMapper.Report rep = ProjectMapper.evaluate(mapping, examples);
         List<Pair> pairs = mapping.matches().stream().map(Pair::new).toList();
-        matchRate(pairs, sonar, rep);
-        findings(pairs);
+        Csv.Table inventory = inventory();
+        SonarToGitlab.Result wide = inventory == null ? null : SonarToGitlab.map(sonar, inventory,
+                mapping.matches(), rejected, rejectedPaths, nameThreshold, nameMargin);
+        matchRate(pairs, sonar, rep, wide != null);
+        if (wide != null) {
+            title("1b. Chaque projet Sonar contre tout GitLab");
+            System.out.println(c("  La sélection ne contient que les projets GitLab retenus ; ici, chaque", DIM));
+            System.out.println(c("  projet Sonar est cherché dans tout l'inventaire. Mêmes règles : seules", DIM));
+            System.out.println(c("  les paires exactes et dérivées comptent, les suggestions sont à vérifier.", DIM));
+            Path wideFile = sonarGitlabCsv != null ? sonarGitlabCsv
+                    : (out != null ? out : gitlabCsv).toAbsolutePath().resolveSibling("sonar-gitlab.csv");
+            SonarToGitlab.write(wide, wideFile, comma);
+            SonarToGitlab.print(wide, wideFile);
+        }
+        findings(pairs, wide == null ? Set.of() : wide.joinedPaths());
         if (out != null) write(mapping, pairs);
         if (report != null) {
             ProjectMapper.writeReport(rep, report);
@@ -197,7 +254,7 @@ public class CrossAudit implements Callable<Integer> {
     // Le taux d'appariement, qui est un résultat et pas une note d'exécution
     // ----------------------------------------------------------------------
 
-    private void matchRate(List<Pair> pairs, Csv.Table sonar, ProjectMapper.Report rep) {
+    private void matchRate(List<Pair> pairs, Csv.Table sonar, ProjectMapper.Report rep, boolean wide) {
         title("1. Appariement");
         System.out.println(c("  Méthodes appliquées dans l'ordre ; les suggestions de noms ne", DIM));
         System.out.println(c("  comptent dans aucun constat, elles sortent dans le CSV pour", DIM));
@@ -220,6 +277,10 @@ public class CrossAudit implements Callable<Integer> {
         long sonarUnmatched = sonar.rows().size() - pairs.stream()
                 .filter(Pair::joined).map(p -> p.sq().str("key")).distinct().count();
         System.out.printf("%n  Projets Sonar sans dépôt GitLab apparié : %d%n", sonarUnmatched);
+        if (wide) {
+            System.out.println(c("    Dans la sélection seulement : la section suivante les cherche dans tout GitLab.", DIM));
+            return;
+        }
         System.out.println(c("    Attention au dénominateur : pratiques.csv ne contient que les", DIM));
         System.out.println(c("    projets sélectionnés par l'audit GitLab, pas tout le parc. Un", DIM));
         System.out.println(c("    projet Sonar non apparié peut simplement ne pas avoir été tiré.", DIM));
@@ -229,15 +290,21 @@ public class CrossAudit implements Callable<Integer> {
     // Ce que ni l'un ni l'autre ne pouvait dire seul
     // ----------------------------------------------------------------------
 
-    private void findings(List<Pair> pairs) {
+    /**
+     * @param wideJoined les dépôts qu'un projet Sonar désigne sûrement dans la
+     *                   passe sur tout GitLab : un dépôt resté sans paire dans
+     *                   la sélection peut y avoir trouvé la sienne.
+     */
+    private void findings(List<Pair> pairs, Set<String> wideJoined) {
         title("2. Ce qu'aucun des deux rapports ne pouvait dire seul");
         List<Pair> ok = pairs.stream().filter(Pair::joined).toList();
+        List<Pair> unpaired = pairs.stream()
+                .filter(p -> !p.joined() && !wideJoined.contains(p.gl().str("path"))).toList();
 
         // 1. Vivant dans GitLab, absent de Sonar. La distinction que le seul
         //    inventaire Sonar ne permet pas : un dépôt absent y est indiscernable
         //    d'un dépôt mort, et c'est l'inverse qui est intéressant.
-        List<Pair> active = pairs.stream()
-                .filter(p -> !p.joined())
+        List<Pair> active = unpaired.stream()
                 .filter(p -> num(p.gl(), "commits_window") != null
                         && num(p.gl(), "commits_window") >= 20)
                 .sorted(Comparator.comparingDouble((Pair p) -> num(p.gl(), "commits_window")).reversed())
@@ -251,8 +318,7 @@ public class CrossAudit implements Callable<Integer> {
         // 2. La CI dit qu'elle lance Sonar, et Sonar n'a rien. Vérifiable en une
         //    minute par n'importe qui, ce qui en fait le constat le plus utile
         //    du lot : soit le job échoue en silence, soit il pousse ailleurs.
-        List<Pair> claimed = pairs.stream()
-                .filter(p -> !p.joined())
+        List<Pair> claimed = unpaired.stream()
                 .filter(p -> p.gl().flag("ci_sonar"))
                 .toList();
         finding("CI configurée pour Sonar, sans projet Sonar apparié", claimed.size(),

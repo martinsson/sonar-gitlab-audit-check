@@ -170,7 +170,7 @@ function buildIndex(d) {
     else add(r.droite_key, r.gauche_path, r.confiance, r.methode, 'appariement.csv');
   }
   for (const r of d.croisement || []) add(r.sq_key, r.projet, r.confiance, r.methode_jointure, 'croisement.csv');
-  for (const r of d.etendu || []) add(r.sonar_key, r.gitlab_path, r.confiance, r.methode, 'sonar_mapped.csv');
+  for (const r of d.etendu || []) add(r.sonar_key, r.gitlab_path, r.confiance, r.methode, 'sonar-gitlab.csv');
   for (const r of d.sonar || []) {
     const path = r.alm === 'gitlab' && byId.get(r.alm_repository);
     if (path) add(r.key, path, 'exact', 'liaison DevOps Sonar → GitLab', 'inventaire Sonar');
@@ -450,7 +450,7 @@ function missingSection(sonar, gitlab) {
   const need = (kind, why) => { if (!d[kind]) items.push(`${Viz.kinds.find(k => k.kind === kind).label} — ${why}`); };
   if (sonar.length) { need('sonar', 'état Sonar complet, pentes de l\'inventaire'); need('historique', 'tendances sur toute la série'); }
   if (gitlab.length) { need('gitlab', 'activité GitLab'); need('pratiques', 'pratiques'); need('croisement', 'indicateurs croisés'); }
-  need('etendu', 'appariements hors des ~200 projets retenus');
+  need('etendu', 'appariements hors des projets retenus par l\'audit GitLab');
   items.push('Couverture dans le temps — l\'historique Sonar ne relève que violations, ncloc et sqale_debt_ratio.');
   const ul = el('ul');
   for (const t of items) ul.append(el('li', '', t));

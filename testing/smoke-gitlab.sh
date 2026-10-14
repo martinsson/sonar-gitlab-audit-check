@@ -147,6 +147,7 @@ equipe-a-service-actif,service-actif,2026-08-30,2,42000,12.4,0,18400,1200,64,ERR
 equipe-c_mono-auteur,mono-auteur,2026-06-02,91,8600,0.0,412,4200,0,0,OK,2,
 ch.ge.equipe-a:service-calme,Service Calme,2026-09-20,9,3100,71.0,88,300,40,1,OK,6,-2
 ch.ge.equipe-d:autre-artefact,Sans Total,2026-09-01,28,5000,40.0,10,900,0,0,OK,3,1
+ch.ge.equipe-b:dormant,Dormant,2025-11-03,345,2200,,,600,0,0,OK,,
 SONAR
 runx() {
     if [[ -n "${AUDIT_CP:-}" ]]; then
@@ -174,6 +175,12 @@ check "$OUT/croisement.txt" 'Chaque modification ajoute des issues : 1' \
 # un projet dont la clé ne correspond pas mais dont le nom est unique.
 check "$OUT/croisement.txt" 'clé Maven du pom *: *1' "jointure exacte sur cle_pom"
 check "$OUT/croisement.txt" 'nom du pom = nom Sonar *: *1' "jointure sur le nom du pom"
+# Chaque projet Sonar est aussi cherché dans tout l'inventaire GitLab : le dépôt
+# dormant, écarté de la sélection, retrouve son projet Sonar par le nom court.
+check "$OUT/croisement.txt" 'Chaque projet Sonar contre tout GitLab' "Sonar cherché dans tout GitLab"
+check "$OUT/sonar-gitlab.csv" '"ch.ge.equipe-b:dormant";"Dormant";"equipe-b/dormant";"[0-9]*";"nom court de la clé = dernier segment / nom GitLab";"derived"' \
+    "projet Sonar apparié hors de la sélection"
+check "$OUT/sonar-gitlab.csv" '"equipe-b/dormant".*;"non";' "dépôt hors sélection signalé comme tel"
 
 # L'appariement est écrit à côté de pratiques.csv, puis repris : une paire
 # rejetée à la main doit le rester au lancement suivant, une paire saisie à la
@@ -190,6 +197,8 @@ check "$OUT/croisement-2.txt" '3 gardées, 1 saisies à la main, 1 rejetées' \
     "appariement repris, décisions manuelles respectées"
 check "$OUT/croisement.csv" '"equipe-b/petit-outil";"saisi à la main";"manuel"' \
     "paire saisie à la main tenue"
+check "$OUT/sonar-gitlab.csv" '"equipe-c_mono-auteur";"mono-auteur";"equipe-b/petit-outil";"[0-9]*";"croisement : saisi à la main";"manuel"' \
+    "paire saisie à la main reprise côté Sonar"
 check "$OUT/croisement.csv" '"equipe-c/mono-auteur";"rejeté à la main";"rejete"' \
     "paire rejetée absente du croisement"
 check "$OUT/appariement.csv.bak" '"exact"' "ancienne version gardée en .bak"

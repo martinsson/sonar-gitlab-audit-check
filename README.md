@@ -39,7 +39,8 @@ jbang SonarAuditCheck.java --csv inventaire.csv
 #    on the selection → ./audit/inventaire.csv and ./audit/pratiques.csv
 jbang GitlabActivityAudit.java --deep --out-dir ./audit
 
-# 3. Cross the two → ./audit/croisement.csv (and ./audit/appariement.csv, kept between runs)
+# 3. Cross the two → ./audit/croisement.csv, ./audit/sonar-gitlab.csv (every Sonar project
+#    against all of GitLab), and ./audit/appariement.csv, kept between runs
 jbang CrossAudit.java --sonar inventaire.csv --gitlab ./audit/pratiques.csv \
     --out ./audit/croisement.csv
 
@@ -155,8 +156,17 @@ repo is analysed without checking by hand. The run then reports what neither
 side shows alone: active projects Sonar never sees, CI configured for Sonar with
 nothing received, debt created on unreviewed code, code that moves with neither
 tests nor review, debt carried by dead repos, tests that run while coverage
-never arrives. `pratiques.csv` holds only the selected projects, so a Sonar
-project without a GitLab match may simply not have been drawn.
+never arrives.
+
+`pratiques.csv` holds only the selected projects, so from the Sonar side most
+projects would look unmatched only because their repository was not drawn.
+When `inventaire.csv` is next to it (as `GitlabActivityAudit --out-dir`
+leaves it), every Sonar project is also searched in the whole GitLab
+inventory, with the same rules, into `sonar-gitlab.csv`: one row per Sonar
+project, its repository, how it was found and whether that repository is in
+the selection. Repositories found that way no longer count as active projects
+without Sonar. The derived methods are replayed on the exact pairs and the
+agreement is printed, so you can see what they are worth on your instance.
 
 ### Correcting the pairs by hand
 
@@ -215,7 +225,8 @@ command that writes them.
 | Map of the estate | Commits by namespace, coloured by quality gate, dark where Sonar sees nothing |
 | History | Issues/kLOC over time, one small chart per project |
 
-**One project: `viz/projet.html`.** Same files, same drop zone. Search a Sonar
+**One project: `viz/projet.html`.** Same files, same drop zone; add
+`sonar-gitlab.csv` so projects outside the selection are paired too. Search a Sonar
 key or a GitLab path; the page follows the safe pairs (exact, derived, manual)
 and gives each linked project its own column, so one Sonar project for several
 GitLab ones, or the reverse, shows side by side. Suggestions are listed, never
