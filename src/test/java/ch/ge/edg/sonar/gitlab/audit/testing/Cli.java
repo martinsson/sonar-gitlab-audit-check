@@ -7,8 +7,8 @@ import picocli.CommandLine;
 
 /**
  * Runs a picocli command in-process, as {@code main} would minus {@code System.exit}, capturing
- * what it prints. The tools print through {@code System.out}/{@code System.err}, so this swaps
- * both for the duration of the run: tests using it must not run in parallel.
+ * what it prints. The tools print through {@code System.out}/{@code System.err}, so this swaps both
+ * for the duration of the run: tests using it must not run in parallel.
  */
 public final class Cli {
 

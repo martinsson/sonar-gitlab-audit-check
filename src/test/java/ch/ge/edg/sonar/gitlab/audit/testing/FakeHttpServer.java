@@ -1,15 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.testing;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -140,40 +135,13 @@ public final class FakeHttpServer implements AutoCloseable {
 
   private void serve(Socket s) {
     try (s) {
-      BufferedReader in =
-          new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8));
-      Request req = readRequest(in);
+      Request req = HttpWire.read(s.getInputStream());
       if (req == null) return;
       requests.add(req);
-      write(s.getOutputStream(), dispatch(req));
-    } catch (IOException e) {
+      HttpWire.write(s.getOutputStream(), dispatch(req));
+    } catch (IOException ignored) {
       // The client went away; nothing to answer.
     }
-  }
-
-  private static Request readRequest(BufferedReader in) throws IOException {
-    String line = in.readLine();
-    if (line == null || line.isBlank()) return null;
-    String[] parts = line.split(" ", 3);
-    Map<String, String> headers = new LinkedHashMap<>();
-    for (String h = in.readLine(); h != null && !h.isEmpty(); h = in.readLine()) {
-      int c = h.indexOf(':');
-      if (c > 0) headers.put(h.substring(0, c).trim().toLowerCase(Locale.ROOT), h.substring(c + 1).trim());
-    }
-    return new Request(parts[0], parts.length > 1 ? parts[1] : "/", headers);
-  }
-
-  private static void write(OutputStream out, Response r) throws IOException {
-    byte[] body = r.body().getBytes(StandardCharsets.UTF_8);
-    List<String> lines = new ArrayList<>();
-    lines.add("HTTP/1.1 " + r.status() + " X");
-    r.headers().forEach((k, v) -> lines.add(k + ": " + v));
-    lines.add("Content-Length: " + body.length);
-    lines.add("Connection: close");
-    String head = String.join("\r\n", lines) + "\r\n\r\n";
-    out.write(head.getBytes(StandardCharsets.UTF_8));
-    out.write(body);
-    out.flush();
   }
 
   @Override
