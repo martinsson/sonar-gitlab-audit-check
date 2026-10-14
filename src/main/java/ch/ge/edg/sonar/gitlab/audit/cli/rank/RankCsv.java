@@ -32,7 +32,11 @@ final class RankCsv {
   private RankCsv() {}
 
   static void write(
-      Path file, boolean comma, List<Scored> velocity, List<Scored> carrying, List<Scored> abandoned)
+      Path file,
+      boolean comma,
+      List<Scored> velocity,
+      List<Scored> carrying,
+      List<Scored> abandoned)
       throws IOException {
     List<String> header =
         new ArrayList<>(

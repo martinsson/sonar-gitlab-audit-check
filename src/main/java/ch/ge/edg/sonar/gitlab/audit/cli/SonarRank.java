@@ -145,9 +145,9 @@ public class SonarRank implements Callable<Integer> {
       stderr.println("Aucune ligne exploitable dans " + input);
       return 1;
     }
-    new Ranking(new RankSettings(staleDays, abandonedDays, minNcloc, topPercent, minSignals), stdout)
+    new Ranking(
+            new RankSettings(staleDays, abandonedDays, minNcloc, topPercent, minSignals), stdout)
         .run(rows, out, comma);
     return 0;
   }
 }
-

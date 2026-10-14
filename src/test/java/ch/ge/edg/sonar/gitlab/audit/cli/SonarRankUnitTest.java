@@ -106,13 +106,8 @@ class SonarRankUnitTest {
       assertThat(s.severity(empty)).as(s.name()).isNull();
     }
     assertThat(Signal.INJECTION.severity(row("new_violations", "5"))).isNull();
-    assertThat(
-            Signal.INJECTION.severity(row("new_violations", "5", "new_lines", "0")))
-        .isNull();
-    assertThat(
-            Signal.INJECTION.severity(
-                row("new_violations", "5", "new_lines", "-3")))
-        .isNull();
+    assertThat(Signal.INJECTION.severity(row("new_violations", "5", "new_lines", "0"))).isNull();
+    assertThat(Signal.INJECTION.severity(row("new_violations", "5", "new_lines", "-3"))).isNull();
   }
 
   @Test

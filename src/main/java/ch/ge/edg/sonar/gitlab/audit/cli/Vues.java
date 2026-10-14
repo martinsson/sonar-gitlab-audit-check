@@ -248,20 +248,26 @@ public class Vues implements Callable<Integer> {
     if (above(r.num("sq_violations_kloc_pente_pct_mois"), 2)) out.add("densité en hausse");
     if (above(r.num("issues_par_kloc_modifie"), 0)) out.add("modifs ajoutent des issues");
     if (denseNewCode(r)) out.add("code neuf > 10 issues/kLOC");
-    Double newCov = r.num("sq_new_coverage");
-    if (newCov != null && newCov < 50) out.add("code neuf < 50 % couvert");
+    if (below(r.num("sq_new_coverage"), 50)) out.add("code neuf < 50 % couvert");
     reviewSignal(r).ifPresent(out::add);
     // Absente du fichier n'est pas « false » : on ne l'affirme que lue.
     if (r.str("gl_ci_securite").equalsIgnoreCase("false")) out.add("sans appsec");
     if (r.str("sq_alert_status").equals("ERROR")) out.add("quality gate rouge");
-    if (nz(r, "gl_commits_window") >= 20 && above(r.num("sq_days_since_analysis"), 30)) {
-      out.add("analyse périmée");
-    }
+    if (staleAnalysis(r)) out.add("analyse périmée");
     return out;
   }
 
   private static boolean above(@Nullable Double d, double threshold) {
     return d != null && d > threshold;
+  }
+
+  private static boolean below(@Nullable Double d, double threshold) {
+    return d != null && d < threshold;
+  }
+
+  /** Un projet qui travaille, et dont la dernière analyse a plus d'un mois. */
+  private static boolean staleAnalysis(Csv.Row r) {
+    return nz(r, "gl_commits_window") >= 20 && above(r.num("sq_days_since_analysis"), 30);
   }
 
   /** Au moins 200 lignes neuves, et plus de 10 issues neuves par kLOC. */

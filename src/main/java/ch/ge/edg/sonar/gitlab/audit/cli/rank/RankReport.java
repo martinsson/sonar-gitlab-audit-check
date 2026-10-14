@@ -103,7 +103,8 @@ public final class RankReport {
   }
 
   private void shortlistTable(List<Scored> shortlist) {
-    out.printf("  %-4s %-44s %-7s %8s %7s %6s%n", "#", "projet", "strate", "ncloc", "score", "sig.");
+    out.printf(
+        "  %-4s %-44s %-7s %8s %7s %6s%n", "#", "projet", "strate", "ncloc", "score", "sig.");
     int rank = 0;
     for (Scored s : shortlist) {
       out.printf(

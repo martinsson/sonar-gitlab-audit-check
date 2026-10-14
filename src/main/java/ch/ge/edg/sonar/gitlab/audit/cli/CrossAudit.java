@@ -245,10 +245,8 @@ public class CrossAudit implements Callable<Integer> {
                 sonar,
                 inventory,
                 mapping.matches(),
-                rejected,
-                rejectedPaths,
-                nameThreshold,
-                nameMargin);
+                new SonarToGitlab.Rejections(rejected, rejectedPaths),
+                new SonarToGitlab.NameThresholds(nameThreshold, nameMargin));
     matchRate(pairs, sonar, rep, wide != null);
     if (wide != null) {
       title("1b. Chaque projet Sonar contre tout GitLab");
@@ -262,8 +260,8 @@ public class CrossAudit implements Callable<Integer> {
           sonarGitlabCsv != null
               ? sonarGitlabCsv
               : (out != null ? out : gitlabCsv).toAbsolutePath().resolveSibling("sonar-gitlab.csv");
-      SonarToGitlab.write(wide, wideFile, comma);
-      SonarToGitlab.print(wide, wideFile);
+      SonarToGitlabCsv.write(wide, wideFile, comma);
+      new SonarToGitlabReport(System.out).print(wide, wideFile);
     }
     findings(pairs, wide == null ? Set.of() : wide.joinedPaths());
     if (out != null) write(mapping, pairs);
