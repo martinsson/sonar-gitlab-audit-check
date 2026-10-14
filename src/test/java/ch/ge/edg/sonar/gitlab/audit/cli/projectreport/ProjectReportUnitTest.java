@@ -9,6 +9,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TimeZone;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
@@ -92,8 +93,7 @@ class ProjectReportUnitTest {
   @Test
   void dates_keep_their_offset_or_move_to_local_time() {
     OffsetDateTime offset = Dates.parseOffset("2024-03-04T10:00:00+02:00");
-    assertThat(offset).isNotNull();
-    assertThat(offset.getHour()).isEqualTo(10);
+    assertThat(Objects.requireNonNull(offset).getHour()).isEqualTo(10);
     assertThat(Dates.parseOffset(null)).isNull();
     assertThat(Dates.parseLocal("2024-03-04T10:00:00Z"))
         .isEqualTo(LocalDateTime.of(2024, 3, 4, 11, 0));

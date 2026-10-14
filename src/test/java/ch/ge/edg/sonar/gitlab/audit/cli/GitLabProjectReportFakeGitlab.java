@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Builds the GitLab responses {@link GitLabProjectReport} reads, as JSON, and serves them from a
@@ -45,7 +46,7 @@ final class GitLabProjectReportFakeGitlab {
   }
 
   /** Alternating key/value pairs, nulls kept (GitLab sends them). */
-  static Map<String, Object> obj(Object... kv) {
+  static Map<String, Object> obj(@Nullable Object... kv) {
     Map<String, Object> m = new LinkedHashMap<>();
     for (int i = 0; i < kv.length; i += 2) m.put((String) kv[i], kv[i + 1]);
     return m;
@@ -79,7 +80,11 @@ final class GitLabProjectReportFakeGitlab {
 
   /** A commit; {@code stats} null leaves the field out, as when the diff is unreadable. */
   static Map<String, Object> commit(
-      String name, String email, String authored, String committed, int[] stats) {
+      @Nullable String name,
+      @Nullable String email,
+      @Nullable String authored,
+      @Nullable String committed,
+      int @Nullable [] stats) {
     Map<String, Object> c =
         obj(
             "id",
@@ -110,7 +115,7 @@ final class GitLabProjectReportFakeGitlab {
     return commit;
   }
 
-  static Map<String, Object> mr(long iid, String state, String author, String created) {
+  static Map<String, Object> mr(long iid, String state, String author, @Nullable String created) {
     return obj(
         "iid",
         iid,
@@ -128,7 +133,8 @@ final class GitLabProjectReportFakeGitlab {
         false);
   }
 
-  static Map<String, Object> note(String author, String created, boolean system) {
+  static Map<String, Object> note(
+      @Nullable String author, @Nullable String created, boolean system) {
     return obj(
         "id",
         1L,
