@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.sonar;
 
+import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -188,13 +189,7 @@ public final class Sonar {
   }
 
   public <T> void parallel(List<T> items, int concurrency, Consumer<T> work) {
-    map(
-        items,
-        concurrency,
-        item -> {
-          work.accept(item);
-          return null;
-        });
+    Parallel.forEach(items, concurrency, work);
   }
 
   // ----------------------------------------------------------------------
