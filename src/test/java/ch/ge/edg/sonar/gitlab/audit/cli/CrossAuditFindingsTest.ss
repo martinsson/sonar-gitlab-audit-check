@@ -24,14 +24,18 @@
 "other/u2";"aucune";"none";"";"";"";"aucun candidat";"";"";"";"";"";"";"";"";"";"other/u2";"";"19";"";"0";"";"";"";"";"";"false";"";"";"";"";"";"32";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
 "other/u3";"aucune";"none";"";"";"";"aucun candidat";"";"";"";"";"";"";"";"";"";"other/u3";"";"100";"";"0";"";"";"";"";"";"false";"";"";"";"";"";"33";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
 "other/u4";"aucune";"none";"";"";"";"aucun candidat";"";"";"";"";"";"";"";"";"";"other/u4";"";"";"";"0";"";"";"";"";"";"TRUE";"";"nowhere";"";"";"";"34";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
+"other/u5";"aucune";"none";"";"";"";"aucun candidat";"";"";"";"";"";"";"";"";"";"other/u5";"";"21";"";"0";"";"";"";"";"";"false";"";"";"";"";"";"35";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
+"other/u6";"aucune";"none";"";"";"";"aucun candidat";"";"";"";"";"";"";"";"";"";"other/u6";"";"22";"";"0";"";"";"";"";"";"false";"";"";"";"";"";"36";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
+"other/u7";"aucune";"none";"";"";"";"aucun candidat";"";"";"";"";"";"";"";"";"";"other/u7";"";"23";"";"0";"";"";"";"";"";"false";"";"";"";"";"";"37";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
+"other/u8";"aucune";"none";"";"";"";"aucun candidat";"";"";"";"";"";"";"";"";"";"other/u8";"";"24";"";"0";"";"";"";"";"";"false";"";"";"";"";"";"38";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
 
 ╔═ each_finding_keeps_exactly_the_projects_past_its_thresholds_in_order/stdout ═╗
 
 Croisement SonarQube × GitLab
   Côté Sonar   : 21 projets (<tmp>/projets.csv)
-  Côté GitLab  : 24 projets (<tmp>/pratiques.csv)
+  Côté GitLab  : 28 projets (<tmp>/pratiques.csv)
 
-  Appariement : 24 lignes → <tmp>/appariement.csv
+  Appariement : 28 lignes → <tmp>/appariement.csv
     Réutilisé aux prochains lancements. Pour corriger une paire :
     confiance = manuel (et la clé dans droite_…), ou rejete.
 
@@ -54,9 +58,9 @@ Méthodes retenues
   clé normalisée = chemin GitLab     :     0
   nom du pom = nom Sonar             :     0
   noms ressemblants (TF-IDF)         :     0
-  aucune                             :     4
+  aucune                             :     8
 
-  Jointures sûres : 20 / 24 (83 %) · suggestions : 0 · sans rien : 4
+  Jointures sûres : 20 / 28 (71 %) · suggestions : 0 · sans rien : 8
   Lignes de droite jamais retenues : 1 / 21
 
 Chaque méthode, seule
@@ -93,7 +97,7 @@ Ressemblance de noms, jugée sur 20 paires sûres
     0.7  proposées    0  justes    0  précision    —  rappel   0 %
     0.8  proposées    0  justes    0  précision    —  rappel   0 %
     0.9  proposées    0  justes    0  précision    —  rappel   0 %
-  Suggestions refusées : {aucun candidat=4}
+  Suggestions refusées : {aucun candidat=8}
 
   Paires sûres dont les noms divergent (score < 0.3) :
       grp/g01 — k01 / K01 — score 0.00, apparié par cle_ci
@@ -113,11 +117,15 @@ Ressemblance de noms, jugée sur 20 paires sûres
 2. Ce qu'aucun des deux rapports ne pouvait dire seul
 -----------------------------------------------------
 
-  Actifs dans GitLab, absents de SonarQube : 2
+  Actifs dans GitLab, absents de SonarQube : 6
     Vivants et non analysés. Séparés enfin des dépôts morts, qu'un inventaire
     Sonar seul confond avec eux.
       other/u3 — 100 commits
-      other/u1 — 20 commits
+      other/u8 — 24 commits
+      other/u7 — 23 commits
+      other/u6 — 22 commits
+      other/u5 — 21 commits
+      … et 1 autres, dans le CSV.
 
   CI configurée pour Sonar, sans projet Sonar apparié : 2
     Le pipeline dit lancer une analyse ; rien ne la reçoit sous une clé
@@ -156,7 +164,7 @@ Ressemblance de noms, jugée sur 20 paires sûres
       grp/g15 — +10.0 issues / kLOC modifié, 1000 lignes
       grp/g14 — +6.0 issues / kLOC modifié, 500 lignes
 
-  Croisement : 24 lignes → <tmp>/croisement.csv
+  Croisement : 28 lignes → <tmp>/croisement.csv
   Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start croisement.csv`. Pour un autre outil : --comma.
     Une ligne par projet GitLab, appariée ou non. Filtrer sur confiance
     = suggestion donne la liste des rapprochements qu'un humain doit

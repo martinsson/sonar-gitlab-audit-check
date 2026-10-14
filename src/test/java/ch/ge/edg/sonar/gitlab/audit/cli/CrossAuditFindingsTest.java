@@ -51,7 +51,11 @@ class CrossAuditFindingsTest {
         "other/u1,u1,31,,20,0,true,,,,,,,",
         "other/u2,u2,32,,19,0,false,,,,,,,",
         "other/u3,u3,33,,100,0,false,,,,,,,",
-        "other/u4,u4,34,,,0,TRUE,nowhere,,,,,,");
+        "other/u4,u4,34,,,0,TRUE,nowhere,,,,,,",
+        "other/u5,u5,35,,21,0,false,,,,,,,",
+        "other/u6,u6,36,,22,0,false,,,,,,,",
+        "other/u7,u7,37,,23,0,false,,,,,,,",
+        "other/u8,u8,38,,24,0,false,,,,,,,");
   }
 
   private Path sonar() throws IOException {
