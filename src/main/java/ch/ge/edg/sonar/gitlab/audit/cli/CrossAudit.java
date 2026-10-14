@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -186,7 +185,7 @@ public class CrossAudit implements Callable<Integer> {
             : gitlabFile.toAbsolutePath().resolveSibling("appariement.csv");
     // Lu avant que l'appariement ne soit réécrit : un rejet ne garde
     // ensuite que son chemin, et la passe sur tout GitLab doit le respecter.
-    SonarToGitlab.Rejections rejected = rejections(file);
+    SonarToGitlab.Rejections rejected = SonarToGitlab.Rejections.read(file);
     ProjectMapper.Result mapping =
         ProjectMapper.mapAndKeep(
             ProjectMapper.Spec.sonarGitlab(nameThreshold, nameMargin),
@@ -208,20 +207,6 @@ public class CrossAudit implements Callable<Integer> {
       console.mappingReport(report);
     }
     return 0;
-  }
-
-  /** Les refus saisis à la main dans l'appariement, s'il existe déjà. */
-  private static SonarToGitlab.Rejections rejections(Path file) throws IOException {
-    Set<String> rejected = new HashSet<>(), rejectedPaths = new HashSet<>();
-    if (Files.exists(file)) {
-      for (Csv.Row r : Csv.read(file).rows()) {
-        if (ProjectMapper.Confidence.parse(r.str("confiance")) != ProjectMapper.Confidence.REJETE)
-          continue;
-        if (r.str("droite_key").isEmpty()) rejectedPaths.add(r.str("gauche_path"));
-        else rejected.add(r.str("droite_key") + "\n" + r.str("gauche_path"));
-      }
-    }
-    return new SonarToGitlab.Rejections(rejected, rejectedPaths);
   }
 
   /** Chaque projet Sonar contre tout l'inventaire GitLab ; null sans inventaire. */

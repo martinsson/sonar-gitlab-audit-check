@@ -3,6 +3,9 @@ package ch.ge.edg.sonar.gitlab.audit.cli;
 import ch.ge.edg.sonar.gitlab.audit.cli.ProjectMapper.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.naming.NameMatcher;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -85,6 +88,19 @@ final class SonarToGitlab {
    * @param paths les dépôts refusés sans clé connue : plus de suggestion de noms vers eux
    */
   record Rejections(Set<String> pairs, Set<String> paths) {
+
+    /** Les lignes « rejete » d'un appariement, s'il existe déjà. */
+    static Rejections read(Path file) throws IOException {
+      Set<String> rejected = new HashSet<>(), rejectedPaths = new HashSet<>();
+      if (Files.exists(file)) {
+        for (Csv.Row r : Csv.read(file).rows()) {
+          if (Confidence.parse(r.str("confiance")) != Confidence.REJETE) continue;
+          if (r.str("droite_key").isEmpty()) rejectedPaths.add(r.str("gauche_path"));
+          else rejected.add(r.str("droite_key") + "\n" + r.str("gauche_path"));
+        }
+      }
+      return new Rejections(rejected, rejectedPaths);
+    }
 
     boolean pair(String key, String path) {
       return pairs.contains(key + "\n" + path);
