@@ -12,6 +12,7 @@ either instance.
 | `CrossAudit` | Which Sonar project is which GitLab project, and what the two say together |
 | `Vues` | Readable extracts of the crossing |
 | `viz/index.html` | Charts of all of the above, in the browser |
+| `viz/projet.html` | One project, Sonar or GitLab, with everything the audit knows about it |
 | `GitLabProjectReport` | How one project you already picked is worked on |
 
 Further reading: `COLUMNS.md` (every CSV column), `TOOLS.md` (running without
@@ -213,6 +214,14 @@ command that writes them.
 | Practices by namespace | Share of each team's projects following each practice |
 | Map of the estate | Commits by namespace, coloured by quality gate, dark where Sonar sees nothing |
 | History | Issues/kLOC over time, one small chart per project |
+
+**One project: `viz/projet.html`.** Same files, same drop zone. Search a Sonar
+key or a GitLab path; the page follows the safe pairs (exact, derived, manual)
+and gives each linked project its own column, so one Sonar project for several
+GitLab ones, or the reverse, shows side by side. Suggestions are listed, never
+followed. It adds what Sonar does not show for one project: trends from the
+history, GitLab activity, practices and the crossed indicators, with links to
+both instances once their URLs are filled in.
 
 The wheel zooms the y axis only; double-click resets. **Exporter une page
 autonome** downloads one HTML file with the charts, their data and the

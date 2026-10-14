@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fiche projet</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js"></script>
+<style>
+:root { --fg: #1d2330; --muted: #5b6475; --bg: #f7f8fa; --card: #fff; --line: #dde1e8;
+        --ok: #2e8b57; --bad: #c0392b; --warn: #b7791f; --hl: #eef2fb; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg: #e6e9ef; --muted: #9aa3b2; --bg: #14171c; --card: #1c2027; --line: #2c323c;
+          --ok: #5cbf8a; --bad: #e57368; --warn: #e0b050; --hl: #232a36; }
+}
+body { margin: 0; font: 14px/1.45 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+header, main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+header.dragging { outline: 2px dashed var(--muted); }
+h1 { margin: 0 0 4px; font-size: 22px; }
+h2 { margin: 0 0 8px; font-size: 17px; }
+p, .help { color: var(--muted); margin: 0 0 12px; }
+a { color: inherit; }
+input[type=text], input[type=url] { font: inherit; padding: 4px 8px; border: 1px solid var(--line);
+  border-radius: 4px; background: var(--card); color: var(--fg); }
+#search { width: 100%; max-width: 640px; box-sizing: border-box; font-size: 16px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: center; margin: 8px 0; }
+.row label input { width: 260px; max-width: 70vw; }
+#files-loaded { font-size: 13px; color: var(--muted); }
+#files-loaded .ok { color: var(--ok); }
+#results { list-style: none; padding: 0; margin: 4px 0 0; max-width: 640px; }
+#results li { padding: 4px 8px; cursor: pointer; border-bottom: 1px solid var(--line); }
+#results li:hover, #results li:focus { background: var(--hl); outline: none; }
+.tag { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 8px;
+       border: 1px solid var(--line); color: var(--muted); margin-right: 6px; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+          padding: 16px; margin-bottom: 20px; overflow-x: auto; }
+table { border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 4px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+td.v { font-variant-numeric: tabular-nums; }
+td.label { color: var(--muted); white-space: nowrap; }
+.absent { color: var(--muted); font-style: italic; }
+.up { color: var(--bad); } .down { color: var(--ok); }
+.note { color: var(--muted); font-size: 12px; }
+.src { color: var(--muted); font-size: 12px; margin-top: 8px; }
+.conf-exact, .conf-manuel { color: var(--ok); } .conf-derived { color: var(--warn); }
+.conf-suggestion { color: var(--muted); }
+code { font-family: ui-monospace, monospace; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Fiche projet</h1>
+  <p>Un projet, Sonar ou GitLab, et tout ce que l'audit sait de lui. Déposer ici, ou choisir, les CSV
+     de l'audit : ils sont lus dans le navigateur, rien n'est envoyé.
+     <a href="index.html">Graphiques de l'ensemble</a></p>
+  <input type="file" id="files" multiple accept=".csv">
+  <div id="files-loaded"></div>
+  <div class="row">
+    <label>URL Sonar <input type="url" id="sonar-url" placeholder="https://sonar.exemple.ch"></label>
+    <label>URL GitLab <input type="url" id="gitlab-url" placeholder="https://gitlab.exemple.ch"></label>
+  </div>
+  <input type="text" id="search" placeholder="Clé ou nom Sonar, chemin GitLab…" autocomplete="off">
+  <ul id="results"></ul>
+</header>
+<main id="project"></main>
+
+<script src="app.js"></script>
+<script src="projet.js"></script>
+<script>Page.start();</script>
+</body>
+</html>
