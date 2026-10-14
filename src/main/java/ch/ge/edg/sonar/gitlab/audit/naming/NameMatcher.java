@@ -19,6 +19,7 @@ import java.util.function.IntPredicate;
 import java.util.function.ToDoubleFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -207,11 +208,11 @@ public final class NameMatcher {
     if (s == null) return List.of();
     String plain = Normalizer.normalize(s, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
     plain = CAMEL.matcher(plain).replaceAll(" ").toLowerCase(Locale.ROOT);
-    List<String> out = new ArrayList<>();
-    for (String t : NON_LETTERS.split(plain)) {
-      if (t.length() >= 2) out.add(t);
-    }
-    return out;
+    // Les morceaux vides que laisse un séparateur en tête sont écartés avec les mots d'une lettre.
+    return NON_LETTERS
+        .splitAsStream(plain)
+        .filter(t -> t.length() >= 2)
+        .collect(Collectors.toCollection(ArrayList::new));
   }
 
   /** Les nombres portés par un nom, sans zéros de tête : `app-02` et `app2` portent « 2 ». */
