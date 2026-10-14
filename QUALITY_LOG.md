@@ -38,6 +38,23 @@ question. One entry per choice: what, why, and what the alternative would have b
   pass an explicit empty `--exclusions`). Running `mvn` from a checkout that has a real
   `namespace-mapping.yaml` would break ProjectMapper snapshots.
 
+## Shared libraries (gitlab, csv, console, exclusions, naming)
+
+- `@SuppressWarnings("SystemConsoleNull")` on `ConsoleOut.terminal()`: Error Prone assumes
+  `System.console()` is never null, but on JDK 22+ it is null when stdin/stdout are redirected;
+  the check has to stay.
+- `@SuppressWarnings("PMD.ReturnEmptyCollectionRatherThanNull")` on `Gitlab.Response.asList`:
+  null means "unreadable", distinct from an empty list, and callers/tests rely on it.
+- `Gitlab` keeps its old constructor, which passes `System.out`/`System.err` as default streams;
+  a new `Gitlab(Connection, PrintStream, PrintStream)` lets commands pass theirs.
+- `GitlabHttp` catches `IOException | IllegalArgumentException` instead of `Exception` (the second
+  is a malformed URL).
+- `Csv.Row` became a record over a `List`, so its equality is by value instead of array identity
+  (nothing compares rows).
+- New `parallel/Parallel` (bounded map/forEach), shared by Gitlab and Sonar (CPD duplication).
+- Tests that reached moved code now call `JaroWinkler` / `SoftTfIdf`; four GitLab tests build their
+  client inside the output capture. No asserted value changed.
+
 ## Suspected bugs pinned by the tests (behaviour unchanged)
 
 - ProjectMapper `mappedSonarKey(null)` throws NPE before its own null check.
