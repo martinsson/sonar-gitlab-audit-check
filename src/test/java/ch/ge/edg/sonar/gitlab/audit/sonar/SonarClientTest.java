@@ -127,6 +127,20 @@ class SonarClientTest {
   }
 
   @Test
+  void retryAfterIsHonouredInSeconds() throws Exception {
+    AtomicInteger n = new AtomicInteger();
+    server.on(
+        "/api/t",
+        r ->
+            n.getAndIncrement() == 0
+                ? Response.status(429, "").withHeader("Retry-After", "1")
+                : Response.json("{}"));
+    long start = System.nanoTime();
+    assertThat(client(null).get("api/t", Map.of()).ok()).isTrue();
+    assertThat((System.nanoTime() - start) / 1_000_000).isBetween(950L, 4000L);
+  }
+
+  @Test
   void unreadableRetryAfterWaitsFiveSeconds() throws Exception {
     AtomicInteger n = new AtomicInteger();
     server.on(
@@ -148,7 +162,10 @@ class SonarClientTest {
     int[] codes = {503, 504, 502};
     server.on("/api/g", r -> Response.status(codes[n.getAndIncrement()], "gw"));
     Sonar sq = client(null);
+    long start = System.nanoTime();
     Sonar.Response r = sq.get("api/g", Map.of());
+    // Back-off of 1 s then 2 s.
+    assertThat((System.nanoTime() - start) / 1_000_000).isBetween(2900L, 6000L);
     assertThat(r).isEqualTo(new Sonar.Response(502, "gw"));
     assertThat(sq.calls()).isEqualTo(3);
     assertThat(sq.retried()).isEqualTo(2);
@@ -210,6 +227,9 @@ class SonarClientTest {
   @Test
   void insecureClientStillTalksPlainHttp() throws Exception {
     server.json("/api/x", "{\"v\":1}");
+    System.clearProperty("jdk.internal.httpclient.disableHostnameVerification");
+    new Sonar(server.url(), "t", null, 5, false, null, null);
+    assertThat(System.getProperty("jdk.internal.httpclient.disableHostnameVerification")).isNull();
     Sonar sq = new Sonar(server.url(), "t", null, 5, true, null, null);
     assertThat(sq.get("api/x", Map.of()).body()).isEqualTo("{\"v\":1}");
     assertThat(System.getProperty("jdk.internal.httpclient.disableHostnameVerification"))

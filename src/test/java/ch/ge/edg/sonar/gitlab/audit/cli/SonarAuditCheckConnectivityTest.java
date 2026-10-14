@@ -109,6 +109,7 @@ class SonarAuditCheckConnectivityTest extends SonarAuditCheckTestBase {
         .contains(
             """
 
+
               Note : ce token a 'Administer System'. Il verra tout, donc ce
               diagnostic ne reflétera pas le périmètre d'un compte d'audit
               restreint. Pour un audit récurrent, préfère un compte dédié.

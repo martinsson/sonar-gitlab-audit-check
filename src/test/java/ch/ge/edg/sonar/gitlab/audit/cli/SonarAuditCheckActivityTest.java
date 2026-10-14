@@ -66,6 +66,7 @@ class SonarAuditCheckActivityTest extends SonarAuditCheckTestBase {
         .contains(
             """
 
+
               Blame SCM inaccessible : il manque 'See Source Code' au token.
               Sans lui, ni le churn ni l'âge du code ne sont calculables ici.
             """);
@@ -76,7 +77,7 @@ class SonarAuditCheckActivityTest extends SonarAuditCheckTestBase {
     fake.override("/api/sources/scm", q -> error(403, "no"));
     assertThat(out())
         .contains("  REFUSE   Blame SCM (sources/scm)                    HTTP 403 no\n")
-        .contains("  Blame SCM inaccessible : il manque 'See Source Code' au token.\n");
+        .contains("\n\n  Blame SCM inaccessible : il manque 'See Source Code' au token.\n");
   }
 
   @Test
@@ -96,6 +97,7 @@ class SonarAuditCheckActivityTest extends SonarAuditCheckTestBase {
             "  OK       Blame SCM (sources/scm)                    2 changeset(s), aucun auteur (clone shallow ?)\n")
         .contains(
             """
+
 
               Blame SCM vide : le scanner tourne sans métadonnées SCM
               (clone shallow en CI, type 'fetch-depth: 1'). Sonar ne peut donc
