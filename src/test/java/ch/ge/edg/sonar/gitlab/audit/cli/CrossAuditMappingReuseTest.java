@@ -18,7 +18,6 @@ import org.junit.jupiter.api.io.TempDir;
  * vanished key are recomputed, rows for projects that left the selection are kept, the previous
  * version goes to .bak, and rejections also steer the pass over the whole of GitLab.
  */
-
 class CrossAuditMappingReuseTest {
 
   @TempDir Path dir;
@@ -88,8 +87,7 @@ class CrossAuditMappingReuseTest {
   }
 
   @Test
-  void reapparier_recomputes_exact_and_derived_but_keeps_manual_and_rejected()
-      throws IOException {
+  void reapparier_recomputes_exact_and_derived_but_keeps_manual_and_rejected() throws IOException {
     Cli.Result r = run("--reapparier");
 
     assertThat(r.exitCode()).isZero();

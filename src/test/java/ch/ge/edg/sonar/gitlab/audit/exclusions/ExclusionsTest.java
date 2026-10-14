@@ -75,6 +75,19 @@ class ExclusionsTest {
   }
 
   @Test
+  void without_an_explicit_file_exclusions_txt_of_the_working_dir_is_read() throws IOException {
+    assumeFalse(Files.exists(Exclusions.DEFAULT), "exclusions.txt present in the working dir");
+    Files.writeString(Exclusions.DEFAULT, "team-a/sandbox # synthetic\n", StandardCharsets.UTF_8);
+    try {
+      Exclusions e = Exclusions.load(null);
+      assertThat(e.file()).isEqualTo(Exclusions.DEFAULT);
+      assertThat(e.entries()).containsExactly("team-a/sandbox");
+    } finally {
+      Files.delete(Exclusions.DEFAULT);
+    }
+  }
+
+  @Test
   void an_explicit_file_that_does_not_exist_fails() {
     assertThatThrownBy(() -> Exclusions.load(dir.resolve("absent.txt")))
         .isInstanceOf(NoSuchFileException.class);
