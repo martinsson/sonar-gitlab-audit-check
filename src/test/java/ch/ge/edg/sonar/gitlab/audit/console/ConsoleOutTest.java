@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,7 @@ class ConsoleOutTest {
 
   private static final String FORCED = "audit.console.charset";
 
-  private String savedProperty;
+  private @Nullable String savedProperty;
   private boolean savedColors;
 
   @BeforeEach

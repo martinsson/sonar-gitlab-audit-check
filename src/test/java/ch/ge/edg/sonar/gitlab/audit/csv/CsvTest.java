@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -22,7 +23,7 @@ class CsvTest {
     return f;
   }
 
-  private static Csv.Row row(Map<String, Integer> index, String... cells) {
+  private static Csv.Row row(Map<String, Integer> index, @Nullable String... cells) {
     return new Csv.Row(index, cells);
   }
 
