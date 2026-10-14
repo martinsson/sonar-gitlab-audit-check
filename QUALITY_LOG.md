@@ -127,3 +127,20 @@ question. One entry per choice: what, why, and what the alternative would have b
   `linkedPaths` uses `split(…, -1)`, same result since empty entries never yield a path.
 - Moved tests: `KeysTest`, `SpecTest`, `NamespaceMappingTest` (now against `load(file, err)`
   instead of the global table) live in `cli/mapper/`.
+
+## Sonar, SonarAuditCheck
+
+- **Narrowed catch-alls, a small behaviour change at the edges.** `Transport.send` catches
+  `IOException | IllegalArgumentException` instead of `Exception` (PMD
+  AvoidCatchingGenericException): any other runtime exception from the HTTP client now escapes
+  instead of becoming "status 0". Same pattern in `GitlabHttp`. `parseDate` catches
+  `DateTimeException`, which is everything those parses throw.
+- The `safely` catch-all around probe hints was removed; the hints handle missing fields
+  themselves. The one pinned case (`"scm": [null]` → empty description) is reproduced explicitly
+  in `ScmResponse.describe()`.
+- Two multi-line messages became text blocks with `.stripTrailing()`: Error Prone flags the old
+  `\s` trick (MisleadingEscapedSpace) and the plain concatenation (StringConcatToTextBlock).
+- `SonarAuditCheck` options are split into three picocli `@Mixin` groups declared in the same
+  order, so `--help` is unchanged (snapshot).
+- Tests: the stderr-capture test passes its buffer as the warnings stream instead of swapping
+  `System.err`; helpers tests moved to `cli/sonaraudit/` and split for the coupling limit.
