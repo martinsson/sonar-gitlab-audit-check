@@ -10,6 +10,7 @@ import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -39,6 +40,8 @@ class CrossAuditEndToEndTest {
     expectSelfie(read(dir.resolve("out").resolve("sonar-gitlab.csv"))).toMatchDisk("sonarGitlab");
     expectSelfie(read(dir.resolve("appariement.csv"))).toMatchDisk("appariement");
     assertThat(dir.resolve("appariement.csv.bak")).doesNotExist();
-    assertThat(Files.list(dir.resolve("out")).count()).isEqualTo(2);
+    try (Stream<Path> files = Files.list(dir.resolve("out"))) {
+      assertThat(files.count()).isEqualTo(2);
+    }
   }
 }
