@@ -1,6 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.cli;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.ProjectMapper.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Keys;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Match;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.NameSpec;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Spec;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.naming.NameMatcher;
 import com.opencsv.CSVWriter;
@@ -118,31 +123,28 @@ final class SonarToGitlab {
       byPath.putIfAbsent(path, i);
       if (!g.str("id").isEmpty()) byId.putIfAbsent(g.str("id"), i);
       String[] segs = path.split("/");
-      put(idxPath, ProjectMapper.normalise(path), i);
+      put(idxPath, Keys.normalise(path), i);
       // Deux segments ou plus, sans le namespace de tête : la clé reprend
       // souvent le sous-groupe et le dépôt, rarement le département.
       for (int k = 2; k < segs.length; k++) {
         List<String> tail = List.of(segs).subList(segs.length - k, segs.length);
-        put(idxSuffix, ProjectMapper.normalise(String.join("-", tail)), i);
+        put(idxSuffix, Keys.normalise(String.join("-", tail)), i);
         put(
             idxSuffix,
-            ProjectMapper.normalise(
-                String.join("-", tail.stream().map(ProjectMapper::stripTicketNumber).toList())),
+            Keys.normalise(String.join("-", tail.stream().map(Keys::stripTicketNumber).toList())),
             i);
       }
       String last = segs[segs.length - 1];
       for (String v :
           List.of(
               last,
-              ProjectMapper.stripTicketNumber(last),
+              Keys.stripTicketNumber(last),
               g.str("name"),
-              ProjectMapper.stripTicketNumber(g.str("name")))) {
-        put(idxLast, ProjectMapper.normalise(v), i);
+              Keys.stripTicketNumber(g.str("name")))) {
+        put(idxLast, Keys.normalise(v), i);
       }
     }
-    this.matcher =
-        ProjectMapper.nameMatcher(
-            new ProjectMapper.NameSpec("path", List.of("key", "name"), true), inventory, sonar);
+    this.matcher = new NameSpec("path", List.of("key", "name"), true).matcher(inventory, sonar);
   }
 
   private static void put(Map<String, Set<Integer>> idx, String k, int i) {
@@ -157,7 +159,7 @@ final class SonarToGitlab {
   static Result map(
       Csv.Table sonar,
       Csv.Table inventory,
-      List<ProjectMapper.Match> fromCross,
+      List<Match> fromCross,
       Set<String> rejected,
       Set<String> rejectedPaths,
       double threshold,
@@ -166,8 +168,7 @@ final class SonarToGitlab {
         .run(fromCross, rejected, rejectedPaths);
   }
 
-  private Result run(
-      List<ProjectMapper.Match> fromCross, Set<String> rejected, Set<String> rejectedPaths) {
+  private Result run(List<Match> fromCross, Set<String> rejected, Set<String> rejectedPaths) {
     List<Csv.Row> sq = sonar.rows();
     Pair[] out = new Pair[sq.size()];
     Map<String, Integer> sonarIndex = new HashMap<>();
@@ -175,8 +176,8 @@ final class SonarToGitlab {
 
     // 1. Ce que le croisement tient déjà pour sûr.
     Map<String, List<String>> crossPaths = new LinkedHashMap<>();
-    Map<String, ProjectMapper.Match> crossFirst = new HashMap<>();
-    for (ProjectMapper.Match m : fromCross) {
+    Map<String, Match> crossFirst = new HashMap<>();
+    for (Match m : fromCross) {
       if (!m.joined()) continue;
       String key = m.right().str("key");
       crossPaths.computeIfAbsent(key, k -> new ArrayList<>()).add(m.left().str("path"));
@@ -186,7 +187,7 @@ final class SonarToGitlab {
         (key, paths) -> {
           Integer s = sonarIndex.get(key);
           if (s == null) return;
-          ProjectMapper.Match m = crossFirst.get(key);
+          Match m = crossFirst.get(key);
           Integer g = byPath.get(paths.get(0));
           Csv.Row row = g != null ? gitlab.get(g) : m.left();
           out[s] =
@@ -258,8 +259,7 @@ final class SonarToGitlab {
                         g ->
                             "%s (%s)"
                                 .formatted(
-                                    gitlab.get(g).str("path"),
-                                    ProjectMapper.score(matcher.score(g, si))))
+                                    gitlab.get(g).str("path"), Fmt.score(matcher.score(g, si))))
                     .toList());
         Integer pick = null;
         String how = null;
@@ -325,16 +325,13 @@ final class SonarToGitlab {
       String second =
           next == null
               ? ""
-              : "%s (%s)"
-                  .formatted(
-                      gitlab.get(next.index()).str("path"), ProjectMapper.score(next.score()));
+              : "%s (%s)".formatted(gitlab.get(next.index()).str("path"), Fmt.score(next.score()));
       String why =
           best.score() < threshold
               ? "sous le seuil"
               : next != null && best.score() - next.score() < margin ? "ambigu" : null;
       String bestText =
-          "%s (%s)"
-              .formatted(gitlab.get(best.index()).str("path"), ProjectMapper.score(best.score()));
+          "%s (%s)".formatted(gitlab.get(best.index()).str("path"), Fmt.score(best.score()));
       if (why != null)
         refused.put(s, why + "\n" + bestText + (second.isEmpty() ? "" : ", " + second));
       else proposals.add(new Proposal(s, best.index(), best.score(), second));
@@ -348,7 +345,7 @@ final class SonarToGitlab {
             new Pair(
                 sq.get(p.sonar()),
                 gitlab.get(p.gitlab()),
-                ProjectMapper.Spec.NAMES_LABEL,
+                Spec.NAMES_LABEL,
                 Confidence.SUGGESTION,
                 p.score(),
                 p.second(),
@@ -359,8 +356,7 @@ final class SonarToGitlab {
             "déjà proposé à "
                 + sq.get(winner).str("key")
                 + "\n"
-                + "%s (%s)"
-                    .formatted(gitlab.get(p.gitlab()).str("path"), ProjectMapper.score(p.score())));
+                + "%s (%s)".formatted(gitlab.get(p.gitlab()).str("path"), Fmt.score(p.score())));
       }
     }
 
@@ -388,32 +384,32 @@ final class SonarToGitlab {
   /** Les méthodes dérivées, dans l'ordre : chacune avec les dépôts qu'elle désigne. */
   private List<Step> steps(Csv.Row r) {
     String key = r.str("key"), name = r.str("name");
-    String nk = ProjectMapper.normalise(key);
+    String nk = Keys.normalise(key);
     List<Step> steps = new ArrayList<>();
     Matcher m = IMPORT_KEY.matcher(key);
     steps.add(
         new Step(
             "clé d'import GitLab (chemin_id) = chemin GitLab",
-            m.matches() ? get(idxPath, ProjectMapper.normalise(m.group(1))) : Set.of()));
+            m.matches() ? get(idxPath, Keys.normalise(m.group(1))) : Set.of()));
     steps.add(new Step("clé normalisée = chemin GitLab", get(idxPath, nk)));
     steps.add(new Step("clé normalisée = fin du chemin GitLab", get(idxSuffix, nk)));
 
     List<String> variants =
         key.contains(":")
-            ? List.of(key.substring(key.indexOf(':') + 1), ProjectMapper.extractShortName(key))
-            : List.of(key, ProjectMapper.stripTicketNumber(key));
+            ? List.of(key.substring(key.indexOf(':') + 1), Keys.extractShortName(key))
+            : List.of(key, Keys.stripTicketNumber(key));
     Set<Integer> c = new LinkedHashSet<>();
     for (String v : variants) {
-      c.addAll(get(idxLast, ProjectMapper.normalise(v)));
-      c.addAll(get(idxSuffix, ProjectMapper.normalise(v)));
+      c.addAll(get(idxLast, Keys.normalise(v)));
+      c.addAll(get(idxSuffix, Keys.normalise(v)));
     }
     steps.add(new Step("nom court de la clé = dernier segment / nom GitLab", c));
 
     Matcher paren = PAREN_NAME.matcher(name);
     c = new LinkedHashSet<>();
     for (String v :
-        List.of(paren.find() ? paren.group(1) : "", name, ProjectMapper.stripTicketNumber(name))) {
-      String n = ProjectMapper.normalise(v);
+        List.of(paren.find() ? paren.group(1) : "", name, Keys.stripTicketNumber(name))) {
+      String n = Keys.normalise(v);
       if (n.isEmpty()) continue;
       c.addAll(get(idxLast, n));
       c.addAll(get(idxSuffix, n));
@@ -483,7 +479,7 @@ final class SonarToGitlab {
               g == null ? "" : g.str("id"),
               p.method(),
               p.confidence().code(),
-              p.score() == null ? "" : ProjectMapper.score(p.score()),
+              p.score() == null ? "" : Fmt.score(p.score()),
               p.candidates(),
               p.reason(),
               g == null ? "" : String.valueOf(perPath.get(p.path())),
@@ -512,8 +508,7 @@ final class SonarToGitlab {
     int n = r.pairs().size();
     long joined = r.pairs().stream().filter(Pair::joined).count();
     System.out.printf(
-        "  Projets Sonar : %d, dont %d appariés sûrement (%s)%n",
-        n, joined, ProjectMapper.pct(joined, n));
+        "  Projets Sonar : %d, dont %d appariés sûrement (%s)%n", n, joined, Fmt.pct(joined, n));
     byConf.forEach((c, k) -> System.out.printf("    %-10s %d%n", c, k));
     System.out.printf(
         "  Appariés à un dépôt hors de la sélection GitLab : %d, dont %d actifs "

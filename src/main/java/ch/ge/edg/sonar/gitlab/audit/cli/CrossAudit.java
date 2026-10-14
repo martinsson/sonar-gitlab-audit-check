@@ -1,5 +1,14 @@
 package ch.ge.edg.sonar.gitlab.audit.cli;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.DetailColumns;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Evaluation;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.MappingFile;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Match;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.ReportPrinter;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Result;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Spec;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import com.opencsv.CSVWriter;
@@ -220,22 +229,19 @@ public class CrossAudit implements Callable<Integer> {
     Set<String> rejected = new HashSet<>(), rejectedPaths = new HashSet<>();
     if (Files.exists(file)) {
       for (Csv.Row r : Csv.read(file).rows()) {
-        if (ProjectMapper.Confidence.parse(r.str("confiance")) != ProjectMapper.Confidence.REJETE)
-          continue;
+        if (Confidence.parse(r.str("confiance")) != Confidence.REJETE) continue;
         if (r.str("droite_key").isEmpty()) rejectedPaths.add(r.str("gauche_path"));
         else rejected.add(r.str("droite_key") + "\n" + r.str("gauche_path"));
       }
     }
-    ProjectMapper.Result mapping =
-        ProjectMapper.mapAndKeep(
-            ProjectMapper.Spec.sonarGitlab(nameThreshold, nameMargin),
+    Result mapping =
+        MappingFile.mapAndKeep(
+            Spec.sonarGitlab(nameThreshold, nameMargin),
             gitlab,
             sonar,
-            file,
-            recompute,
-            comma,
-            new ProjectMapper.Reuse[1]);
-    ProjectMapper.Report rep = ProjectMapper.evaluate(mapping, examples);
+            new MappingFile(file, comma, recompute),
+            System.out);
+    Report rep = Evaluation.evaluate(mapping, examples);
     List<Pair> pairs = mapping.matches().stream().map(Pair::new).toList();
     Csv.Table inventory = inventory();
     SonarToGitlab.Result wide =
@@ -268,7 +274,7 @@ public class CrossAudit implements Callable<Integer> {
     findings(pairs, wide == null ? Set.of() : wide.joinedPaths());
     if (out != null) write(mapping, pairs);
     if (report != null) {
-      ProjectMapper.writeReport(rep, report);
+      rep.writeTo(report);
       System.out.printf("  Rapport d'appariement : %s%n", report.toAbsolutePath());
     }
     return 0;
@@ -283,7 +289,7 @@ public class CrossAudit implements Callable<Integer> {
    * dans {@link ProjectMapper}, qui tourne aussi seul : ce qui suit n'est que la lecture qu'en font
    * les constats.
    */
-  record Pair(ProjectMapper.Match m) {
+  record Pair(Match m) {
 
     Csv.Row gl() {
       return m.left();
@@ -303,13 +309,12 @@ public class CrossAudit implements Callable<Integer> {
   // Le taux d'appariement, qui est un résultat et pas une note d'exécution
   // ----------------------------------------------------------------------
 
-  private void matchRate(
-      List<Pair> pairs, Csv.Table sonar, ProjectMapper.Report rep, boolean wide) {
+  private void matchRate(List<Pair> pairs, Csv.Table sonar, Report rep, boolean wide) {
     title("1. Appariement");
     System.out.println(c("  Méthodes appliquées dans l'ordre ; les suggestions de noms ne", DIM));
     System.out.println(c("  comptent dans aucun constat, elles sortent dans le CSV pour", DIM));
     System.out.println(c("  qu'un humain tranche.", DIM));
-    ProjectMapper.print(rep);
+    new ReportPrinter(System.out).print(rep);
 
     long joined = pairs.stream().filter(Pair::joined).count();
     if (joined < pairs.size() * 0.5) {
@@ -611,14 +616,14 @@ public class CrossAudit implements Callable<Integer> {
   private static final List<String> CROSS_COLUMNS =
       List.of("issues_par_kloc_modifie", "issues_par_commit");
 
-  private void write(ProjectMapper.Result mapping, List<Pair> pairs) throws IOException {
+  private void write(Result mapping, List<Pair> pairs) throws IOException {
     Path dir = out.toAbsolutePath().getParent();
     if (dir != null) Files.createDirectories(dir);
 
     // « projet » en tête : la colonne qu'on fige dans le tableur pour
     // savoir de quel projet on lit la ligne en défilant vers la droite.
     List<String> header = new ArrayList<>(List.of("projet", "methode_jointure", "confiance"));
-    header.addAll(ProjectMapper.detailHeader(mapping));
+    header.addAll(DetailColumns.header(mapping));
     GL_COLUMNS.forEach(c -> header.add("gl_" + c));
     SQ_COLUMNS.forEach(c -> header.add("sq_" + c));
     header.addAll(CROSS_COLUMNS);
@@ -628,7 +633,7 @@ public class CrossAudit implements Callable<Integer> {
       for (Pair p : pairs) {
         List<String> row =
             new ArrayList<>(List.of(p.gl().str("path"), p.m().label(), p.m().confidence().code()));
-        row.addAll(ProjectMapper.detailCells(mapping, p.m()));
+        row.addAll(DetailColumns.cells(mapping, p.m()));
         GL_COLUMNS.forEach(col -> row.add(p.gl().str(col)));
         SQ_COLUMNS.forEach(col -> row.add(p.sq() == null ? "" : p.sq().str(col)));
         row.add(dec(perKlocChanged(p)));

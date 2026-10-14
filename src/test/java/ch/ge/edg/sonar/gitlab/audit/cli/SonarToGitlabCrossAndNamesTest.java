@@ -9,7 +9,8 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlabFixtures.sonar;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.ProjectMapper.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Match;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -49,7 +50,7 @@ class SonarToGitlabCrossAndNamesTest {
     List<Csv.Row> g = sel.rows();
     List<Csv.Row> s = sonar.rows();
     Csv.Row ghost = CrossAuditFixtures.table(dir, "ghost.csv", "key", "ghost").rows().get(0);
-    List<ProjectMapper.Match> cross =
+    List<Match> cross =
         List.of(
             match(g.get(0), s.get(0), Confidence.EXACT, "clé lue dans la CI"),
             match(g.get(1), s.get(0), Confidence.DERIVED, "clé normalisée = chemin GitLab"),

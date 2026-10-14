@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.CrossAudit.Pair;
-import ch.ge.edg.sonar.gitlab.audit.cli.ProjectMapper.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import java.io.ByteArrayOutputStream;

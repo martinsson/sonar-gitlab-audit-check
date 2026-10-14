@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Keys;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import java.io.IOException;
@@ -25,10 +26,11 @@ final class CrossAuditFixtures {
       "path,name,id,selectionne,commits_window,last_activity_at,fork,mirror,exclu";
 
   static {
-    // ProjectMapper warns once per JVM, from its static initialiser, that namespace-mapping.yaml
+    // The mapper's key helpers warn once per JVM, from their static initialiser, that
+    // namespace-mapping.yaml
     // is absent from the working directory: trigger it here, outside any captured run, so that
     // what a run prints does not depend on test order.
-    ProjectMapper.normalise("");
+    Keys.normalise("");
   }
 
   private CrossAuditFixtures() {}
