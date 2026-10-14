@@ -127,6 +127,22 @@ class SonarClientTest {
   }
 
   @Test
+  void unreadableRetryAfterWaitsFiveSeconds() throws Exception {
+    AtomicInteger n = new AtomicInteger();
+    server.on(
+        "/api/t",
+        r ->
+            n.getAndIncrement() == 0
+                ? Response.status(429, "").withHeader("Retry-After", "soon")
+                : Response.json("{}"));
+    Sonar sq = client(null);
+    long start = System.nanoTime();
+    assertThat(sq.get("api/t", Map.of()).ok()).isTrue();
+    assertThat((System.nanoTime() - start) / 1_000_000).isBetween(4900L, 9000L);
+    assertThat(sq.throttled()).isEqualTo(1);
+  }
+
+  @Test
   void gatewayErrorsAreRetriedTwiceThenReturned() throws Exception {
     AtomicInteger n = new AtomicInteger();
     int[] codes = {503, 504, 502};

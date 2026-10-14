@@ -116,6 +116,21 @@ class SonarHelpersTest {
   }
 
   @Test
+  void interruptedCallerGetsAnIllegalStateException() throws Exception {
+    Sonar sq = sonar();
+    Thread.currentThread().interrupt();
+    try {
+      assertThatThrownBy(() -> sq.map(List.of(1, 2), 2, i -> i))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("interrompu")
+          .hasCauseInstanceOf(InterruptedException.class);
+      assertThat(Thread.currentThread().isInterrupted()).isTrue();
+    } finally {
+      Thread.interrupted();
+    }
+  }
+
+  @Test
   void parallelRunsEveryItem() throws Exception {
     List<Integer> seen = Collections.synchronizedList(new ArrayList<>());
     sonar().parallel(List.of(1, 2, 3), 2, seen::add);

@@ -49,6 +49,15 @@ final class SonarAuditCheckFake implements AutoCloseable {
   /** search_projects page size the fake applies (the tool always asks for 500). */
   int searchPageSize = 2;
 
+  /** search_projects page (p=) answered with a 500; 0 = none; -1 = the calls without p=. */
+  int failingSearchPage;
+
+  /** paging.total search_projects claims, when not the real count. */
+  Integer searchTotal;
+
+  /** Whether api/metrics/search sends its paging block. */
+  boolean metricsPaging = true;
+
   /** Total of api/projects/search, or null for a 403. */
   Integer realTotal = 6;
 

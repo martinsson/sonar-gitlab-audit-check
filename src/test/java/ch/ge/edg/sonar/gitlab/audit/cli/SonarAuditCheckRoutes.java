@@ -58,16 +58,20 @@ final class SonarAuditCheckRoutes {
     for (int i = (page - 1) * 20; i < Math.min(page * 20, f.metrics.size()); i++) {
       out.add(Map.of("key", f.metrics.get(i), "type", "INT"));
     }
+    if (!f.metricsPaging) return ok(Map.of("metrics", out));
     return ok(Map.of("paging", paging(page, 20, f.metrics.size()), "metrics", out));
   }
 
   private Response searchProjects(Request q) {
     int size = "1".equals(q.param("ps")) ? 1 : f.searchPageSize;
     int page = Integer.parseInt(orDefault(q.param("p"), "1"));
+    if (q.param("p") != null && page == f.failingSearchPage) return error(500, "boom");
+    if (q.param("p") == null && f.failingSearchPage < 0) return error(500, "boom");
     int from = Math.min((page - 1) * size, f.projects.size());
     List<Map<String, Object>> batch =
         f.projects.subList(from, Math.min(from + size, f.projects.size()));
-    return ok(Map.of("paging", paging(page, size, f.projects.size()), "components", batch));
+    int total = f.searchTotal != null ? f.searchTotal : f.projects.size();
+    return ok(Map.of("paging", paging(page, size, total), "components", batch));
   }
 
   private Response realTotal(Request q) {
