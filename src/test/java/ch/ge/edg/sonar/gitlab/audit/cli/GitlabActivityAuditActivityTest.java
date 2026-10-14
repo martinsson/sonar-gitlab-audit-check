@@ -289,7 +289,8 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
     assertOk(r);
     assertThat(r.out())
         .contains("  Activité non mesurable          : 1\n")
-        .contains("    403 ou erreur sur les commits. Écartés, pas classés à zéro :\n");
+        .contains("    403 ou erreur sur les commits. Écartés, pas classés à zéro :\n")
+        .contains("    « je n'ai pas pu voir » n'est pas « il ne se passe rien ».\n");
     assertThat(file(csv())).contains("\"activité non mesurable (HTTP 403)\"");
   }
 

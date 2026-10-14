@@ -132,6 +132,21 @@ class GitlabClientTest {
   }
 
   @Test
+  void retryAfterIsWaitedInSeconds() throws Exception {
+    AtomicInteger n = new AtomicInteger();
+    server.on(
+        "/api/v4/user",
+        r ->
+            n.incrementAndGet() == 1
+                ? Response.status(429, "{}").withHeader("Retry-After", "1")
+                : Response.json("{}"));
+    Gitlab gl = client("t");
+    long start = System.nanoTime();
+    assertThat(gl.get("user", Map.of()).ok()).isTrue();
+    assertThat((System.nanoTime() - start) / 1_000_000).isGreaterThanOrEqualTo(950);
+  }
+
+  @Test
   void a429IsRetriedThreeTimesThenReturned() throws Exception {
     server.on("/api/v4/user", r -> Response.status(429, "slow").withHeader("Retry-After", "0"));
     Gitlab gl = client("t");

@@ -211,12 +211,7 @@ class GitlabActivityAuditModelTest {
     assertThat(tmp.resolve("c.json")).doesNotExist();
   }
 
-  @Test
-  void theCacheRoundTripsThroughItsFile() {
-    Path file = tmp.resolve("sub/c.json");
-    SonarCache c = new SonarCache(file, true);
-    c.save();
-    assertThat(file).doesNotExist();
+  private static CiFacts everyFact() {
     CiFacts f = new CiFacts();
     f.ciSonar = true;
     f.sonarKey = "k";
@@ -226,6 +221,21 @@ class GitlabActivityAuditModelTest {
     f.pomKey = "g:a";
     f.pomName = "A";
     f.pomUnresolved = "${x}";
+    return f;
+  }
+
+  @Test
+  void anEmptyCacheWritesNoFile() {
+    Path file = tmp.resolve("sub/c.json");
+    new SonarCache(file, true).save();
+    assertThat(file).doesNotExist();
+  }
+
+  @Test
+  void theCacheRoundTripsThroughItsFile() {
+    Path file = tmp.resolve("sub/c.json");
+    SonarCache c = new SonarCache(file, true);
+    CiFacts f = everyFact();
     c.put("1@abc", f);
     assertThat(c.get("1@abc")).isSameAs(f);
     assertThat(c.size()).isEqualTo(1);
