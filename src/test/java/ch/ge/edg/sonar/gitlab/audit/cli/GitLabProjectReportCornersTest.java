@@ -124,4 +124,29 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
         .contains("  Fusionnées sans relecture       : 0 (0 %)")
         .doesNotContain("Délai avant première relecture");
   }
+
+  @Test
+  void commits_are_read_page_by_page_up_to_the_cap() {
+    project(fx.project(ID, PATH, "main", false));
+    List<Map<String, Object>> items =
+        List.of(
+            commit("Alice", "alice@example.com", MON, fx.ago(1, 0), new int[] {1, 1}),
+            commit("Bob", "bob@example.com", MON, fx.ago(2, 0), new int[] {1, 1}),
+            commit("Carol", "carol@example.com", MON, fx.ago(3, 0), new int[] {1, 1}),
+            commit("Dave", "dave@example.com", MON, fx.ago(4, 0), new int[] {1, 1}),
+            commit("Erin", "erin@example.com", MON, fx.ago(5, 0), new int[] {1, 1}));
+    server.on(
+        API + ID + "/repository/commits", q -> GitLabProjectReportFakeGitlab.paged(q, items, 2));
+    contributors(0);
+    mrs(List.of(mr(1, "opened", "alice", fx.ago(1, 0))));
+
+    Cli.Result r = run("--max-commits", "4");
+
+    assertThat(server.requests(API + ID + "/repository/commits"))
+        .extracting(q -> q.param("page"))
+        .containsExactly("1", "2");
+    assertThat(r.out())
+        .contains("  Plafond --max-commits atteint : les chiffres portent sur les 4 plus récents.")
+        .contains("  Auteurs distincts               : 4\n");
+  }
 }

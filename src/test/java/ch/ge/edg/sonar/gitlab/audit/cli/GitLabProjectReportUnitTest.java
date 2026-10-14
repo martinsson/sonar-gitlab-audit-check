@@ -46,6 +46,7 @@ class GitLabProjectReportUnitTest {
     assertThat(GitLabProjectReport.normalizePath("https://gitlab.example")).isEmpty();
     assertThat(GitLabProjectReport.normalizePath("http://h//a//")).isEqualTo("a");
     assertThat(GitLabProjectReport.normalizePath("123")).isEqualTo("123");
+    assertThat(GitLabProjectReport.normalizePath("://host/a/b")).isEqualTo("a/b");
     assertThat(GitLabProjectReport.normalizePath("a.git")).isEqualTo("a");
   }
 
