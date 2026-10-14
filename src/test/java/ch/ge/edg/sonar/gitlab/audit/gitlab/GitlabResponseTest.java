@@ -4,13 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class GitlabResponseTest {
 
   record Item(String name, int size) {}
 
-  private static Gitlab.Response resp(int status, String body) {
+  private static Gitlab.Response resp(int status, @Nullable String body) {
     return new Gitlab.Response(status, body, Map.of());
   }
 

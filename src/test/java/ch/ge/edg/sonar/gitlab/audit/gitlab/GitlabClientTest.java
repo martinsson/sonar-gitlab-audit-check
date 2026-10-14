@@ -5,13 +5,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.GeneralSecurityException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -27,8 +30,16 @@ class GitlabClientTest {
     server.close();
   }
 
-  private Gitlab client(String token) throws Exception {
+  private Gitlab client(@Nullable String token) throws Exception {
     return new Gitlab(server.url() + "//", token, 5, false, null);
+  }
+
+  private Gitlab dumpingTo(Path dir) {
+    try {
+      return new Gitlab(server.url(), "t", 5, false, dir);
+    } catch (IOException | GeneralSecurityException e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   @Test
@@ -255,10 +266,14 @@ class GitlabClientTest {
   @Test
   void aDumpThatCannotBeWrittenIsReportedNotFatal() throws Exception {
     server.json("/api/v4/user", "{\"id\":1}");
-    Gitlab gl = new Gitlab(server.url(), "t", 5, false, tmp);
     Files.createDirectories(tmp.resolve("0001-api_v4_user.json"));
     GitlabStreams.Printed printed =
-        GitlabStreams.capture(() -> assertThat(gl.get("user", Map.of()).ok()).isTrue());
+        GitlabStreams.capture(
+            () -> {
+              // built inside the capture: it prints on the streams in place when it is built
+              Gitlab gl = dumpingTo(tmp);
+              assertThat(gl.get("user", Map.of()).ok()).isTrue();
+            });
     assertThat(printed.err()).startsWith("  (capture non écrite : ").endsWith(")\n");
     assertThat(printed.out()).isEmpty();
   }

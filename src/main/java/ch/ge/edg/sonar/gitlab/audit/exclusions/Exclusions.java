@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Une liste de projets à laisser hors de l'audit, tenue dans un fichier texte.
@@ -25,7 +26,7 @@ import java.util.regex.Pattern;
  * Sans --exclusions, {@code exclusions.txt} du répertoire courant est lu s'il existe : la liste se
  * tient une fois et vaut pour tous les outils.
  */
-public record Exclusions(Path file, List<String> entries, List<Pattern> patterns) {
+public record Exclusions(@Nullable Path file, List<String> entries, List<Pattern> patterns) {
 
   static final Path DEFAULT = Path.of("exclusions.txt");
 
@@ -34,7 +35,7 @@ public record Exclusions(Path file, List<String> entries, List<Pattern> patterns
   }
 
   /** Le fichier donné, ou exclusions.txt s'il est là, ou rien. */
-  public static Exclusions load(Path explicit) throws IOException {
+  public static Exclusions load(@Nullable Path explicit) throws IOException {
     Path file = explicit != null ? explicit : Files.exists(DEFAULT) ? DEFAULT : null;
     if (file == null) return none();
     List<String> entries = new ArrayList<>();
@@ -54,7 +55,7 @@ public record Exclusions(Path file, List<String> entries, List<Pattern> patterns
   }
 
   /** L'entrée qui exclut cet identifiant, ou null. */
-  public String match(String id) {
+  public @Nullable String match(@Nullable String id) {
     if (id == null) return null;
     for (int i = 0; i < patterns.size(); i++) {
       if (patterns.get(i).matcher(id).matches()) return entries.get(i);
