@@ -1,12 +1,7 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.GitlabActivityAudit.CiFacts;
-import ch.ge.edg.sonar.gitlab.audit.cli.GitlabActivityAudit.Pom;
-import ch.ge.edg.sonar.gitlab.audit.cli.GitlabActivityAudit.Prat;
-import ch.ge.edg.sonar.gitlab.audit.cli.GitlabActivityAudit.Proj;
-import ch.ge.edg.sonar.gitlab.audit.cli.GitlabActivityAudit.SonarCache;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -186,7 +181,7 @@ class GitlabActivityAuditModelTest {
 
   @Test
   void cacheKeyIsTheHeadOrTheLastActivity() throws Exception {
-    SonarCache c = new SonarCache(tmp.resolve("c.json"), true);
+    SonarCache c = new SonarCache(tmp.resolve("c.json"), true, System.err);
     Proj p = proj("{\"id\":3,\"last_activity_at\":\"2099-01-01T00:00:00Z\"}");
     assertThat(c.keyFor(p)).isEqualTo("3@act:2099-01-01T00:00Z");
     p.headSha = " ";
@@ -200,7 +195,8 @@ class GitlabActivityAuditModelTest {
   void aDisabledCacheKeepsNothing() {
     for (SonarCache c :
         new SonarCache[] {
-          new SonarCache(tmp.resolve("c.json"), false), new SonarCache(null, true)
+          new SonarCache(tmp.resolve("c.json"), false, System.err),
+          new SonarCache(null, true, System.err)
         }) {
       c.put("k", new CiFacts());
       assertThat(c.get("k")).isNull();
@@ -227,21 +223,21 @@ class GitlabActivityAuditModelTest {
   @Test
   void anEmptyCacheWritesNoFile() {
     Path file = tmp.resolve("sub/c.json");
-    new SonarCache(file, true).save();
+    new SonarCache(file, true, System.err).save();
     assertThat(file).doesNotExist();
   }
 
   @Test
   void theCacheRoundTripsThroughItsFile() {
     Path file = tmp.resolve("sub/c.json");
-    SonarCache c = new SonarCache(file, true);
+    SonarCache c = new SonarCache(file, true, System.err);
     CiFacts f = everyFact();
     c.put("1@abc", f);
     assertThat(c.get("1@abc")).isSameAs(f);
     assertThat(c.size()).isEqualTo(1);
     c.save();
 
-    SonarCache back = new SonarCache(file, true);
+    SonarCache back = new SonarCache(file, true, System.err);
     back.load();
     assertThat(back.loadedCount()).isEqualTo(1);
     CiFacts r = back.get("1@abc");
@@ -258,15 +254,15 @@ class GitlabActivityAuditModelTest {
 
   @Test
   void aMissingWrongVersionOrBrokenCacheLoadsNothing() throws Exception {
-    SonarCache missing = new SonarCache(tmp.resolve("none.json"), true);
+    SonarCache missing = new SonarCache(tmp.resolve("none.json"), true, System.err);
     missing.load();
     assertThat(missing.loadedCount()).isZero();
     Path v1 = Files.writeString(tmp.resolve("v1.json"), "{\"version\":1,\"entries\":{\"a\":{}}}");
-    SonarCache old = new SonarCache(v1, true);
+    SonarCache old = new SonarCache(v1, true, System.err);
     old.load();
     assertThat(old.size()).isZero();
     Path broken = Files.writeString(tmp.resolve("b.json"), "{\"version\":2,\"entries\":{\"a\":{}");
-    SonarCache bad = new SonarCache(broken, true);
+    SonarCache bad = new SonarCache(broken, true, System.err);
     bad.put("kept?", new CiFacts());
     bad.load();
     assertThat(bad.size()).isZero();
@@ -276,7 +272,7 @@ class GitlabActivityAuditModelTest {
   @Test
   void loadedEntriesDefaultToFalseAndNull() throws Exception {
     Path f = Files.writeString(tmp.resolve("c.json"), "{\"version\":2,\"entries\":{\"a\":{}}}");
-    SonarCache c = new SonarCache(f, true);
+    SonarCache c = new SonarCache(f, true, System.err);
     c.load();
     CiFacts e = c.get("a");
     assertThat(e.ciSonar).isFalse();
