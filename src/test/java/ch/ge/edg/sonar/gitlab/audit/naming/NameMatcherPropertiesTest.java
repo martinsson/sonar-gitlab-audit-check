@@ -85,22 +85,21 @@ class NameMatcherPropertiesTest {
   @Property
   void jaro_winkler_is_between_zero_and_one_and_one_on_identity(
       @ForAll("words") String a, @ForAll("words") String b) {
-    assertThat(NameMatcher.jaroWinkler(a, b)).isBetween(0.0, 1.0 + 1e-12);
-    assertThat(NameMatcher.jaroWinkler(a, a)).isEqualTo(1.0);
+    assertThat(JaroWinkler.similarity(a, b)).isBetween(0.0, 1.0 + 1e-12);
+    assertThat(JaroWinkler.similarity(a, a)).isEqualTo(1.0);
   }
 
   @Property
   void jaro_winkler_is_symmetric(@ForAll("words") String a, @ForAll("words") String b) {
-    assertThat(NameMatcher.jaroWinkler(a, b))
-        .isCloseTo(NameMatcher.jaroWinkler(b, a), within(1e-12));
+    assertThat(JaroWinkler.similarity(a, b)).isCloseTo(JaroWinkler.similarity(b, a), within(1e-12));
   }
 
   @Property
   void token_similarity_is_zero_or_above_the_threshold(
       @ForAll @AlphaChars @StringLength(max = 8) String a,
       @ForAll @AlphaChars @StringLength(max = 8) String b) {
-    double s = NameMatcher.tokenSimilarity(a, b);
-    assertThat(s == 0 || s >= NameMatcher.TOKEN_SIMILARITY).isTrue();
+    double s = SoftTfIdf.tokenSimilarity(a, b);
+    assertThat(s == 0 || s >= SoftTfIdf.TOKEN_SIMILARITY).isTrue();
     assertThat(s).isLessThanOrEqualTo(1.0);
   }
 
@@ -159,9 +158,7 @@ class NameMatcherPropertiesTest {
       boolean conflict =
           targets.stream()
               .anyMatch(
-                  t ->
-                      NameMatcher.numbersConflict(
-                          NameMatcher.numbers(src), NameMatcher.numbers(t)));
+                  t -> SoftTfIdf.numbersConflict(NameMatcher.numbers(src), NameMatcher.numbers(t)));
       assertThat(conflict).isTrue();
     }
   }
@@ -176,7 +173,7 @@ class NameMatcherPropertiesTest {
     }
     for (NameMatcher.Scored s : ranked) {
       String other = others.get(s.index());
-      assertThat(NameMatcher.numbersConflict(NameMatcher.numbers(from), NameMatcher.numbers(other)))
+      assertThat(SoftTfIdf.numbersConflict(NameMatcher.numbers(from), NameMatcher.numbers(other)))
           .isFalse();
     }
   }

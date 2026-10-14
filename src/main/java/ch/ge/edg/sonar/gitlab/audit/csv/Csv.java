@@ -11,9 +11,12 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Écriture des CSV, partagée par les outils qui en produisent.
@@ -82,19 +85,25 @@ public final class Csv {
         throw new IOException(path + " illisible : " + e.getMessage(), e);
       }
       if (all.isEmpty()) return new Table(Map.of(), List.of());
-
-      String[] header = all.get(0);
-      header[0] = stripBom(header[0]);
-      Map<String, Integer> index = new HashMap<>();
-      for (int i = 0; i < header.length; i++) index.put(header[i].trim(), i);
-
-      List<Row> rows = new ArrayList<>();
-      for (String[] cells : all.subList(1, all.size())) {
-        if (cells.length == 0 || (cells.length == 1 && cells[0].isBlank())) continue;
-        rows.add(new Row(index, cells));
-      }
-      return new Table(index, rows);
+      Map<String, Integer> index = index(all.get(0));
+      return new Table(index, rows(index, all.subList(1, all.size())));
     }
+  }
+
+  private static Map<String, Integer> index(String[] header) {
+    header[0] = stripBom(header[0]);
+    Map<String, Integer> index = new HashMap<>();
+    for (int i = 0; i < header.length; i++) index.put(header[i].trim(), i);
+    return index;
+  }
+
+  private static List<Row> rows(Map<String, Integer> index, List<String[]> lines) {
+    List<Row> rows = new ArrayList<>();
+    for (String[] cells : lines) {
+      if (cells.length == 0 || (cells.length == 1 && cells[0].isBlank())) continue;
+      rows.add(new Row(index, cells));
+    }
+    return rows;
   }
 
   public record Table(Map<String, Integer> index, List<Row> rows) {
@@ -119,16 +128,22 @@ public final class Csv {
    * Une ligne. Les valeurs restent des chaînes : c'est ce que l'API a renvoyé, et une cellule vide
    * se distingue ainsi d'un zéro — la confusion que tout ce dépôt s'emploie à ne pas commettre.
    */
-  public record Row(Map<String, Integer> index, String[] cells) {
+  public record Row(Map<String, Integer> index, List<@Nullable String> cells) {
+
+    /** Telle que le lecteur CSV la rend : une cellule par colonne, dans l'ordre de l'en-tête. */
+    public Row(Map<String, Integer> index, @Nullable String[] cells) {
+      this(index, Collections.unmodifiableList(Arrays.asList(cells.clone())));
+    }
 
     public String str(String column) {
       Integer i = index.get(column);
-      if (i == null || i >= cells.length || cells[i] == null) return "";
-      return cells[i].trim();
+      if (i == null || i >= cells.size()) return "";
+      String cell = cells.get(i);
+      return cell == null ? "" : cell.trim();
     }
 
     /** {@code null} si la cellule est vide — jamais 0. */
-    public Double num(String column) {
+    public @Nullable Double num(String column) {
       String v = str(column);
       if (v.isEmpty()) return null;
       // Un aller-retour par Excel en locale française transforme 12.5 en
