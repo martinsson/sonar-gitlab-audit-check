@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.CrossAudit.Pair;
 import ch.ge.edg.sonar.gitlab.audit.cli.ProjectMapper.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
@@ -46,16 +45,16 @@ class CrossAuditHelpersTest {
     return CrossAuditFixtures.table(dir, "sq.csv", SQ_HEADER, row + ",pad").rows().get(0);
   }
 
-  private static Pair pair(Csv.Row gl, Csv.Row sq, Confidence c) {
-    return new Pair(SonarToGitlabFixtures.match(gl, sq, c, "label"));
+  private static CrossPair pair(Csv.Row gl, Csv.Row sq, Confidence c) {
+    return new CrossPair(SonarToGitlabFixtures.match(gl, sq, c, "label"));
   }
 
   @Test
   void issues_over_the_window_is_the_monthly_slope_times_the_window() throws IOException {
-    Pair p = pair(gl("45,2000,4,false"), sq("6"), Confidence.EXACT);
-    assertThat(CrossAudit.issuesOverWindow(p)).isCloseTo(9.0, within(1e-9));
-    assertThat(CrossAudit.perKlocChanged(p)).isCloseTo(4.5, within(1e-9));
-    assertThat(CrossAudit.perCommit(p)).isCloseTo(2.25, within(1e-9));
+    CrossPair p = pair(gl("45,2000,4,false"), sq("6"), Confidence.EXACT);
+    assertThat(CrossPair.issuesOverWindow(p)).isCloseTo(9.0, within(1e-9));
+    assertThat(CrossPair.perKlocChanged(p)).isCloseTo(4.5, within(1e-9));
+    assertThat(CrossPair.perCommit(p)).isCloseTo(2.25, within(1e-9));
     assertThat(p.joined()).isTrue();
     assertThat(p.gl()).isSameAs(p.m().left());
     assertThat(p.sq()).isSameAs(p.m().right());
@@ -65,49 +64,49 @@ class CrossAuditHelpersTest {
   void only_sure_pairs_have_a_trend() throws IOException {
     Csv.Row g = gl("30,1000,10,false");
     Csv.Row s = sq("3");
-    assertThat(CrossAudit.issuesOverWindow(pair(g, s, Confidence.DERIVED))).isEqualTo(3.0);
-    assertThat(CrossAudit.issuesOverWindow(pair(g, s, Confidence.MANUEL))).isEqualTo(3.0);
-    assertThat(CrossAudit.issuesOverWindow(pair(g, s, Confidence.SUGGESTION))).isNull();
-    assertThat(CrossAudit.issuesOverWindow(pair(g, null, Confidence.EXACT))).isNull();
-    assertThat(CrossAudit.perKlocChanged(pair(g, s, Confidence.NONE))).isNull();
-    assertThat(CrossAudit.perCommit(pair(g, s, Confidence.REJETE))).isNull();
+    assertThat(CrossPair.issuesOverWindow(pair(g, s, Confidence.DERIVED))).isEqualTo(3.0);
+    assertThat(CrossPair.issuesOverWindow(pair(g, s, Confidence.MANUEL))).isEqualTo(3.0);
+    assertThat(CrossPair.issuesOverWindow(pair(g, s, Confidence.SUGGESTION))).isNull();
+    assertThat(CrossPair.issuesOverWindow(pair(g, null, Confidence.EXACT))).isNull();
+    assertThat(CrossPair.perKlocChanged(pair(g, s, Confidence.NONE))).isNull();
+    assertThat(CrossPair.perCommit(pair(g, s, Confidence.REJETE))).isNull();
   }
 
   @Test
   void any_missing_piece_or_a_truncated_count_gives_no_trend() throws IOException {
-    assertThat(CrossAudit.issuesOverWindow(pair(gl("30,1,1,false"), sq(""), Confidence.EXACT)))
+    assertThat(CrossPair.issuesOverWindow(pair(gl("30,1,1,false"), sq(""), Confidence.EXACT)))
         .isNull();
-    assertThat(CrossAudit.issuesOverWindow(pair(gl(",1,1,false"), sq("3"), Confidence.EXACT)))
+    assertThat(CrossPair.issuesOverWindow(pair(gl(",1,1,false"), sq("3"), Confidence.EXACT)))
         .isNull();
-    Pair truncated = pair(gl("30,1000,10,TRUE"), sq("3"), Confidence.EXACT);
-    assertThat(CrossAudit.issuesOverWindow(truncated)).isNull();
-    assertThat(CrossAudit.perKlocChanged(truncated)).isNull();
-    assertThat(CrossAudit.perCommit(truncated)).isNull();
+    CrossPair truncated = pair(gl("30,1000,10,TRUE"), sq("3"), Confidence.EXACT);
+    assertThat(CrossPair.issuesOverWindow(truncated)).isNull();
+    assertThat(CrossPair.perKlocChanged(truncated)).isNull();
+    assertThat(CrossPair.perCommit(truncated)).isNull();
   }
 
   @Test
   void zero_or_missing_denominators_give_no_ratio() throws IOException {
-    Pair zero = pair(gl("30,0,0,false"), sq("3"), Confidence.EXACT);
-    assertThat(CrossAudit.issuesOverWindow(zero)).isEqualTo(3.0);
-    assertThat(CrossAudit.perKlocChanged(zero)).isNull();
-    assertThat(CrossAudit.perCommit(zero)).isNull();
-    Pair empty = pair(gl("30,,,false"), sq("3"), Confidence.EXACT);
-    assertThat(CrossAudit.perKlocChanged(empty)).isNull();
-    assertThat(CrossAudit.perCommit(empty)).isNull();
-    Pair negative = pair(gl("30,500,2,false"), sq("-3"), Confidence.EXACT);
-    assertThat(CrossAudit.perKlocChanged(negative)).isEqualTo(-6.0);
-    assertThat(CrossAudit.perCommit(negative)).isEqualTo(-1.5);
+    CrossPair zero = pair(gl("30,0,0,false"), sq("3"), Confidence.EXACT);
+    assertThat(CrossPair.issuesOverWindow(zero)).isEqualTo(3.0);
+    assertThat(CrossPair.perKlocChanged(zero)).isNull();
+    assertThat(CrossPair.perCommit(zero)).isNull();
+    CrossPair empty = pair(gl("30,,,false"), sq("3"), Confidence.EXACT);
+    assertThat(CrossPair.perKlocChanged(empty)).isNull();
+    assertThat(CrossPair.perCommit(empty)).isNull();
+    CrossPair negative = pair(gl("30,500,2,false"), sq("-3"), Confidence.EXACT);
+    assertThat(CrossPair.perKlocChanged(negative)).isEqualTo(-6.0);
+    assertThat(CrossPair.perCommit(negative)).isEqualTo(-1.5);
   }
 
   @Test
   void num_keeps_absent_apart_from_zero_and_nz_brings_it_back_to_zero() throws IOException {
     Csv.Row s = sq("");
-    assertThat(CrossAudit.num(null, SQ)).isNull();
-    assertThat(CrossAudit.num(s, SQ)).isNull();
-    assertThat(CrossAudit.nz(null, SQ)).isZero();
-    assertThat(CrossAudit.nz(s, SQ)).isZero();
-    assertThat(CrossAudit.num(sq("\"2,5\""), SQ)).isEqualTo(2.5);
-    assertThat(CrossAudit.nz(sq("-1.5"), SQ)).isEqualTo(-1.5);
+    assertThat(CrossPair.num(null, SQ)).isNull();
+    assertThat(CrossPair.num(s, SQ)).isNull();
+    assertThat(CrossPair.nz(null, SQ)).isZero();
+    assertThat(CrossPair.nz(s, SQ)).isZero();
+    assertThat(CrossPair.num(sq("\"2,5\""), SQ)).isEqualTo(2.5);
+    assertThat(CrossPair.nz(sq("-1.5"), SQ)).isEqualTo(-1.5);
   }
 
   @Test
@@ -115,10 +114,10 @@ class CrossAuditHelpersTest {
     Locale saved = Locale.getDefault();
     Locale.setDefault(Locale.FRANCE);
     try {
-      assertThat(CrossAudit.dec(null)).isEmpty();
-      assertThat(CrossAudit.dec(1.004)).isEqualTo("1.00");
-      assertThat(CrossAudit.dec(2.0 / 3)).isEqualTo("0.67");
-      assertThat(CrossAudit.dec(-12.5)).isEqualTo("-12.50");
+      assertThat(CrossCsv.dec(null)).isEmpty();
+      assertThat(CrossCsv.dec(1.004)).isEqualTo("1.00");
+      assertThat(CrossCsv.dec(2.0 / 3)).isEqualTo("0.67");
+      assertThat(CrossCsv.dec(-12.5)).isEqualTo("-12.50");
     } finally {
       Locale.setDefault(saved);
     }
@@ -126,21 +125,21 @@ class CrossAuditHelpersTest {
 
   @Test
   void pct_rounds_and_has_a_dash_for_no_total() {
-    assertThat(CrossAudit.pct(0, 0)).isEqualTo("—");
-    assertThat(CrossAudit.pct(1, 3)).isEqualTo("33 %");
-    assertThat(CrossAudit.pct(2, 3)).isEqualTo("67 %");
-    assertThat(CrossAudit.pct(3, 3)).isEqualTo("100 %");
-    assertThat(CrossAudit.pct(0, 5)).isEqualTo("0 %");
+    assertThat(CrossReport.pct(0, 0)).isEqualTo("—");
+    assertThat(CrossReport.pct(1, 3)).isEqualTo("33 %");
+    assertThat(CrossReport.pct(2, 3)).isEqualTo("67 %");
+    assertThat(CrossReport.pct(3, 3)).isEqualTo("100 %");
+    assertThat(CrossReport.pct(0, 5)).isEqualTo("0 %");
   }
 
   @Test
   void c_and_title_follow_the_color_switch() {
     ConsoleOut.colorMode("always");
-    assertThat(CrossAudit.c("x", CrossAudit.YELLOW)).isEqualTo("\033[33mx\033[0m");
-    assertThat(CrossAudit.BOLD + CrossAudit.DIM + CrossAudit.GREEN)
+    assertThat(CrossReport.c("x", CrossReport.YELLOW)).isEqualTo("\033[33mx\033[0m");
+    assertThat(CrossReport.BOLD + CrossReport.DIM + CrossReport.GREEN)
         .isEqualTo("\033[1m\033[2m\033[32m");
     ConsoleOut.colorMode("never");
-    assertThat(CrossAudit.c("x", CrossAudit.YELLOW)).isEqualTo("x");
+    assertThat(CrossReport.c("x", CrossReport.YELLOW)).isEqualTo("x");
     assertThat(title("Abc")).isEqualTo("\nAbc\n---\n");
     assertThat(title("x".repeat(80)))
         .isEqualTo("\n" + "x".repeat(80) + "\n" + "-".repeat(72) + "\n");
@@ -153,7 +152,7 @@ class CrossAuditHelpersTest {
     ByteArrayOutputStream buf = new ByteArrayOutputStream();
     System.setOut(new PrintStream(buf, true, StandardCharsets.UTF_8));
     try {
-      CrossAudit.title(text);
+      CrossReport.title(System.out, text);
     } finally {
       System.setOut(old);
     }
