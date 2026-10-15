@@ -11,6 +11,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A tiny HTTP/1.1 server on a loopback socket, standing in for SonarQube or GitLab in tests.
@@ -32,12 +33,12 @@ public final class FakeHttpServer implements AutoCloseable {
     }
 
     /** One query parameter, URL-decoded, or null. */
-    public String param(String name) {
+    public @Nullable String param(String name) {
       return Query.parse(target).get(name);
     }
 
     /** A header, by case-insensitive name, or null. */
-    public String header(String name) {
+    public @Nullable String header(String name) {
       return headers.get(name.toLowerCase(Locale.ROOT));
     }
   }

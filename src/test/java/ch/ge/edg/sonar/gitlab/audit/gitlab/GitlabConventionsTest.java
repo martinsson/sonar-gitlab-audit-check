@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -114,11 +115,12 @@ class GitlabConventionsTest {
 
   @Test
   void parseKeepsTheOffset() {
-    OffsetDateTime t = Gitlab.parse("2026-08-18T09:12:33.000+02:00");
+    OffsetDateTime t = requireNonNull(Gitlab.parse("2026-08-18T09:12:33.000+02:00"));
     assertThat(t).isNotNull();
     assertThat(t.getOffset()).isEqualTo(ZoneOffset.ofHours(2));
     assertThat(t.getHour()).isEqualTo(9);
-    assertThat(Gitlab.parse("2026-08-18T09:12:33Z").getOffset()).isEqualTo(ZoneOffset.UTC);
+    assertThat(requireNonNull(Gitlab.parse("2026-08-18T09:12:33Z")).getOffset())
+        .isEqualTo(ZoneOffset.UTC);
   }
 
   @Test

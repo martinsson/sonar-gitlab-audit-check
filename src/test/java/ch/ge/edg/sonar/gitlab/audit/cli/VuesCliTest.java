@@ -45,7 +45,7 @@ class VuesCliTest {
   /** One row as {@code key=value} pairs separated by {@code ;}, an empty value allowed. */
   static Map<String, String> row(String spec) {
     Map<String, String> out = new LinkedHashMap<>();
-    for (String kv : spec.split(";")) {
+    for (String kv : spec.split(";", -1)) {
       String[] parts = kv.split("=", 2);
       out.put(parts[0], parts[1]);
     }
@@ -143,7 +143,7 @@ class VuesCliTest {
 
     Cli.run(new Vues(), "--in", in.toString(), "--comma", "--color", "never");
 
-    assertThat(read("croisement-non-apparies.csv").lines().map(l -> l.split(",")[0]).toList())
+    assertThat(read("croisement-non-apparies.csv").lines().map(l -> l.split(",", -1)[0]).toList())
         .containsExactly("\"projet\"", "\"team-b/theta\"", "\"team-a/eta\"", "\"team-a/zeta\"");
   }
 

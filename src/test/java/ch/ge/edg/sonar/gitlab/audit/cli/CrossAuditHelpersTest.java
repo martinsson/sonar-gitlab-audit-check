@@ -12,6 +12,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Locale;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +46,7 @@ class CrossAuditHelpersTest {
     return CrossAuditFixtures.table(dir, "sq.csv", SQ_HEADER, row + ",pad").rows().get(0);
   }
 
-  private static CrossPair pair(Csv.Row gl, Csv.Row sq, Confidence c) {
+  private static CrossPair pair(Csv.Row gl, Csv.@Nullable Row sq, Confidence c) {
     return new CrossPair(SonarToGitlabFixtures.match(gl, sq, c, "label"));
   }
 

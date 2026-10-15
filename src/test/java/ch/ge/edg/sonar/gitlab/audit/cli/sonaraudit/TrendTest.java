@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
+import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
@@ -8,6 +9,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.HistoryPoint;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
@@ -17,8 +19,8 @@ class TrendTest {
 
   private static final LocalDateTime T0 = LocalDateTime.of(2026, 1, 1, 12, 0);
 
-  private static TreeMap<LocalDateTime, Double> series(double... dayValuePairs) {
-    TreeMap<LocalDateTime, Double> s = new TreeMap<>();
+  private static SortedMap<LocalDateTime, Double> series(double... dayValuePairs) {
+    SortedMap<LocalDateTime, Double> s = new TreeMap<>();
     for (int i = 0; i + 1 < dayValuePairs.length; i += 2) {
       s.put(T0.plusMinutes((long) (dayValuePairs[i] * 1440)), dayValuePairs[i + 1]);
     }
@@ -160,7 +162,7 @@ class TrendTest {
 
   @Test
   void velocityTakesTheSpanFromTheLineSeries() {
-    Velocity v = Velocity.of(pts(2, "100", 12, "150"), pts(0, "10", 30, "35"));
+    Velocity v = requireNonNull(Velocity.of(pts(2, "100", 12, "150"), pts(0, "10", 30, "35")));
     assertThat(v).isEqualTo(new Velocity(50, 25, 10, day(2), day(12)));
     assertThat(v.debtPerLine()).isEqualTo(0.5);
   }
@@ -174,9 +176,9 @@ class TrendTest {
   @Test
   void velocityWithUnreadableDatesHasNoSpan() {
     List<HistoryPoint> lines = List.of(new HistoryPoint("bad", "1"), new HistoryPoint(day(4), "3"));
-    assertThat(Velocity.of(lines, pts(0, "1", 5, "2")).spanDays()).isZero();
+    assertThat(requireNonNull(Velocity.of(lines, pts(0, "1", 5, "2"))).spanDays()).isZero();
     List<HistoryPoint> lines2 = List.of(new HistoryPoint(day(4), "1"), new HistoryPoint(null, "3"));
-    Velocity v = Velocity.of(lines2, pts(0, "1", 5, "2"));
+    Velocity v = requireNonNull(Velocity.of(lines2, pts(0, "1", 5, "2")));
     assertThat(v.spanDays()).isZero();
     assertThat(v.to()).isEmpty();
   }

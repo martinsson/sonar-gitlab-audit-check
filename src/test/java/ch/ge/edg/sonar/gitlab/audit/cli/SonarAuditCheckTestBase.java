@@ -70,7 +70,7 @@ abstract class SonarAuditCheckTestBase {
 
   /** The inventory row of one project, as written (Excel form), without its quotes. */
   List<String> row(String key) throws IOException {
-    for (String line : excelCsv(csv()).split("\n")) {
+    for (String line : excelCsv(csv()).lines().toList()) {
       List<String> cells = cells(line);
       if (cells.getFirst().equals(key)) return cells;
     }
@@ -79,7 +79,7 @@ abstract class SonarAuditCheckTestBase {
 
   /** Column values by header name, for the row of {@code key}. */
   String cell(String key, String column) throws IOException {
-    List<String> header = cells(excelCsv(csv()).split("\n")[0]);
+    List<String> header = cells(excelCsv(csv()).lines().findFirst().orElseThrow());
     return row(key).get(header.indexOf(column));
   }
 

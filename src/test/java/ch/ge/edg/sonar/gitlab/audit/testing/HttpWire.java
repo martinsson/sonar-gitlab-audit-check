@@ -11,13 +11,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /** Reads one HTTP/1.1 request head and writes one response, for {@link FakeHttpServer}. */
 final class HttpWire {
 
   private HttpWire() {}
 
-  static FakeHttpServer.Request read(InputStream raw) throws IOException {
+  static FakeHttpServer.@Nullable Request read(InputStream raw) throws IOException {
     BufferedReader in = new BufferedReader(new InputStreamReader(raw, StandardCharsets.UTF_8));
     String line = in.readLine();
     if (line == null || line.isBlank()) return null;

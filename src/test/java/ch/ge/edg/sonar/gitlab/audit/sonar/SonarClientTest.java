@@ -10,6 +10,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -23,7 +24,7 @@ class SonarClientTest {
     server.close();
   }
 
-  private Sonar client(String organization) throws Exception {
+  private Sonar client(@Nullable String organization) throws Exception {
     return new Sonar(new SonarConnection(server.url() + "//", "tok-1", organization, 5, false));
   }
 
@@ -93,7 +94,7 @@ class SonarClientTest {
   @Test
   void nullParameterValuesAreDropped() throws Exception {
     server.onPrefix("/api/", r -> Response.json("{}"));
-    Map<String, String> params = new LinkedHashMap<>();
+    Map<String, @Nullable String> params = new LinkedHashMap<>();
     params.put("a", null);
     params.put("b", "2");
     client(null).get("api/x", params);

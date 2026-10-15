@@ -14,7 +14,7 @@ final class Query {
     Map<String, String> params = new LinkedHashMap<>();
     int q = target.indexOf('?');
     if (q < 0) return params;
-    for (String pair : target.substring(q + 1).split("&")) {
+    for (String pair : target.substring(q + 1).split("&", -1)) {
       if (pair.isEmpty()) continue;
       int eq = pair.indexOf('=');
       String k = eq < 0 ? pair : pair.substring(0, eq);

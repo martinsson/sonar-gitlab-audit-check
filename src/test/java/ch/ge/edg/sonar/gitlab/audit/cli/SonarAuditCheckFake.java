@@ -19,8 +19,10 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Function;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A synthetic SonarQube park served by {@link FakeHttpServer}, for driving {@link SonarAuditCheck}
@@ -53,13 +55,13 @@ final class SonarAuditCheckFake implements AutoCloseable {
   int failingSearchPage;
 
   /** paging.total search_projects claims, when not the real count. */
-  Integer searchTotal;
+  @Nullable Integer searchTotal;
 
   /** Whether api/metrics/search sends its paging block. */
   boolean metricsPaging = true;
 
   /** Total of api/projects/search, or null for a 403. */
-  Integer realTotal = 6;
+  @Nullable Integer realTotal = 6;
 
   /** Metric keys api/metrics/search knows, served 20 per page. */
   final List<String> metrics = new ArrayList<>();
@@ -87,6 +89,11 @@ final class SonarAuditCheckFake implements AutoCloseable {
   SonarAuditCheckFake override(String path, Function<Request, Response> handler) {
     overrides.put(path, handler);
     return this;
+  }
+
+  /** The metric series of a project the park populated. */
+  Map<String, List<Object[]>> historyOf(String project) {
+    return Objects.requireNonNull(history.get(project), project);
   }
 
   FakeHttpServer server() {
@@ -129,7 +136,7 @@ final class SonarAuditCheckFake implements AutoCloseable {
   }
 
   /** Adds a search_projects component; a null date means never analysed. */
-  void project(String key, String name, String analysisDate) {
+  void project(String key, String name, @Nullable String analysisDate) {
     Map<String, Object> c = new LinkedHashMap<>();
     c.put("key", key);
     c.put("name", name);
@@ -138,7 +145,7 @@ final class SonarAuditCheckFake implements AutoCloseable {
     projects.add(c);
   }
 
-  static Map<String, Object> branch(String name, boolean main, String analysisDate) {
+  static Map<String, Object> branch(String name, boolean main, @Nullable String analysisDate) {
     Map<String, Object> b = new LinkedHashMap<>();
     b.put("name", name);
     b.put("isMain", main);

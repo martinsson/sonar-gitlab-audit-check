@@ -194,7 +194,7 @@ class SonarAuditCheckActivityTest extends SonarAuditCheckTestBase {
 
   @Test
   void historyTooThinForAVelocitySaysSo() {
-    fake.history.get("alpha-service").put("sqale_index", points(10, "650"));
+    fake.historyOf("alpha-service").put("sqale_index", points(10, "650"));
     assertThat(out())
         .contains(
             "\n  Vélocité de dette indisponible : moins de deux analyses chiffrées sur la fenêtre.\n");
@@ -202,8 +202,8 @@ class SonarAuditCheckActivityTest extends SonarAuditCheckTestBase {
 
   @Test
   void shrinkingCodeShowsDeltasButNoDebtPerLine() {
-    fake.history.get("alpha-service").put("ncloc", points(30, "1000", 10, "900"));
-    fake.history.get("alpha-service").put("sqale_index", points(30, "500", 10, "400"));
+    fake.historyOf("alpha-service").put("ncloc", points(30, "1000", 10, "900"));
+    fake.historyOf("alpha-service").put("sqale_index", points(30, "500", 10, "400"));
     assertThat(out())
         .contains(
             "  Δ lignes sur 90 j (20 j mesurés) : -100\n  Δ dette sur 90 j (min)       : -100\n\n")

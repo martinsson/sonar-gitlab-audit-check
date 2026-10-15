@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /** The SonarQube endpoints the inventory calls, answered from a {@link SonarAuditCheckFake}. */
 final class SonarAuditCheckRoutes {
@@ -141,7 +142,7 @@ final class SonarAuditCheckRoutes {
     return r != null ? r : ok(Map.of("links", List.of()));
   }
 
-  static Map<String, Object> measure(String component, String metric, String v) {
+  static Map<String, Object> measure(@Nullable String component, String metric, String v) {
     Map<String, Object> m = new LinkedHashMap<>();
     if (component != null) m.put("component", component);
     m.put("metric", metric);
@@ -159,11 +160,11 @@ final class SonarAuditCheckRoutes {
     return Map.of("pageIndex", page, "pageSize", size, "total", total);
   }
 
-  private static List<String> split(String csv) {
+  private static List<String> split(@Nullable String csv) {
     return csv == null || csv.isEmpty() ? List.of() : Arrays.asList(csv.split(","));
   }
 
-  private static String orDefault(String s, String d) {
+  private static String orDefault(@Nullable String s, String d) {
     return s == null ? d : s;
   }
 }

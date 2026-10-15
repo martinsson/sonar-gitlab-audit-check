@@ -40,7 +40,7 @@ class GitlabParallelTest {
             upTo(5),
             1,
             x -> {
-              threads.add(Thread.currentThread() == caller ? "caller" : "other");
+              threads.add(Thread.currentThread().equals(caller) ? "caller" : "other");
               return x * 10;
             });
     assertThat(out).containsExactly(10, 20, 30, 40, 50);
@@ -52,15 +52,16 @@ class GitlabParallelTest {
   @Test
   void aNonPositiveWidthMeansSequential() {
     Thread caller = Thread.currentThread();
-    List<Boolean> same = gl.map(upTo(3), 0, x -> Thread.currentThread() == caller);
+    List<Boolean> same = gl.map(upTo(3), 0, x -> Thread.currentThread().equals(caller));
     assertThat(same).containsExactly(true, true, true);
-    assertThat(gl.map(upTo(3), -5, x -> Thread.currentThread() == caller)).containsOnly(true);
+    assertThat(gl.map(upTo(3), -5, x -> Thread.currentThread().equals(caller))).containsOnly(true);
   }
 
   @Test
   void aSingleItemRunsInTheCallingThread() {
     Thread caller = Thread.currentThread();
-    assertThat(gl.map(List.of(1), 8, x -> Thread.currentThread() == caller)).containsExactly(true);
+    assertThat(gl.map(List.of(1), 8, x -> Thread.currentThread().equals(caller)))
+        .containsExactly(true);
   }
 
   @Test
@@ -68,7 +69,7 @@ class GitlabParallelTest {
     Thread caller = Thread.currentThread();
     List<Integer> out = gl.map(upTo(20), 4, x -> x * x);
     assertThat(out).containsExactlyElementsOf(upTo(20).stream().map(x -> x * x).toList());
-    assertThat(gl.map(upTo(2), 2, x -> Thread.currentThread() == caller)).containsOnly(false);
+    assertThat(gl.map(upTo(2), 2, x -> Thread.currentThread().equals(caller))).containsOnly(false);
     out.set(0, -1);
     assertThat(out.getFirst()).isEqualTo(-1);
   }

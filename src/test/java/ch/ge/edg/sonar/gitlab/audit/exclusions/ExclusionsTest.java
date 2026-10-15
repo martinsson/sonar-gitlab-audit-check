@@ -26,12 +26,14 @@ class ExclusionsTest {
   void entries_are_trimmed_and_comments_and_blank_lines_dropped() throws IOException {
     Exclusions e =
         load(
-            "team-a/sandbox        # throwaway prototype\n"
-                + "\n"
-                + "   # only a comment\n"
-                + "  training/**  \n"
-                + "*-archive#no space before the comment\n"
-                + "\t\n");
+            """
+            team-a/sandbox        # throwaway prototype
+
+               # only a comment
+              training/** \s
+            *-archive#no space before the comment
+            \t
+            """);
     assertThat(e.entries()).containsExactly("team-a/sandbox", "training/**", "*-archive");
     assertThat(e.patterns()).hasSize(3);
     assertThat(e.file()).isEqualTo(dir.resolve("exclusions.txt"));

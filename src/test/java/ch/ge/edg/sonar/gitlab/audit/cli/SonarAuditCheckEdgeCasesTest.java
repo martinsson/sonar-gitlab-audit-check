@@ -82,11 +82,9 @@ class SonarAuditCheckEdgeCasesTest extends SonarAuditCheckTestBase {
 
   @Test
   void aFlatTrendIsStable() {
-    fake.history
-        .get("alpha-service")
+    fake.historyOf("alpha-service")
         .put("violations", points(60, "100", 40, "101", 20, "100", 10, "101"));
-    fake.history
-        .get("alpha-service")
+    fake.historyOf("alpha-service")
         .put("ncloc", points(60, "1000", 40, "1000", 20, "1000", 10, "1000"));
     Cli.Result r = runCsv("--no-bindings");
     assertThat(r.out())
