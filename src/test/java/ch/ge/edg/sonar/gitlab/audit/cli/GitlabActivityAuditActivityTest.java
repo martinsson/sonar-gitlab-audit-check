@@ -9,10 +9,13 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.GitlabAuditFake.project;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -65,6 +68,25 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
     expectSelfie(file(csv())).toMatchDisk("csv");
     assertThat(fake.server.requests("/api/v4/projects/2/repository/commits")).isEmpty();
     assertThat(fake.server.requests("/api/graphql")).hasSize(1);
+  }
+
+  @Test
+  @SuspectedBug(
+      "a project GraphQL dates before the window should get 0 merges, reverts and active days")
+  void aProjectGraphqlDatesBeforeTheWindowGetsZeroCommitsButBlankMergesAndActiveDays()
+      throws IOException {
+    fake.enterprise(false)
+        .group("team-a", project(1, "team-a/alpha"))
+        .json("/api/graphql", "{\"data\":{\"p0\":" + lastCommit("sha-old", PAST) + "}}");
+
+    assertOk(runGroup("--floor", "0"));
+
+    Csv.Row alpha = Csv.read(csv()).rows().getFirst();
+    assertThat(alpha.str("commits_window")).isEqualTo("0");
+    assertThat(alpha.str("authors_window")).isEqualTo("0");
+    assertThat(alpha.str("merge_commits")).isEmpty();
+    assertThat(alpha.str("reverts")).isEmpty();
+    assertThat(alpha.str("active_days")).isEmpty();
   }
 
   @Test

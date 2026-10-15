@@ -6,6 +6,7 @@ import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
@@ -88,7 +89,8 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
   }
 
   @Test
-  void aBudgetOfOneStillFillsEveryTranche() {
+  @SuspectedBug("--top 1 should select one project, not one per tranche (three)")
+  void aBudgetOfOneStillFillsEveryTrancheAndSelectsThree() {
     park();
     Cli.Result r = run("--top", "1", "--floor", "0");
     assertOk(r);
@@ -111,6 +113,33 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
         .contains("    témoin aléatoire                 : 3\n")
         .contains("(plafond 3 par namespace)");
     assertThat(inv).doesNotContain("reliquat").doesNotContain("mono-auteur");
+  }
+
+  @Test
+  @SuspectedBug("the single-author and witness slices should respect the per-namespace cap")
+  void soloAuthorsAndTheWitnessGoPastTheNamespaceCap() {
+    for (int i = 0; i < 10; i++) add(1 + i, "team-a/p" + i, 50L, 10 + i, i % 2 == 0 ? 1 : 2);
+    Cli.Result r = run("--top", "20", "--validation-sample", "0");
+    assertOk(r);
+    assertThat(r.out())
+        .contains("  Sélectionnés                    : 8\n")
+        .contains("    tête de strate                   : 3\n")
+        .contains("    mono-auteur, forte activité      : 2\n")
+        .contains("    témoin aléatoire                 : 3\n")
+        .contains("  Namespaces représentés          : 1 (plafond 3 par namespace)");
+  }
+
+  @Test
+  @SuspectedBug("the single-author and witness slices should stay within the --top budget")
+  void soloAuthorsAndTheWitnessGoPastABudgetOfTwo() {
+    for (int i = 0; i < 6; i++) add(1 + i, "team-" + i + "/p", 50L, 10 + i, i % 2 == 0 ? 1 : 2);
+    Cli.Result r = run("--top", "2", "--validation-sample", "0");
+    assertOk(r);
+    assertThat(r.out())
+        .contains("  Budget                          : 2\n")
+        .contains("  Sélectionnés                    : 3\n")
+        .contains("    mono-auteur, forte activité      : 1\n")
+        .contains("    témoin aléatoire                 : 1\n");
   }
 
   @Test
