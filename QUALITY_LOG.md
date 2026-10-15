@@ -27,7 +27,10 @@ question. One entry per choice: what, why, and what the alternative would have b
   added to the `//DEPS` since NullAway fixes bring `@Nullable` into the sources.
 - **Selfie snapshots are only created with `-Dselfie=overwrite`** (this environment runs Selfie
   read-only by default). Never run that while refactoring: a snapshot that changes is a
-  behaviour change.
+  behaviour change. To accept an intended change in bulk, use the environment variable
+  instead: `SELFIE=overwrite mvn test`. Tried after a one-column rename: `-Dselfie=overwrite`
+  updated only 2 of the 5 affected snapshot files, and the environment variable needed two
+  passes before every test passed. Re-run the plain tests afterwards and review the `.ss` diff.
 - **Tests pin the current behaviour, bugs included.** The suspected bugs the test writers found
   are listed below, not fixed: fixing them is a behaviour change, to decide separately.
 - **No clock / sleeper seams yet.** Code calls `now()` and sleeps on retries. Tests use dates
