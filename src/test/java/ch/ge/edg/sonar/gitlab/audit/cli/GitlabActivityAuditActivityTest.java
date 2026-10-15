@@ -17,11 +17,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
 
-  private static String lastCommit(String sha, String date) {
+  private static String lastCommit(@Nullable String sha, String date) {
     return "{\"repository\":{\"rootRef\":\"main\",\"tree\":{\"lastCommit\":{\"sha\":"
         + (sha == null ? "null" : "\"" + sha + "\"")
         + ",\"committedDate\":\""

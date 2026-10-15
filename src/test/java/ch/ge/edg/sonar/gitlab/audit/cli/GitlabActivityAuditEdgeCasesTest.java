@@ -52,16 +52,26 @@ class GitlabActivityAuditEdgeCasesTest extends GitlabActivityAuditTestBase {
         .raw(
             2,
             ".gitlab-ci.yml",
-            "include:\n  - project: shared/no-id\n    file: n.yml\n"
-                + "  - project: shared/tpl\n    file: a.yml\n")
+            """
+            include:
+              - project: shared/no-id
+                file: n.yml
+              - project: shared/tpl
+                file: a.yml
+            """)
         .commits(2, daily("b", "bob", 3))
         .tree(2, ".gitlab-ci.yml");
     fake.json("/api/v4/projects/3/pipelines", pipelines("canceled", "2099-01-01T00:00:00Z"))
         .raw(
             3,
             ".gitlab-ci.yml",
-            "include:\n  - project: shared/tpl\n    file: a.yml\n"
-                + "  - project: shared/no-id\n    file: n.yml\n")
+            """
+            include:
+              - project: shared/tpl
+                file: a.yml
+              - project: shared/no-id
+                file: n.yml
+            """)
         .commits(3, withReverts("c", 25, 1))
         .tree(3, ".gitlab-ci.yml");
     fake.json(

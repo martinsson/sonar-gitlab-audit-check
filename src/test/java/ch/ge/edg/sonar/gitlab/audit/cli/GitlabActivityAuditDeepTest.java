@@ -15,6 +15,7 @@ import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class GitlabActivityAuditDeepTest extends GitlabActivityAuditTestBase {
@@ -47,7 +48,8 @@ class GitlabActivityAuditDeepTest extends GitlabActivityAuditTestBase {
     return commits;
   }
 
-  private static String mr(int iid, String created, String merged, String people) {
+  private static String mr(
+      int iid, @Nullable String created, @Nullable String merged, String people) {
     return "{\"iid\":"
         + iid
         + (created == null ? "" : ",\"created_at\":\"" + created + "\"")

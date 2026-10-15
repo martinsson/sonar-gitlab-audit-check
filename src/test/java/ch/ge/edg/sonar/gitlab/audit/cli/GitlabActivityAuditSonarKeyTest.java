@@ -69,8 +69,12 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
     fake.raw(
         4,
         ".gitlab-ci.yml",
-        "include:\n  - component: gitlab.example/sonar@1\n    inputs:\n"
-            + "      project_key: $CI_PROJECT_NAME\n");
+        """
+        include:
+          - component: gitlab.example/sonar@1
+            inputs:
+              project_key: $CI_PROJECT_NAME
+        """);
     add(5, ".gitlab-ci.yml");
     lint(5, "a: -Dsonar.projectKey=$CUSTOM_KEY\nsonar.projectKey: %OTHER%\n");
     add(6, ".gitlab-ci.yml");
@@ -130,12 +134,22 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
     fake.raw(
         1,
         ".gitlab-ci.yml",
-        "include:\n  - project: 'shared/ci-templates'\n    ref: v1\n    file:\n"
-            + "      - '/templates/sonar.yml'\n      - templates/build.yml\n"
-            + "  - project: 42\n    file: common.yml\n"
-            + "  - project: team-a/k2\n    file: \"beta.yml\"\n"
-            + "  - project: shared/missing\n    file: x.yml\n"
-            + "  - local: foo.yml\nstages: [build]\n");
+        """
+        include:
+          - project: 'shared/ci-templates'
+            ref: v1
+            file:
+              - '/templates/sonar.yml'
+              - templates/build.yml
+          - project: 42
+            file: common.yml
+          - project: team-a/k2
+            file: "beta.yml"
+          - project: shared/missing
+            file: x.yml
+          - local: foo.yml
+        stages: [build]
+        """);
     fake.raw(2, ".gitlab-ci.yml", "sonar.projectKey: k2-key\n");
     templates();
 
@@ -168,13 +182,25 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
         r ->
             Response.status(
                 200,
-                "sonar:\n  script: scan -Dsonar.projectKey=${CI_PROJECT_NAMESPACE}_${CI_PROJECT_NAME}\n"
-                    + "include:\n  - project: shared/ci-templates\n    file: nested.yml\n"));
+                """
+                sonar:
+                  script: scan -Dsonar.projectKey=${CI_PROJECT_NAMESPACE}_${CI_PROJECT_NAME}
+                include:
+                  - project: shared/ci-templates
+                    file: nested.yml
+                """));
     fake.raw(
         77,
         "nested.yml",
-        "include:\n  - project: shared/ci-templates\n    ref: v1\n    file: '/templates/sonar.yml'\n"
-            + "  - project: shared/ci-templates\n    file: level3.yml\nsast: {}\n");
+        """
+        include:
+          - project: shared/ci-templates
+            ref: v1
+            file: '/templates/sonar.yml'
+          - project: shared/ci-templates
+            file: level3.yml
+        sast: {}
+        """);
     fake.raw(
         77, "level3.yml", "include:\n  - project: shared/ci-templates\n    file: level4.yml\n");
     fake.raw(77, "level4.yml", "never: read\n");

@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
 class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
@@ -18,7 +19,7 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
   private final List<ObjectNode> projects = new ArrayList<>();
 
   /** A project with {@code history} commits in total and {@code n} in the window. */
-  private ObjectNode add(long id, String path, Long history, int n, int authors) {
+  private ObjectNode add(long id, String path, @Nullable Long history, int n, int authors) {
     ObjectNode p = project(id, path);
     if (history == null) p.remove("statistics");
     else ((ObjectNode) p.get("statistics")).put("commit_count", history);
