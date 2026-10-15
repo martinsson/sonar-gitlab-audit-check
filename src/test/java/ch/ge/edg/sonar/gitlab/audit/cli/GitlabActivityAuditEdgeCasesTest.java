@@ -61,6 +61,10 @@ class GitlabActivityAuditEdgeCasesTest extends GitlabActivityAuditTestBase {
             """)
         .commits(2, daily("b", "bob", 3))
         .tree(2, ".gitlab-ci.yml");
+    moreOddProjects();
+  }
+
+  private void moreOddProjects() {
     fake.json("/api/v4/projects/3/pipelines", pipelines("canceled", "2099-01-01T00:00:00Z"))
         .raw(
             3,
