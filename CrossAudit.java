@@ -4,12 +4,8 @@
 //DEPS com.opencsv:opencsv:5.9
 //DEPS info.picocli:picocli:4.7.6
 //DEPS org.yaml:snakeyaml:2.2
-//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/CrossAudit.java
-//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/console/ConsoleOut.java
-//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/csv/Csv.java
-//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/naming/NameMatcher.java
-//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/ProjectMapper.java
-//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/SonarToGitlab.java
+//DEPS org.jspecify:jspecify:1.0.0
+//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/**/*.java
 
 // Entry point for `jbang CrossAudit.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/CrossAudit.java.
 public class CrossAudit {

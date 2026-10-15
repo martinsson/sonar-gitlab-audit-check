@@ -28,3 +28,6 @@ target/
 /dump/
 /audit/
 .jqwik-database
+
+# Synthetic test fixtures are fine to commit
+!src/test/resources/**/*.csv

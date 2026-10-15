@@ -4,9 +4,8 @@
 //DEPS com.opencsv:opencsv:5.9
 //DEPS info.picocli:picocli:4.7.6
 //DEPS org.yaml:snakeyaml:2.2
-//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/GitLabProjectReport.java
-//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/console/ConsoleOut.java
-//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/gitlab/Gitlab.java
+//DEPS org.jspecify:jspecify:1.0.0
+//SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/**/*.java
 
 // Entry point for `jbang GitLabProjectReport.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/GitLabProjectReport.java.
 public class GitLabProjectReport {

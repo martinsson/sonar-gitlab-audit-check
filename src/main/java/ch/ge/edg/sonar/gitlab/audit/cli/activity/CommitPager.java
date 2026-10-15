@@ -1,0 +1,102 @@
+package ch.ge.edg.sonar.gitlab.audit.cli.activity;
+
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.isBlank;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.iso;
+
+import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import com.fasterxml.jackson.databind.JsonNode;
+import java.util.function.Consumer;
+
+/** Les commits de la branche par défaut sur la fenêtre, lus en REST. */
+final class CommitPager {
+
+  private final AuditContext ctx;
+
+  CommitPager(AuditContext ctx) {
+    this.ctx = ctx;
+  }
+
+  /** L'issue d'une pagination : lue jusqu'au bout, plafonnée, ou interrompue sur un statut. */
+  record Walk(boolean ok, int status, boolean truncated) {}
+
+  /** Compte sans pagination quand X-Total est là ; sinon pagine. */
+  int count(Proj p) {
+    String since = iso(ctx.windowStart());
+    Gitlab.Response r =
+        ctx.gl().get(path(p), params("ref_name", p.defaultBranch, "since", since, "per_page", "1"));
+    if (r.status() != 200) return 0;
+    Integer total = r.intHeader("x-total");
+    if (total != null) return total;
+    // GitLab omet X-Total quand le comptage serait coûteux. Absent ne veut pas
+    // dire zéro : on redemande une page pleine plutôt que de lire un en-tête
+    // manquant comme un 0 — c'est exactement la confusion « absent = zéro »
+    // qui a déjà coûté cher côté Sonar.
+    Gitlab.Response full =
+        ctx.gl()
+            .get(path(p), params("ref_name", p.defaultBranch, "since", since, "per_page", "100"));
+    return full.status() == 200 && full.json().isArray() ? full.json().size() : 0;
+  }
+
+  /**
+   * Une seule passe de pagination donne quatre choses : le volume, les auteurs distincts, le taux
+   * de commits de merge et l'étalement dans le temps. On la fait une fois et on garde les commits
+   * bruts.
+   */
+  void measure(Proj p) {
+    CommitTally tally = new CommitTally(ctx.windowStart(), ctx.bots());
+    Walk w =
+        walk(
+            p,
+            false,
+            (page, arr) -> {
+              // Repli d'index de cache quand GraphQL n'a pas répondu : les commits
+              // arrivent du plus récent au plus ancien, donc le premier de la
+              // première page est la tête de la branche par défaut.
+              if (page == 1 && isBlank(p.headSha)) p.headSha = text(arr.get(0), "id");
+              arr.forEach(tally::add);
+            });
+    if (!w.ok()) {
+      // Refus de permission ou erreur : on ne sait pas, et « on ne sait
+      // pas » ne doit surtout pas se lire comme « aucune activité ».
+      p.unmeasurable = "HTTP " + w.status();
+      return;
+    }
+    tally.applyTo(p, w.truncated());
+  }
+
+  /** Ce que reçoit chaque page non vide : son numéro et ses commits. */
+  interface PageVisitor {
+    void visit(int page, JsonNode commits);
+  }
+
+  /**
+   * Parcourt les pages de cent jusqu'à une page incomplète ou au plafond --max-commit-pages, qui
+   * marque le résultat tronqué. Le premier statut autre que 200 arrête tout.
+   */
+  Walk walk(Proj p, boolean withStats, PageVisitor visitor) {
+    int max = ctx.funnel().maxCommitPages;
+    boolean truncated = false;
+    for (int page = 1; page <= max; page++) {
+      Gitlab.Response r =
+          ctx.gl().get(path(p), Api.commitPage(p, ctx.windowStart(), page, withStats));
+      if (r.status() != 200) return new Walk(false, r.status(), truncated);
+      JsonNode arr = r.json();
+      if (!arr.isArray() || arr.isEmpty()) break;
+      visitor.visit(page, arr);
+      if (arr.size() < 100) break;
+      if (page == max) truncated = true;
+    }
+    return new Walk(true, 200, truncated);
+  }
+
+  /** Pour qui n'a qu'un commit à la fois à regarder. */
+  static PageVisitor each(Consumer<JsonNode> perCommit) {
+    return (page, arr) -> arr.forEach(perCommit);
+  }
+
+  private static String path(Proj p) {
+    return "projects/" + p.id + "/repository/commits";
+  }
+}

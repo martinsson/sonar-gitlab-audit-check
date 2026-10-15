@@ -1,0 +1,91 @@
+package ch.ge.edg.sonar.gitlab.audit.cli.activity;
+
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.YELLOW;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.pct;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.plural;
+
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+import java.util.stream.Collectors;
+
+/** Étape 1 : filtre de fraîcheur, et sa validation. */
+final class RecencyGate {
+
+  private final AuditContext ctx;
+
+  RecencyGate(AuditContext ctx) {
+    this.ctx = ctx;
+  }
+
+  /**
+   * last_activity_at est inutilisable pour *classer* — un commentaire de ticket le déplace — mais
+   * il est exactement bon pour *exclure*, parce qu'il se trompe dans le sens sûr : il est gonflé
+   * par les événements non-commit, donc tout projet ayant commité dans la fenêtre a forcément un
+   * last_activity_at récent. Le filtre sur-inclut ; il ne sous-inclut pas.
+   */
+  List<Proj> run(List<Proj> all) {
+    ctx.con().title("2. Filtre de fraîcheur (étape 1) — 0 appel");
+
+    List<Proj> kept = all.stream().filter(p -> p.excluded == null).toList();
+    for (Proj p : kept) {
+      OffsetDateTime last = p.lastActivity;
+      if (last == null || last.isBefore(ctx.windowStart())) {
+        p.excluded = "inactif > %dj".formatted(ctx.sinceDays());
+      }
+    }
+    List<Proj> fresh = kept.stream().filter(p -> p.excluded == null).toList();
+    ctx.counters().fresh = fresh.size();
+    ctx.out()
+        .printf(
+            "  Actifs sur %d jours              : %d / %d (%s)%n",
+            ctx.sinceDays(), fresh.size(), kept.size(), pct(fresh.size(), kept.size()));
+    ctx.con().say("    Coupe la plus rentable du pipeline : gratuite.", DIM);
+    return fresh;
+  }
+
+  /**
+   * La propriété « le filtre ne sous-inclut pas » a une classe de fuite connue : réécritures
+   * d'historique, imports et transferts peuvent désynchroniser last_activity_at des dates de
+   * commit. On l'échantillonne au lieu de la croire — zéro faux négatif rend la porte gratuite, un
+   * chiffre non nul remplace une hypothèse par une mesure.
+   */
+  void validate(List<Proj> all) {
+    int wanted = ctx.funnel().validationSample;
+    if (wanted <= 0) return;
+    List<Proj> below =
+        all.stream()
+            .filter(p -> p.excluded != null && p.excluded.startsWith("inactif"))
+            .collect(Collectors.toCollection(ArrayList::new));
+    if (below.isEmpty()) return;
+
+    Collections.shuffle(below, new Random(ctx.funnel().seed));
+    List<Proj> sample = below.subList(0, Math.min(wanted, below.size()));
+    int leaks = 0;
+    CommitPager pager = new CommitPager(ctx);
+    List<Integer> counts = ctx.gl().map(sample, ctx.concurrency(), pager::count);
+    for (int i = 0; i < sample.size(); i++) {
+      int n = counts.get(i);
+      if (n > 0) {
+        leaks++;
+        sample.get(i).leaked = true;
+        sample.get(i).commits = n;
+      }
+    }
+    ctx.counters().sampleSize = sample.size();
+    ctx.counters().sampleLeaks = leaks;
+    ctx.out()
+        .printf(
+            "  Échantillon de contrôle sous la coupe : %d projets, %d faux négatif%s (%s)%n",
+            sample.size(), leaks, plural(leaks), pct(leaks, sample.size()));
+    if (leaks > 0) {
+      ctx.con().say("    Le filtre laisse passer des projets actifs. Chiffre à publier", YELLOW);
+      ctx.con().say("    tel quel dans le rapport : la sélection n'est pas exhaustive.", YELLOW);
+    } else {
+      ctx.con().say("    Aucune fuite mesurée : la porte tient, et elle reste gratuite.", DIM);
+    }
+  }
+}
