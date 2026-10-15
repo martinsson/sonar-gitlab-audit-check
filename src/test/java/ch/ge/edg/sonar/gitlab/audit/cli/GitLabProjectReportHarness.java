@@ -87,7 +87,12 @@ abstract class GitLabProjectReportHarness {
     args.addAll(List.of(extra));
     if (!args.contains("--token")) args.addAll(List.of("--token", "glpat-test"));
     if (!args.contains("--color")) args.addAll(List.of("--color", "never"));
-    return Cli.run(new GitLabProjectReport(), args.toArray(String[]::new));
+    return Cli.run(command(), args.toArray(String[]::new));
+  }
+
+  /** The command under test, on the fixture's clock. */
+  GitLabProjectReport command() {
+    return new GitLabProjectReport(fx.clock());
   }
 
   /** The output with the dates that move with the clock replaced by names. */

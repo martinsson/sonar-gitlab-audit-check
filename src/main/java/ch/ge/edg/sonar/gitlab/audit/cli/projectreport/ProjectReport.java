@@ -5,6 +5,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.c;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.io.PrintStream;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Optional;
@@ -20,17 +21,21 @@ public final class ProjectReport {
   private final Settings settings;
   private final Report report;
   private final PrintStream err;
+  private final Clock clock;
 
-  public ProjectReport(Gitlab gl, Settings settings, PrintStream out, PrintStream err) {
+  /** {@code clock} : l'instant de référence, lu une fois au début du rapport. */
+  public ProjectReport(
+      Gitlab gl, Settings settings, PrintStream out, PrintStream err, Clock clock) {
     this.api = new ProjectApi(gl, settings);
     this.settings = settings;
     this.report = new Report(out);
     this.err = err;
+    this.clock = clock;
   }
 
   /** 0 quand le rapport est complet, 2 quand le projet est introuvable. */
   public int run(String projectPath) {
-    LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
+    LocalDateTime now = LocalDateTime.ofInstant(clock.instant(), ZoneId.systemDefault());
     LocalDateTime since = now.minusDays(settings.days());
 
     Optional<Project> found = fetchProject(projectPath);

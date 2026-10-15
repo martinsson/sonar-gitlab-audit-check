@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
+import java.time.Clock;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
@@ -113,6 +114,17 @@ public class GitLabProjectReport implements Callable<Integer> {
       description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
   String colorMode = "auto";
 
+  /** L'horloge des mesures « depuis maintenant » ; les tests en fixent une. */
+  private final Clock clock;
+
+  public GitLabProjectReport() {
+    this(Clock.systemUTC());
+  }
+
+  GitLabProjectReport(Clock clock) {
+    this.clock = clock;
+  }
+
   public static void main(String[] args) {
     ConsoleOut.install();
     System.exit(new CommandLine(new GitLabProjectReport()).execute(args));
@@ -144,7 +156,7 @@ public class GitLabProjectReport implements Callable<Integer> {
     Gitlab gl =
         new Gitlab(new Gitlab.Connection(instance, token, timeout, insecure, dumpDir), out, err);
 
-    return new ProjectReport(gl, settings, out, err).run(ProjectPath.normalize(path));
+    return new ProjectReport(gl, settings, out, err, clock).run(ProjectPath.normalize(path));
   }
 
   private static boolean isBlank(@Nullable String s) {

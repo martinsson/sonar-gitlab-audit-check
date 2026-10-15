@@ -5,6 +5,8 @@ import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.UncheckedIOException;
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -19,12 +21,23 @@ import org.jspecify.annotations.Nullable;
  * {@link FakeHttpServer}. Dates the report measures against now are given as "so long ago",
  * relative to the instant this fixture was built; dates whose wall-clock time matters (authored
  * dates: weekday, hour of the author) are absolute.
+ *
+ * <p>"Now" is a fixed instant, shared with the report through {@link #clock()}: the report counts
+ * calendar days, so a fixture relative to the real clock would count one more or one less day
+ * depending on the hour of the run.
  */
 final class GitLabProjectReportFakeGitlab {
 
   static final String API = "/api/v4/projects/";
 
-  final LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+  static final Instant NOW = Instant.parse("2026-06-15T12:00:00Z");
+
+  final LocalDateTime now = LocalDateTime.ofInstant(NOW, ZoneOffset.UTC);
+
+  /** The clock the report under test reads: stopped at {@link #NOW}. */
+  Clock clock() {
+    return Clock.fixed(NOW, ZoneOffset.UTC);
+  }
 
   /** An instant {@code days} days and {@code hours} hours ago, as GitLab writes it (UTC, Z). */
   String ago(int days, int hours) {
