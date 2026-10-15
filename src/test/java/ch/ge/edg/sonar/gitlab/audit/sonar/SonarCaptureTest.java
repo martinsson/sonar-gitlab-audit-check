@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -105,6 +106,26 @@ class SonarCaptureTest {
     assertThat(r.body()).isEqualTo("{}");
     assertThat(err.toString(StandardCharsets.UTF_8)).startsWith("  (capture non écrite : ");
     assertThat(dump.resolve("index.txt")).doesNotExist();
+  }
+
+  @Test
+  @SuspectedBug(
+      "a captured 403 or 404 should replay with its status; today the body comes back as a 200")
+  void aCaptured403ReplaysAsA200WithTheErrorBody() throws Exception {
+    server.on("/api/denied", r -> Response.status(403, "{\"errors\":[{\"msg\":\"no\"}]}"));
+    Path dir = tmp.resolve("d");
+    Sonar live =
+        new Sonar(
+            new SonarConnection(server.url(), "t", null, 5, false),
+            new Captures(dir, null, System.err));
+    assertThat(live.get("api/denied", Map.of()).status()).isEqualTo(403);
+
+    Sonar replay =
+        new Sonar(
+            new SonarConnection(server.url(), "t", null, 5, false),
+            new Captures(null, dir, System.err));
+    assertThat(replay.get("api/denied", Map.of()))
+        .isEqualTo(new Sonar.Response(200, "{\"errors\":[{\"msg\":\"no\"}]}"));
   }
 
   @Test

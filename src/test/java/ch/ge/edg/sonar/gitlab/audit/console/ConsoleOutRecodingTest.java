@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.console;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -95,6 +96,7 @@ class ConsoleOutRecodingTest {
   }
 
   @Test
+  @SuspectedBug("an invalid UTF-8 byte should be replaced, not block everything written after it")
   void an_invalid_utf8_byte_swallows_everything_written_after_it() throws IOException {
     // Current behaviour (suspected bug): the decoder REPORTs malformed input, the bad byte stays
     // pending forever, and nothing after it ever reaches the console.

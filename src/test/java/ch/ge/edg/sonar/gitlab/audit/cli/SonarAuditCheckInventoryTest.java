@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,9 @@ class SonarAuditCheckInventoryTest extends SonarAuditCheckTestBase {
   }
 
   @Test
-  void paginationStopsAtFortyPages() throws IOException {
+  @SuspectedBug(
+      "the message should state the real limit (40 pages of the returned page size), not 20 000")
+  void fortyPagesOfOneProjectAreReportedAsInterruptedAtTwentyThousandProjects() throws IOException {
     fake.projects.clear();
     for (int i = 0; i < 41; i++) fake.project("p-%02d".formatted(i), "P " + i, null);
     fake.searchPageSize = 1;
