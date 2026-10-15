@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Files;
@@ -248,6 +249,19 @@ class GitlabClientTest {
               "0002-api_v4_user.json");
     }
     assertThat(dir.resolve("0002-api_v4_user.json")).hasContent("{\"message\":\"401\"}");
+  }
+
+  @Test
+  @SuspectedBug("with only null parameters the URL should not end in '?'")
+  void onlyNullParametersLeaveATrailingQuestionMarkSeenInTheDumpName() throws Exception {
+    server.json("/api/v4/projects", "[]");
+    Map<String, String> params = new LinkedHashMap<>();
+    params.put("skipped", null);
+    new Gitlab(server.url(), "t", 5, false, tmp).get("projects", params);
+    try (var files = Files.list(tmp)) {
+      assertThat(files.map(p -> p.getFileName().toString()).toList())
+          .containsExactly("0001-api_v4_projects_.json");
+    }
   }
 
   @Test

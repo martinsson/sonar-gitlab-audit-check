@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
@@ -142,6 +143,20 @@ class GitlabActivityAuditEdgeCasesTest extends GitlabActivityAuditTestBase {
     assertThat(r.out())
         .contains("  CI lue : 0 par ci/lint, 1 par repli, 0 depuis le cache.\n")
         .contains("    ci/lint refusé (HTTP 404) : le jeton n'a pas le droit de \n");
+  }
+
+  @Test
+  @SuspectedBug("the ci/lint refusal message should not end its first line with a space")
+  void theLintRefusalMessageEndsItsFirstLineWithASpace() {
+    fake.commits(1, daily("x", "dev", 2)).tree(1, ".gitlab-ci.yml");
+    fake.route("/api/v4/projects/1/ci/lint", r -> Response.status(403, "{}"))
+        .raw(1, ".gitlab-ci.yml", "x: 1\n");
+    fake.enterprise(false).group("team-a", project(1, "team-a/l1"));
+    Cli.Result r = fake.run("--group", "team-a", "--deep", "--graphql=false", "--floor", "0");
+    assertOk(r);
+    assertThat(r.out())
+        .contains("    ci/lint refusé (HTTP 403) : le jeton n'a pas le droit de \n")
+        .doesNotContain("    ci/lint refusé (HTTP 403) : le jeton n'a pas le droit de\n");
   }
 
   @Test
