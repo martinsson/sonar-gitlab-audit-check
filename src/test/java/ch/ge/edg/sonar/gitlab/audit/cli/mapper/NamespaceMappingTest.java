@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -46,6 +47,8 @@ class NamespaceMappingTest {
   }
 
   @Test
+  @SuspectedBug(
+      "Only IOException is caught, so a directory escapes the loader; a fix would report it on err")
   void a_directory_fails_inside_the_yaml_reader_uncaught() {
     String asDir = dir.toString();
     assertThatThrownBy(() -> NamespaceMapping.load(asDir, err)).isInstanceOf(YAMLException.class);
@@ -71,6 +74,8 @@ class NamespaceMappingTest {
   }
 
   @Test
+  @SuspectedBug(
+      "Lookup is upper-cased but file keys are kept as written; a fix would match lowercase keys too")
   void a_lowercase_namespace_in_the_file_never_matches() throws Exception {
     Path f = Files.writeString(dir.resolve("m.yaml"), "zzmap-low: zz_low_prefix\n");
     NamespaceMapping m = NamespaceMapping.load(f.toString(), err);
@@ -78,6 +83,8 @@ class NamespaceMappingTest {
   }
 
   @Test
+  @SuspectedBug(
+      "A non-string value escapes the loader as ClassCastException; a fix would report it on err")
   void a_non_string_value_fails_with_a_class_cast() throws Exception {
     Path f = Files.writeString(dir.resolve("m.yaml"), "ZZMAP-NUM: 42\n");
     assertThatThrownBy(() -> NamespaceMapping.load(f.toString(), err))

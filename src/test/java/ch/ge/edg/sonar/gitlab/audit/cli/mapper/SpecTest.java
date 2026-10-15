@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -43,6 +44,13 @@ class SpecTest {
     assertThat(m)
         .isEqualTo(
             new KeyMethod("ref-1", "ref-1", Kind.EXACT, "left col", "right col", null, null));
+  }
+
+  @Test
+  @SuspectedBug("The ?col=val value is not trimmed, so '? kind = v' never matches a 'v' cell")
+  void a_spaced_filter_value_never_matches_the_cell() {
+    KeyMethod m = KeyMethod.parse("x:a=b? kind = v", Kind.LINK);
+    assertThat(m.accepts(row("kind", "v"))).isFalse();
   }
 
   @Test

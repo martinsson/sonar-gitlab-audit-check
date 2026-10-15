@@ -7,6 +7,7 @@ import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.IOException;
 import java.nio.file.Path;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,6 +85,19 @@ class CrossAuditMappingReuseTest {
     expectSelfie(scrub(r.out(), dir)).toMatchDisk("stdout");
     expectSelfie(read(mapping)).toMatchDisk("appariement");
     expectSelfie(read(dir.resolve("sonar-gitlab.csv"))).toMatchDisk("sonarGitlab");
+  }
+
+  @Test
+  @SuspectedBug("The rewritten rejected row loses its droite_key, so the pair comes back next run")
+  void a_rejected_pair_comes_back_in_sonar_gitlab_on_the_second_run() throws IOException {
+    String rejectedPair = "\"alpha-key\";\"Alpha Service\";\"team-a/alpha-service\";";
+    run();
+    assertThat(read(mapping)).contains("\"team-a/alpha-service\";\"\";\"rejeté à la main\"");
+    assertThat(read(dir.resolve("sonar-gitlab.csv"))).doesNotContain(rejectedPair);
+
+    run();
+
+    assertThat(read(dir.resolve("sonar-gitlab.csv"))).contains(rejectedPair);
   }
 
   @Test

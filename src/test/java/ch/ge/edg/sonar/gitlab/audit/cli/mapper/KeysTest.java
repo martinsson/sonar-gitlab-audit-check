@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import org.junit.jupiter.api.Test;
 
 /** Key normalisation, repository links and the namespace-mapping key helpers. */
@@ -97,6 +98,8 @@ class KeysTest {
   }
 
   @Test
+  @SuspectedBug(
+      "mappedSonarKey takes @Nullable but throws on null; a fix would return an empty list")
   void mapped_sonar_key_of_null_throws_before_its_null_check() {
     assertThatThrownBy(() -> Keys.mappedSonarKey(null)).isInstanceOf(NullPointerException.class);
   }
