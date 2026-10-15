@@ -18,6 +18,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
@@ -78,17 +79,18 @@ public final class Gitlab {
     }
 
     /**
-     * {@code null} quand la réponse est refusée ou illisible : une liste vide dirait « rien à lire
-     * », et la pagination typée doit pouvoir rapporter « réponse illisible » au lieu d'un plancher.
+     * Vide quand la réponse est refusée ou illisible : une liste vide dirait « rien à lire », et la
+     * pagination typée doit pouvoir rapporter « réponse illisible » au lieu d'un plancher.
      */
-    @SuppressWarnings("PMD.ReturnEmptyCollectionRatherThanNull") // null = illisible, pas « vide »
-    public <T> @Nullable List<T> asList(Class<T> type) {
-      if (!ok() || isBlank(body)) return null;
+    public <T> Optional<List<T>> asList(Class<T> type) {
+      if (!ok() || isBlank(body)) return Optional.empty();
       try {
-        return MAPPER.readValue(
-            body, MAPPER.getTypeFactory().constructCollectionType(List.class, type));
+        List<T> list =
+            MAPPER.readValue(
+                body, MAPPER.getTypeFactory().constructCollectionType(List.class, type));
+        return Optional.ofNullable(list);
       } catch (IOException e) {
-        return null;
+        return Optional.empty();
       }
     }
 
@@ -227,9 +229,9 @@ public final class Gitlab {
       if (!r.ok()) {
         return new Page<>(items, false, "HTTP " + r.status() + " — " + r.errorMessage());
       }
-      List<T> batch = r.asList(type);
-      if (batch == null) return new Page<>(items, false, "réponse illisible");
-      items.addAll(batch);
+      Optional<List<T>> batch = r.asList(type);
+      if (batch.isEmpty()) return new Page<>(items, false, "réponse illisible");
+      items.addAll(batch.get());
       page = nextPage(r);
     }
     boolean truncated = items.size() > max || !page.isBlank();
@@ -262,7 +264,7 @@ public final class Gitlab {
 
   /** Même chose, en conservant les résultats dans l'ordre des entrées. */
   public <T, R> List<R> map(List<T> items, int concurrency, Function<T, R> work) {
-    return Parallel.map(items, concurrency, work);
+    return Parallel.map(items, concurrency, work::apply);
   }
 
   /** Un en-tête X-Next-Page absent vaut un en-tête vide : la fin. */

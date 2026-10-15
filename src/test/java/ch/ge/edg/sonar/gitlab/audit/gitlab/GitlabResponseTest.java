@@ -51,12 +51,13 @@ class GitlabResponseTest {
   @Test
   void asListReadsATypedListOnlyFromAGoodResponse() {
     assertThat(resp(200, "[{\"name\":\"a\",\"size\":1},{\"name\":\"b\"}]").asList(Item.class))
-        .containsExactly(new Item("a", 1), new Item("b", 0));
-    assertThat(resp(500, "[]").asList(Item.class)).isNull();
-    assertThat(resp(200, "").asList(Item.class)).isNull();
-    assertThat(resp(200, null).asList(Item.class)).isNull();
-    assertThat(resp(200, "{\"name\":\"a\"}").asList(Item.class)).isNull();
-    assertThat(resp(299, "[]").asList(Item.class)).isEmpty();
+        .hasValue(List.of(new Item("a", 1), new Item("b", 0)));
+    assertThat(resp(500, "[]").asList(Item.class)).isEmpty();
+    assertThat(resp(200, "").asList(Item.class)).isEmpty();
+    assertThat(resp(200, null).asList(Item.class)).isEmpty();
+    assertThat(resp(200, "{\"name\":\"a\"}").asList(Item.class)).isEmpty();
+    assertThat(resp(299, "[]").asList(Item.class)).hasValue(List.of());
+    assertThat(resp(200, "null").asList(Item.class)).isEmpty();
   }
 
   @Test

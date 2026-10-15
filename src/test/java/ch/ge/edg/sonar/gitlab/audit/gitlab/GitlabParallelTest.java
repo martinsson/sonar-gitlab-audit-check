@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.gitlab;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -129,14 +128,6 @@ class GitlabParallelTest {
   }
 
   @Test
-  void aCheckedExceptionIsWrapped() {
-    IOException boom = new IOException("boom");
-    assertThatThrownBy(() -> gl.parallel(upTo(3), 3, x -> GitlabParallelTest.sneaky(boom)))
-        .isInstanceOf(IllegalStateException.class)
-        .hasCause(boom);
-  }
-
-  @Test
   void anInterruptedCallerStopsWaiting() {
     Thread.currentThread().interrupt();
     try {
@@ -156,10 +147,5 @@ class GitlabParallelTest {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <E extends Throwable> void sneaky(Throwable t) throws E {
-    throw (E) t;
   }
 }

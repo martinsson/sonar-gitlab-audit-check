@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.sonar;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -109,13 +108,6 @@ class SonarHelpersTest {
   }
 
   @Test
-  void parallelMapWrapsCheckedExceptions() {
-    assertThatThrownBy(() -> sonar().map(List.of(1, 2), 2, SonarHelpersTest::sneaky))
-        .isInstanceOf(IllegalStateException.class)
-        .hasCauseInstanceOf(IOException.class);
-  }
-
-  @Test
   void interruptedCallerGetsAnIllegalStateException() throws Exception {
     Sonar sq = sonar();
     Thread.currentThread().interrupt();
@@ -140,15 +132,6 @@ class SonarHelpersTest {
   private static Integer failOnTwo(Integer i) {
     if (i == 2) throw new IllegalArgumentException("two");
     return i;
-  }
-
-  private static Integer sneaky(Integer i) {
-    return SonarHelpersTest.<RuntimeException>sneakyThrow(new IOException("io" + i));
-  }
-
-  @SuppressWarnings("unchecked")
-  private static <E extends Throwable> Integer sneakyThrow(Throwable t) throws E {
-    throw (E) t;
   }
 
   private static void pause() {

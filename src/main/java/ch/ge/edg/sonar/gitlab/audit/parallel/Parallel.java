@@ -6,10 +6,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * Des appels réseau indépendants, faits en recouvrement et bornés en largeur.
@@ -24,6 +23,12 @@ public final class Parallel {
 
   private Parallel() {}
 
+  /** Une tâche par élément ; elle peut lever une exception vérifiée, relancée enveloppée. */
+  @FunctionalInterface
+  public interface Task<T, R> {
+    R apply(T item) throws Exception;
+  }
+
   /** Chaque élément passé à {@code work}, au plus {@code concurrency} à la fois. */
   public static <T> void forEach(List<T> items, int concurrency, Consumer<T> work) {
     map(
@@ -31,17 +36,15 @@ public final class Parallel {
         concurrency,
         item -> {
           work.accept(item);
-          return null;
+          return item; // le résultat est jeté ; Task ne rend pas null
         });
   }
 
   /** Même chose, en conservant les résultats dans l'ordre des entrées. */
-  public static <T, R> List<R> map(List<T> items, int concurrency, Function<T, R> work) {
+  public static <T, R> List<R> map(List<T> items, int concurrency, Task<T, R> work) {
     if (items.isEmpty()) return List.of();
     int width = Math.max(1, concurrency);
-    if (width == 1 || items.size() == 1) {
-      return items.stream().map(work).collect(Collectors.toCollection(ArrayList::new));
-    }
+    if (width == 1 || items.size() == 1) return inline(items, work);
     Semaphore inFlight = new Semaphore(width);
     try (ExecutorService pool = Executors.newVirtualThreadPerTaskExecutor()) {
       List<Future<R>> futures = new ArrayList<>(items.size());
@@ -52,8 +55,20 @@ public final class Parallel {
     }
   }
 
-  private static <T, R> R bounded(Semaphore inFlight, Function<T, R> work, T item)
-      throws InterruptedException {
+  /**
+   * Dans le fil de l'appelant, une tâche après l'autre, avec les mêmes exceptions qu'en parallèle.
+   */
+  private static <T, R> List<R> inline(List<T> items, Task<T, R> work) {
+    List<R> out = new ArrayList<>(items.size());
+    for (T item : items) {
+      FutureTask<R> task = new FutureTask<>(() -> work.apply(item));
+      task.run();
+      out.add(await(task));
+    }
+    return out;
+  }
+
+  private static <T, R> R bounded(Semaphore inFlight, Task<T, R> work, T item) throws Exception {
     inFlight.acquire();
     try {
       return work.apply(item);

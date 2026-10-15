@@ -185,7 +185,7 @@ public final class Sonar {
 
   /** Voir {@link Parallel#map} : largeur bornée, ordre conservé, exceptions relancées. */
   public <T, R> List<R> map(List<T> items, int concurrency, Function<T, R> work) {
-    return Parallel.map(items, concurrency, work);
+    return Parallel.map(items, concurrency, work::apply);
   }
 
   public <T> void parallel(List<T> items, int concurrency, Consumer<T> work) {

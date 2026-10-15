@@ -17,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.Normalizer;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -92,12 +93,10 @@ public final class ConsoleOut {
   /**
    * La console, si la JVM parle à un terminal. System.console() peut encore rendre null : depuis
    * JDK 25 il le fait de nouveau quand l'entrée et la sortie sont redirigées (vérifié sur JDK 26),
-   * alors que SystemConsoleNull d'Error Prone date du comportement de JDK 22, d'où la suppression.
+   * alors que SystemConsoleNull d'Error Prone date du comportement de JDK 22 : d'où l'Optional.
    */
-  @SuppressWarnings("SystemConsoleNull")
   private static @Nullable Console terminal() {
-    Console c = System.console();
-    return c != null && c.isTerminal() ? c : null;
+    return Optional.ofNullable(System.console()).filter(Console::isTerminal).orElse(null);
   }
 
   /**
