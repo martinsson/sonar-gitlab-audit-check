@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -100,6 +101,24 @@ class ProjectReportUnitTest {
     assertThat(Dates.parseLocal("nope")).isNull();
     assertThat(Dates.dateOnly("2024-03-04T23:30:00Z")).isEqualTo("2024-03-05");
     assertThat(Dates.dateOnly("")).isEqualTo("n/a");
+  }
+
+  @Test
+  @SuspectedBug("the day of a commit should not depend on the time zone of the machine")
+  void the_same_instant_falls_on_another_day_in_another_system_zone() {
+    String lateEvening = "2024-03-04T23:30:00Z";
+    TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
+    String inUtc = Dates.dateOnly(lateEvening);
+    TimeZone.setDefault(TimeZone.getTimeZone("Europe/Zurich"));
+    assertThat(List.of(inUtc, Dates.dateOnly(lateEvening)))
+        .containsExactly("2024-03-04", "2024-03-05");
+  }
+
+  @Test
+  @SuspectedBug("decimals should not follow the default locale: a French machine writes 1,5")
+  void hours_use_a_decimal_comma_under_a_french_default_locale() {
+    Locale.setDefault(Locale.FRANCE);
+    assertThat(Format.hours(1.5)).isEqualTo("1,5 h");
   }
 
   @Test

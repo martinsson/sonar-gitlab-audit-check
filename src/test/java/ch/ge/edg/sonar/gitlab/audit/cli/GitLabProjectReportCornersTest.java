@@ -7,6 +7,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.not
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,25 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
         .doesNotContain("Écart médian")
         .doesNotContain("dormant")
         .contains("  Actifs sur 90 j                 : 0 sur 1");
+  }
+
+  @Test
+  @SuspectedBug("the two lines under « Aucune MR créée » should share one indentation")
+  void no_merge_request_explains_itself_on_two_unevenly_indented_lines() {
+    project(fx.project(ID, PATH, "main", false));
+    commits(List.of(commit("Alice", "alice@example.com", MON, fx.ago(2, 0), new int[] {1, 1})));
+    contributors(0);
+    mrs(List.of());
+
+    Cli.Result r = run();
+
+    assertThat(r.out())
+        .contains(
+            """
+              Aucune MR créée sur la fenêtre.
+                Le travail arrive donc directement sur la branche par défaut.
+              Ce n'est pas une absence de données : c'est l'absence de revue.
+            """);
   }
 
   @Test

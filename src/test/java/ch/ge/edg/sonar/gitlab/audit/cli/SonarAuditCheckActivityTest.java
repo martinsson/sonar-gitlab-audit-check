@@ -6,6 +6,8 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.SonarAuditCheckFake.points;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -140,6 +142,30 @@ class SonarAuditCheckActivityTest extends SonarAuditCheckTestBase {
     assertThat(out())
         .contains(
             "  Analyses sur 90 j            : 2\n  Versions livrées                : 0\n  Cadence moyenne                 : 1 analyse / 0.5 j\n");
+  }
+
+  @Test
+  @SuspectedBug(
+      "two analyses ten days apart should give one analysis every 10.0 days: divide by gaps")
+  void twoAnalysesTenDaysApartGiveACadenceOfFiveDays() {
+    String older = fake.ago(12);
+    String newer = fake.ago(2);
+    fake.override(
+        "/api/project_analyses/search",
+        q -> ok(Map.of("analyses", List.of(Map.of("date", newer), Map.of("date", older)))));
+    assertThat(out()).contains("  Cadence moyenne                 : 1 analyse / 5.0 j\n");
+  }
+
+  @Test
+  @SuspectedBug("the probe should not count a link with a blank URL, which the CSV leaves out")
+  void linksProbeCountsALinkWithABlankUrl() throws IOException {
+    fake.override(
+        "/api/project_links/search",
+        q -> ok(Map.of("links", List.of(Map.of("name", "vide", "url", " ")))));
+    assertThat(stable(runCsv("--main-branch-only", "--no-trend").out()))
+        .contains("  OK       Liens du projet (project_links/search)     1 lien(s)\n")
+        .contains("  Avec au moins un lien saisi    : 0 / 4\n");
+    assertThat(cell(SonarAuditCheckFake.SAMPLE, "liens")).isEmpty();
   }
 
   @Test
