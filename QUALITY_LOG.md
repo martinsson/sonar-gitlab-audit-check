@@ -60,44 +60,84 @@ question. One entry per choice: what, why, and what the alternative would have b
 
 ## Suspected bugs pinned by the tests (behaviour unchanged)
 
-- ProjectMapper `mappedSonarKey(null)` throws NPE before its own null check.
-- ProjectMapper `mapNamespace` upper-cases the GitLab namespace but YAML keys are kept as written:
-  lowercase keys never match.
-- ProjectMapper: only `IOException` is caught when loading the YAML; a non-string value or a
-  directory escapes the static initialiser.
-- ProjectMapper `?col=val` filter: the value is not trimmed, `? kind = v` never matches.
-- ProjectMapper reuse: a manual row whose key vanished is counted in no total (totals don't add
-  up), and is replaced by the fresh match in the rewritten file; a manual pair does not withdraw
-  a suggestion of the same right row to another left row.
-- CrossAudit / SonarToGitlab: a rejected pair comes back on the second run — the rewritten
-  `appariement.csv` clears `droite_key` on a rejected row, so the rejection only covers the path.
-- SonarToGitlab: the tie-break between originals with 0 commits ignores `last_activity_at`
-  although the comparator's doc says "puis la plus récente".
-- ConsoleOut `Recoding`: the decoder reports malformed input instead of replacing it; one invalid
-  UTF-8 byte silences everything written after it. `if (r.isError()) r.isMalformed();` is a no-op.
-- Locale: CrossAudit (`%+.1f`), SonarRank, GitLabProjectReport and GitlabActivityAudit format
-  decimals with the default locale (a French machine writes `1,50` in CSVs). Tests pin
-  `Locale.ROOT`.
-- SonarRank `truncate` returns `max+2` characters; projects excluded for too few signals still
-  weigh in their stratum's percentiles and quota; "Actifs (< 90 j)" includes exactly 90 days.
-- GitlabActivityAudit selection: `--top 1` selects 3 projects; the single-author and random
-  witness slices ignore the budget and the per-namespace cap.
-- GitlabActivityAudit: a project GraphQL says has no recent commit gets 0 commits but blank
-  merges/active days.
-- Gitlab: with all parameters null the URL still ends in `?`. Commit queries build their
-  parameters with `Map.of`, whose order varies between JVM runs, so `--dump-dir` file names are
-  not reproducible.
-- SonarAuditCheck `parseDate`: `ISO_OFFSET_DATE_TIME` rejects Sonar's `+0200`, so the offset is
-  always dropped (the opposite of the comment).
-- Sonar replay: captures keep the body, not the status: a 403 replays as "no binding", a 404
-  history as an empty series.
-- SonarAuditCheck: "interrompue à 20 000 projets" is really 40 pages of whatever page size;
-  analysis cadence divides by the number of analyses instead of gaps; the `project_links` probe
-  counts blank URLs the CSV leaves out.
-- GitLabProjectReport: falls back to `https://gitlab.com` on a blank `--url` (untested: would hit
-  the internet); reads dates in the system time zone.
-- Cosmetic: "1 réponses 403", "1 projets", `→  (manuel)` double space, uneven indentation in the
-  "Aucune MR créée" block, a trailing space in the ci/lint refusal message.
+Each one is pinned by a small named test marked `@SuspectedBug("…")` (test helper
+`testing/SuspectedBug`, JUnit tag `suspected-bug`). The test asserts today's behaviour: fixing the
+bug means changing that test on purpose. Run them all with `mvn test -Dgroups=suspected-bug`
+(35 tests).
+
+**ProjectMapper, CrossAudit, SonarToGitlab**
+
+- `mappedSonarKey(null)` throws NPE before its own null check →
+  `KeysTest.mapped_sonar_key_of_null_throws_before_its_null_check`
+- `mapNamespace` upper-cases the namespace but YAML keys are kept as written, so lowercase keys
+  never match → `NamespaceMappingTest.a_lowercase_namespace_in_the_file_never_matches`
+- Only `IOException` is caught when loading the YAML; a directory or a non-string value escapes
+  the static initialiser → `NamespaceMappingTest.a_directory_fails_inside_the_yaml_reader_uncaught`,
+  `…a_non_string_value_fails_with_a_class_cast`
+- `?col=val` filter value not trimmed → `SpecTest.a_spaced_filter_value_never_matches_the_cell`
+- Reuse: a manual row whose key vanished is in no total, and is rewritten with the fresh match; a
+  manual pair leaves a suggestion of the same right row in place →
+  `ProjectMapperReuseSuspectedBugsTest` (3 tests)
+- A rejected pair comes back on the second run (the rewritten `appariement.csv` clears
+  `droite_key`) → `CrossAuditMappingReuseTest.a_rejected_pair_comes_back_in_sonar_gitlab_on_the_second_run`
+- SonarToGitlab: two originals with 0 commits are not split by `last_activity_at`, although the
+  comparator's doc says "puis la plus récente" (another comment says it is on purpose: decide
+  which is right) → `SonarToGitlabHomonymsTest.two_dead_originals_are_not_split_by_last_activity_nor_by_names`
+- `→  (manuel)` double space →
+  `ProjectMapperReuseSuspectedBugsTest.a_stale_manual_row_without_a_key_prints_two_spaces_before_manuel`
+
+**SonarRank**
+
+- `truncate` returns `max+2` characters → `SonarRankSuspectedBugsTest.truncate_returns_two_characters_more_than_max`
+- Projects excluded for too few signals still weigh in their stratum's percentiles and quota →
+  `SonarRankSuspectedBugsTest` (2 tests)
+- "Actifs (< 90 j)" includes exactly 90 days →
+  `SonarRankSuspectedBugsTest.a_project_analysed_exactly_stale_days_ago_counts_as_active`
+
+**GitlabActivityAudit, Gitlab**
+
+- `--top 1` selects 3 projects → `GitlabActivityAuditSelectionTest.aBudgetOfOneStillFillsEveryTrancheAndSelectsThree`
+- The single-author and witness slices ignore the budget and the per-namespace cap →
+  `GitlabActivityAuditSelectionTest.soloAuthorsAndTheWitnessGoPastTheNamespaceCap`, `…GoPastABudgetOfTwo`
+- A project GraphQL dates before the window gets 0 commits but blank merges, reverts and active
+  days → `GitlabActivityAuditActivityTest.aProjectGraphqlDatesBeforeTheWindowGetsZeroCommitsButBlankMergesAndActiveDays`
+- With only null parameters the `--dump-dir` file name ends in `_` from a trailing `?` (the request
+  itself has none) → `GitlabClientTest.onlyNullParametersLeaveATrailingQuestionMarkSeenInTheDumpName`
+- Trailing space in the ci/lint refusal message →
+  `GitlabActivityAuditEdgeCasesTest.theLintRefusalMessageEndsItsFirstLineWithASpace`
+- *No longer a bug:* commit queries used `Map.of` (order varies between JVM runs, so dump file
+  names were not reproducible). The `cli/activity` split built them with `LinkedHashMap`, which
+  fixed the order: a small, unpinned behaviour change (query parameter order).
+
+**Sonar, SonarAuditCheck, GitLabProjectReport, ConsoleOut**
+
+- ConsoleOut `Recoding`: one invalid UTF-8 byte silences everything written after it →
+  `ConsoleOutRecodingTest.an_invalid_utf8_byte_swallows_everything_written_after_it`
+- `parseDate` drops Sonar's `+0200` offset (the opposite of the comment) →
+  `HelpersTest.parseDateDropsSonarsCompactOffset` (cli/sonaraudit)
+- Replay keeps the body, not the status: a 403 replays as a 200 →
+  `SonarCaptureTest.aCaptured403ReplaysAsA200WithTheErrorBody`
+- "interrompue à 20 000 projets" is really 40 pages of any size →
+  `SonarAuditCheckInventoryTest.fortyPagesOfOneProjectAreReportedAsInterruptedAtTwentyThousandProjects`
+- Cadence divides by the number of analyses instead of gaps →
+  `SonarAuditCheckActivityTest.twoAnalysesTenDaysApartGiveACadenceOfFiveDays`
+- The `project_links` probe counts blank URLs the CSV leaves out →
+  `SonarAuditCheckActivityTest.linksProbeCountsALinkWithABlankUrl`
+- GitLabProjectReport reads dates in the system time zone →
+  `ProjectReportUnitTest.the_same_instant_falls_on_another_day_in_another_system_zone`
+- GitLabProjectReport falls back to `https://gitlab.com` on a blank `--url`: not tested, it would
+  hit the internet.
+
+**Locale and cosmetics**
+
+- Decimals use the default locale (`1,50` on a French machine): CrossAudit and SonarRank →
+  `cli/LocaleSuspectedBugsTest`; GitlabActivityAudit → `cli/activity/LocaleSuspectedBugsTest`;
+  GitLabProjectReport → `ProjectReportUnitTest.hours_use_a_decimal_comma_under_a_french_default_locale`.
+  Not pinned: the Sonar cadence line (`%.1f` in `ActivitySignals`) has the same issue.
+- "1 réponses 403", "1 projets" → `cli/CosmeticSuspectedBugsTest` ("1 projets" appears in several
+  places; the GitlabActivityAudit "Comptés par pagination REST" one is pinned)
+- Uneven indentation of the "Aucune MR créée" block →
+  `GitLabProjectReportCornersTest.no_merge_request_explains_itself_on_two_unevenly_indented_lines`
 
 ## CrossAudit, SonarToGitlab, SonarRank, Vues
 
