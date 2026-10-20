@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
 /** Les seuils sont arbitraires ; ce qui compte est de ne comparer qu'à taille comparable. */
-public enum Bucket {
+enum Bucket {
   XS("< 1k lignes", 0, 1_000),
   S("1k - 10k", 1_000, 10_000),
   M("10k - 100k", 10_000, 100_000),

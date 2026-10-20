@@ -4,7 +4,7 @@ import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Option;
 
 /** L'instance interrogée, et le projet témoin des tests d'endpoints. */
-public final class InstanceOptions {
+final class InstanceOptions {
 
   @Option(names = "--url", defaultValue = "${env:SONAR_URL}", description = "URL de l'instance")
   @Nullable String url;

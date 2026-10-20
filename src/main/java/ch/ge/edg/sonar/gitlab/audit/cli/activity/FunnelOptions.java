@@ -4,7 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import picocli.CommandLine.Option;
 
 /** Les réglages de l'entonnoir : fenêtre, budget, plancher, tirages, et le coût des appels. */
-public final class FunnelOptions {
+final class FunnelOptions {
 
   @Option(
       names = "--since",

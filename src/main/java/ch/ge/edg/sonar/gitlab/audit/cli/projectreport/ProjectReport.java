@@ -15,7 +15,7 @@ import java.util.Optional;
  * revue, 5. constats. Chaque section imprime ce qu'elle mesure et rend ce que les constats
  * relisent.
  */
-public final class ProjectReport {
+final class ProjectReport {
 
   private final ProjectApi api;
   private final Settings settings;

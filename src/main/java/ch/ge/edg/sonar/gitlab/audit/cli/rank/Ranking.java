@@ -12,7 +12,7 @@ import java.util.List;
  * comparable*, sur quatre signaux orientés vélocité plutôt que niveau de dette. 3. Une métrique
  * absente est retirée de la moyenne, jamais remplacée par 0.
  */
-public final class Ranking {
+final class Ranking {
 
   private final RankSettings settings;
   private final RankReport report;

@@ -7,7 +7,7 @@ import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Option;
 
 /** Ce que l'audit écrit et où, la passe profonde qui produit pratiques.csv, et l'affichage. */
-public final class OutputOptions {
+final class OutputOptions {
 
   @Option(
       names = "--deep",

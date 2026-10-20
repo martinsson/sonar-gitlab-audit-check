@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
  * exactement ce que cette démarche cherche à éviter. Les trois autres restent à égalité tant que
  * personne n'a lu une shortlist et dit lequel l'a trompé.
  */
-public enum Signal {
+enum Signal {
   INJECTION("issues_neuves_par_kloc", 1.0),
   NEW_COVERAGE("couverture_code_neuf", 1.0),
   NEW_DUPLICATION("duplication_code_neuf", 1.0),

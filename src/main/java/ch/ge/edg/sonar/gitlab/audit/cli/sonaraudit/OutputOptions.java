@@ -5,7 +5,7 @@ import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Option;
 
 /** Ce qui est écrit sur disque : l'inventaire, et les captures brutes. */
-public final class OutputOptions {
+final class OutputOptions {
 
   @Option(names = "--csv", description = "chemin du CSV d'inventaire à écrire")
   @Nullable Path csv;

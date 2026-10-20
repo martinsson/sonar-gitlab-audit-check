@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
  * Le classement vélocité des projets actifs : par percentile *à taille comparable*, sur les quatre
  * {@link Signal signaux}. Une métrique absente est retirée de la moyenne, jamais remplacée par 0.
  */
-public final class VelocityRanking {
+final class VelocityRanking {
 
   private VelocityRanking() {}
 

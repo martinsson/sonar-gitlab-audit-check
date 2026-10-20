@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
 /** Le chemin du projet tel que l'API le comprend, à partir de ce que l'utilisateur a collé. */
-public final class ProjectPath {
+final class ProjectPath {
 
   private ProjectPath() {}
 

@@ -5,7 +5,7 @@ import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Option;
 
 /** Le périmètre : quels projets l'inventaire lit, et lesquels il écarte d'office. */
-public final class ScopeOptions {
+final class ScopeOptions {
 
   @Option(
       names = "--group",

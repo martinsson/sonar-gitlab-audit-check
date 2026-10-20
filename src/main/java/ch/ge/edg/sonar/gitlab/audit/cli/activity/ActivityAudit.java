@@ -17,10 +17,10 @@ import java.util.Optional;
  * L'entonnoir de bout en bout : préambule, inventaire, fraîcheur, activité, plancher, sélection,
  * puis la passe profonde et la synthèse.
  */
-public final class ActivityAudit {
+final class ActivityAudit {
 
   /** Les options de la commande, groupées comme elles se lisent. */
-  public record Settings(
+  record Settings(
       GitlabOptions gitlab, ScopeOptions scope, FunnelOptions funnel, OutputOptions output) {}
 
   private final Settings settings;
