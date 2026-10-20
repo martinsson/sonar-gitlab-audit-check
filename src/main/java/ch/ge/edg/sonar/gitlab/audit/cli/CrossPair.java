@@ -6,7 +6,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Un projet GitLab et, s'il en a un, son homologue Sonar. L'appariement et son évaluation vivent
- * dans {@link ProjectMapper}, qui tourne aussi seul : ce qui suit n'est que la lecture qu'en font
+ * dans {@code ProjectMapper}, qui tourne aussi seul : ce qui suit n'est que la lecture qu'en font
  * les constats de {@link CrossAudit}.
  */
 record CrossPair(Match m) {

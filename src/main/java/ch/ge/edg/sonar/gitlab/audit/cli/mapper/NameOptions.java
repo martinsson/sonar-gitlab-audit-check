@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 
 import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Option;

@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import java.io.IOException;

@@ -1,7 +1,7 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.ProjectMapperFixtures.run;
-import static ch.ge.edg.sonar.gitlab.audit.cli.ProjectMapperFixtures.write;
+import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.ProjectMapperFixtures.run;
+import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.ProjectMapperFixtures.write;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
