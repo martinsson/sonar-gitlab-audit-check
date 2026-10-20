@@ -19,11 +19,16 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Inventaire des technos frontend de toute une instance GitLab.
@@ -35,7 +40,7 @@ import java.util.regex.Pattern;
  * Lecture seule, que des GET. Autonome : ne dépend d'aucun autre fichier du dépôt.
  *
  *   export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxx
- *   jbang FrontendInventory.java [--out frontend.csv] [--days 90] [--limit N]
+ *   jbang FrontendInventory.java [--out frontend.csv] [--days 90] [--limit N] [--threads 10]
  */
 public class FrontendInventory {
 
@@ -70,13 +75,15 @@ public class FrontendInventory {
         String out = "frontend.csv";
         int days = 90;
         int limit = Integer.MAX_VALUE;
+        int threads = Runtime.getRuntime().availableProcessors();
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--out" -> out = args[++i];
                 case "--days" -> days = Integer.parseInt(args[++i]);
                 case "--limit" -> limit = Integer.parseInt(args[++i]);
+                case "--threads" -> threads = Integer.parseInt(args[++i]);
                 case "-h", "--help" -> {
-                    System.out.println("Usage: FrontendInventory [--out frontend.csv] [--days 90] [--limit N]\n"
+                    System.out.println("Usage: FrontendInventory [--out frontend.csv] [--days 90] [--limit N] [--threads N]\n"
                             + "Env: GITLAB_URL, GITLAB_TOKEN");
                     return;
                 }
@@ -89,10 +96,10 @@ public class FrontendInventory {
             System.err.println("GITLAB_URL manquant");
             System.exit(2);
         }
-        new FrontendInventory(url, token).run(Path.of(out), days, limit);
+        new FrontendInventory(url, token).run(Path.of(out), days, limit, threads);
     }
 
-    void run(Path out, int days, int limit) throws Exception {
+    void run(Path out, int days, int limit, int threads) throws Exception {
         String since = OffsetDateTime.now(ZoneOffset.UTC).minusDays(days)
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
@@ -102,6 +109,8 @@ public class FrontendInventory {
                 "commits_" + days + "j", "mr_" + days + "j", "lignes_ajoutees_" + days + "j",
                 "lignes_supprimees_" + days + "j", "taille_depot_mo", "commits_total", "erreur"});
 
+        // Collecter tous les projets d'abord
+        List<JsonNode> projects = new ArrayList<>();
         int n = 0;
         String next = baseUrl + "/projects?archived=false&statistics=true&simple=false"
                 + "&per_page=100&order_by=id&sort=asc&pagination=keyset";
@@ -110,10 +119,30 @@ public class FrontendInventory {
             if (resp.statusCode() != 200) throw new IOException("GET projects → " + resp.statusCode() + " " + resp.body());
             for (JsonNode p : JSON.readTree(resp.body())) {
                 if (n++ >= limit) break;
-                rows.add(project(p, since));
-                System.err.printf("\r%d projets", n);
+                projects.add(p);
             }
             next = nextLink(resp);
+        }
+        System.err.println(n + " projets collectés, traitement parallèle avec " + threads + " threads");
+
+        // Executor pour le parallélisme
+        ThreadFactory tf = r -> {
+            Thread t = new Thread(r);
+            t.setName("inventory-worker");
+            t.setDaemon(true);
+            return t;
+        };
+        try (ExecutorService executor = Executors.newFixedThreadPool(threads, tf)) {
+            List<CompletableFuture<String[]>> futures = new ArrayList<>(projects.size());
+            for (JsonNode p : projects) {
+                futures.add(CompletableFuture.supplyAsync(() -> project(p, since), executor));
+            }
+            // Attendre et collecter
+            for (int i = 0; i < futures.size(); i++) {
+                String[] row = futures.get(i).get();
+                rows.add(row);
+                System.err.printf("\r%d/%d projets", i + 1, futures.size());
+            }
         }
         System.err.println();
 
