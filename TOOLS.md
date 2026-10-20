@@ -55,6 +55,47 @@ silently, so drift never shows up as an error), to keep samples of the
 unhealthy projects whose payloads break naive parsing, and to rank an instance
 you cannot reach from a colleague's capture.
 
+## CI: every change lands on main through a green pipeline
+
+Nobody pushes to `main`. A change goes on a branch, then a pull request (GitHub)
+or a merge request (GitLab). It merges itself, without human review, once the
+**`verify`** job is green: `./verify`, the same gates as the pre-push hook, in
+about a minute.
+
+After each merge into `main`, **`verify-full`** runs `./verify --full`: Docker
+integration tests, mutation testing and copy-paste detection, about 15 minutes.
+It does not block anything. A red run is fixed by the next pull request.
+
+The ratchet compares with the target branch, so a `Ratchet-Override:` line in
+one of the branch's commits still counts.
+
+```bash
+git switch -c my-change      # work, commit
+git push -u origin my-change
+gh pr create --fill          # auto-merge.yml sets it to merge when green
+```
+
+**GitHub.** `.github/workflows/verify.yml` and `auto-merge.yml`. The `main`
+ruleset requires a pull request (no approval) and the `verify` check. It also refuses force pushes and deletion, with no bypass. The
+repository allows auto-merge and deletes merged branches. Pull requests from
+forks run the checks but never merge themselves: on a public repository, that
+would let anyone land code that merely passes the tests.
+
+**GitLab.** `.gitlab-ci.yml`, with the same two jobs, plus `auto-merge`.
+`verify-full` runs only on the default branch. Blocking
+needs these project settings, which a file cannot set:
+
+- Settings → Repository → Protected branches: `main`, allowed to merge:
+  Maintainers, allowed to push and merge: **No one**.
+- Settings → Merge requests → Merge checks: **Pipelines must succeed**.
+  Approvals: none required.
+- A project access token (role Developer, scope `api`) in the CI/CD variable
+  `GITLAB_AUTOMERGE_TOKEN`, masked, **not** protected. Merge request pipelines
+  run on unprotected branches. Without the token, `auto-merge` is skipped and a
+  merge request waits for a click.
+- `verify-full` needs a runner that allows the `docker:dind` service (privileged)
+  for Testcontainers.
+
 ## Tests
 
 - `testing/verify-against-real-sonarqube.sh` starts a real SonarQube in Docker,

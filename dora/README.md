@@ -1,8 +1,9 @@
 # DORA extraction: Jira and GoCD
 
-Three JBang scripts, PAT-authenticated, GET only. Like `probes/`, they live
-outside the Maven build and its quality gates: prototypes until the data says
-what the real tool should be.
+Three tools, PAT-authenticated, GET only. The scripts here are JBang entry
+points; the code is in `src/main/java/.../cli/` (`JiraExtract`, `GocdExtract`,
+`DoraLocate` and their subpackages), under every gate. Every CSV can also be
+written for a tool with `--comma`.
 
 | Script | Input | Output |
 |---|---|---|

@@ -1,0 +1,34 @@
+{
+  "id": "20002",
+  "key": "ABC-2",
+  "fields": {
+    "summary": "Sous-tâche du paiement",
+    "project": {"id": "10000", "key": "ABC"},
+    "issuetype": {"id": "5", "name": "Sub-task", "subtask": true},
+    "parent": {"id": "20001", "key": "ABC-1"},
+    "status": {"id": "999", "name": "Archived", "statusCategory": {"id": 3, "key": "done"}},
+    "priority": {"id": "3", "name": "Medium"},
+    "resolution": null,
+    "created": "2026-03-09T09:00:00.000+0100",
+    "updated": "2026-03-12T09:00:00.000+0100",
+    "resolutiondate": null,
+    "components": [],
+    "fixVersions": [],
+    "versions": [{"id": "100", "name": "1.2.0"}],
+    "labels": [],
+    "customfield_10100": null
+  },
+  "changelog": {
+    "startAt": 0,
+    "maxResults": 3,
+    "total": 3,
+    "histories": [
+      {"id": "10", "created": "2026-03-10T09:00:00.000+0100",
+       "items": [{"field": "status", "from": "1", "fromString": "Open", "to": "3", "toString": "In Progress"}]},
+      {"id": "11", "created": "2026-03-11T15:00:00.000+0100",
+       "items": [{"field": "status", "from": "3", "fromString": "In Progress", "to": "6", "toString": "Closed"}]},
+      {"id": "12", "created": "2026-03-12T09:00:00.000+0100",
+       "items": [{"field": "status", "from": "6", "fromString": "Closed", "to": "999", "toString": "Archived"}]}
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "name" : "hello-build",
+  "counter" : 1,
+  "label" : "1",
+  "natural_order" : 1.0,
+  "can_run" : true,
+  "preparing_to_schedule" : false,
+  "comment" : null,
+  "scheduled_date" : 1792528936175,
+  "build_cause" : {
+    "trigger_message" : "Forced by anonymous",
+    "trigger_forced" : true,
+    "approver" : "anonymous",
+    "material_revisions" : [ {
+      "changed" : true,
+      "material" : {
+        "name" : "https://github.com/octocat/Hello-World.git",
+        "fingerprint" : "56600f2c562f04bdb9029939685a2d2ca1277462d6694f5607b96d18ee123c48",
+        "type" : "Git",
+        "description" : "URL: https://github.com/octocat/Hello-World.git, Branch: master"
+      },
+      "modifications" : [ {
+        "revision" : "7fd1a60b01f91b314f59955a4e4d4e80d8edf11d",
+        "modified_time" : 1331075210000,
+        "user_name" : "The Octocat <octocat@nowhere.com>",
+        "comment" : "Merge pull request #6 from Spaceghost/patch-1\n\nNew line at end of file.",
+        "email_address" : null
+      } ]
+    } ]
+  },
+  "stages" : [ {
+    "result" : "Passed",
+    "status" : "Passed",
+    "rerun_of_counter" : null,
+    "name" : "build",
+    "counter" : "1",
+    "scheduled" : true,
+    "approval_type" : "success",
+    "approved_by" : "anonymous",
+    "operate_permission" : true,
+    "can_run" : true,
+    "jobs" : [ {
+      "name" : "compile",
+      "scheduled_date" : 1792528936175,
+      "state" : "Completed",
+      "result" : "Passed"
+    } ]
+  } ]
+}

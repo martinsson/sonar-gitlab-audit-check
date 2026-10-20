@@ -69,7 +69,7 @@ log=target/verify.log
 install_hooks() {
   git config core.hooksPath .githooks
   echo "HOOKS INSTALLED: pre-commit formats staged Java files, pre-push runs ./verify"
-  echo "Skip once with --no-verify. There is no CI on this repository: a skipped push is unchecked."
+  echo "Skip once with --no-verify; the pull request checks run every gate anyway."
 }
 
 # Formats the staged Java files and re-stages them. Lenient on purpose: committing to save work must

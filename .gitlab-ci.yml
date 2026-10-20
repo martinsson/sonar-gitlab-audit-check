@@ -1,0 +1,66 @@
+# As on GitHub (.github/workflows/verify.yml): the fast gates of ./verify on every merge request,
+# the full run after each merge into the default branch. They block a merge only with the project settings listed
+# in TOOLS.md ("CI"): protected default branch that nobody pushes to, "Pipelines must succeed",
+# and the GITLAB_AUTOMERGE_TOKEN variable for the auto-merge job below.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+
+stages: [verify]
+
+variables:
+  GIT_DEPTH: "0" # the ratchet compares with the base commit
+  MAVEN_OPTS: -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository
+
+default:
+  image: maven:3.9-eclipse-temurin-26
+  cache:
+    key: maven
+    paths: [.m2/repository]
+  before_script:
+    # ./verify lints its own shell scripts when shellcheck is there, as it is on GitHub runners.
+    - apt-get update -qq && apt-get install -y -qq shellcheck >/dev/null
+    - export RATCHET_BASE="${CI_MERGE_REQUEST_DIFF_BASE_SHA:-$CI_COMMIT_BEFORE_SHA}"
+
+verify:
+  stage: verify
+  script: ./verify
+  artifacts:
+    when: on_failure
+    paths: [target/verify.log]
+
+verify-full:
+  stage: verify
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+  # Testcontainers needs a Docker daemon: a runner that allows the docker:dind service (privileged).
+  services:
+    - name: docker:27-dind
+      alias: docker
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    TESTCONTAINERS_HOST_OVERRIDE: docker
+  timeout: 1h
+  script: ./verify --full
+  artifacts:
+    when: on_failure
+    paths: [target/verify.log, target/pit-reports/, target/site/jacoco/]
+
+# Sets each merge request to merge itself when its pipeline succeeds: no human review, the gates
+# are the review. Needs a project access token (Developer, scope api) in GITLAB_AUTOMERGE_TOKEN;
+# without it the job is skipped and merge requests wait for a click.
+auto-merge:
+  stage: verify
+  image: curlimages/curl:8.11.1
+  before_script: []
+  cache: []
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event" && $GITLAB_AUTOMERGE_TOKEN
+  script:
+    - >-
+      curl --fail-with-body -sS -X PUT
+      -H "PRIVATE-TOKEN: $GITLAB_AUTOMERGE_TOKEN"
+      "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/merge?merge_when_pipeline_succeeds=true&should_remove_source_branch=true"

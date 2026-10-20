@@ -1,0 +1,14 @@
+[
+  {"id": "summary", "name": "Résumé", "custom": false, "schema": {"type": "string", "system": "summary"}},
+  {"id": "environment", "name": "Environment", "custom": false, "schema": {"type": "string", "system": "environment"}},
+  {"id": "customfield_10100", "name": "Epic Link", "custom": true,
+   "schema": {"type": "any", "custom": "com.pyxis.greenhopper.jira:gh-epic-link", "customId": 10100}},
+  {"id": "customfield_10200", "name": "Environnement", "custom": true,
+   "schema": {"type": "option-with-child", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:cascadingselect", "customId": 10200}},
+  {"id": "customfield_10201", "name": "Sévérité", "custom": true,
+   "schema": {"type": "option", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:select", "customId": 10201}},
+  {"id": "customfield_10300", "name": "Sprint", "custom": true,
+   "schema": {"type": "array", "items": "string", "custom": "com.pyxis.greenhopper.jira:gh-sprint", "customId": 10300}},
+  {"id": "customfield_10400", "name": "Story Points", "custom": true,
+   "schema": {"type": "number", "custom": "com.atlassian.jira.plugin.system.customfieldtypes:float", "customId": 10400}}
+]

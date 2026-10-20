@@ -1,0 +1,99 @@
+{
+  "pipelines" : [ {
+    "name" : "other-build",
+    "counter" : 2,
+    "label" : "2",
+    "natural_order" : 2.0,
+    "can_run" : true,
+    "preparing_to_schedule" : false,
+    "comment" : null,
+    "scheduled_date" : 1792529041495,
+    "build_cause" : {
+      "trigger_message" : "Forced by anonymous",
+      "trigger_forced" : true,
+      "approver" : "anonymous",
+      "material_revisions" : [ {
+        "changed" : false,
+        "material" : {
+          "name" : "https://github.com/octocat/Spoon-Knife.git",
+          "fingerprint" : "5778e73cf1f7d01240ce99de8b60c8561c8755e0bcedc98add5c045968bb0d72",
+          "type" : "Git",
+          "description" : "URL: https://github.com/octocat/Spoon-Knife.git, Branch: main"
+        },
+        "modifications" : [ {
+          "revision" : "d0dd1f61b33d64e29d8bc1372a94ef6a2fee76a9",
+          "modified_time" : 1392247244000,
+          "user_name" : "The Octocat <octocat@nowhere.com>",
+          "comment" : "Pointing to the guide for forking",
+          "email_address" : null
+        } ]
+      } ]
+    },
+    "stages" : [ {
+      "result" : "Passed",
+      "status" : "Passed",
+      "rerun_of_counter" : null,
+      "name" : "build",
+      "counter" : "1",
+      "scheduled" : true,
+      "approval_type" : "success",
+      "approved_by" : "anonymous",
+      "operate_permission" : true,
+      "can_run" : true,
+      "jobs" : [ {
+        "name" : "compile",
+        "scheduled_date" : 1792529041495,
+        "state" : "Completed",
+        "result" : "Passed"
+      } ]
+    } ]
+  }, {
+    "name" : "other-build",
+    "counter" : 1,
+    "label" : "1",
+    "natural_order" : 1.0,
+    "can_run" : true,
+    "preparing_to_schedule" : false,
+    "comment" : null,
+    "scheduled_date" : 1792528939214,
+    "build_cause" : {
+      "trigger_message" : "modified by The Octocat <octocat@nowhere.com>",
+      "trigger_forced" : false,
+      "approver" : "changes",
+      "material_revisions" : [ {
+        "changed" : true,
+        "material" : {
+          "name" : "https://github.com/octocat/Spoon-Knife.git",
+          "fingerprint" : "5778e73cf1f7d01240ce99de8b60c8561c8755e0bcedc98add5c045968bb0d72",
+          "type" : "Git",
+          "description" : "URL: https://github.com/octocat/Spoon-Knife.git, Branch: main"
+        },
+        "modifications" : [ {
+          "revision" : "d0dd1f61b33d64e29d8bc1372a94ef6a2fee76a9",
+          "modified_time" : 1392247244000,
+          "user_name" : "The Octocat <octocat@nowhere.com>",
+          "comment" : "Pointing to the guide for forking",
+          "email_address" : null
+        } ]
+      } ]
+    },
+    "stages" : [ {
+      "result" : "Passed",
+      "status" : "Passed",
+      "rerun_of_counter" : null,
+      "name" : "build",
+      "counter" : "1",
+      "scheduled" : true,
+      "approval_type" : "success",
+      "approved_by" : "changes",
+      "operate_permission" : true,
+      "can_run" : true,
+      "jobs" : [ {
+        "name" : "compile",
+        "scheduled_date" : 1792528939214,
+        "state" : "Completed",
+        "result" : "Passed"
+      } ]
+    } ]
+  } ]
+}

@@ -1,0 +1,47 @@
+{
+  "name" : "deploy",
+  "counter" : 1,
+  "approval_type" : "manual",
+  "approved_by" : "anonymous",
+  "scheduled_at" : 1792529071564,
+  "last_transitioned_time" : 1792529086342,
+  "result" : "Failed",
+  "rerun_of_counter" : null,
+  "fetch_materials" : true,
+  "clean_working_directory" : false,
+  "artifacts_deleted" : false,
+  "pipeline_name" : "hello-deploy-prod",
+  "pipeline_counter" : 1,
+  "jobs" : [ {
+    "name" : "deploy",
+    "state" : "Completed",
+    "result" : "Failed",
+    "scheduled_date" : 1792529071564,
+    "rerun" : false,
+    "original_job_id" : null,
+    "agent_uuid" : "1ba9ce35-0dc5-44f0-a3a6-410b8e3295c8",
+    "pipeline_name" : null,
+    "pipeline_counter" : null,
+    "stage_name" : null,
+    "stage_counter" : null,
+    "job_state_transitions" : [ {
+      "state" : "Scheduled",
+      "state_change_time" : 1792529071564
+    }, {
+      "state" : "Assigned",
+      "state_change_time" : 1792529076171
+    }, {
+      "state" : "Preparing",
+      "state_change_time" : 1792529086195
+    }, {
+      "state" : "Building",
+      "state_change_time" : 1792529086209
+    }, {
+      "state" : "Completing",
+      "state_change_time" : 1792529086323
+    }, {
+      "state" : "Completed",
+      "state_change_time" : 1792529086342
+    } ]
+  } ]
+}

@@ -1,8 +1,5 @@
 # JBang scripts that hold code instead of delegating to src/main/java (JbangScriptsTest).
 # Recorded when the rule was adopted. May shrink, never grow: move the code, then delete the line.
-dora/DoraLocate.java
-dora/GocdExtract.java
-dora/JiraExtract.java
 frontend-inventory/FrontendInventory.java
 probes/GocdProbe.java
 probes/JiraProbe.java

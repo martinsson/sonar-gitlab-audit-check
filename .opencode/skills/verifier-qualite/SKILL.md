@@ -22,7 +22,7 @@ metadata:
 - **Installation.** Le premier `./verify` hors CI installe les hooks (`core.hooksPath=.githooks`).
 - **pre-commit.** Formate les fichiers Java indexés, sans jamais bloquer.
 - **pre-push.** Lance `./verify` et bloque si c'est rouge.
-- **Pas de CI.** Aucune CI ne rattrape un `git push --no-verify` sur ce dépôt : ne jamais l'utiliser.
+- **Jamais `--no-verify`.** La CI rattrape un push qui l'utilise, mais seulement après coup.
 - **Vérifier qu'ils sont en place.** `git config core.hooksPath` doit répondre `.githooks`.
 
 ## JDK
@@ -57,8 +57,11 @@ avec `export JAVA_HOME=$(jbang jdk home 26)`.
 - **Ce que le dépôt ne contient jamais :**
   - de données client : CSV d'audit, captures, `extraction/` ;
   - de noms de projets ou de personnes du client, dans le code comme dans les messages de commit.
-- **Pousser.** Sur ce dépôt, on pousse directement sur `main`, sans merge request, et seulement
-  quand l'utilisateur le demande.
+- **Pousser.** Personne ne pousse sur `main`. On pousse une branche, puis on ouvre une PR (GitHub,
+  `gh pr create --fill`) ou une merge request (GitLab), et seulement quand l'utilisateur le demande.
+  Elle se merge seule, sans relecture humaine, quand `verify` est vert ; `verify-full` tourne
+  ensuite sur `main`. Si un
+  check est rouge, corriger sur la branche et pousser de nouveau (voir « CI » dans `TOOLS.md`).
 
 ## En cas d'échec
 
