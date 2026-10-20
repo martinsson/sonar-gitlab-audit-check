@@ -69,7 +69,7 @@ final class ActivityAudit {
     Outputs outputs = settings.output().resolve();
 
     screen.say("\nInstance : " + gitlab.base, BOLD);
-    Optional<Preflight.Instance> instance = new Preflight(gitlab, screen).run();
+    Optional<Preflight.Instance> instance = new PreflightReport(screen).run(gitlab);
     if (instance.isEmpty()) return 1;
 
     FunnelReport report = new FunnelReport(screen, funnel);

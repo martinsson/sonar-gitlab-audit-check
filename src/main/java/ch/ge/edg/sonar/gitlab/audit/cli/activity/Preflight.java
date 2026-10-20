@@ -1,22 +1,21 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.RED;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/** Préambule : connectivité, identité, licence. */
+/** Préambule : connectivité, identité, licence. Il constate ; {@link PreflightReport} imprime. */
 final class Preflight {
 
   private final Gitlab gitlab;
-  private final Screen screen;
 
-  Preflight(Gitlab gitlab, Screen screen) {
+  Preflight(Gitlab gitlab) {
     this.gitlab = gitlab;
-    this.screen = screen;
   }
 
   /**
@@ -26,50 +25,75 @@ final class Preflight {
    */
   record Instance(boolean enterprise) {}
 
-  /** Vide quand l'instance est injoignable ou le jeton refusé : rien d'autre n'a de sens. */
-  Optional<Instance> run() {
-    screen.title("0. Connectivité, identité, licence");
+  /** Ce que dit une sonde du préambule. */
+  record Probe(String endpoint, ProbeVerdict verdict, String detail) {}
 
+  /**
+   * Les sondes dans l'ordre, ce qu'il faut en conclure quand l'instance est inutilisable, et
+   * l'instance quand elle est utilisable.
+   *
+   * @param advice vide quand l'instance est utilisable
+   * @param instance vide quand l'instance est injoignable ou le jeton refusé : rien d'autre n'a de
+   *     sens
+   */
+  record Result(List<Probe> probes, List<String> advice, Optional<Instance> instance) {}
+
+  Result check() {
+    List<Probe> probes = new ArrayList<>();
     Gitlab.Response me = gitlab.get("user", Map.of());
     if (me.unreachable()) {
-      screen.line("api/v4/user", ProbeVerdict.ERROR, me.errorMessage());
-      screen.say("\n  Instance injoignable. Vérifie l'URL, le proxy, le TLS.", RED);
-      return Optional.empty();
+      probes.add(new Probe("api/v4/user", ProbeVerdict.ERROR, me.errorMessage()));
+      return new Result(
+          probes,
+          List.of("Instance injoignable. Vérifie l'URL, le proxy, le TLS."),
+          Optional.empty());
     }
     if (me.status() != 200) {
-      screen.line("api/v4/user", ProbeVerdict.DENIED, "HTTP " + me.status() + " — jeton refusé");
-      screen.say("\n  Le jeton n'est pas accepté. La portée read_api suffit,", RED);
-      screen.say("  mais un jeton expiré ou révoqué donne le même 401.", RED);
-      return Optional.empty();
+      probes.add(
+          new Probe("api/v4/user", ProbeVerdict.DENIED, "HTTP " + me.status() + " — jeton refusé"));
+      return new Result(
+          probes,
+          List.of(
+              "Le jeton n'est pas accepté. La portée read_api suffit,",
+              "mais un jeton expiré ou révoqué donne le même 401."),
+          Optional.empty());
     }
-    JsonNode u = me.json();
-    screen.line(
-        "api/v4/user", ProbeVerdict.OK, "%s (%s)".formatted(text(u, "username"), text(u, "name")));
-    return Optional.of(new Instance(enterprise()));
+    JsonNode user = me.json();
+    probes.add(
+        new Probe(
+            "api/v4/user",
+            ProbeVerdict.OK,
+            "%s (%s)".formatted(text(user, "username"), text(user, "name"))));
+    boolean enterprise = enterprise(probes);
+    return new Result(probes, List.of(), Optional.of(new Instance(enterprise)));
   }
 
   /**
    * Le plan conditionne la moitié des signaux de pratique : approbations, DORA, règles de push. Le
    * découvrir après coup, c'est réécrire l'analyse.
    */
-  private boolean enterprise() {
+  private boolean enterprise(List<Probe> probes) {
     Gitlab.Response meta = gitlab.get("metadata", Map.of());
     if (meta.status() == 200) {
-      JsonNode m = meta.json();
-      boolean enterprise = m.path("enterprise").asBoolean(false);
-      screen.line(
-          "api/v4/metadata",
-          enterprise ? ProbeVerdict.OK : ProbeVerdict.EMPTY,
-          "GitLab %s · %s"
-              .formatted(
-                  text(m, "version"),
-                  enterprise ? "Enterprise" : "Community — DORA et approbations indisponibles"));
+      JsonNode metadata = meta.json();
+      boolean enterprise = metadata.path("enterprise").asBoolean(false);
+      probes.add(
+          new Probe(
+              "api/v4/metadata",
+              enterprise ? ProbeVerdict.OK : ProbeVerdict.EMPTY,
+              "GitLab %s · %s"
+                  .formatted(
+                      text(metadata, "version"),
+                      enterprise
+                          ? "Enterprise"
+                          : "Community — DORA et approbations indisponibles")));
       return enterprise;
     }
-    screen.line(
-        "api/v4/metadata",
-        ProbeVerdict.MISSING,
-        "HTTP " + meta.status() + " — plan inconnu, on suppose Community");
+    probes.add(
+        new Probe(
+            "api/v4/metadata",
+            ProbeVerdict.MISSING,
+            "HTTP " + meta.status() + " — plan inconnu, on suppose Community"));
     return false;
   }
 }
