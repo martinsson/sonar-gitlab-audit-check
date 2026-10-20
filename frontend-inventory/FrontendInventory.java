@@ -21,8 +21,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.ExecutorService;
@@ -33,14 +35,17 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Inventaire des technos frontend de toute une instance GitLab.
  *
- * Pour chaque projet non archivé : le package.json à la racine de la branche par
- * défaut dit la techno (Vue 2 / Vue 3, React, Angular...), puis l'activité sur
- * N jours (commits, MR, lignes changées) et la taille du dépôt.
+ * Pour chaque projet non archivé : les langages calculés par GitLab donnent la part
+ * de code front. Si elle est notable, on cherche tous les package.json du dépôt,
+ * sinon seulement celui de la racine. Les package.json disent la techno
+ * (Vue 2 / Vue 3, React, Angular...). Puis l'activité sur N jours (commits, MR,
+ * lignes changées). La colonne a_verifier signale les cas que ces règles ne
+ * savent pas trancher.
  *
  * Lecture seule, que des GET. Autonome : ne dépend d'aucun autre fichier du dépôt.
  *
  *   export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxx
- *   jbang FrontendInventory.java [--out frontend.csv] [--days 90] [--limit N] [--threads 10]
+ *   jbang FrontendInventory.java [--out frontend.csv] [--days 90] [--limit N] [--threads 10] [--seuil-front 5]
  */
 public class FrontendInventory {
 
@@ -58,17 +63,30 @@ public class FrontendInventory {
     }
     // Méta-frameworks notés à part, ils ne changent pas la techno de base.
     static final List<String> META = List.of("nuxt", "next", "@vue/cli-service", "vite", "react-scripts", "typescript");
+    // Langages GitLab (Linguist) qui comptent comme du front.
+    static final Set<String> FRONT_LANGUAGES = Set.of("JavaScript", "TypeScript", "TSX", "JSX", "Vue", "Svelte",
+            "HTML", "CSS", "SCSS", "Sass", "Less", "Stylus");
+    // Dossiers de dépendances commités : leurs package.json ne disent rien du projet.
+    static final Pattern VENDORED = Pattern.compile("(^|/)(node_modules|bower_components|vendor)/");
+
+    // "Nj" est remplacé par la fenêtre, ex. commits_90j.
+    static final List<String> COLUMNS = List.of("id", "projet", "url", "branche", "derniere_activite",
+            "part_front_pct", "langages", "techno", "package_json", "vue", "react", "angular", "autres_front",
+            "outillage", "fichiers", "commits_Nj", "mr_Nj", "lignes_ajoutees_Nj", "lignes_supprimees_Nj",
+            "commits_total", "a_verifier", "erreur");
 
     final String baseUrl;
     final String token;
+    final double frontThreshold;
     final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(20))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    FrontendInventory(String baseUrl, String token) {
+    FrontendInventory(String baseUrl, String token, double frontThreshold) {
         this.baseUrl = baseUrl.replaceAll("/+$", "") + "/api/v4";
         this.token = token;
+        this.frontThreshold = frontThreshold;
     }
 
     public static void main(String[] args) throws Exception {
@@ -76,14 +94,19 @@ public class FrontendInventory {
         int days = 90;
         int limit = Integer.MAX_VALUE;
         int threads = Runtime.getRuntime().availableProcessors();
+        double frontThreshold = 5;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--out" -> out = args[++i];
                 case "--days" -> days = Integer.parseInt(args[++i]);
                 case "--limit" -> limit = Integer.parseInt(args[++i]);
                 case "--threads" -> threads = Integer.parseInt(args[++i]);
+                case "--seuil-front" -> frontThreshold = Double.parseDouble(args[++i]);
                 case "-h", "--help" -> {
-                    System.out.println("Usage: FrontendInventory [--out frontend.csv] [--days 90] [--limit N] [--threads N]\n"
+                    System.out.println("Usage: FrontendInventory [--out frontend.csv] [--days 90] [--limit N] [--threads N]"
+                            + " [--seuil-front 5]\n"
+                            + "  --seuil-front : part de code front (%) à partir de laquelle on cherche les package.json"
+                            + " dans tout le dépôt\n"
                             + "Env: GITLAB_URL, GITLAB_TOKEN");
                     return;
                 }
@@ -96,7 +119,7 @@ public class FrontendInventory {
             System.err.println("GITLAB_URL manquant");
             System.exit(2);
         }
-        new FrontendInventory(url, token).run(Path.of(out), days, limit, threads);
+        new FrontendInventory(url, token, frontThreshold).run(Path.of(out), days, limit, threads);
     }
 
     void run(Path out, int days, int limit, int threads) throws Exception {
@@ -104,10 +127,7 @@ public class FrontendInventory {
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
         List<String[]> rows = new ArrayList<>();
-        rows.add(new String[]{"id", "projet", "url", "branche", "derniere_activite",
-                "techno", "vue", "react", "angular", "autres_front", "outillage",
-                "commits_" + days + "j", "mr_" + days + "j", "lignes_ajoutees_" + days + "j",
-                "lignes_supprimees_" + days + "j", "taille_depot_mo", "commits_total", "erreur"});
+        rows.add(COLUMNS.stream().map(c -> c.replace("Nj", days + "j")).toArray(String[]::new));
 
         // Collecter tous les projets d'abord
         List<JsonNode> projects = new ArrayList<>();
@@ -154,75 +174,167 @@ public class FrontendInventory {
         long id = p.path("id").asLong();
         String branch = p.path("default_branch").asText("");
         JsonNode stats = p.path("statistics");
-        String[] row = {
-                String.valueOf(id), p.path("path_with_namespace").asText(), p.path("web_url").asText(),
-                branch, p.path("last_activity_at").asText(""),
-                "", "", "", "", "", "",
-                "", "", "", "",
-                stats.has("repository_size") ? String.format("%.1f", stats.path("repository_size").asLong() / 1048576.0) : "",
-                stats.has("commit_count") ? stats.path("commit_count").asText() : "",
-                ""
-        };
+        Map<String, String> row = new LinkedHashMap<>();
+        row.put("id", String.valueOf(id));
+        row.put("projet", p.path("path_with_namespace").asText());
+        row.put("url", p.path("web_url").asText());
+        row.put("branche", branch);
+        row.put("derniere_activite", p.path("last_activity_at").asText(""));
+        row.put("commits_total", stats.has("commit_count") ? stats.path("commit_count").asText() : "");
+        List<String> errors = new ArrayList<>();
         if (branch.isEmpty()) {
-            row[5] = "aucun";
-            row[17] = "dépôt vide";
-            return row;
+            row.put("techno", "aucun");
+            errors.add("dépôt vide");
+        } else {
+            // Séparés : un package.json illisible n'empêche pas de mesurer l'activité.
+            try {
+                front(id, branch, row);
+            } catch (Exception e) {
+                errors.add(e.getMessage());
+            }
+            try {
+                activity(id, branch, since, row);
+            } catch (Exception e) {
+                errors.add(e.getMessage());
+            }
         }
-        try {
-            front(id, branch, row);
-            activity(id, branch, since, row);
-        } catch (Exception e) {
-            row[17] = e.getMessage();
-        }
-        return row;
+        row.put("erreur", String.join(", ", errors));
+        return COLUMNS.stream().map(c -> row.getOrDefault(c, "")).toArray(String[]::new);
     }
 
-    /** Remplit techno / vue / react / angular / autres_front / outillage. */
-    void front(long id, String branch, String[] row) throws Exception {
-        HttpResponse<String> resp = get(baseUrl + "/projects/" + id + "/repository/files/package.json/raw?ref=" + enc(branch));
-        if (resp.statusCode() == 404) {
-            row[5] = "aucun";
-            return;
-        }
-        if (resp.statusCode() != 200) throw new IOException("package.json → " + resp.statusCode());
+    /** Remplit langages / techno / package_json / vue / react / angular / autres_front / outillage / a_verifier. */
+    void front(long id, String branch, Map<String, String> row) throws Exception {
+        List<String> toCheck = new ArrayList<>();
+        Map<String, Double> languages = languages(id);
+        double frontShare = languages.entrySet().stream()
+                .filter(e -> FRONT_LANGUAGES.contains(e.getKey()))
+                .mapToDouble(Map.Entry::getValue).sum();
+        row.put("langages", String.join(", ", languages.entrySet().stream()
+                .map(e -> e.getKey() + " " + String.format("%.1f", e.getValue())).toList()));
+        row.put("part_front_pct", languages.isEmpty() ? "" : String.format("%.1f", frontShare));
 
-        Map<String, String> deps = new LinkedHashMap<>();
-        JsonNode pkg;
-        try {
-            pkg = JSON.readTree(resp.body());
-        } catch (IOException e) {
-            row[5] = "package.json illisible";
-            return;
-        }
-        for (String section : List.of("dependencies", "devDependencies", "peerDependencies")) {
-            pkg.path(section).fields().forEachRemaining(f -> deps.putIfAbsent(f.getKey(), f.getValue().asText()));
+        List<String> paths;
+        if (frontShare >= frontThreshold) {
+            paths = packageJsonPaths(id, branch, row);
+        } else {
+            // Peu ou pas de front : on regarde seulement la racine, un appel.
+            paths = List.of("package.json");
         }
 
+        // Pour chaque framework, ses plages de version dans l'ordre où on les trouve.
+        Map<String, Set<String>> versions = new LinkedHashMap<>();
+        Map<String, Set<String>> tooling = new LinkedHashMap<>();
         List<String> found = new ArrayList<>();
-        List<String> others = new ArrayList<>();
-        for (var fw : FRAMEWORKS.entrySet()) {
-            String version = deps.get(fw.getKey());
-            if (version == null) continue;
-            String label = fw.getValue();
-            String major = major(version);
-            switch (label) {
-                case "Vue" -> row[6] = version;
-                case "React" -> row[7] = version;
-                case "Angular", "AngularJS" -> row[8] = row[8].isEmpty() ? version : row[8] + " / " + version;
-                default -> others.add(label + " " + version);
+        List<String> warnings = new ArrayList<>();
+        if (languages.isEmpty()) warnings.add("langages non calculés par GitLab");
+        for (String path : paths) {
+            HttpResponse<String> resp = get(baseUrl + "/projects/" + id + "/repository/files/" + enc(path)
+                    + "/raw?ref=" + enc(branch));
+            if (resp.statusCode() == 404) continue;
+            if (resp.statusCode() != 200) throw new IOException(path + " → " + resp.statusCode());
+            found.add(path);
+            JsonNode pkg;
+            try {
+                pkg = JSON.readTree(resp.body());
+            } catch (IOException e) {
+                warnings.add(path + " illisible");
+                continue;
             }
-            found.add(label.equals("Vue") || label.equals("Angular") ? label + " " + major : label);
+            Map<String, String> deps = new LinkedHashMap<>();
+            for (String section : List.of("dependencies", "devDependencies", "peerDependencies")) {
+                pkg.path(section).fields().forEachRemaining(f -> deps.putIfAbsent(f.getKey(), f.getValue().asText()));
+            }
+            for (String fw : FRAMEWORKS.keySet()) {
+                if (deps.containsKey(fw)) versions.computeIfAbsent(fw, k -> new LinkedHashSet<>()).add(deps.get(fw));
+            }
+            for (String m : META) {
+                if (deps.containsKey(m)) tooling.computeIfAbsent(m, k -> new LinkedHashSet<>()).add(deps.get(m));
+            }
         }
-        row[5] = found.isEmpty() ? "node sans framework UI" : String.join(" + ", found);
-        row[9] = String.join(", ", others);
+        row.put("package_json", String.join(", ", found));
 
-        List<String> tooling = new ArrayList<>();
-        for (String m : META) if (deps.containsKey(m)) tooling.add(m + " " + deps.get(m));
-        row[10] = String.join(", ", tooling);
+        Set<String> techno = new LinkedHashSet<>();
+        List<String> others = new ArrayList<>();
+        List<String> angular = new ArrayList<>();
+        for (var fw : FRAMEWORKS.entrySet()) {
+            Set<String> ranges = versions.get(fw.getKey());
+            if (ranges == null) continue;
+            String label = fw.getValue();
+            String joined = String.join(" / ", ranges);
+            switch (label) {
+                case "Vue" -> row.put("vue", joined);
+                case "React" -> row.put("react", joined);
+                case "Angular", "AngularJS" -> angular.add(joined);
+                default -> others.add(label + " " + joined);
+            }
+            Set<String> majors = new LinkedHashSet<>();
+            for (String r : ranges) majors.add(major(r));
+            if (label.equals("Vue") || label.equals("Angular")) {
+                for (String m : majors) techno.add(label + " " + m);
+            } else {
+                techno.add(label);
+            }
+            if (majors.size() > 1) warnings.add("plusieurs versions de " + label);
+        }
+        row.put("angular", String.join(" / ", angular));
+        row.put("autres_front", String.join(", ", others));
+        row.put("outillage", String.join(", ", tooling.entrySet().stream()
+                .map(e -> e.getKey() + " " + String.join(" / ", e.getValue())).toList()));
+
+        if (found.isEmpty()) {
+            row.put("techno", "aucun");
+        } else if (techno.isEmpty()) {
+            row.put("techno", "node sans framework UI");
+        } else {
+            row.put("techno", String.join(" + ", techno));
+        }
+
+        // Ce que les règles ci-dessus ne savent pas trancher : à regarder à la main.
+        if (frontShare >= frontThreshold && found.isEmpty()) {
+            warnings.add("front sans package.json");
+        } else if (frontShare >= frontThreshold && techno.isEmpty()) {
+            warnings.add("front sans framework déclaré");
+        }
+        if (languages.containsKey("Vue") && !versions.containsKey("vue")) {
+            warnings.add("fichiers .vue sans dépendance vue");
+        }
+        row.put("a_verifier", String.join(", ", warnings));
+    }
+
+    /** Langage → % du code (octets), tel que GitLab le calcule. Vide si pas encore calculé ou illisible. */
+    Map<String, Double> languages(long id) throws Exception {
+        Map<String, Double> languages = new LinkedHashMap<>();
+        HttpResponse<String> resp = get(baseUrl + "/projects/" + id + "/languages");
+        if (resp.statusCode() != 200) return languages;
+        JSON.readTree(resp.body()).fields().forEachRemaining(f -> languages.put(f.getKey(), f.getValue().asDouble()));
+        return languages;
+    }
+
+    /** Tous les package.json de la branche hors dépendances commitées. Remplit au passage "fichiers". */
+    List<String> packageJsonPaths(long id, String branch, Map<String, String> row) throws Exception {
+        List<String> paths = new ArrayList<>();
+        int files = 0;
+        String next = baseUrl + "/projects/" + id + "/repository/tree?ref=" + enc(branch)
+                + "&recursive=true&per_page=100&pagination=keyset";
+        while (next != null) {
+            HttpResponse<String> resp = get(next);
+            if (resp.statusCode() != 200) throw new IOException("arborescence → " + resp.statusCode());
+            for (JsonNode e : JSON.readTree(resp.body())) {
+                if (!e.path("type").asText().equals("blob")) continue;
+                files++;
+                String path = e.path("path").asText();
+                if ((path.equals("package.json") || path.endsWith("/package.json")) && !VENDORED.matcher(path).find()) {
+                    paths.add(path);
+                }
+            }
+            next = nextPage(next, resp);
+        }
+        row.put("fichiers", String.valueOf(files));
+        return paths;
     }
 
     /** Remplit commits / MR / lignes ajoutées / supprimées sur la fenêtre. */
-    void activity(long id, String branch, String since, String[] row) throws Exception {
+    void activity(long id, String branch, String since, Map<String, String> row) throws Exception {
         int commits = 0;
         long added = 0, deleted = 0;
         String next = baseUrl + "/projects/" + id + "/repository/commits?ref_name=" + enc(branch)
@@ -239,16 +351,16 @@ public class FrontendInventory {
             }
             next = nextPage(next, resp);
         }
-        row[11] = String.valueOf(commits);
-        row[13] = String.valueOf(added);
-        row[14] = String.valueOf(deleted);
+        row.put("commits_Nj", String.valueOf(commits));
+        row.put("lignes_ajoutees_Nj", String.valueOf(added));
+        row.put("lignes_supprimees_Nj", String.valueOf(deleted));
 
         HttpResponse<String> mrs = get(baseUrl + "/projects/" + id + "/merge_requests?state=all&created_after="
                 + enc(since) + "&per_page=1");
         if (mrs.statusCode() == 200) {
-            row[12] = mrs.headers().firstValue("X-Total")
+            row.put("mr_Nj", mrs.headers().firstValue("X-Total")
                     .orElseGet(() -> String.valueOf(countAll(baseUrl + "/projects/" + id
-                            + "/merge_requests?state=all&created_after=" + enc(since) + "&per_page=100")));
+                            + "/merge_requests?state=all&created_after=" + enc(since) + "&per_page=100"))));
         }
     }
 
