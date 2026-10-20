@@ -72,9 +72,9 @@ class PresentationTest {
 
   @Test
   void lineAlignsLabelAndDropsBlankDetail() {
-    assertThat(capture(c -> Presentation.line(c, "lbl", Verdict.OK, "d")))
+    assertThat(capture(c -> Presentation.line(c, "lbl", CallVerdict.OK, "d")))
         .isEqualTo("  OK       lbl" + " ".repeat(39) + " d\n");
-    assertThat(capture(c -> Presentation.line(c, "lbl", Verdict.ERROR, " ")))
+    assertThat(capture(c -> Presentation.line(c, "lbl", CallVerdict.ERROR, " ")))
         .isEqualTo("  ERREUR   lbl" + " ".repeat(39) + " \n");
   }
 
@@ -82,7 +82,7 @@ class PresentationTest {
   void colorsWrapWhenEnabled() {
     assertThat(Printed.colored().console().color("t", Presentation.RED))
         .isEqualTo("\033[31mt\033[0m");
-    assertThat(capture(true, c -> Presentation.line(c, "l", Verdict.DENIED, "d")))
+    assertThat(capture(true, c -> Presentation.line(c, "l", CallVerdict.DENIED, "d")))
         .isEqualTo("  \033[31mREFUSE  \033[0m l" + " ".repeat(41) + " \033[2md\033[0m\n");
     assertThat(Printed.plain().console().color("t", Presentation.RED)).isEqualTo("t");
   }

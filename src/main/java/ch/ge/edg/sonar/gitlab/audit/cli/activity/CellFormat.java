@@ -7,9 +7,9 @@ import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /** Mise en forme des valeurs : une valeur absente s'écrit vide, jamais zéro. */
-final class Fmt {
+final class CellFormat {
 
-  private Fmt() {}
+  private CellFormat() {}
 
   static String pct(long n, long total) {
     return total == 0 ? "—" : "%.0f %%".formatted(100.0 * n / total);

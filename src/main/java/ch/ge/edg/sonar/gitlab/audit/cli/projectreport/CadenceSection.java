@@ -58,7 +58,7 @@ final class CadenceSection {
   private List<Commit> ordinaryCommits(Commits commits) {
     String error = commits.error();
     if (error != null) {
-      report.line("repository/commits", Verdict.ERROR, error);
+      report.line("repository/commits", EndpointVerdict.ERROR, error);
       return List.of();
     }
     List<Commit> cs = commits.humans();
@@ -102,21 +102,21 @@ final class CadenceSection {
 
     report.println(
         "  Commits (hors bots)             : %s"
-            .formatted(report.c(String.valueOf(commits.humans().size()), BOLD)));
+            .formatted(report.paint(String.valueOf(commits.humans().size()), BOLD)));
     if (!commits.bots().isEmpty()) {
       report.println("  Commits de bots écartés         : %d".formatted(commits.bots().size()));
     }
     if (merges > 0) {
       report.println(
           "  dont commits de fusion          : %d %s"
-              .formatted(merges, report.c("(écartés de toutes les mesures ci-dessous)", DIM)));
+              .formatted(merges, report.paint("(écartés de toutes les mesures ci-dessous)", DIM)));
     }
     report.println(
         "  Rythme                          : %.1f commits / semaine%s"
             .formatted(
                 real / weeks,
                 commits.truncated()
-                    ? report.c("   (sur les %.0f j couverts)".formatted(observed), DIM)
+                    ? report.paint("   (sur les %.0f j couverts)".formatted(observed), DIM)
                     : ""));
     report.println(
         "  Jours avec au moins un commit   : %d sur %.0f".formatted(activeDays, observed));
@@ -135,10 +135,10 @@ final class CadenceSection {
     Collections.sort(gaps);
     report.println(
         "  Écart médian entre commits      : %s"
-            .formatted(Format.hours(Format.percentile(gaps, 50))));
+            .formatted(ReportFormat.hours(ReportFormat.percentile(gaps, 50))));
     report.println(
         "  Plus long silence               : %s"
-            .formatted(Format.hours(gaps.get(gaps.size() - 1))));
+            .formatted(ReportFormat.hours(gaps.get(gaps.size() - 1))));
   }
 
   /**
@@ -164,7 +164,7 @@ final class CadenceSection {
     }
     if (dated == 0) return 0;
     report.println();
-    report.println("  Répartition hebdomadaire        : %s".formatted(Format.dowBar(byDow)));
+    report.println("  Répartition hebdomadaire        : %s".formatted(ReportFormat.dowBar(byDow)));
     report.println(
         "  Week-end                        : %.0f %%".formatted(100.0 * weekend / dated));
     report.println(
@@ -185,8 +185,8 @@ final class CadenceSection {
     for (Commit x : real) {
       Commit.Stats stats = x.stats();
       if (stats == null) continue;
-      long a = Format.orZero(stats.additions());
-      long d = Format.orZero(stats.deletions());
+      long a = ReportFormat.orZero(stats.additions());
+      long d = ReportFormat.orZero(stats.deletions());
       added += a;
       deleted += d;
       sizes.add(a + d);
@@ -200,15 +200,20 @@ final class CadenceSection {
     double bigShare = 100.0 * big / sizes.size();
     report.println();
     report.println(
-        "  Taille médiane d'un commit      : %.0f lignes".formatted(Format.percentile(sizes, 50)));
+        "  Taille médiane d'un commit      : %.0f lignes"
+            .formatted(ReportFormat.percentile(sizes, 50)));
     report.println(
-        "  9e décile                       : %.0f lignes".formatted(Format.percentile(sizes, 90)));
+        "  9e décile                       : %.0f lignes"
+            .formatted(ReportFormat.percentile(sizes, 90)));
     report.println(
         "  Commits > %d lignes           : %d (%.0f %%) %s"
             .formatted(
-                BIG_COMMIT, big, bigShare, report.c("— imports, code généré, vendoring ?", DIM)));
+                BIG_COMMIT,
+                big,
+                bigShare,
+                report.paint("— imports, code généré, vendoring ?", DIM)));
     report.println(
-        "  Lignes touchées / lignes nettes : %s".formatted(Format.rework(added, deleted)));
+        "  Lignes touchées / lignes nettes : %s".formatted(ReportFormat.rework(added, deleted)));
     report.println(
         "    (le net masque la réécriture : un fichier refait cinq fois ne bouge pas d'une ligne)",
         DIM);

@@ -19,16 +19,16 @@ final class Output implements AutoCloseable {
 
   /** Un CSV et son nombre de lignes, en-tête non compris. */
   static final class Table implements AutoCloseable {
-    private final CSVWriter w;
+    private final CSVWriter writer;
     private int rows;
 
     Table(Path path, boolean comma, List<String> header) throws IOException {
-      w = Csv.writer(path, comma);
-      w.writeNext(header.toArray(String[]::new));
+      writer = Csv.writer(path, comma);
+      writer.writeNext(header.toArray(String[]::new));
     }
 
     void row(String[] cells) {
-      w.writeNext(cells);
+      writer.writeNext(cells);
       rows++;
     }
 
@@ -38,7 +38,7 @@ final class Output implements AutoCloseable {
 
     @Override
     public void close() throws IOException {
-      w.close();
+      writer.close();
     }
   }
 

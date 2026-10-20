@@ -66,7 +66,8 @@ final class ActivitySignals {
                 params("project", sample, "ps", "500", "from", since));
     Analyses a = r.as(Analyses.class);
     if (a == null) {
-      Presentation.line(out, "api/project_analyses/search", Verdict.of(r), "HTTP " + r.status());
+      Presentation.line(
+          out, "api/project_analyses/search", CallVerdict.of(r), "HTTP " + r.status());
       return;
     }
     List<Analysis> analyses = orEmptyList(a.analyses());
@@ -110,7 +111,8 @@ final class ActivitySignals {
                     "componentKeys", sample, "createdAfter", since, "facets", "author", "ps", "1"));
     IssuesSearch is = r.as(IssuesSearch.class);
     if (is == null) {
-      Presentation.line(out, "Facette 'author' sur issues", Verdict.of(r), "HTTP " + r.status());
+      Presentation.line(
+          out, "Facette 'author' sur issues", CallVerdict.of(r), "HTTP " + r.status());
       return;
     }
     List<FacetValue> authors = is.facetValues("author");

@@ -31,7 +31,7 @@ final class ActivityAudit {
       OutputOptions output) {}
 
   private final Settings settings;
-  private final Screen con;
+  private final Screen screen;
   private final Console out;
   private final Clock clock;
   private final Sleeper sleeper;
@@ -40,15 +40,16 @@ final class ActivityAudit {
   /**
    * Un audit.
    *
-   * @param con le rapport ; sur l'erreur de sa console, les erreurs d'usage et d'écriture du cache
+   * @param screen le rapport ; sur l'erreur de sa console, les erreurs d'usage et d'écriture du
+   *     cache
    * @param clock maintenant, d'où part la fenêtre, et le fuseau de la course
    * @param sleeper l'attente que demande un 429
    * @param workDir où chercher exclusions.txt quand --exclusions n'est pas donné
    */
-  ActivityAudit(Settings settings, Screen con, Clock clock, Sleeper sleeper, Path workDir) {
+  ActivityAudit(Settings settings, Screen screen, Clock clock, Sleeper sleeper, Path workDir) {
     this.settings = settings;
-    this.con = con;
-    this.out = con.out();
+    this.screen = screen;
+    this.out = screen.out();
     this.clock = clock;
     this.sleeper = sleeper;
     this.workDir = workDir;
@@ -63,28 +64,28 @@ final class ActivityAudit {
               "GITLAB_URL et GITLAB_TOKEN sont requis " + "(variables d'env ou --url/--token).");
       return 2;
     }
-    Gitlab gl = new Gitlab(connection.get(), new GitlabWarnings(out), sleeper);
+    Gitlab gitlab = new Gitlab(connection.get(), new GitlabWarnings(out), sleeper);
     Funnel funnel = Funnel.start(settings.funnel(), clock);
     Outputs outputs = settings.output().resolve();
 
-    con.say("\nInstance : " + gl.base, BOLD);
-    Optional<Preflight.Instance> instance = new Preflight(gl, con).run();
+    screen.say("\nInstance : " + gitlab.base, BOLD);
+    Optional<Preflight.Instance> instance = new PreflightReport(screen).run(gitlab);
     if (instance.isEmpty()) return 1;
 
-    FunnelReport report = new FunnelReport(con, funnel);
+    FunnelReport report = new FunnelReport(screen, funnel);
     report.beginInventory();
     Inventory.Census census =
-        new Inventory(gl, funnel, settings.scope())
+        new Inventory(gitlab, funnel, settings.scope())
             .run(Exclusions.file(settings.scope().exclusions.file(), workDir));
     report.inventory(census);
     if (census.all().isEmpty()) {
-      con.say("\n  Aucun projet dans le périmètre. Rien à faire.", YELLOW);
+      screen.say("\n  Aucun projet dans le périmètre. Rien à faire.", YELLOW);
       return 1;
     }
-    FunnelResult result = FunnelStages.run(gl, report, funnel, census.all());
+    FunnelResult result = FunnelStages.run(gitlab, report, funnel, census.all());
     write(outputs, result.projects(), report);
-    if (outputs.deep()) new DeepPass(gl, con, instance.get(), funnel).run(outputs, result);
-    new Summary(gl, con, funnel, outputs).print(result);
+    if (outputs.deep()) new DeepPass(gitlab, screen, instance.get(), funnel).run(outputs, result);
+    new Summary(gitlab, screen, funnel, outputs).print(result);
     return 0;
   }
 

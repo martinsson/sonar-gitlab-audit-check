@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.plural;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.plural;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
@@ -14,24 +14,24 @@ import java.nio.file.Path;
 /** La synthèse : l'entonnoir en effectifs, ses réserves, et les fichiers écrits. */
 final class Summary {
 
-  private final Gitlab gl;
-  private final Screen con;
+  private final Gitlab gitlab;
+  private final Screen screen;
   private final Funnel funnel;
   private final Outputs outputs;
 
-  Summary(Gitlab gl, Screen con, Funnel funnel, Outputs outputs) {
-    this.gl = gl;
-    this.con = con;
+  Summary(Gitlab gitlab, Screen screen, Funnel funnel, Outputs outputs) {
+    this.gitlab = gitlab;
+    this.screen = screen;
     this.funnel = funnel;
     this.outputs = outputs;
   }
 
   void print(FunnelResult result) {
-    con.title("Synthèse");
+    screen.title("Synthèse");
     funnel(result);
     reserves(result);
     files();
-    con.say(
+    screen.say(
         """
                   Rappel : tout classement qui ne dit pas ce qu'il a écarté se lit comme
                   complet alors qu'il ne l'est pas. Le CSV porte le motif d'exclusion de
@@ -41,12 +41,12 @@ final class Summary {
   }
 
   private void funnel(FunnelResult n) {
-    Console out = con.out();
-    int calls = gl.calls();
+    Console out = screen.out();
+    int calls = gitlab.calls();
     out.out()
         .printf(
             "  %d appels API (%d GET, %d GraphQL, %d 429 réessayés).%n",
-            calls, calls - n.graphqlCalls(), n.graphqlCalls(), gl.throttled());
+            calls, calls - n.graphqlCalls(), n.graphqlCalls(), gitlab.throttled());
     out.out()
         .printf(
             "  Parc %d → retenus %d → frais %d → éligibles %d → sélectionnés %d.%n",
@@ -54,7 +54,7 @@ final class Summary {
   }
 
   private void reserves(FunnelResult n) {
-    Console out = con.out();
+    Console out = screen.out();
     if (n.notCounted() > 0) {
       // La coupe d'activité n'est pas une exclusion comme les autres : les
       // projets qu'elle écarte n'ont pas été mesurés, ils ont été laissés
@@ -73,11 +73,11 @@ final class Summary {
     }
     int truncated = n.truncated();
     if (truncated > 0) {
-      con.say(
+      screen.say(
           "  %d projets tronqués à %d pages de commits : leur volume est"
               .formatted(truncated, funnel.options().maxCommitPages),
           YELLOW);
-      con.say("  un plancher, pas un compte. Ils sont marqués dans le CSV.", YELLOW);
+      screen.say("  un plancher, pas un compte. Ils sont marqués dans le CSV.", YELLOW);
     }
   }
 
@@ -86,14 +86,14 @@ final class Summary {
     Path pratiques = outputs.pratiques();
     Path shown = inventory != null ? inventory : pratiques;
     if (shown == null) {
-      con.say(
+      screen.say(
           "  Aucun fichier écrit : ajoute --out-dir <rép> pour " + "conserver l'inventaire",
           YELLOW);
-      con.say(
+      screen.say(
           "  et les pratiques. Le rapport ci-dessus ne se rejoue " + "pas sans les CSV.", YELLOW);
       return;
     }
-    Console out = con.out();
+    Console out = screen.out();
     out.println("  Fichiers écrits :");
     if (inventory != null) out.out().printf("    inventaire : %s%n", inventory.toAbsolutePath());
     // Annoncer un fichier qu'on n'a pas écrit — aucun projet sélectionné,
@@ -101,14 +101,14 @@ final class Summary {
     // pas. Le rapport ne doit pas mentir sur ses propres sorties.
     if (pratiques != null && Files.exists(pratiques)) {
       out.out().printf("    pratiques  : %s%n", pratiques.toAbsolutePath());
-      con.say("    Les deux se lisent ensemble : pratiques.csv ne contient " + "que les", DIM);
-      con.say(
+      screen.say("    Les deux se lisent ensemble : pratiques.csv ne contient " + "que les", DIM);
+      screen.say(
           "    sélectionnés, l'inventaire porte le parc dont ils sortent. "
               + "Colonnes : COLUMNS.md.",
           DIM);
     } else if (pratiques != null) {
-      con.say("    pratiques  : non écrit — aucun projet sélectionné.", YELLOW);
+      screen.say("    pratiques  : non écrit — aucun projet sélectionné.", YELLOW);
     }
-    con.say("  " + Csv.openingHint(shown, outputs.comma()), DIM);
+    screen.say("  " + Csv.openingHint(shown, outputs.comma()), DIM);
   }
 }

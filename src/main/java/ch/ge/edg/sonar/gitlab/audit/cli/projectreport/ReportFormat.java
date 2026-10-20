@@ -7,9 +7,9 @@ import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 /** Mise en forme des nombres et des textes du rapport, sans rien imprimer. */
-final class Format {
+final class ReportFormat {
 
-  private Format() {}
+  private ReportFormat() {}
 
   static String bar(double percent) {
     int n = (int) Math.round(percent / 5);

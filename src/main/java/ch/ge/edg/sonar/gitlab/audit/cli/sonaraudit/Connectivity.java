@@ -37,7 +37,7 @@ final class Connectivity {
   private boolean reachable() {
     Sonar.Response status = session.sq().get("api/system/status", params());
     if (status.unreachable()) {
-      line(out, "api/system/status", Verdict.ERROR, status.errorMessage());
+      line(out, "api/system/status", CallVerdict.ERROR, status.errorMessage());
       out.println();
       out.println(
           out.color(
@@ -49,10 +49,10 @@ final class Connectivity {
       line(
           out,
           "api/system/status",
-          Verdict.OK,
+          CallVerdict.OK,
           "%s · v%s · %s".formatted(st.status(), st.version(), orEmpty(st.id())));
     } else {
-      line(out, "api/system/status", Verdict.of(status), "HTTP " + status.status());
+      line(out, "api/system/status", CallVerdict.of(status), "HTTP " + status.status());
     }
     return true;
   }
@@ -63,7 +63,7 @@ final class Connectivity {
     line(
         out,
         "api/authentication/validate",
-        valid ? Verdict.OK : Verdict.DENIED,
+        valid ? CallVerdict.OK : CallVerdict.DENIED,
         valid ? "token valide" : "token invalide ou expiré");
     if (!valid) {
       out.println();
@@ -77,11 +77,15 @@ final class Connectivity {
     Sonar.Response r = session.sq().get("api/users/current", params());
     CurrentUser me = r.as(CurrentUser.class);
     if (me == null) {
-      line(out, "api/users/current", Verdict.of(r), r.errorMessage());
+      line(out, "api/users/current", CallVerdict.of(r), r.errorMessage());
       return;
     }
     List<String> perms = me.globalPermissions();
-    line(out, "api/users/current", Verdict.OK, "%s (%s)".formatted(me.login(), orEmpty(me.name())));
+    line(
+        out,
+        "api/users/current",
+        CallVerdict.OK,
+        "%s (%s)".formatted(me.login(), orEmpty(me.name())));
     out.println();
     out.println(
         "  Permissions globales : "

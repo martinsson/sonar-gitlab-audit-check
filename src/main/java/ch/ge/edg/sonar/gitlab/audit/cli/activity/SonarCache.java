@@ -47,7 +47,7 @@ final class SonarCache {
   String keyFor(AuditedProject p) {
     String sha = p.headSha();
     String stamp =
-        sha != null && !sha.isBlank() ? sha : "act:" + Fmt.iso(p.project().lastActivity());
+        sha != null && !sha.isBlank() ? sha : "act:" + CellFormat.iso(p.project().lastActivity());
     return p.project().id() + "@" + stamp;
   }
 

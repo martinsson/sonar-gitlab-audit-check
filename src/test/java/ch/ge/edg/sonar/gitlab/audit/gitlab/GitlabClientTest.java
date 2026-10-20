@@ -39,10 +39,10 @@ class GitlabClientTest {
   @Test
   void getHitsTheV4ApiWithTheTokenAndJsonHeaders() throws Exception {
     server.json("/api/v4/user", "{\"username\":\"alice\"}");
-    Gitlab gl = client("glpat-secret");
-    assertThat(gl.base).isEqualTo(server.url());
+    Gitlab gitlab = client("glpat-secret");
+    assertThat(gitlab.base).isEqualTo(server.url());
 
-    Gitlab.Response r = gl.get("///user", Map.of());
+    Gitlab.Response r = gitlab.get("///user", Map.of());
 
     assertThat(r.status()).isEqualTo(200);
     assertThat(r.json().path("username").asText()).isEqualTo("alice");
@@ -52,7 +52,7 @@ class GitlabClientTest {
     assertThat(req.header("PRIVATE-TOKEN")).isEqualTo("glpat-secret");
     assertThat(req.header("Accept")).isEqualTo("application/json");
     assertThat(req.header("Content-Type")).isEqualTo("application/json");
-    assertThat(gl.calls()).isEqualTo(1);
+    assertThat(gitlab.calls()).isEqualTo(1);
   }
 
   @Test
@@ -99,10 +99,11 @@ class GitlabClientTest {
   void existsSendsAHeadAndIsTrueOnlyOn200() throws Exception {
     server.on("/api/v4/projects/1/repository/files/README.md", r -> Response.status(200, ""));
     server.on("/api/v4/projects/1/repository/files/other", r -> Response.status(204, ""));
-    Gitlab gl = client("t");
-    assertThat(gl.exists("projects/1/repository/files/README.md", Map.of("ref", "main"))).isTrue();
-    assertThat(gl.exists("/projects/1/repository/files/other", Map.of())).isFalse();
-    assertThat(gl.exists("projects/1/repository/files/missing", Map.of())).isFalse();
+    Gitlab gitlab = client("t");
+    assertThat(gitlab.exists("projects/1/repository/files/README.md", Map.of("ref", "main")))
+        .isTrue();
+    assertThat(gitlab.exists("/projects/1/repository/files/other", Map.of())).isFalse();
+    assertThat(gitlab.exists("projects/1/repository/files/missing", Map.of())).isFalse();
     Request head = server.requests().getFirst();
     assertThat(head.method()).isEqualTo("HEAD");
     assertThat(head.target()).isEqualTo("/api/v4/projects/1/repository/files/README.md?ref=main");
@@ -128,12 +129,12 @@ class GitlabClientTest {
             n.incrementAndGet() == 1
                 ? Response.status(429, "{}").withHeader("Retry-After", " 0 ")
                 : Response.json("{\"id\":1}"));
-    Gitlab gl = client("t");
-    Gitlab.Response r = gl.get("user", Map.of());
+    Gitlab gitlab = client("t");
+    Gitlab.Response r = gitlab.get("user", Map.of());
     assertThat(r.status()).isEqualTo(200);
-    assertThat(gl.calls()).isEqualTo(2);
-    assertThat(gl.throttled()).isEqualTo(1);
-    assertThat(gl.forbidden()).isZero();
+    assertThat(gitlab.calls()).isEqualTo(2);
+    assertThat(gitlab.throttled()).isEqualTo(1);
+    assertThat(gitlab.forbidden()).isZero();
   }
 
   @Test
@@ -146,37 +147,37 @@ class GitlabClientTest {
                 ? Response.status(429, "{}").withHeader("Retry-After", "1")
                 : Response.json("{}"));
     List<Duration> pauses = new ArrayList<>();
-    Gitlab gl =
+    Gitlab gitlab =
         new Gitlab(
             new Gitlab.Connection(server.url(), "t", 5, false, null),
             new GitlabStreams(),
             pauses::add);
-    assertThat(gl.get("user", Map.of()).ok()).isTrue();
+    assertThat(gitlab.get("user", Map.of()).ok()).isTrue();
     assertThat(pauses).containsExactly(Duration.ofSeconds(1));
   }
 
   @Test
   void a429IsRetriedThreeTimesThenReturned() throws Exception {
     server.on("/api/v4/user", r -> Response.status(429, "slow").withHeader("Retry-After", "0"));
-    Gitlab gl = client("t");
-    Gitlab.Response r = gl.get("user", Map.of());
+    Gitlab gitlab = client("t");
+    Gitlab.Response r = gitlab.get("user", Map.of());
     assertThat(r.status()).isEqualTo(429);
     assertThat(r.body()).isEqualTo("slow");
-    assertThat(gl.calls()).isEqualTo(4);
-    assertThat(gl.throttled()).isEqualTo(3);
+    assertThat(gitlab.calls()).isEqualTo(4);
+    assertThat(gitlab.throttled()).isEqualTo(3);
     assertThat(server.requests("/api/v4/user")).hasSize(4);
   }
 
   @Test
   void a403IsCounted() throws Exception {
     server.on("/api/v4/user", r -> Response.status(403, "{\"message\":\"403 Forbidden\"}"));
-    Gitlab gl = client("t");
-    Gitlab.Response r = gl.get("user", Map.of());
-    gl.get("user", Map.of());
+    Gitlab gitlab = client("t");
+    Gitlab.Response r = gitlab.get("user", Map.of());
+    gitlab.get("user", Map.of());
     assertThat(r.status()).isEqualTo(403);
     assertThat(r.errorMessage()).isEqualTo("403 Forbidden");
-    assertThat(gl.forbidden()).isEqualTo(2);
-    assertThat(gl.throttled()).isZero();
+    assertThat(gitlab.forbidden()).isEqualTo(2);
+    assertThat(gitlab.throttled()).isZero();
   }
 
   @Test
@@ -185,19 +186,20 @@ class GitlabClientTest {
     try (ServerSocket s = new ServerSocket(0)) {
       port = s.getLocalPort();
     }
-    Gitlab gl =
+    Gitlab gitlab =
         GitlabStreams.quiet(new Gitlab.Connection("http://127.0.0.1:" + port, "t", 5, false, null));
-    Gitlab.Response r = gl.get("user", Map.of());
+    Gitlab.Response r = gitlab.get("user", Map.of());
     assertThat(r.unreachable()).isTrue();
     assertThat(r.body()).startsWith("ConnectException");
     assertThat(r.headers()).isEmpty();
-    assertThat(gl.calls()).isEqualTo(1);
+    assertThat(gitlab.calls()).isEqualTo(1);
   }
 
   @Test
   void anExceptionWithAMessageKeepsBoth() throws Exception {
-    Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection("http://bad host", "t", 5, false, null));
-    Gitlab.Response r = gl.get("user", Map.of());
+    Gitlab gitlab =
+        GitlabStreams.quiet(new Gitlab.Connection("http://bad host", "t", 5, false, null));
+    Gitlab.Response r = gitlab.get("user", Map.of());
     assertThat(r.status()).isZero();
     assertThat(r.body()).startsWith("IllegalArgumentException: ");
   }
@@ -205,9 +207,9 @@ class GitlabClientTest {
   @Test
   void anInterruptedCallGivesStatusZeroAndKeepsTheFlag() throws Exception {
     server.json("/api/v4/user", "{}");
-    Gitlab gl = client("t");
+    Gitlab gitlab = client("t");
     Thread.currentThread().interrupt();
-    Gitlab.Response r = gl.get("user", Map.of());
+    Gitlab.Response r = gitlab.get("user", Map.of());
     boolean stillInterrupted = Thread.interrupted();
     assertThat(r.status()).isZero();
     assertThat(r.body()).isEqualTo("interrompu");
@@ -220,8 +222,8 @@ class GitlabClientTest {
     String before = System.getProperty(key);
     try {
       server.json("/api/v4/user", "{}");
-      Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, true, null));
-      assertThat(gl.get("user", Map.of()).ok()).isTrue();
+      Gitlab gitlab = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, true, null));
+      assertThat(gitlab.get("user", Map.of()).ok()).isTrue();
       assertThat(System.getProperty(key)).isEqualTo("true");
     } finally {
       if (before == null) System.clearProperty(key);
@@ -234,11 +236,11 @@ class GitlabClientTest {
     server.json("/api/v4/projects/1/repository/commits", "[{\"id\":\"abc\"}]");
     server.on("/api/v4/user", r -> Response.status(401, "{\"message\":\"401\"}"));
     Path dir = tmp.resolve("nested/dump");
-    Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, dir));
+    Gitlab gitlab = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, dir));
     assertThat(dir).isDirectory();
 
-    gl.get("projects/1/repository/commits", Map.of("ref_name", "main"));
-    gl.get("user", Map.of());
+    gitlab.get("projects/1/repository/commits", Map.of("ref_name", "main"));
+    gitlab.get("user", Map.of());
 
     String commits = Capture.name("api/v4/projects/1/repository/commits?ref_name=main");
     String user = Capture.name("api/v4/user");
@@ -272,8 +274,8 @@ class GitlabClientTest {
   void aLongRequestKeepsAShortDumpName() throws Exception {
     String path = "projects/" + "a".repeat(200);
     server.json("/api/v4/" + path, "{}");
-    Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
-    gl.get(path, Map.of());
+    Gitlab gitlab = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
+    gitlab.get(path, Map.of());
     String name = Capture.name("api/v4/" + path);
     assertThat(name).hasSize(60 + 1 + 8 + 5);
     assertThat(tmp.resolve(name)).hasContent("{}");
@@ -284,8 +286,8 @@ class GitlabClientTest {
     server.json("/api/v4/user", "{\"id\":1}");
     Files.createDirectories(tmp.resolve(Capture.name("api/v4/user")));
     GitlabStreams printed = new GitlabStreams();
-    Gitlab gl = printed.client(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
-    assertThat(gl.get("user", Map.of()).ok()).isTrue();
+    Gitlab gitlab = printed.client(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
+    assertThat(gitlab.get("user", Map.of()).ok()).isTrue();
     assertThat(printed.err()).startsWith("  (capture non écrite : ").endsWith(")\n");
     assertThat(printed.out()).isEmpty();
   }
@@ -299,8 +301,8 @@ class GitlabClientTest {
             n.incrementAndGet() == 1
                 ? Response.status(429, "{}").withHeader("Retry-After", "0")
                 : Response.json("{\"id\":1}"));
-    Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
-    gl.get("user", Map.of());
+    Gitlab gitlab = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
+    gitlab.get("user", Map.of());
     String name = Capture.name("api/v4/user");
     assertThat(tmp.resolve(name)).hasContent("{\"id\":1}");
     assertThat(tmp.resolve("index.txt")).hasContent(name + "  api/v4/user");

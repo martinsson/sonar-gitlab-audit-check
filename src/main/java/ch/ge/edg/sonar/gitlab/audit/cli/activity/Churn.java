@@ -20,22 +20,22 @@ import com.fasterxml.jackson.databind.JsonNode;
  */
 final class Churn {
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
   private final Funnel funnel;
   private long lines;
   private int counted;
 
-  private Churn(Gitlab gl, Funnel funnel) {
-    this.gl = gl;
+  private Churn(Gitlab gitlab, Funnel funnel) {
+    this.gitlab = gitlab;
     this.funnel = funnel;
   }
 
-  static Practices.Lines measure(Gitlab gl, Funnel funnel, GitlabProject p) {
-    return new Churn(gl, funnel).run(p);
+  static Practices.Lines measure(Gitlab gitlab, Funnel funnel, GitlabProject p) {
+    return new Churn(gitlab, funnel).run(p);
   }
 
   private Practices.Lines run(GitlabProject p) {
-    CommitPager.Walk w = new CommitPager(gl, funnel).walk(p, true, CommitPager.each(this::add));
+    CommitPager.Walk w = new CommitPager(gitlab, funnel).walk(p, true, CommitPager.each(this::add));
     // Illisible n'est pas « aucune ligne » : la colonne reste vide.
     if (!w.ok()) return Practices.Lines.none();
     return new Practices.Lines(lines, counted, w.truncated());

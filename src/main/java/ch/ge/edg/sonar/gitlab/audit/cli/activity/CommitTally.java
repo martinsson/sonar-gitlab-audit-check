@@ -69,7 +69,7 @@ final class CommitTally {
     String sha = dated.sha();
     CommitMeasure.Head head =
         new CommitMeasure.Head(
-            last != null ? last : newest, Fmt.isBlank(sha) && first != null ? first : sha);
+            last != null ? last : newest, CellFormat.isBlank(sha) && first != null ? first : sha);
     return new CommitMeasure.Counted(
         head,
         new CommitMeasure.Volume(human, bot, authors.size(), merges, days.size(), reverts),

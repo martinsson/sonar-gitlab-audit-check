@@ -2,7 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.enc;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.isBlank;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.isBlank;
 
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
@@ -20,12 +20,12 @@ import org.jspecify.annotations.Nullable;
 /** Étape 0 : inventaire et exclusions dures. */
 final class Inventory {
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
   private final Funnel funnel;
   private final ScopeOptions scope;
 
-  Inventory(Gitlab gl, Funnel funnel, ScopeOptions scope) {
-    this.gl = gl;
+  Inventory(Gitlab gitlab, Funnel funnel, ScopeOptions scope) {
+    this.gitlab = gitlab;
     this.funnel = funnel;
     this.scope = scope;
   }
@@ -61,7 +61,7 @@ final class Inventory {
             .map(GitlabProject::of)
             .map(p -> AuditedProject.entering(p).with(fate(p, exclusions)))
             .toList();
-    return new Census(all, ignored, exclusions, gl.forbidden());
+    return new Census(all, ignored, exclusions, gitlab.forbidden());
   }
 
   private Fate fate(GitlabProject p, Exclusions exclusions) {
@@ -75,7 +75,7 @@ final class Inventory {
     if (file != null) return fromFile(file, ignored);
     String group = scope.group;
     if (group != null && !group.isBlank()) {
-      return gl.paged(
+      return gitlab.paged(
           "groups/" + enc(group) + "/projects",
           params(
               "include_subgroups",
@@ -87,7 +87,7 @@ final class Inventory {
               "archived",
               archived));
     }
-    return gl.paged(
+    return gitlab.paged(
         "projects",
         params("statistics", "true", "archived", archived, "order_by", "id", "sort", "asc"));
   }
@@ -99,10 +99,10 @@ final class Inventory {
             .filter(l -> !l.isEmpty() && !l.startsWith("#"))
             .toList();
     List<Gitlab.Response> rs =
-        gl.map(
+        gitlab.map(
             paths,
             funnel.concurrency(),
-            path -> gl.get("projects/" + enc(path), Map.of("statistics", "true")));
+            path -> gitlab.get("projects/" + enc(path), Map.of("statistics", "true")));
     List<JsonNode> found = new ArrayList<>();
     for (int i = 0; i < paths.size(); i++) {
       Gitlab.Response r = rs.get(i);

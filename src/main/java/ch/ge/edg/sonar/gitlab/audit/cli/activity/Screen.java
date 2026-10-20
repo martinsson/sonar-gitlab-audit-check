@@ -15,24 +15,25 @@ record Screen(Console out) {
   static final String RED = "\033[31m";
   static final String YELLOW = "\033[33m";
 
-  String c(String text, String color) {
+  String paint(String text, String color) {
     return out.color(text, color);
   }
 
   /** Une ligne colorée. */
   void say(String text, String color) {
-    out.println(c(text, color));
+    out.println(paint(text, color));
   }
 
   void title(String text) {
     out.println();
-    out.println(c(text, BOLD));
-    out.println(c("-".repeat(Math.min(text.length(), 72)), DIM));
+    out.println(paint(text, BOLD));
+    out.println(paint("-".repeat(Math.min(text.length(), 72)), DIM));
   }
 
-  void line(String label, Verdict v, @Nullable String detail) {
+  void line(String label, ProbeVerdict v, @Nullable String detail) {
     out.out()
         .printf(
-            "  %-32s %s  %s%n", label, c("[" + v.tag + "]", v.color), detail == null ? "" : detail);
+            "  %-32s %s  %s%n",
+            label, paint("[" + v.tag + "]", v.color), detail == null ? "" : detail);
   }
 }

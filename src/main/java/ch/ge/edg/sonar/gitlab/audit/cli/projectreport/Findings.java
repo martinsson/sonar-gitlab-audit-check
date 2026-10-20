@@ -63,7 +63,7 @@ final class Findings {
     }
   }
 
-  private void review(Cadence cadence, Reviews reviews) {
+  private void review(Cadence cadence, ReviewMeasures reviews) {
     if (cadence.commits() > 0 && reviews.noMrs()) {
       found.add(
           "%d commits, aucune MR : le code arrive sans revue sur la branche par défaut."
@@ -82,7 +82,7 @@ final class Findings {
     if (reviews.leadP90() > 30 * 24) {
       found.add(
           "9e décile du délai de fusion à %s : une MR sur dix traîne un mois."
-              .formatted(Format.hours(reviews.leadP90())));
+              .formatted(ReportFormat.hours(reviews.leadP90())));
     }
   }
 
@@ -99,7 +99,7 @@ final class Findings {
     }
   }
 
-  private void habits(Commits commits, Cadence cadence, Reviews reviews) {
+  private void habits(Commits commits, Cadence cadence, ReviewMeasures reviews) {
     if (cadence.bigCommitShare() > 10) {
       found.add(
           "%.0f %% des commits dépassent %d lignes : imports, code généré ou gros lots."

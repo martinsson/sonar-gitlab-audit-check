@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.iso;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.iso;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -10,11 +10,11 @@ import java.util.function.Consumer;
 /** Les commits de la branche par défaut sur la fenêtre, lus en REST. */
 final class CommitPager {
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
   private final Funnel funnel;
 
-  CommitPager(Gitlab gl, Funnel funnel) {
-    this.gl = gl;
+  CommitPager(Gitlab gitlab, Funnel funnel) {
+    this.gitlab = gitlab;
     this.funnel = funnel;
   }
 
@@ -25,7 +25,7 @@ final class CommitPager {
   int count(GitlabProject p) {
     String since = iso(funnel.windowStart());
     Gitlab.Response r =
-        gl.get(path(p), params("ref_name", p.defaultBranch(), "since", since, "per_page", "1"));
+        gitlab.get(path(p), params("ref_name", p.defaultBranch(), "since", since, "per_page", "1"));
     if (r.status() != 200) return 0;
     Integer total = r.intHeader("x-total");
     if (total != null) return total;
@@ -34,7 +34,8 @@ final class CommitPager {
     // manquant comme un 0 — c'est exactement la confusion « absent = zéro »
     // qui a déjà coûté cher côté Sonar.
     Gitlab.Response full =
-        gl.get(path(p), params("ref_name", p.defaultBranch(), "since", since, "per_page", "100"));
+        gitlab.get(
+            path(p), params("ref_name", p.defaultBranch(), "since", since, "per_page", "100"));
     return full.status() == 200 && full.json().isArray() ? full.json().size() : 0;
   }
 
@@ -66,7 +67,8 @@ final class CommitPager {
     int max = funnel.options().maxCommitPages;
     boolean truncated = false;
     for (int page = 1; page <= max; page++) {
-      Gitlab.Response r = gl.get(path(p), Api.commitPage(p, funnel.windowStart(), page, withStats));
+      Gitlab.Response r =
+          gitlab.get(path(p), Api.commitPage(p, funnel.windowStart(), page, withStats));
       if (r.status() != 200) return new Walk(false, r.status(), truncated);
       JsonNode arr = r.json();
       if (!arr.isArray() || arr.isEmpty()) break;

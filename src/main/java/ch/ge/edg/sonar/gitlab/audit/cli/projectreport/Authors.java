@@ -66,6 +66,6 @@ record Authors(List<Map.Entry<String, Long>> ranked, Map<String, String> labels,
   }
 
   String label(String identity) {
-    return Format.label(labels, identity);
+    return ReportFormat.label(labels, identity);
   }
 }

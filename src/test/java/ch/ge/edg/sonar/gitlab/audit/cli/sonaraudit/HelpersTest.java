@@ -108,17 +108,17 @@ class HelpersTest {
   void verdictFollowsTheStatus() {
     assertThat(
             Arrays.stream(new int[] {200, 401, 403, 404, 0, 500, 201})
-                .mapToObj(s -> Verdict.of(new Sonar.Response(s, "")))
+                .mapToObj(s -> CallVerdict.of(new Sonar.Response(s, "")))
                 .toList())
         .containsExactly(
-            Verdict.OK,
-            Verdict.DENIED,
-            Verdict.DENIED,
-            Verdict.MISSING,
-            Verdict.ERROR,
-            Verdict.ERROR,
-            Verdict.ERROR);
-    assertThat(Verdict.EMPTY.tag).isEqualTo("VIDE    ");
-    assertThat(Verdict.EMPTY.color).isEqualTo(Presentation.YELLOW);
+            CallVerdict.OK,
+            CallVerdict.DENIED,
+            CallVerdict.DENIED,
+            CallVerdict.MISSING,
+            CallVerdict.ERROR,
+            CallVerdict.ERROR,
+            CallVerdict.ERROR);
+    assertThat(CallVerdict.EMPTY.tag).isEqualTo("VIDE    ");
+    assertThat(CallVerdict.EMPTY.color).isEqualTo(Presentation.YELLOW);
   }
 }

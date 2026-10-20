@@ -21,9 +21,9 @@ import org.jspecify.annotations.Nullable;
  */
 public final class Evaluation {
 
-  private final Result r;
-  private final Spec s;
-  private final List<Match> ms;
+  private final Result result;
+  private final Spec spec;
+  private final List<Match> matches;
   private final int examples;
 
   /** Id → libellé des méthodes évaluées, dans l'ordre, les noms en dernier. */
@@ -32,26 +32,32 @@ public final class Evaluation {
   /** Par ligne : ce que chaque méthode, seule, propose. */
   private final List<Map<String, List<String>>> proposals = new ArrayList<>();
 
-  private Evaluation(Result r, int examples) {
-    this.r = r;
-    this.s = r.spec();
-    this.ms = r.matches();
+  private Evaluation(Result result, int examples) {
+    this.result = result;
+    this.spec = result.spec();
+    this.matches = result.matches();
     this.examples = examples;
   }
 
-  public static Report evaluate(Result r, int examples) {
-    return new Evaluation(r, examples).report();
+  public static Report evaluate(Result result, int examples) {
+    return new Evaluation(result, examples).report();
   }
 
   private Report report() {
-    Summary summary = Summary.of(r);
+    Summary summary = Summary.of(result);
     collectProposals();
     List<MethodStats> methods = new ArrayList<>();
     labels.forEach((id, label) -> methods.add(methodStats(id, label)));
     List<Example> disagreements = new ArrayList<>();
     List<Agreement> agreements = agreements(disagreements);
     return new Report(
-        summary, r.unavailable(), methods, agreements, disagreements, linkStats(), nameStats());
+        summary,
+        result.unavailable(),
+        methods,
+        agreements,
+        disagreements,
+        linkStats(),
+        nameStats());
   }
 
   /** Chaque paire de méthodes, celles qui se recoupent seulement ; les désaccords s'accumulent. */
@@ -68,14 +74,17 @@ public final class Evaluation {
   }
 
   private List<LinkStats> linkStats() {
-    return r.available().stream().filter(k -> k.kind() == Kind.LINK).map(this::linkStats).toList();
+    return result.available().stream()
+        .filter(k -> k.kind() == Kind.LINK)
+        .map(this::linkStats)
+        .toList();
   }
 
   private @Nullable NameStats nameStats() {
-    NameMatcher matcher = r.matcher();
-    NameSpec names = s.names();
+    NameMatcher matcher = result.matcher();
+    NameSpec names = spec.names();
     if (matcher == null || names == null) return null;
-    return new NameEvaluation(r, matcher, names, examples).stats();
+    return new NameEvaluation(result, matcher, names, examples).stats();
   }
 
   /**
@@ -83,11 +92,11 @@ public final class Evaluation {
    * toute la droite, garde-fous compris.
    */
   private void collectProposals() {
-    r.available().forEach(m -> labels.put(m.id(), m.label()));
-    if (r.matcher() != null) labels.put(Spec.NAMES_ID, Spec.NAMES_LABEL);
-    for (Match m : ms) {
+    result.available().forEach(m -> labels.put(m.id(), m.label()));
+    if (result.matcher() != null) labels.put(Spec.NAMES_ID, Spec.NAMES_LABEL);
+    for (Match m : matches) {
       Map<String, List<String>> p = new LinkedHashMap<>(m.found());
-      if (r.matcher() != null) {
+      if (result.matcher() != null) {
         NameGuess free = m.free();
         p.put(
             Spec.NAMES_ID, free != null && free.accepted() ? List.of(free.candidate()) : List.of());
@@ -101,14 +110,15 @@ public final class Evaluation {
   }
 
   private MethodStats methodStats(String id, String label) {
-    KeyMethod km = r.available().stream().filter(k -> k.id().equals(id)).findFirst().orElse(null);
+    KeyMethod km =
+        result.available().stream().filter(k -> k.id().equals(id)).findFirst().orElse(null);
     int proposes = 0;
     int ambiguous = 0;
     int wins = 0;
     int alone = 0;
-    for (int i = 0; i < ms.size(); i++) {
+    for (int i = 0; i < matches.size(); i++) {
       List<String> mine = proposed(i, id);
-      if (id.equals(ms.get(i).method())) wins++;
+      if (id.equals(matches.get(i).method())) wins++;
       if (mine.isEmpty()) continue;
       proposes++;
       if (mine.size() > 1) ambiguous++;
@@ -125,7 +135,7 @@ public final class Evaluation {
   }
 
   private boolean otherSureProposes(int row, String id) {
-    return r.available().stream()
+    return result.available().stream()
         .anyMatch(k -> k.joins() && !k.id().equals(id) && !proposed(row, k.id()).isEmpty());
   }
 
@@ -133,7 +143,7 @@ public final class Evaluation {
     int both = 0;
     int agree = 0;
     int disagree = 0;
-    for (int i = 0; i < ms.size(); i++) {
+    for (int i = 0; i < matches.size(); i++) {
       List<String> pa = proposed(i, a);
       List<String> pb = proposed(i, b);
       if (pa.isEmpty() || pb.isEmpty()) continue;
@@ -146,7 +156,7 @@ public final class Evaluation {
       if (disagreements.size() < examples) {
         disagreements.add(
             new Example(
-                ms.get(i).left().str(s.leftKey()),
+                matches.get(i).left().str(spec.leftKey()),
                 "%s → %s ; %s → %s".formatted(a, String.join(", ", pa), b, String.join(", ", pb))));
       }
     }
@@ -156,7 +166,7 @@ public final class Evaluation {
   private LinkStats linkStats(KeyMethod k) {
     int withLinks =
         (int)
-            r.right().rows().stream()
+            result.right().rows().stream()
                 .filter(x -> !Keys.linkedPaths(x.str(k.rightColumn())).isEmpty())
                 .count();
     int pointed = 0;
@@ -164,12 +174,12 @@ public final class Evaluation {
     int confirmGuess = 0;
     int contradict = 0;
     int wouldJoin = 0;
-    for (Match m : ms) {
+    for (Match m : matches) {
       List<String> f = m.found().getOrDefault(k.id(), List.of());
       if (f.isEmpty()) continue;
       pointed++;
       if (m.right() == null) wouldJoin++;
-      else if (!f.contains(m.rightKey(s))) contradict++;
+      else if (!f.contains(m.rightKey(spec))) contradict++;
       else if (m.confidence() == Confidence.SUGGESTION) confirmGuess++;
       else confirm++;
     }

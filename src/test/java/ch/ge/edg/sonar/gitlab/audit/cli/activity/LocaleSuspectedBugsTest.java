@@ -27,6 +27,6 @@ class LocaleSuspectedBugsTest {
   @Test
   @SuspectedBug("CSV decimals should be written 1.50 whatever the default locale")
   void decimalsUseACommaUnderAFrenchLocale() {
-    assertThat(Fmt.dec(1.5)).isEqualTo("1,50");
+    assertThat(CellFormat.dec(1.5)).isEqualTo("1,50");
   }
 }

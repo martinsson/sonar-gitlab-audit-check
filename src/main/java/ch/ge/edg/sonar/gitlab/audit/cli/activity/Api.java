@@ -42,7 +42,7 @@ final class Api {
         "ref_name",
         p.defaultBranch(),
         "since",
-        Fmt.iso(since),
+        CellFormat.iso(since),
         "with_stats",
         stats ? "true" : null,
         "per_page",
