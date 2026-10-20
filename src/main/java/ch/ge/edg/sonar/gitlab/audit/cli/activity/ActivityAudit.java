@@ -82,16 +82,17 @@ final class ActivityAudit {
       return 1;
     }
     FunnelResult result = FunnelStages.run(gl, report, funnel, census.all());
-    write(outputs, result.projects(), funnel.sinceDays());
+    write(outputs, result.projects(), report);
     if (outputs.deep()) new DeepPass(gl, con, instance.get(), funnel).run(outputs, result);
     new Summary(gl, con, funnel, outputs).print(result);
     return 0;
   }
 
-  private void write(Outputs outputs, List<AuditedProject> all, int sinceDays) throws IOException {
+  private static void write(Outputs outputs, List<AuditedProject> all, FunnelReport report)
+      throws IOException {
     Path inventory = outputs.inventory();
     if (inventory == null) return;
-    Column.write(inventory, outputs.comma(), CsvFiles.inventory(sinceDays), all);
-    out.out().printf("%n  Inventaire : %d lignes.%n", all.size());
+    Column.write(inventory, outputs.comma(), CsvFiles.inventory(report.sinceDays()), all);
+    report.inventoryWritten(all.size());
   }
 }

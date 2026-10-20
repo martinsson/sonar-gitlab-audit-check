@@ -40,7 +40,7 @@ final class DeepPass {
   private void measureAll(Outputs outputs, List<AuditedProject> selected, PracticeProbes probes)
       throws IOException {
     if (selected.isEmpty()) return;
-    con.title("6. Signaux de pratique sur les %d sélectionnés".formatted(selected.size()));
+    DeepReport.begin(con, selected.size());
 
     // Une dizaine d'appels par projet, sans lien d'un projet à l'autre :
     // la seule raison de les faire l'un après l'autre était qu'on ne
@@ -56,7 +56,7 @@ final class DeepPass {
     Path pratiques = outputs.pratiques();
     if (pratiques != null) {
       Column.write(pratiques, outputs.comma(), CsvFiles.practices(funnel.sinceDays()), assessed);
-      con.out().out().printf("%n  Pratiques : %d lignes.%n", selected.size());
+      report.written();
     }
   }
 }

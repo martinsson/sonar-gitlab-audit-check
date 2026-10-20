@@ -24,6 +24,16 @@ final class DeepReport {
     this.selected = selected;
   }
 
+  /** Avant la passe : combien de projets elle va sonder. */
+  static void begin(Screen con, int selected) {
+    con.title("6. Signaux de pratique sur les %d sélectionnés".formatted(selected));
+  }
+
+  /** pratiques.csv vient d'être écrit. */
+  void written() {
+    con.out().out().printf("%n  Pratiques : %d lignes.%n", selected.size());
+  }
+
   /**
    * Par quelle route la CI a été lue, et combien n'ont rien coûté. Publié parce que les trois
    * routes ne voient pas la même chose : merged_yaml voit tout l'arbre d'inclusion, le repli ne

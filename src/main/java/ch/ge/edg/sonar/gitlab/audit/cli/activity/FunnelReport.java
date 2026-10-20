@@ -24,6 +24,15 @@ final class FunnelReport {
     this.funnel = funnel;
   }
 
+  int sinceDays() {
+    return funnel.sinceDays();
+  }
+
+  /** inventaire.csv vient d'être écrit. */
+  void inventoryWritten(int rows) {
+    out.out().printf("%n  Inventaire : %d lignes.%n", rows);
+  }
+
   void beginInventory() {
     con.title("1. Inventaire (étape 0)");
   }
