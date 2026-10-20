@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.gitlab;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -149,13 +150,12 @@ class GitlabConventionsTest {
 
   @Test
   void a_long_request_is_cut_in_the_dump_name_never_the_extension() {
-    String uri =
-        "https://gitlab.example.com/api/v4/projects/1/repository/commits?since=" + "9".repeat(200);
-    String name = GitlabHttp.dumpName(4, uri);
+    String request = "api/v4/projects/1/repository/commits?since=" + "9".repeat(200);
+    String name = Capture.name(request);
     assertThat(name)
-        .hasSize(125)
-        .startsWith("0004-api_v4_projects_1_repository_commits_since_")
-        .endsWith(".json");
-    assertThat(GitlabHttp.dumpName(7, "https://h/api/v4/user")).isEqualTo("0007-api_v4_user.json");
+        .startsWith("v4_projects_1_repository_commits-")
+        .endsWith(".json")
+        .hasSizeLessThan(80);
+    assertThat(Capture.name("api/v4/user")).matches("v4_user-[0-9a-f]{8}\\.json");
   }
 }

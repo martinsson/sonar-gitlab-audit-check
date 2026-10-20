@@ -1,8 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
-import ch.ge.edg.sonar.gitlab.audit.sonar.Captures;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
 import ch.ge.edg.sonar.gitlab.audit.sonar.SonarConnection;
 import java.io.IOException;
@@ -30,7 +30,10 @@ record Session(Sonar sq, Console out, int concurrency, Clock clock) {
         new Sonar(
             new SonarConnection(
                 instance.url, instance.token, instance.organization, scan.timeout, scan.insecure),
-            new Captures(output.dumpDir, output.replayDir, out.err()),
+            new Capture(
+                output.dumpDir,
+                output.replayDir,
+                reason -> out.err().println("  (capture non écrite : " + reason + ")")),
             sleeper);
     return new Session(sq, out, scan.concurrency, clock);
   }

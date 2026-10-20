@@ -1,14 +1,13 @@
 package ch.ge.edg.sonar.gitlab.audit.testing;
 
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
@@ -23,8 +22,6 @@ import java.util.Map;
 public final class GocdFixtures {
 
   private static final ObjectMapper JSON = new ObjectMapper();
-  private static final PrintStream QUIET =
-      new PrintStream(new ByteArrayOutputStream(), true, StandardCharsets.UTF_8);
 
   private GocdFixtures() {}
 
@@ -33,7 +30,7 @@ public final class GocdFixtures {
     try {
       return new GocdApi(
           new RestClient(
-              RestClient.Settings.of(server.url(), Map.of(), false), QUIET, pause -> {}));
+              RestClient.Settings.of(server.url(), Map.of(), false), Capture.none(), pause -> {}));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

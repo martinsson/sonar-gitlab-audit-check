@@ -103,13 +103,13 @@ public class DoraLocate implements Callable<Integer> {
       out.println("Projet GitLab : " + p.pathWithNamespace() + " (id " + p.id() + ")");
       Context ctx = new Context(out, err, clock, new Suggestions());
       if (present(jiraUrl) && present(jiraToken)) {
-        new JiraSection(gitlab, Access.jira(jiraUrl, jiraToken, insecure, err, host.sleeper()), ctx)
+        new JiraSection(gitlab, Access.jira(jiraUrl, jiraToken, insecure, host.sleeper()), ctx)
             .run(p, days, maxCommits);
       } else {
         out.println("\n(Jira ignoré : JIRA_URL / JIRA_TOKEN absents)");
       }
       if (present(gocdUrl) && present(gocdToken)) {
-        new GocdSection(Access.gocd(gocdUrl, gocdToken, insecure, err, host.sleeper()), ctx)
+        new GocdSection(Access.gocd(gocdUrl, gocdToken, insecure, host.sleeper()), ctx)
             .run(p, index, refresh);
       } else {
         out.println("\n(GoCD ignoré : GOCD_URL / GOCD_TOKEN absents)");

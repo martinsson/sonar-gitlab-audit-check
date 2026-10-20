@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
@@ -229,7 +230,7 @@ class GitlabClientTest {
   }
 
   @Test
-  void dumpsEveryResponseBodyNumberedByCall() throws Exception {
+  void dumpsEveryResponseBodyUnderANameStableAcrossRuns() throws Exception {
     server.json("/api/v4/projects/1/repository/commits", "[{\"id\":\"abc\"}]");
     server.on("/api/v4/user", r -> Response.status(401, "{\"message\":\"401\"}"));
     Path dir = tmp.resolve("nested/dump");
@@ -239,46 +240,49 @@ class GitlabClientTest {
     gl.get("projects/1/repository/commits", Map.of("ref_name", "main"));
     gl.get("user", Map.of());
 
-    try (var files = Files.list(dir)) {
-      assertThat(files.map(p -> p.getFileName().toString()).sorted().toList())
-          .containsExactly(
-              "0001-api_v4_projects_1_repository_commits_ref_name_main.json",
-              "0002-api_v4_user.json");
-    }
-    assertThat(dir.resolve("0002-api_v4_user.json")).hasContent("{\"message\":\"401\"}");
+    String commits = Capture.name("api/v4/projects/1/repository/commits?ref_name=main");
+    String user = Capture.name("api/v4/user");
+    assertThat(dir.resolve(commits)).hasContent("[{\"id\":\"abc\"}]");
+    assertThat(dir.resolve(user)).hasContent("{\"message\":\"401\"}");
+    assertThat(dir.resolve(user + ".status")).hasContent("401");
+    String nl = System.lineSeparator();
+    assertThat(dir.resolve("index.txt"))
+        .hasContent(
+            commits
+                + "  api/v4/projects/1/repository/commits?ref_name=main"
+                + nl
+                + user
+                + "  api/v4/user");
   }
 
   @Test
   @SuspectedBug("with only null parameters the URL should not end in '?'")
-  void onlyNullParametersLeaveATrailingQuestionMarkSeenInTheDumpName() throws Exception {
+  void onlyNullParametersLeaveATrailingQuestionMarkSeenInTheDumpIndex() throws Exception {
     server.json("/api/v4/projects", "[]");
     Map<String, String> params = new LinkedHashMap<>();
     params.put("skipped", null);
     GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, tmp))
         .get("projects", params);
-    try (var files = Files.list(tmp)) {
-      assertThat(files.map(p -> p.getFileName().toString()).toList())
-          .containsExactly("0001-api_v4_projects_.json");
-    }
+    assertThat(tmp.resolve("index.txt"))
+        .content()
+        .endsWith("  api/v4/projects?" + System.lineSeparator());
   }
 
   @Test
-  void dumpFileNamesAreCutAt120CharactersThenGetTheirExtension() throws Exception {
+  void aLongRequestKeepsAShortDumpName() throws Exception {
     String path = "projects/" + "a".repeat(200);
     server.json("/api/v4/" + path, "{}");
     Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
     gl.get(path, Map.of());
-    try (var files = Files.list(tmp)) {
-      List<String> names = files.map(p -> p.getFileName().toString()).toList();
-      assertThat(names)
-          .containsExactly(("0001-api_v4_projects_" + "a".repeat(200)).substring(0, 120) + ".json");
-    }
+    String name = Capture.name("api/v4/" + path);
+    assertThat(name).hasSize(60 + 1 + 8 + 5);
+    assertThat(tmp.resolve(name)).hasContent("{}");
   }
 
   @Test
   void aDumpThatCannotBeWrittenIsReportedNotFatal() throws Exception {
     server.json("/api/v4/user", "{\"id\":1}");
-    Files.createDirectories(tmp.resolve("0001-api_v4_user.json"));
+    Files.createDirectories(tmp.resolve(Capture.name("api/v4/user")));
     GitlabStreams printed = new GitlabStreams();
     Gitlab gl = printed.client(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
     assertThat(gl.get("user", Map.of()).ok()).isTrue();
@@ -297,9 +301,8 @@ class GitlabClientTest {
                 : Response.json("{\"id\":1}"));
     Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
     gl.get("user", Map.of());
-    try (var files = Files.list(tmp)) {
-      assertThat(files.map(p -> p.getFileName().toString()).toList())
-          .containsExactly("0002-api_v4_user.json");
-    }
+    String name = Capture.name("api/v4/user");
+    assertThat(tmp.resolve(name)).hasContent("{\"id\":1}");
+    assertThat(tmp.resolve("index.txt")).hasContent(name + "  api/v4/user");
   }
 }

@@ -2,12 +2,12 @@ package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
 import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
 import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -36,16 +36,13 @@ final class JiraSource {
 
   /** Un PAT Jira Data Center, envoyé en Bearer. */
   public static JiraSource connect(
-      @Nullable String url,
-      @Nullable String token,
-      boolean insecure,
-      PrintStream err,
-      Sleeper sleeper)
+      @Nullable String url, @Nullable String token, boolean insecure, Sleeper sleeper)
       throws ExtractionStop, IOException {
     String base = require(url, "JIRA_URL");
     Map<String, String> headers = new HashMap<>(AuthHeaders.bearer(require(token, "JIRA_TOKEN")));
     headers.put("Accept", "application/json");
-    RestClient http = new RestClient(RestClient.Settings.of(base, headers, insecure), err, sleeper);
+    RestClient http =
+        new RestClient(RestClient.Settings.of(base, headers, insecure), Capture.none(), sleeper);
     return new JiraSource(new JiraApi(http));
   }
 
