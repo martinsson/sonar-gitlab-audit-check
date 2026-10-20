@@ -436,6 +436,12 @@
               <targetTests>
                 <param>ch.ge.edg.sonar.gitlab.audit.*</param>
               </targetTests>
+              <!-- ArchUnit rules run no production code, so they kill no mutant; and Selfie's JUnit
+                   listener throws on their @ArchTest field sources, which in PIT's single JVM breaks
+                   every snapshot test that runs after them. -->
+              <excludedTestClasses>
+                <param>ch.ge.edg.sonar.gitlab.audit.architecture.*</param>
+              </excludedTestClasses>
               <mutationThreshold>${mutation.score.minimum}</mutationThreshold>
               <timestampedReports>false</timestampedReports>
               <outputFormats>
