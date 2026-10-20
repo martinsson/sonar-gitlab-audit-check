@@ -1,0 +1,270 @@
+{
+  "_links" : {
+    "self" : {
+      "href" : "http://localhost:8153/go/api/dashboard"
+    },
+    "doc" : {
+      "href" : "https://api.gocd.org/current/#dashboard"
+    }
+  },
+  "_personalization" : "2356e5d4241f22987d8f8cb8920913fda237385b423bd7eec7e97b2a9eb1be1a",
+  "_embedded" : {
+    "pipeline_groups" : [ {
+      "_links" : {
+        "doc" : {
+          "href" : "https://api.gocd.org/current/#pipeline-groups"
+        },
+        "self" : {
+          "href" : "http://localhost:8153/go/api/config/pipeline_groups"
+        }
+      },
+      "name" : "other",
+      "pipelines" : [ "other-build" ],
+      "can_administer" : true,
+      "defines_pipelines" : true
+    }, {
+      "_links" : {
+        "doc" : {
+          "href" : "https://api.gocd.org/current/#pipeline-groups"
+        },
+        "self" : {
+          "href" : "http://localhost:8153/go/api/config/pipeline_groups"
+        }
+      },
+      "name" : "hello",
+      "pipelines" : [ "hello-build", "hello-deploy-recette", "hello-deploy-prod" ],
+      "can_administer" : true,
+      "defines_pipelines" : true
+    } ],
+    "environments" : [ ],
+    "pipelines" : [ {
+      "_links" : {
+        "self" : {
+          "href" : "http://localhost:8153/go/api/pipelines/other-build/history"
+        },
+        "doc" : {
+          "href" : "https://api.gocd.org/current/#pipelines"
+        }
+      },
+      "name" : "other-build",
+      "last_updated_timestamp" : 1792528906842,
+      "locked" : false,
+      "pause_info" : {
+        "paused" : false,
+        "paused_by" : null,
+        "pause_reason" : null,
+        "paused_at" : null
+      },
+      "template_info" : {
+        "is_using_template" : false,
+        "template_name" : null
+      },
+      "can_operate" : true,
+      "can_administer" : true,
+      "can_unlock" : true,
+      "can_pause" : true,
+      "from_config_repo" : false,
+      "_embedded" : {
+        "instances" : [ {
+          "_links" : {
+            "self" : {
+              "href" : "http://localhost:8153/go/api/pipelines/other-build/2/instance"
+            }
+          },
+          "label" : "2",
+          "counter" : 2,
+          "triggered_by" : "Triggered by anonymous",
+          "scheduled_at" : "2026-10-20T20:44:01Z",
+          "_embedded" : {
+            "stages" : [ {
+              "_links" : {
+                "self" : {
+                  "href" : "http://localhost:8153/go/api/stages/other-build/2/build/1"
+                }
+              },
+              "name" : "build",
+              "counter" : "1",
+              "status" : "Passed",
+              "allow_only_on_success_of_previous_stage" : false,
+              "can_operate" : true,
+              "approval_type" : "auto",
+              "approved_by" : "anonymous",
+              "scheduled_at" : "2026-10-20T20:44:01Z"
+            } ]
+          }
+        } ]
+      }
+    }, {
+      "_links" : {
+        "self" : {
+          "href" : "http://localhost:8153/go/api/pipelines/hello-build/history"
+        },
+        "doc" : {
+          "href" : "https://api.gocd.org/current/#pipelines"
+        }
+      },
+      "name" : "hello-build",
+      "last_updated_timestamp" : 1792528906843,
+      "locked" : false,
+      "pause_info" : {
+        "paused" : false,
+        "paused_by" : null,
+        "pause_reason" : null,
+        "paused_at" : null
+      },
+      "template_info" : {
+        "is_using_template" : false,
+        "template_name" : null
+      },
+      "can_operate" : true,
+      "can_administer" : true,
+      "can_unlock" : true,
+      "can_pause" : true,
+      "from_config_repo" : false,
+      "_embedded" : {
+        "instances" : [ {
+          "_links" : {
+            "self" : {
+              "href" : "http://localhost:8153/go/api/pipelines/hello-build/3/instance"
+            }
+          },
+          "label" : "3",
+          "counter" : 3,
+          "triggered_by" : "Triggered by anonymous",
+          "scheduled_at" : "2026-10-20T20:43:26Z",
+          "_embedded" : {
+            "stages" : [ {
+              "_links" : {
+                "self" : {
+                  "href" : "http://localhost:8153/go/api/stages/hello-build/3/build/1"
+                }
+              },
+              "name" : "build",
+              "counter" : "1",
+              "status" : "Passed",
+              "allow_only_on_success_of_previous_stage" : false,
+              "can_operate" : true,
+              "approval_type" : "auto",
+              "approved_by" : "anonymous",
+              "scheduled_at" : "2026-10-20T20:43:26Z"
+            } ]
+          }
+        } ]
+      }
+    }, {
+      "_links" : {
+        "self" : {
+          "href" : "http://localhost:8153/go/api/pipelines/hello-deploy-recette/history"
+        },
+        "doc" : {
+          "href" : "https://api.gocd.org/current/#pipelines"
+        }
+      },
+      "name" : "hello-deploy-recette",
+      "last_updated_timestamp" : 1792528906844,
+      "locked" : false,
+      "pause_info" : {
+        "paused" : false,
+        "paused_by" : null,
+        "pause_reason" : null,
+        "paused_at" : null
+      },
+      "template_info" : {
+        "is_using_template" : false,
+        "template_name" : null
+      },
+      "can_operate" : true,
+      "can_administer" : true,
+      "can_unlock" : true,
+      "can_pause" : true,
+      "from_config_repo" : false,
+      "_embedded" : {
+        "instances" : [ {
+          "_links" : {
+            "self" : {
+              "href" : "http://localhost:8153/go/api/pipelines/hello-deploy-recette/3/instance"
+            }
+          },
+          "label" : "3",
+          "counter" : 3,
+          "triggered_by" : "Triggered by changes",
+          "scheduled_at" : "2026-10-20T20:43:39Z",
+          "_embedded" : {
+            "stages" : [ {
+              "_links" : {
+                "self" : {
+                  "href" : "http://localhost:8153/go/api/stages/hello-deploy-recette/3/deploy/1"
+                }
+              },
+              "name" : "deploy",
+              "counter" : "1",
+              "status" : "Passed",
+              "allow_only_on_success_of_previous_stage" : false,
+              "can_operate" : true,
+              "approval_type" : "auto",
+              "approved_by" : "changes",
+              "scheduled_at" : "2026-10-20T20:43:39Z"
+            } ]
+          }
+        } ]
+      }
+    }, {
+      "_links" : {
+        "self" : {
+          "href" : "http://localhost:8153/go/api/pipelines/hello-deploy-prod/history"
+        },
+        "doc" : {
+          "href" : "https://api.gocd.org/current/#pipelines"
+        }
+      },
+      "name" : "hello-deploy-prod",
+      "last_updated_timestamp" : 1792528906845,
+      "locked" : false,
+      "pause_info" : {
+        "paused" : false,
+        "paused_by" : null,
+        "pause_reason" : null,
+        "paused_at" : null
+      },
+      "template_info" : {
+        "is_using_template" : false,
+        "template_name" : null
+      },
+      "can_operate" : true,
+      "can_administer" : true,
+      "can_unlock" : true,
+      "can_pause" : true,
+      "from_config_repo" : false,
+      "_embedded" : {
+        "instances" : [ {
+          "_links" : {
+            "self" : {
+              "href" : "http://localhost:8153/go/api/pipelines/hello-deploy-prod/1/instance"
+            }
+          },
+          "label" : "1",
+          "counter" : 1,
+          "triggered_by" : "Triggered by anonymous",
+          "scheduled_at" : "2026-10-20T20:44:31Z",
+          "_embedded" : {
+            "stages" : [ {
+              "_links" : {
+                "self" : {
+                  "href" : "http://localhost:8153/go/api/stages/hello-deploy-prod/1/deploy/1"
+                }
+              },
+              "name" : "deploy",
+              "counter" : "1",
+              "status" : "Failed",
+              "allow_only_on_success_of_previous_stage" : false,
+              "can_operate" : true,
+              "approval_type" : "manual",
+              "approved_by" : "anonymous",
+              "scheduled_at" : "2026-10-20T20:44:31Z"
+            } ]
+          }
+        } ]
+      }
+    } ]
+  }
+}

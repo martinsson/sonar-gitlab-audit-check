@@ -1,0 +1,47 @@
+{
+  "name" : "build",
+  "counter" : 1,
+  "approval_type" : "success",
+  "approved_by" : "anonymous",
+  "scheduled_at" : 1792529006377,
+  "last_transitioned_time" : 1792529018863,
+  "result" : "Passed",
+  "rerun_of_counter" : null,
+  "fetch_materials" : true,
+  "clean_working_directory" : false,
+  "artifacts_deleted" : false,
+  "pipeline_name" : "hello-build",
+  "pipeline_counter" : 3,
+  "jobs" : [ {
+    "name" : "compile",
+    "state" : "Completed",
+    "result" : "Passed",
+    "scheduled_date" : 1792529006376,
+    "rerun" : false,
+    "original_job_id" : null,
+    "agent_uuid" : "1ba9ce35-0dc5-44f0-a3a6-410b8e3295c8",
+    "pipeline_name" : null,
+    "pipeline_counter" : null,
+    "stage_name" : null,
+    "stage_counter" : null,
+    "job_state_transitions" : [ {
+      "state" : "Scheduled",
+      "state_change_time" : 1792529006376
+    }, {
+      "state" : "Assigned",
+      "state_change_time" : 1792529011889
+    }, {
+      "state" : "Preparing",
+      "state_change_time" : 1792529016988
+    }, {
+      "state" : "Building",
+      "state_change_time" : 1792529017814
+    }, {
+      "state" : "Completing",
+      "state_change_time" : 1792529018840
+    }, {
+      "state" : "Completed",
+      "state_change_time" : 1792529018863
+    } ]
+  } ]
+}

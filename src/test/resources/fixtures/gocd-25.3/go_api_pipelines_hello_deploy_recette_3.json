@@ -1,0 +1,49 @@
+{
+  "name" : "hello-deploy-recette",
+  "counter" : 3,
+  "label" : "3",
+  "natural_order" : 3.0,
+  "can_run" : true,
+  "preparing_to_schedule" : false,
+  "comment" : null,
+  "scheduled_date" : 1792529019430,
+  "build_cause" : {
+    "trigger_message" : "triggered by hello-build/3/build/1",
+    "trigger_forced" : false,
+    "approver" : "changes",
+    "material_revisions" : [ {
+      "changed" : true,
+      "material" : {
+        "name" : "hello-build",
+        "fingerprint" : "8591301a5eeadfba467a01d22e342105f3326a0cbbf59bf252704ddb2c95d609",
+        "type" : "Pipeline",
+        "description" : "hello-build [ build ]"
+      },
+      "modifications" : [ {
+        "revision" : "hello-build/3/build/1",
+        "modified_time" : 1792529018863,
+        "user_name" : null,
+        "comment" : null,
+        "email_address" : null
+      } ]
+    } ]
+  },
+  "stages" : [ {
+    "result" : "Passed",
+    "status" : "Passed",
+    "rerun_of_counter" : null,
+    "name" : "deploy",
+    "counter" : "1",
+    "scheduled" : true,
+    "approval_type" : "success",
+    "approved_by" : "changes",
+    "operate_permission" : true,
+    "can_run" : true,
+    "jobs" : [ {
+      "name" : "deploy",
+      "scheduled_date" : 1792529019430,
+      "state" : "Completed",
+      "result" : "Passed"
+    } ]
+  } ]
+}
