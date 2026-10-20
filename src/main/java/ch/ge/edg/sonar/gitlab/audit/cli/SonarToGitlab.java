@@ -4,7 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Match;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.NameSpec;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
-import ch.ge.edg.sonar.gitlab.audit.naming.NameMatcher;
+import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

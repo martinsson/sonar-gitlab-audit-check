@@ -5,7 +5,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Example;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.NameStats;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.ThresholdPoint;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
-import ch.ge.edg.sonar.gitlab.audit.naming.NameMatcher;
+import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;

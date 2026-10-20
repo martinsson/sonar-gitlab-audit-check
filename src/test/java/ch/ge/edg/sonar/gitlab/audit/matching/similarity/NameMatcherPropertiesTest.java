@@ -1,6 +1,6 @@
-package ch.ge.edg.sonar.gitlab.audit.naming;
+package ch.ge.edg.sonar.gitlab.audit.matching.similarity;
 
-import static ch.ge.edg.sonar.gitlab.audit.naming.NameMatcherFixtures.matcher;
+import static ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcherFixtures.matcher;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 

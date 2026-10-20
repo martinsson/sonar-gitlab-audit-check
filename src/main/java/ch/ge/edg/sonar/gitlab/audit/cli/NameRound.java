@@ -5,7 +5,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Pair;
 import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Rejections;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Spec;
-import ch.ge.edg.sonar.gitlab.audit.naming.NameMatcher;
+import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;

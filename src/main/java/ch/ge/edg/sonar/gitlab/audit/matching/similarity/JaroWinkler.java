@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.naming;
+package ch.ge.edg.sonar.gitlab.audit.matching.similarity;
 
 /** Jaro-Winkler : ressemblance de deux mots, 0–1, avec un bonus pour un début commun. */
 final class JaroWinkler {

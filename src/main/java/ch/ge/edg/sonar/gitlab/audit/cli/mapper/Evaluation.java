@@ -5,7 +5,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Example;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.LinkStats;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.MethodStats;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Summary;
-import ch.ge.edg.sonar.gitlab.audit.naming.NameMatcher;
+import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;

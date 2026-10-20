@@ -3,7 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.TokenCount;
 import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Vocabulary;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
-import ch.ge.edg.sonar.gitlab.audit.naming.NameMatcher;
+import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;

@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.naming;
+package ch.ge.edg.sonar.gitlab.audit.matching.similarity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;

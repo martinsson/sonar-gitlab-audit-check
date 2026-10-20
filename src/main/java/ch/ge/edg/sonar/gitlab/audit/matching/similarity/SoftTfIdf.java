@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.naming;
+package ch.ge.edg.sonar.gitlab.audit.matching.similarity;
 
 import java.util.HashMap;
 import java.util.Map;

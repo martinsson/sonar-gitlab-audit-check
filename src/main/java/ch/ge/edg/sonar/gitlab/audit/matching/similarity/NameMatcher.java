@@ -1,10 +1,10 @@
-package ch.ge.edg.sonar.gitlab.audit.naming;
+package ch.ge.edg.sonar.gitlab.audit.matching.similarity;
 
-import static ch.ge.edg.sonar.gitlab.audit.naming.SoftTfIdf.MIN_FUZZY_LENGTH;
-import static ch.ge.edg.sonar.gitlab.audit.naming.SoftTfIdf.numbersConflict;
-import static ch.ge.edg.sonar.gitlab.audit.naming.SoftTfIdf.similarity;
+import static ch.ge.edg.sonar.gitlab.audit.matching.similarity.SoftTfIdf.MIN_FUZZY_LENGTH;
+import static ch.ge.edg.sonar.gitlab.audit.matching.similarity.SoftTfIdf.numbersConflict;
+import static ch.ge.edg.sonar.gitlab.audit.matching.similarity.SoftTfIdf.similarity;
 
-import ch.ge.edg.sonar.gitlab.audit.naming.SoftTfIdf.Doc;
+import ch.ge.edg.sonar.gitlab.audit.matching.similarity.SoftTfIdf.Doc;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
