@@ -62,9 +62,13 @@ or a merge request (GitLab). It merges itself, without human review, once the
 **`verify`** job is green: `./verify`, the same gates as the pre-push hook, in
 about a minute.
 
-After each merge into `main`, **`verify-full`** runs `./verify --full`: Docker
-integration tests, mutation testing and copy-paste detection, about 15 minutes.
-It does not block anything. A red run is fixed by the next pull request.
+Every night, and on demand (`gh workflow run verify`), **`verify-full`** runs
+`./verify --full` on `main`: Docker integration tests, mutation testing and
+copy-paste detection, about 15 minutes. It does not block anything. A red run
+is fixed by the next pull request.
+
+It cannot run on each merge: an auto-merge is made with the workflow token, and
+GitHub starts no workflow for that token's events.
 
 The ratchet compares with the target branch, so a `Ratchet-Override:` line in
 one of the branch's commits still counts.
