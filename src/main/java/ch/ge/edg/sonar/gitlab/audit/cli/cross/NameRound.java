@@ -1,9 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.NameThresholds;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Rejections;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import ch.ge.edg.sonar.gitlab.audit.matching.Spec;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
 import java.util.ArrayList;
@@ -28,14 +29,14 @@ final class NameRound {
   private final GitlabInventoryIndex inventory;
   private final NameMatcher matcher;
   private final Rejections rejected;
-  private final NameThresholds thresholds;
+  private final Guards thresholds;
 
   NameRound(
       SonarFates fates,
       GitlabInventoryIndex inventory,
       NameMatcher matcher,
       Rejections rejected,
-      NameThresholds thresholds) {
+      Guards thresholds) {
     this.fates = fates;
     this.inventory = inventory;
     this.matcher = matcher;
@@ -66,7 +67,7 @@ final class NameRound {
   }
 
   private Optional<Proposal> propose(int s, Set<Integer> taken) {
-    String key = fates.sonar(s).str("key");
+    String key = fates.sonar(s).str(SonarInventory.KEY);
     List<NameMatcher.Scored> ranked =
         matcher.rankSources(
             s,
@@ -116,7 +117,7 @@ final class NameRound {
         fates.refused.put(
             p.sonar(),
             "déjà proposé à "
-                + fates.sonar(winner).str("key")
+                + fates.sonar(winner).str(SonarInventory.KEY)
                 + "\n"
                 + inventory.described(p.gitlab(), p.score()));
       }

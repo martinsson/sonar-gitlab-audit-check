@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.within;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.testing.Printed;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Locale;
@@ -98,10 +99,10 @@ class CrossAuditHelpersTest {
     Locale saved = Locale.getDefault();
     Locale.setDefault(Locale.FRANCE);
     try {
-      assertThat(CrossCsv.dec(null)).isEmpty();
-      assertThat(CrossCsv.dec(1.004)).isEqualTo("1.00");
-      assertThat(CrossCsv.dec(2.0 / 3)).isEqualTo("0.67");
-      assertThat(CrossCsv.dec(-12.5)).isEqualTo("-12.50");
+      assertThat(Text.decimal(null)).isEmpty();
+      assertThat(Text.decimal(1.004)).isEqualTo("1.00");
+      assertThat(Text.decimal(2.0 / 3)).isEqualTo("0.67");
+      assertThat(Text.decimal(-12.5)).isEqualTo("-12.50");
     } finally {
       Locale.setDefault(saved);
     }
@@ -109,11 +110,11 @@ class CrossAuditHelpersTest {
 
   @Test
   void pct_rounds_and_has_a_dash_for_no_total() {
-    assertThat(CrossReport.pct(0, 0)).isEqualTo("—");
-    assertThat(CrossReport.pct(1, 3)).isEqualTo("33 %");
-    assertThat(CrossReport.pct(2, 3)).isEqualTo("67 %");
-    assertThat(CrossReport.pct(3, 3)).isEqualTo("100 %");
-    assertThat(CrossReport.pct(0, 5)).isEqualTo("0 %");
+    assertThat(Text.pct(0, 0)).isEqualTo("—");
+    assertThat(Text.pct(1, 3)).isEqualTo("33 %");
+    assertThat(Text.pct(2, 3)).isEqualTo("67 %");
+    assertThat(Text.pct(3, 3)).isEqualTo("100 %");
+    assertThat(Text.pct(0, 5)).isEqualTo("0 %");
   }
 
   @Test

@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -31,7 +32,7 @@ final class SideLists {
   private static List<Scored> byDebtRatio(List<InventoryRow> rows, Predicate<InventoryRow> keep) {
     List<Scored> out = new ArrayList<>();
     for (InventoryRow r : rows) {
-      Double debt = r.num("sqale_debt_ratio");
+      Double debt = r.num(SonarInventory.SQALE_DEBT_RATIO);
       if (debt != null && keep.test(r)) {
         Scored s = new Scored(r);
         s.score = debt;

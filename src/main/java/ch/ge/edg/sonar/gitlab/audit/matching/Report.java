@@ -26,9 +26,6 @@ public record Report(
     List<LinkStats> links,
     @Nullable NameStats names) {
 
-  /** Les garde-fous de la ressemblance de noms, à plat dans le JSON du résumé. */
-  public record Guards(double threshold, double margin) {}
-
   public record Summary(
       int left,
       int right,

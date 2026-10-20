@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.within;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.Printed;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -138,8 +139,8 @@ class SonarRankUnitTest {
     assertThat(report.pct(2, 3, RankReport.YELLOW)).isEqualTo("\033[33m2 (67%)\033[0m");
     assertThat(row("key", "k", "name", "").label()).isEqualTo("k");
     assertThat(row("key", "k", "name", "n").label()).isEqualTo("n");
-    assertThat(RankReport.truncate("abcd", 4)).isEqualTo("abcd");
-    assertThat(RankReport.truncate("abcde", 4)).isEqualTo("abc...");
+    assertThat(Text.ellipsize("abcd", 4)).isEqualTo("abcd");
+    assertThat(Text.ellipsize("abcde", 4)).isEqualTo("abc...");
     assertThat(RankReport.RESET).isEqualTo("\033[0m");
     assertThat(RankReport.BOLD).isEqualTo("\033[1m");
     assertThat(RankReport.DIM).isEqualTo("\033[2m");

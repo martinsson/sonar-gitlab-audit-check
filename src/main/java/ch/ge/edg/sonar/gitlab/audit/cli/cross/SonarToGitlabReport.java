@@ -5,7 +5,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Result;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
-import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.TreeMap;
@@ -27,7 +27,7 @@ final class SonarToGitlabReport {
     out.out()
         .printf(
             "  Projets Sonar : %d, dont %d appariés sûrement (%s)%n",
-            n, joined, Fmt.pct(joined, n));
+            n, joined, Text.pct(joined, n));
     confidences(r);
     reasons(r);
     checks(r);

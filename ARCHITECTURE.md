@@ -19,7 +19,7 @@ this file and the rules disagree, the rules decide.
       │
  clients          gitlab, sonar, jira, gocd: one per external system
       │
- infrastructure   rest (HTTP, TLS, retries, capture/replay), csv, console, parallel, runtime
+ infrastructure   rest (HTTP, TLS, retries, capture/replay), csv, console, text, parallel, runtime
 ```
 
 A package depends only on layers below it. Within a layer, command packages don't depend on each
@@ -56,7 +56,7 @@ Tests build it with fixed values.
   sleeper.
 - Default files (`exclusions.txt`, `namespace-mapping.yaml`) are option defaults, resolved
   against the working directory at the edge.
-- Numbers and dates are formatted with an explicit locale, only in `console` and in the CSV
+- Numbers and dates are formatted with an explicit locale, only in `console`, `text` and in the CSV
   column formatters.
 - Clients don't print. Progress goes through a listener.
 

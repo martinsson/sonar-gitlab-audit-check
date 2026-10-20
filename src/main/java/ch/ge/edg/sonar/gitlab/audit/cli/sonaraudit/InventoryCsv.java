@@ -1,13 +1,14 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.dec;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.decimal;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.HistoryPoint;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -24,19 +25,6 @@ import org.jspecify.annotations.Nullable;
 
 /** inventaire.csv, une ligne par projet, et inventaire-historique.csv à côté. */
 final class InventoryCsv {
-
-  private static final List<String> BRANCH_COLUMNS =
-      List.of("branch", "is_main_branch", "main_branch_analysisDate");
-
-  private static final List<String> ATTACHMENT_COLUMNS = List.of("alm", "alm_repository", "liens");
-
-  private static final List<String> TREND_COLUMNS =
-      List.of(
-          "tendance_analyses",
-          "tendance_jours",
-          "violations_pente_mois",
-          "violations_kloc_pente_pct_mois",
-          "dette_ratio_pente_pct_mois");
 
   /** Ce que l'inventaire a lu, projet par projet, indexé par clé. */
   record Park(
@@ -58,12 +46,7 @@ final class InventoryCsv {
   }
 
   void write(Path csv, Park park) throws IOException {
-    List<String> header =
-        new ArrayList<>(List.of("key", "name", "analysisDate", "days_since_analysis"));
-    header.addAll(Metrics.COLUMNS);
-    header.addAll(BRANCH_COLUMNS);
-    header.addAll(ATTACHMENT_COLUMNS);
-    header.addAll(TREND_COLUMNS);
+    List<String> header = SonarInventory.header();
 
     LocalDateTime now = LocalDateTime.now(clock);
     // Le même écrivain que les trois autres outils : un inventaire qui
@@ -128,7 +111,7 @@ final class InventoryCsv {
                 orEmpty(p.analysisDate()),
                 d == null ? "" : String.valueOf(ChronoUnit.DAYS.between(d, now))));
     Map<String, String> m = park.measures().getOrDefault(p.key(), Map.of());
-    Metrics.COLUMNS.forEach(metric -> row.add(orEmpty(m.get(metric))));
+    SonarInventory.METRICS.forEach(metric -> row.add(orEmpty(m.get(metric))));
     row.add(orEmpty(p.branch()));
     row.add(p.isMain() == null ? "" : String.valueOf(p.isMain()));
     row.add(orEmpty(p.mainBranchAnalysisDate()));
@@ -158,8 +141,8 @@ final class InventoryCsv {
     }
     row.add(String.valueOf(t.points()));
     row.add(String.valueOf(t.spanDays()));
-    row.add(dec(t.violationsPerMonth()));
-    row.add(dec(t.densityPctPerMonth()));
-    row.add(dec(t.debtRatioPctPerMonth()));
+    row.add(decimal(t.violationsPerMonth()));
+    row.add(decimal(t.densityPctPerMonth()));
+    row.add(decimal(t.debtRatioPctPerMonth()));
   }
 }

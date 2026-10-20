@@ -42,22 +42,29 @@ final class Mapper {
       List<KeyMethod> available = new ArrayList<>();
       List<String> unavailable = new ArrayList<>();
       for (KeyMethod m : spec.methods()) {
-        List<String> missing = new ArrayList<>();
-        if (!left.has(m.leftColumn())) missing.add("gauche : " + m.leftColumn());
-        if (!right.has(m.rightColumn())) missing.add("droite : " + m.rightColumn());
-        String where = m.whereColumn();
-        if (where != null && !right.has(where)) missing.add("droite : " + where);
+        List<String> missing = missingColumns(m, left, right);
         if (missing.isEmpty()) available.add(m);
         else unavailable.add(m.label() + " (colonne absente, " + String.join(", ", missing) + ")");
       }
       NameSpec names = spec.names();
-      if (names != null
-          && (!left.has(names.leftColumn())
-              || names.rightColumns().stream().noneMatch(right::has))) {
+      if (names != null && !canRead(names, left, right)) {
         unavailable.add(Spec.NAMES_LABEL + " (colonne absente)");
         names = null;
       }
       return new Columns(available, unavailable, names);
+    }
+
+    private static List<String> missingColumns(KeyMethod m, Csv.Table left, Csv.Table right) {
+      List<String> missing = new ArrayList<>();
+      if (!left.has(m.leftColumn())) missing.add("gauche : " + m.leftColumn());
+      if (!right.has(m.rightColumn())) missing.add("droite : " + m.rightColumn());
+      String where = m.whereColumn();
+      if (where != null && !right.has(where)) missing.add("droite : " + where);
+      return missing;
+    }
+
+    private static boolean canRead(NameSpec names, Csv.Table left, Csv.Table right) {
+      return left.has(names.leftColumn()) && names.rightColumns().stream().anyMatch(right::has);
     }
   }
 
@@ -99,18 +106,20 @@ final class Mapper {
    * plusieurs fois, un lien recopié : on les garde toutes, dans l'ordre du fichier.
    */
   private void index() {
-    for (KeyMethod m : available) {
-      Map<String, List<Integer>> idx = new HashMap<>();
-      for (int j = 0; j < rights.size(); j++) {
-        Csv.Row r = rights.get(j);
-        if (r.str(spec.rightKey()).isEmpty() || !m.accepts(r)) continue;
-        for (String v : m.rightValues(r.str(m.rightColumn()))) {
-          List<Integer> l = idx.computeIfAbsent(v, k -> new ArrayList<>());
-          if (!l.contains(j)) l.add(j);
-        }
+    for (KeyMethod m : available) indexes.put(m.id(), indexOf(m));
+  }
+
+  private Map<String, List<Integer>> indexOf(KeyMethod m) {
+    Map<String, List<Integer>> idx = new HashMap<>();
+    for (int j = 0; j < rights.size(); j++) {
+      Csv.Row r = rights.get(j);
+      if (r.str(spec.rightKey()).isEmpty() || !m.accepts(r)) continue;
+      for (String v : m.rightValues(r.str(m.rightColumn()))) {
+        List<Integer> l = idx.computeIfAbsent(v, k -> new ArrayList<>());
+        if (!l.contains(j)) l.add(j);
       }
-      indexes.put(m.id(), idx);
     }
+    return idx;
   }
 
   private record Hit(int row, KeyMethod by) {}

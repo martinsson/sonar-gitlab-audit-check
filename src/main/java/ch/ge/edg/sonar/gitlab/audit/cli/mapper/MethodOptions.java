@@ -1,5 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 
+import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.KeyMethod;
 import ch.ge.edg.sonar.gitlab.audit.matching.Kind;
 import ch.ge.edg.sonar.gitlab.audit.matching.NameSpec;
@@ -52,8 +54,8 @@ final class MethodOptions {
     link.forEach(m -> parsed.add(method(m, Kind.LINK)));
     String nameSpec = nameOptions.names;
     return new Spec(
-        orElse(leftKey, "path"),
-        orElse(rightKey, "key"),
+        orElse(leftKey, GitlabPractices.PATH),
+        orElse(rightKey, SonarInventory.KEY),
         parsed,
         nameSpec == null ? null : nameSpec(nameSpec, !nameOptions.plainNames),
         nameOptions.threshold,

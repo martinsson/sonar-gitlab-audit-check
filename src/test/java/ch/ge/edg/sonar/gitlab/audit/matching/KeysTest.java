@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import org.junit.jupiter.api.Test;
 
 /** Key normalisation, repository links and the namespace-mapping key helpers. */
@@ -131,12 +132,12 @@ class KeysTest {
 
   @Test
   void formatting_helpers() {
-    assertThat(Fmt.score(0.5)).isEqualTo("0.50");
-    assertThat(Fmt.score(0.125)).isEqualTo("0.13");
-    assertThat(Fmt.pct(1, 3)).isEqualTo("33 %");
-    assertThat(Fmt.pct(0, 0)).isEqualTo("—");
-    assertThat(Fmt.pct(0, 5)).isEqualTo("0 %");
-    assertThat(Fmt.pct(0.5)).isEqualTo(" 50 %");
-    assertThat(Fmt.pct(1.0)).isEqualTo("100 %");
+    assertThat(Text.decimal(0.5)).isEqualTo("0.50");
+    assertThat(Text.decimal(0.125)).isEqualTo("0.13");
+    assertThat(Text.pct(1, 3)).isEqualTo("33 %");
+    assertThat(Text.pct(0, 0)).isEqualTo("—");
+    assertThat(Text.pct(0, 5)).isEqualTo("0 %");
+    assertThat(Text.pct(0.5)).isEqualTo(" 50 %");
+    assertThat(Text.pct(1.0)).isEqualTo("100 %");
   }
 }

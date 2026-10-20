@@ -6,6 +6,8 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.orZero;
 import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.perKlocChanged;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -29,7 +31,7 @@ final class CrossFindings {
     List<CrossPair> ok = pairs.stream().filter(CrossPair::joined).toList();
     List<CrossPair> unpaired =
         pairs.stream()
-            .filter(p -> !p.joined() && !wideJoined.contains(p.gl().str("path")))
+            .filter(p -> !p.joined() && !wideJoined.contains(p.gl().str(GitlabPractices.PATH)))
             .toList();
     activeUnanalysed(unpaired);
     ciWithoutSonar(unpaired);
@@ -58,7 +60,10 @@ final class CrossFindings {
         "Vivants et non analysés. Séparés enfin des dépôts morts, qu'un "
             + "inventaire\n    Sonar seul confond avec eux.",
         active,
-        p -> "%s — %s commits".formatted(p.gl().str("path"), p.gl().str("commits_window")));
+        p ->
+            "%s — %s commits"
+                .formatted(
+                    p.gl().str(GitlabPractices.PATH), p.gl().str(GitlabPractices.COMMITS_WINDOW)));
   }
 
   /**
@@ -75,8 +80,10 @@ final class CrossFindings {
             + "qui ne correspond\n    à rien. Constat concret, vérifiable projet par projet.",
         claimed,
         p ->
-            p.gl().str("path")
-                + (p.gl().str("cle_sonar").isEmpty() ? "" : " → " + p.gl().str("cle_sonar")));
+            p.gl().str(GitlabPractices.PATH)
+                + (p.gl().str(GitlabPractices.SONAR_KEY).isEmpty()
+                    ? ""
+                    : " → " + p.gl().str(GitlabPractices.SONAR_KEY)));
   }
 
   /**
@@ -101,7 +108,9 @@ final class CrossFindings {
         p ->
             "%s — %s violations neuves, %s commits, 0 MR"
                 .formatted(
-                    p.gl().str("path"), p.sqStr("new_violations"), p.gl().str("commits_window")));
+                    p.gl().str(GitlabPractices.PATH),
+                    p.sqStr(SonarInventory.NEW_VIOLATIONS),
+                    p.gl().str(GitlabPractices.COMMITS_WINDOW)));
   }
 
   /**
@@ -124,7 +133,10 @@ final class CrossFindings {
         naked,
         p ->
             "%s — couverture %s %%, %s commits"
-                .formatted(p.gl().str("path"), p.sqStr("coverage"), p.gl().str("commits_window")));
+                .formatted(
+                    p.gl().str(GitlabPractices.PATH),
+                    p.sqStr(SonarInventory.COVERAGE),
+                    p.gl().str(GitlabPractices.COMMITS_WINDOW)));
   }
 
   /** Au moins 20 commits sur la fenêtre, et aucune MR fusionnée. */
@@ -150,7 +162,8 @@ final class CrossFindings {
             + "dépôt\n    lui-même, pas déduit d'une date d'analyse ancienne.",
         carrying,
         p ->
-            "%s — %s min de dette, 0 commit".formatted(p.gl().str("path"), p.sqStr("sqale_index")));
+            "%s — %s min de dette, 0 commit"
+                .formatted(p.gl().str(GitlabPractices.PATH), p.sqStr(SonarInventory.SQALE_INDEX)));
   }
 
   /**
@@ -170,7 +183,9 @@ final class CrossFindings {
             + "d'ingénierie — et les\n    deux se ressemblent tant qu'on ne "
             + "regarde que le pourcentage.",
         unwired,
-        p -> "%s — %s tests, couverture 0 %%".formatted(p.gl().str("path"), p.sqStr("tests")));
+        p ->
+            "%s — %s tests, couverture 0 %%"
+                .formatted(p.gl().str(GitlabPractices.PATH), p.sqStr(SonarInventory.TESTS)));
   }
 
   /**
@@ -195,7 +210,10 @@ final class CrossFindings {
         degrading,
         p ->
             "%s — %+.1f issues / kLOC modifié, %s lignes"
-                .formatted(p.gl().str("path"), perKlocChanged(p), p.gl().str("lignes_modifiees")));
+                .formatted(
+                    p.gl().str(GitlabPractices.PATH),
+                    perKlocChanged(p),
+                    p.gl().str(GitlabPractices.LINES_CHANGED)));
   }
 
   /** Un constat, son effectif, sa lecture, et au plus cinq exemples nommés. */

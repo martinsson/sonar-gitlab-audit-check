@@ -113,7 +113,7 @@ public final class NameMatcher {
   /** Les mêmes, parmi les seules cibles que {@code allowed} laisse passer. */
   public List<Scored> rank(int source, IntPredicate allowed) {
     Doc s = sources.get(source);
-    return ranked(s, blocks, targets, allowed, t -> similarity(s, t));
+    return ranked(s, new Side(targets, blocks), allowed, t -> similarity(s, t));
   }
 
   /**
@@ -129,23 +129,22 @@ public final class NameMatcher {
       sourceBlocks = bySource;
     }
     Doc t = targets.get(target);
-    return ranked(t, bySource, sources, allowed, s -> similarity(s, t));
+    return ranked(t, new Side(sources, bySource), allowed, s -> similarity(s, t));
   }
+
+  /** Un côté qu'on cherche : ses documents, et le blocage qui dit lesquels méritent un score. */
+  private record Side(List<Doc> docs, Map<String, List<Integer>> blocks) {}
 
   /**
    * Les candidats que le blocage propose pour {@code probe}, pris dans {@code pool}, sans ceux que
    * {@code allowed} écarte ni ceux dont les nombres contredisent, triés par score décroissant.
    */
   private static List<Scored> ranked(
-      Doc probe,
-      Map<String, List<Integer>> index,
-      List<Doc> pool,
-      IntPredicate allowed,
-      ToDoubleFunction<Doc> score) {
+      Doc probe, Side side, IntPredicate allowed, ToDoubleFunction<Doc> score) {
     List<Scored> out = new ArrayList<>();
-    for (int i : candidates(probe, index)) {
+    for (int i : candidates(probe, side.blocks())) {
       if (!allowed.test(i)) continue;
-      Doc other = pool.get(i);
+      Doc other = side.docs().get(i);
       if (numbersConflict(probe.numbers(), other.numbers())) continue;
       double sc = score.applyAsDouble(other);
       if (sc > 0) out.add(new Scored(i, sc));
