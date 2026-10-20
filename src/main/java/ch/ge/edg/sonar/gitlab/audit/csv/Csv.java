@@ -100,10 +100,17 @@ public final class Csv {
   private static List<Row> rows(Map<String, Integer> index, List<String[]> lines) {
     List<Row> rows = new ArrayList<>();
     for (String[] cells : lines) {
-      if (cells.length == 0 || (cells.length == 1 && cells[0].isBlank())) continue;
-      rows.add(new Row(index, cells));
+      if (!isBlankLine(cells)) rows.add(new Row(index, cells));
     }
     return rows;
+  }
+
+  /**
+   * Une ligne vide, ou réduite à une cellule blanche : ce que les tableurs laissent en fin de
+   * fichier.
+   */
+  private static boolean isBlankLine(String[] cells) {
+    return cells.length == 0 || (cells.length == 1 && cells[0].isBlank());
   }
 
   public record Table(Map<String, Integer> index, List<Row> rows) {

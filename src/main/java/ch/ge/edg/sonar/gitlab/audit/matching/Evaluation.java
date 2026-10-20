@@ -4,6 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.matching.Report.Agreement;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Example;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.LinkStats;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.MethodStats;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.NameStats;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Summary;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Chaque méthode évaluée seule, sur toutes les lignes : ce qu'elle propose, ce qu'elle seule
@@ -46,8 +48,15 @@ public final class Evaluation {
     collectProposals();
     List<MethodStats> methods = new ArrayList<>();
     labels.forEach((id, label) -> methods.add(methodStats(id, label)));
-    List<Agreement> agreements = new ArrayList<>();
     List<Example> disagreements = new ArrayList<>();
+    List<Agreement> agreements = agreements(disagreements);
+    return new Report(
+        summary, r.unavailable(), methods, agreements, disagreements, linkStats(), nameStats());
+  }
+
+  /** Chaque paire de méthodes, celles qui se recoupent seulement ; les désaccords s'accumulent. */
+  private List<Agreement> agreements(List<Example> disagreements) {
+    List<Agreement> agreements = new ArrayList<>();
     List<String> ids = new ArrayList<>(labels.keySet());
     for (int a = 0; a < ids.size(); a++) {
       for (int b = a + 1; b < ids.size(); b++) {
@@ -55,22 +64,18 @@ public final class Evaluation {
         if (ag.both() > 0) agreements.add(ag);
       }
     }
-    List<LinkStats> links = new ArrayList<>();
-    for (KeyMethod k : r.available()) {
-      if (k.kind() == Kind.LINK) links.add(linkStats(k));
-    }
+    return agreements;
+  }
+
+  private List<LinkStats> linkStats() {
+    return r.available().stream().filter(k -> k.kind() == Kind.LINK).map(this::linkStats).toList();
+  }
+
+  private @Nullable NameStats nameStats() {
     NameMatcher matcher = r.matcher();
     NameSpec names = s.names();
-    return new Report(
-        summary,
-        r.unavailable(),
-        methods,
-        agreements,
-        disagreements,
-        links,
-        matcher == null || names == null
-            ? null
-            : new NameEvaluation(r, matcher, names, examples).stats());
+    if (matcher == null || names == null) return null;
+    return new NameEvaluation(r, matcher, names, examples).stats();
   }
 
   /**
