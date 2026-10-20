@@ -9,14 +9,14 @@ import java.util.List;
  */
 public final class Crossing {
 
-  public static final String PROJECT = "projet";
-  public static final String METHOD = "methode_jointure";
-  public static final String CONFIDENCE = "confiance";
-  public static final String ISSUES_PER_KLOC_CHANGED = "issues_par_kloc_modifie";
-  public static final String ISSUES_PER_COMMIT = "issues_par_commit";
+  public static final String PROJECT = Columns.named("projet");
+  public static final String METHOD = Columns.named("methode_jointure");
+  public static final String CONFIDENCE = Columns.named("confiance");
+  public static final String ISSUES_PER_KLOC_CHANGED = Columns.named("issues_par_kloc_modifie");
+  public static final String ISSUES_PER_COMMIT = Columns.named("issues_par_commit");
 
-  private static final String GITLAB_PREFIX = "gl_";
-  private static final String SONAR_PREFIX = "sq_";
+  private static final String GITLAB_PREFIX = Columns.named("gl_");
+  private static final String SONAR_PREFIX = Columns.named("sq_");
 
   /** Les colonnes de l'inventaire Sonar que le croisement reprend, préfixées sq_. */
   public static final List<String> SONAR_SIDE =

@@ -6,11 +6,11 @@ package ch.ge.edg.sonar.gitlab.audit.exchange;
  */
 public final class Mapping {
 
-  public static final String METHOD = "methode";
-  public static final String CONFIDENCE = "confiance";
+  public static final String METHOD = Columns.named("methode");
+  public static final String CONFIDENCE = Columns.named("confiance");
 
-  private static final String LEFT_PREFIX = "gauche_";
-  private static final String RIGHT_PREFIX = "droite_";
+  private static final String LEFT_PREFIX = Columns.named("gauche_");
+  private static final String RIGHT_PREFIX = Columns.named("droite_");
 
   private Mapping() {}
 

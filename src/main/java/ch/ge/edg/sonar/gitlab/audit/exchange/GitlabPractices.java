@@ -5,13 +5,13 @@ import java.util.List;
 /** pratiques.csv de GitlabActivityAudit (--deep), relu par le croisement. */
 public final class GitlabPractices {
 
-  public static final String PATH = "path";
-  public static final String ID = "id";
-  public static final String COMMITS_WINDOW = "commits_window";
-  public static final String LINES_CHANGED = "lignes_modifiees";
-  public static final String SONAR_KEY = "cle_sonar";
-  public static final String POM_KEY = "cle_pom";
-  public static final String POM_NAME = "nom_pom";
+  public static final String PATH = Columns.named("path");
+  public static final String ID = Columns.named("id");
+  public static final String COMMITS_WINDOW = Columns.named("commits_window");
+  public static final String LINES_CHANGED = Columns.named("lignes_modifiees");
+  public static final String SONAR_KEY = Columns.named("cle_sonar");
+  public static final String POM_KEY = Columns.named("cle_pom");
+  public static final String POM_NAME = Columns.named("nom_pom");
 
   /** Les colonnes que le croisement reprend, préfixées gl_ dans son fichier. */
   public static final List<String> CROSSED =
