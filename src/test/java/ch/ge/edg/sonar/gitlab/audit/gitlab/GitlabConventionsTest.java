@@ -146,4 +146,16 @@ class GitlabConventionsTest {
   private static JsonNode json(String s) throws Exception {
     return Gitlab.MAPPER.readTree(s);
   }
+
+  @Test
+  void a_long_request_is_cut_in_the_dump_name_never_the_extension() {
+    String uri =
+        "https://gitlab.example.com/api/v4/projects/1/repository/commits?since=" + "9".repeat(200);
+    String name = GitlabHttp.dumpName(4, uri);
+    assertThat(name)
+        .hasSize(125)
+        .startsWith("0004-api_v4_projects_1_repository_commits_since_")
+        .endsWith(".json");
+    assertThat(GitlabHttp.dumpName(7, "https://h/api/v4/user")).isEqualTo("0007-api_v4_user.json");
+  }
 }

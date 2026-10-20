@@ -77,8 +77,15 @@ public final class Parallel {
     }
   }
 
-  /** Le résultat d'une tâche, ou son exception telle qu'elle a été levée. */
+  /**
+   * Le résultat d'une tâche, ou son exception telle qu'elle a été levée. Un appelant interrompu
+   * s'arrête même si la tâche est déjà finie : {@link Future#get()} rend alors son résultat sans
+   * regarder l'interruption, et l'arrêt dépendrait de la vitesse de la machine.
+   */
   private static <R> R await(Future<R> future) {
+    if (Thread.currentThread().isInterrupted()) {
+      throw new IllegalStateException("interrompu", new InterruptedException());
+    }
     try {
       return future.get();
     } catch (InterruptedException e) {

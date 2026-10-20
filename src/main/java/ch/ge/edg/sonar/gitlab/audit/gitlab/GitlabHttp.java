@@ -138,14 +138,20 @@ final class GitlabHttp {
     return new Response(0, msg, Map.of());
   }
 
+  /**
+   * Le nom d'une capture : numéro d'appel et requête coupés à 120 caractères, puis « .json ».
+   * L'extension n'est jamais coupée : une date en nanosecondes dans l'URL suffit à dépasser.
+   */
+  static String dumpName(int seq, String uri) {
+    String request = uri.replaceFirst("^https?://[^/]+/", "").replaceAll("[^A-Za-z0-9]+", "_");
+    String stem = "%04d-%s".formatted(seq, request);
+    return Gitlab.truncate(stem, 120) + ".json";
+  }
+
   private void dump(int seq, String uri, String body) {
     if (dumpDir == null) return;
-    String name =
-        "%04d-%s.json"
-            .formatted(
-                seq, uri.replaceFirst("^https?://[^/]+/", "").replaceAll("[^A-Za-z0-9]+", "_"));
     try {
-      Files.writeString(dumpDir.resolve(Gitlab.truncate(name, 120)), body);
+      Files.writeString(dumpDir.resolve(dumpName(seq, uri)), body);
     } catch (IOException e) {
       err.println("  (capture non écrite : " + e.getMessage() + ")");
     }

@@ -45,4 +45,18 @@ class ParallelTest {
                     }))
         .isSameAs(boom);
   }
+
+  @Test
+  void an_interrupted_caller_stops_even_when_the_tasks_are_already_done() {
+    Thread.currentThread().interrupt();
+    try {
+      assertThatThrownBy(() -> Parallel.map(List.of(1, 2), 1, x -> x))
+          .isInstanceOf(IllegalStateException.class)
+          .hasMessage("interrompu")
+          .hasCauseInstanceOf(InterruptedException.class);
+      assertThat(Thread.currentThread().isInterrupted()).isTrue();
+    } finally {
+      Thread.interrupted();
+    }
+  }
 }
