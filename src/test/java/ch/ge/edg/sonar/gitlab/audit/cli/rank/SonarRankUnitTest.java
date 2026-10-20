@@ -132,8 +132,8 @@ class SonarRankUnitTest {
   void presentation_helpers() {
     RankReport report =
         new RankReport(Printed.colored().console(), new RankSettings(365, 730, 0, 10, 2));
-    assertThat(report.c("x", "")).isEqualTo("x");
-    assertThat(report.c("x", RankReport.RED)).isEqualTo("\033[31mx\033[0m");
+    assertThat(report.paint("x", "")).isEqualTo("x");
+    assertThat(report.paint("x", RankReport.RED)).isEqualTo("\033[31mx\033[0m");
     assertThat(report.pct(3, 0, "")).isEqualTo("3");
     assertThat(report.pct(1, 3, "")).isEqualTo("1 (33%)");
     assertThat(report.pct(2, 3, RankReport.YELLOW)).isEqualTo("\033[33m2 (67%)\033[0m");

@@ -1,9 +1,9 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.dec;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.iso;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.num;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.orEmpty;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.dec;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.iso;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.num;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.orEmpty;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Column;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;

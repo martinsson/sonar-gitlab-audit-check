@@ -25,7 +25,7 @@ final class IdentitySection {
     report.println(
         Text.format(
             "  Chemin                          : %s",
-            report.c(Text.orEmpty(p.pathWithNamespace()), BOLD)));
+            report.paint(Text.orEmpty(p.pathWithNamespace()), BOLD)));
     report.println(
         Text.format(
             "  Id / branche par défaut         : %s / %s", p.id(), Text.orNa(p.defaultBranch())));
@@ -33,7 +33,7 @@ final class IdentitySection {
         Text.format(
             "  Visibilité                      : %s%s",
             Text.orNa(p.visibility()),
-            Boolean.TRUE.equals(p.archived()) ? report.c("   ARCHIVÉ", YELLOW) : ""));
+            Boolean.TRUE.equals(p.archived()) ? report.paint("   ARCHIVÉ", YELLOW) : ""));
     report.println(
         Text.format(
             "  Créé le                         : %s%s",
@@ -52,17 +52,20 @@ final class IdentitySection {
     LocalDateTime d = dates.parseLocal(date);
     return d == null
         ? ""
-        : report.c(Text.format("   (il y a %d j)", ChronoUnit.DAYS.between(d, dates.now())), DIM);
+        : report.paint(
+            Text.format("   (il y a %d j)", ChronoUnit.DAYS.between(d, dates.now())), DIM);
   }
 
   private void statistics(Project.@Nullable Statistics s) {
     if (s != null) {
       report.println(
           Text.format(
-              "  Commits (toute l'histoire)      : %s", Text.orNa(Format.str(s.commitCount()))));
+              "  Commits (toute l'histoire)      : %s",
+              Text.orNa(ReportFormat.str(s.commitCount()))));
       report.println(
           Text.format(
-              "  Taille du dépôt                 : %s", Format.humanBytes(s.repositorySize())));
+              "  Taille du dépôt                 : %s",
+              ReportFormat.humanBytes(s.repositorySize())));
     } else {
       // statistics=true est ignoré silencieusement en dessous de Reporter.
       report.println("  Statistiques du dépôt           : indisponibles (rôle < Reporter ?)", DIM);

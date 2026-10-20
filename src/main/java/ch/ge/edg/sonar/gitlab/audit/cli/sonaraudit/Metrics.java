@@ -9,6 +9,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.MetricsSearch;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Paging;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -74,9 +75,10 @@ final class Metrics {
   }
 
   private static void report(Console out, List<String> unsupported) {
-    out.printf(
-        "  Métriques inconnues de cette instance : %s%n",
-        out.color(String.join(", ", unsupported), YELLOW));
+    out.print(
+        Text.format(
+            "  Métriques inconnues de cette instance : %s%n",
+            out.color(String.join(", ", unsupported), YELLOW)));
     out.println(
         out.color(
             "    Retirées de la requête. Demandées quand même, " + "elles feraient échouer", DIM));

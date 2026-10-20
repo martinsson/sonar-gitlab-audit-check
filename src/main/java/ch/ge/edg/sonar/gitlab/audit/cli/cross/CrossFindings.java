@@ -223,12 +223,13 @@ final class CrossFindings {
   private void finding(
       String title, String reading, List<CrossPair> examples, Function<CrossPair, String> line) {
     int n = examples.size();
-    out.printf(
-        "%n  %s : %s%n",
-        title, out.color(String.valueOf(n), n > 0 ? CrossReport.YELLOW : CrossReport.GREEN));
+    out.print(
+        Text.format(
+            "%n  %s : %s%n",
+            title, out.color(String.valueOf(n), n > 0 ? CrossReport.YELLOW : CrossReport.GREEN)));
     if (n == 0) return;
     out.println(out.color("    " + reading, CrossReport.DIM));
     examples.stream().limit(5).forEach(p -> out.println("      " + line.apply(p)));
-    if (n > 5) out.printf("      … et %d autres, dans le CSV.%n", n - 5);
+    if (n > 5) out.print(Text.format("      … et %d autres, dans le CSV.%n", n - 5));
   }
 }

@@ -3,8 +3,8 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.parse;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.iso;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.median;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.iso;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.median;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,17 +18,17 @@ import org.jspecify.annotations.Nullable;
 /** Les pipelines de la branche par défaut : volume, taux de succès, temps de retour au vert. */
 final class Pipelines {
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
   private final Funnel funnel;
 
-  Pipelines(Gitlab gl, Funnel funnel) {
-    this.gl = gl;
+  Pipelines(Gitlab gitlab, Funnel funnel) {
+    this.gitlab = gitlab;
     this.funnel = funnel;
   }
 
   Practices.Builds measure(GitlabProject p) {
     Gitlab.Response pl =
-        gl.get(
+        gitlab.get(
             "projects/" + p.id() + "/pipelines",
             params(
                 "ref",

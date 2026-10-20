@@ -13,11 +13,11 @@ import java.util.stream.Collectors;
 /** Étape 1 : filtre de fraîcheur, et sa validation. */
 final class RecencyGate {
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
   private final Funnel funnel;
 
-  RecencyGate(Gitlab gl, Funnel funnel) {
-    this.gl = gl;
+  RecencyGate(Gitlab gitlab, Funnel funnel) {
+    this.gitlab = gitlab;
     this.funnel = funnel;
   }
 
@@ -55,8 +55,8 @@ final class RecencyGate {
 
     Collections.shuffle(below, new Random(funnel.options().seed));
     List<AuditedProject> sample = below.subList(0, Math.min(wanted, below.size()));
-    CommitPager pager = new CommitPager(gl, funnel);
-    List<Integer> counts = gl.map(sample, funnel.concurrency(), p -> pager.count(p.project()));
+    CommitPager pager = new CommitPager(gitlab, funnel);
+    List<Integer> counts = gitlab.map(sample, funnel.concurrency(), p -> pager.count(p.project()));
     IdentityHashMap<AuditedProject, Integer> counted = new IdentityHashMap<>();
     for (int i = 0; i < sample.size(); i++) counted.put(sample.get(i), counts.get(i));
     return all.stream()

@@ -165,15 +165,19 @@ public class Vues implements Callable<Integer> {
     List<Csv.Row> unpaired = writeUnpaired(t, input);
 
     List<String> missing = DRIFT.stream().filter(c -> !c.equals("signaux") && !t.has(c)).toList();
-    out.printf("  Vue essentiel : %d lignes → %s%n", t.rows().size(), essential.toAbsolutePath());
-    out.printf(
-        "  Vue dérive    : %d projets appariés → %s%n",
-        joined.size(), sibling(input, "derive").toAbsolutePath());
+    out.print(
+        Text.format(
+            "  Vue essentiel : %d lignes → %s%n", t.rows().size(), essential.toAbsolutePath()));
+    out.print(
+        Text.format(
+            "  Vue dérive    : %d projets appariés → %s%n",
+            joined.size(), sibling(input, "derive").toAbsolutePath()));
     out.println(
         out.color("    Triée par nombre de signaux, puis par pente de la densité d'issues.", DIM));
-    out.printf(
-        "  Vue non appariés : %d projets actifs sans projet Sonar → %s%n",
-        unpaired.size(), sibling(input, "non-apparies").toAbsolutePath());
+    out.print(
+        Text.format(
+            "  Vue non appariés : %d projets actifs sans projet Sonar → %s%n",
+            unpaired.size(), sibling(input, "non-apparies").toAbsolutePath()));
     out.println(
         out.color(
             "    Les plus actifs d'abord. Seulement l'échantillon de pratiques.csv : "

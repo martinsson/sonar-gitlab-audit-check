@@ -61,7 +61,7 @@ final class RankReport {
       // Le bloc texte retire l'indentation commune : le décalage de la
       // fermeture est ce qui donne les quatre espaces d'alignement.
       out.println(
-          c(
+          paint(
               """
                     Un projet analysé obtient coverage=0.0 dès que son analyseur
                     rapporte des lignes couvrables. Une couverture *absente* sur un
@@ -85,7 +85,7 @@ final class RankReport {
 
     if (ranked.isEmpty()) {
       out.println(
-          c(
+          paint(
               scored.isEmpty()
                   ? "  Aucun projet actif dans cet inventaire : rien à classer."
                   : "  Aucun projet actif ne réunit assez de signaux pour être classé.",
@@ -96,7 +96,8 @@ final class RankReport {
 
     out.printf("  Projets classés                 : %d%n", ranked.size());
     out.printf(
-        "  Retenus (décile haut / strate)  : %s%n%n", c(String.valueOf(shortlist.size()), BOLD));
+        "  Retenus (décile haut / strate)  : %s%n%n",
+        paint(String.valueOf(shortlist.size()), BOLD));
     shortlistTable(shortlist);
     partialNote(ranked);
     exclusions(scored);
@@ -123,14 +124,16 @@ final class RankReport {
     if (partial == 0) return;
     out.printf(
         "%n  %s%n",
-        c(
+        paint(
             Text.format(
                 "%d des %d projets classés le sont sur un " + "sous-ensemble de signaux.",
                 partial, ranked.size()),
             DIM));
     out.println(
-        c("  Une métrique absente est retirée de la moyenne, jamais " + "comptée comme 0 :", DIM));
-    out.println(c("  lire signaux_presents avant de comparer deux scores.", DIM));
+        paint(
+            "  Une métrique absente est retirée de la moyenne, jamais " + "comptée comme 0 :",
+            DIM));
+    out.println(paint("  lire signaux_presents avant de comparer deux scores.", DIM));
   }
 
   /** Un classement qui ne dit pas ce qu'il a écarté se lit comme complet. */
@@ -157,23 +160,24 @@ final class RankReport {
         "  Abandons récents (%d-%d j)     : %d%n",
         settings.staleDays(), settings.abandonedDays(), abandoned.size());
     out.println(
-        c(
+        paint(
             "    Les deux se classent sur sqale_debt_ratio seul : " + "un niveau, pas une vitesse.",
             DIM));
   }
 
   void written(Path file, boolean comma) {
     out.printf("%n  Classement écrit : %s%n", file.toAbsolutePath());
-    out.println(c("  Filtrer la colonne 'liste', puis 'retenu' = O " + "pour la shortlist.", DIM));
+    out.println(
+        paint("  Filtrer la colonne 'liste', puis 'retenu' = O " + "pour la shortlist.", DIM));
     if (!comma) {
       out.println(
-          c(
+          paint(
               "  Format Excel (point-virgule + BOM UTF-8) : "
                   + "double-clic, ou `start "
                   + file
                   + "`.",
               DIM));
-      out.println(c("  Pour un autre outil : relancer avec --comma.", DIM));
+      out.println(paint("  Pour un autre outil : relancer avec --comma.", DIM));
     }
   }
 
@@ -182,16 +186,16 @@ final class RankReport {
   // ----------------------------------------------------------------------
 
   private void title(String text) {
-    out.println("\n" + c(text, BOLD));
+    out.println("\n" + paint(text, BOLD));
     out.println("-".repeat(Math.min(78, text.length() + 4)));
   }
 
-  String c(String s, String color) {
+  String paint(String s, String color) {
     return color.isEmpty() ? s : out.color(s, color);
   }
 
   String pct(int n, int total, String color) {
     String s = total == 0 ? String.valueOf(n) : Text.format("%d (%.0f%%)", n, 100.0 * n / total);
-    return c(s, color);
+    return paint(s, color);
   }
 }

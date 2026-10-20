@@ -29,14 +29,14 @@ final class ReviewSection {
     this.dates = dates;
   }
 
-  Reviews measure(Project p, LocalDateTime since) {
+  ReviewMeasures measure(Project p, LocalDateTime since) {
     report.title("4. Merge requests et revue");
 
     Gitlab.Page<MergeRequest> f = api.mergeRequests(p, since);
     String error = f.error();
     if (error != null) {
-      report.line("merge_requests", Verdict.ERROR, error);
-      return Reviews.EMPTY;
+      report.line("merge_requests", EndpointVerdict.ERROR, error);
+      return ReviewMeasures.EMPTY;
     }
     List<MergeRequest> all = f.items();
     if (all.isEmpty()) {
@@ -47,7 +47,7 @@ final class ReviewSection {
               Ce n'est pas une absence de données : c'est l'absence de revue.\
           """,
           DIM);
-      return Reviews.NONE;
+      return ReviewMeasures.NONE;
     }
 
     List<MergeRequest> merged = all.stream().filter(m -> "merged".equals(m.state())).toList();
@@ -56,7 +56,8 @@ final class ReviewSection {
 
     // user_notes_count est fourni par la liste : la profondeur d'échange ne
     // coûte donc aucun appel supplémentaire. Zéro note = personne n'a rien dit.
-    long silent = all.stream().filter(m -> Format.orZero(m.facts().userNotesCount()) == 0).count();
+    long silent =
+        all.stream().filter(m -> ReportFormat.orZero(m.facts().userNotesCount()) == 0).count();
     double silentShare = 100.0 * silent / all.size();
     report.println(
         Text.format("  MR sans aucun commentaire       : %d (%.0f %%)", silent, silentShare));
@@ -69,10 +70,10 @@ final class ReviewSection {
         Text.format(
             "  Squash à la fusion              : %.0f %%%s",
             squashShare,
-            squashShare >= 50 ? report.c("   (écrase l'historique par commit)", DIM) : ""));
+            squashShare >= 50 ? report.paint("   (écrase l'historique par commit)", DIM) : ""));
 
     new ReviewSample(report, api, settings.sample(), dates).measure(p, merged);
-    return new Reviews(all.size(), leadP90, silentShare, selfShare, squashShare, false);
+    return new ReviewMeasures(all.size(), leadP90, silentShare, selfShare, squashShare, false);
   }
 
   private void volume(List<MergeRequest> all, int merged, boolean truncated) {
@@ -101,9 +102,11 @@ final class ReviewSection {
     report.println(
         Text.format(
             "  MR créées                       : %s (%.1f / semaine)%s",
-            report.c(String.valueOf(all.size()), BOLD),
+            report.paint(String.valueOf(all.size()), BOLD),
             all.size() / weeks,
-            truncated ? report.c(Text.format("   (sur les %.0f j couverts)", observed), DIM) : ""));
+            truncated
+                ? report.paint(Text.format("   (sur les %.0f j couverts)", observed), DIM)
+                : ""));
     report.println(
         Text.format("  Fusionnées / fermées / ouvertes : %d / %d / %d", merged, closed, opened));
   }
@@ -123,11 +126,11 @@ final class ReviewSection {
     }
     if (lead.isEmpty()) return 0;
     Collections.sort(lead);
-    double leadP90 = Format.percentile(lead, 90);
+    double leadP90 = ReportFormat.percentile(lead, 90);
     report.println(
         Text.format(
             "  Délai création → fusion         : médiane %s, 9e décile %s",
-            Format.hours(Format.percentile(lead, 50)), Format.hours(leadP90)));
+            ReportFormat.hours(ReportFormat.percentile(lead, 50)), ReportFormat.hours(leadP90)));
     return leadP90;
   }
 

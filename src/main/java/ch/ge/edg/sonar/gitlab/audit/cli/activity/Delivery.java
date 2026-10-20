@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.iso;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.iso;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,19 +15,20 @@ import org.jspecify.annotations.Nullable;
  */
 final class Delivery {
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
   private final boolean enterprise;
   private final Funnel funnel;
 
   /** {@code enterprise} : DORA ne se lit que sur ce plan. */
-  Delivery(Gitlab gl, boolean enterprise, Funnel funnel) {
-    this.gl = gl;
+  Delivery(Gitlab gitlab, boolean enterprise, Funnel funnel) {
+    this.gitlab = gitlab;
     this.enterprise = enterprise;
     this.funnel = funnel;
   }
 
   Practices.Deployment measure(GitlabProject p) {
-    Gitlab.Response env = gl.get("projects/" + p.id() + "/environments", Map.of("per_page", "1"));
+    Gitlab.Response env =
+        gitlab.get("projects/" + p.id() + "/environments", Map.of("per_page", "1"));
     Integer environments = null;
     if (env.status() == 200) {
       Integer t = env.intHeader("x-total");
@@ -42,7 +43,7 @@ final class Delivery {
   /** La fréquence de déploiement sur la fenêtre, ou le constat qu'elle n'est pas disponible. */
   private Practices.Deployment dora(GitlabProject p, @Nullable Integer environments) {
     Gitlab.Response df =
-        gl.get(
+        gitlab.get(
             "projects/" + p.id() + "/dora/metrics",
             params(
                 "metric",

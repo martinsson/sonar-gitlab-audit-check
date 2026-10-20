@@ -20,7 +20,7 @@ final class Presentation {
             + out.color("=".repeat(Math.max(0, 66 - text.length())), BOLD));
   }
 
-  static void line(Console out, String label, Verdict v, String detail) {
+  static void line(Console out, String label, CallVerdict v, String detail) {
     out.printf(
         "  %s %-42s %s%n",
         out.color(v.tag, v.color), label, detail.isBlank() ? "" : out.color(detail, DIM));

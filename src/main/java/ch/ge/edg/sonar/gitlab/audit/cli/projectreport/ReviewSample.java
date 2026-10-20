@@ -74,7 +74,7 @@ final class ReviewSample {
   private void print() {
     String refused = error;
     if (refused != null) {
-      report.line("merge_requests/:iid/notes", Verdict.DENIED, refused);
+      report.line("merge_requests/:iid/notes", EndpointVerdict.DENIED, refused);
       report.println("    Délai de revue et part de MR non relues : non mesurés.", YELLOW);
       report.println("    Les notes exigent un jeton, même sur un projet public.", YELLOW);
       return;
@@ -87,13 +87,13 @@ final class ReviewSample {
             "  Fusionnées sans relecture       : %d (%.0f %%) %s",
             unreviewed,
             100.0 * unreviewed / measured,
-            report.c("— aucun commentaire d'un tiers", DIM)));
+            report.paint("— aucun commentaire d'un tiers", DIM)));
     if (latencies.isEmpty()) return;
     Collections.sort(latencies);
     report.println(
         Text.format(
             "  Délai avant première relecture  : médiane %s, 9e décile %s",
-            Format.hours(Format.percentile(latencies, 50)),
-            Format.hours(Format.percentile(latencies, 90))));
+            ReportFormat.hours(ReportFormat.percentile(latencies, 50)),
+            ReportFormat.hours(ReportFormat.percentile(latencies, 90))));
   }
 }

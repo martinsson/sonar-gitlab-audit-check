@@ -46,7 +46,7 @@ final class PeopleSection {
     report.println(
         Text.format(
             "  Auteurs distincts               : %s",
-            report.c(String.valueOf(authors.count()), BOLD)));
+            report.paint(String.valueOf(authors.count()), BOLD)));
     regrouped(cs, authors.count());
 
     int busFactor = authors.busFactor();
@@ -59,7 +59,7 @@ final class PeopleSection {
     report.println(
         Text.format(
             "  Personnes couvrant 80 %% du code : %s",
-            report.c(String.valueOf(busFactor), busFactor <= 1 ? YELLOW : BOLD)));
+            report.paint(String.valueOf(busFactor), busFactor <= 1 ? YELLOW : BOLD)));
     leaders(authors);
 
     long activeRecently = activeRecently(cs, authors.count());
@@ -76,7 +76,8 @@ final class PeopleSection {
       report.println(
           Text.format(
               "  Adresses distinctes             : %d %s",
-              distinctEmails, report.c(Text.format("— ramenées à %d personnes", persons), DIM)));
+              distinctEmails,
+              report.paint(Text.format("— ramenées à %d personnes", persons), DIM)));
     }
     // Une identité qui porte plusieurs noms, c'est soit un poste partagé, soit
     // deux homonymes de partie locale sur des domaines différents — auquel cas
@@ -86,7 +87,7 @@ final class PeopleSection {
       report.println(
           Text.format(
               "  Noms distincts                  : %d %s",
-              distinctNames, report.c("— une identité porte plusieurs noms", DIM)));
+              distinctNames, report.paint("— une identité porte plusieurs noms", DIM)));
     }
   }
 
@@ -105,7 +106,7 @@ final class PeopleSection {
       report.println(
           Text.format(
               "    %-34s %4d  %s",
-              authors.label(e.getKey()), e.getValue(), Format.bar(authors.share(e))));
+              authors.label(e.getKey()), e.getValue(), ReportFormat.bar(authors.share(e))));
     }
     if (authors.count() > shown) {
       report.println(Text.format("    … et %d autres", authors.count() - shown), DIM);
@@ -158,7 +159,7 @@ final class PeopleSection {
       report.println(
           Text.format(
               "  Contributeurs de tout temps     : %d %s",
-              f.items().size(), report.c("(commits de fusion inclus)", DIM)));
+              f.items().size(), report.paint("(commits de fusion inclus)", DIM)));
     }
   }
 }

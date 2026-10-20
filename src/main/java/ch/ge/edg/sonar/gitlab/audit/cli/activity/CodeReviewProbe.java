@@ -3,8 +3,8 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.parse;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.iso;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.median;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.iso;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.median;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,18 +23,18 @@ import org.jspecify.annotations.Nullable;
  * sa MR. On publie donc les deux termes bruts — MR fusionnées et commits de merge — plutôt qu'un
  * ratio qui aurait l'air d'une mesure sans en être une.
  */
-final class Reviews {
+final class CodeReviewProbe {
 
   /** Approbations lues par projet : un appel par MR. */
   private static final int APPROVAL_SAMPLE = 10;
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
   private final boolean enterprise;
   private final Funnel funnel;
 
   /** {@code enterprise} : les approbations ne se lisent que sur ce plan. */
-  Reviews(Gitlab gl, boolean enterprise, Funnel funnel) {
-    this.gl = gl;
+  CodeReviewProbe(Gitlab gitlab, boolean enterprise, Funnel funnel) {
+    this.gitlab = gitlab;
     this.enterprise = enterprise;
     this.funnel = funnel;
   }
@@ -69,7 +69,7 @@ final class Reviews {
     List<JsonNode> mrs = new ArrayList<>();
     for (int page = 1; page <= 3; page++) {
       Gitlab.Response m =
-          gl.get(
+          gitlab.get(
               "projects/" + p.id() + "/merge_requests",
               params(
                   "state",
@@ -98,7 +98,7 @@ final class Reviews {
     for (int i = 0; i < sample; i++) {
       JsonNode mr = mrs.get(i);
       Gitlab.Response ap =
-          gl.get(
+          gitlab.get(
               "projects/" + p.id() + "/merge_requests/" + mr.path("iid").asInt() + "/approvals",
               Map.of());
       if (ap.status() != 200) break;

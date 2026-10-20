@@ -39,23 +39,26 @@ public final class MappingFilePrinter {
   }
 
   private void printNew(MappingFile file, int rows) {
-    out.printf("%n  Appariement : %d lignes → %s%n", rows, file.path().toAbsolutePath());
+    out.print(
+        Text.format("%n  Appariement : %d lignes → %s%n", rows, file.path().toAbsolutePath()));
     out.println(
         out.color("    Réutilisé aux prochains lancements. Pour corriger une paire :", DIM));
     out.println(out.color("    confiance = manuel (et la clé dans droite_…), ou rejete.", DIM));
   }
 
   private void printReuse(MappingFile file, Reuse u) {
-    out.printf(
-        "%n  Appariement repris de %s%s%n",
-        file.path().toAbsolutePath(),
-        file.recomputeAll()
-            ? out.color(" (--reapparier : exact et derived recalculés)", YELLOW)
-            : "");
-    out.printf(
-        "    %d gardées, %d saisies à la main, %d rejetées, "
-            + "%d recalculées, %d nouveaux projets%n",
-        u.kept(), u.manual(), u.rejected(), u.recomputed(), u.added());
+    out.print(
+        Text.format(
+            "%n  Appariement repris de %s%s%n",
+            file.path().toAbsolutePath(),
+            file.recomputeAll()
+                ? out.color(" (--reapparier : exact et derived recalculés)", YELLOW)
+                : ""));
+    out.print(
+        Text.format(
+            "    %d gardées, %d saisies à la main, %d rejetées, "
+                + "%d recalculées, %d nouveaux projets%n",
+            u.kept(), u.manual(), u.rejected(), u.recomputed(), u.added()));
     if (!u.orphans().isEmpty()) {
       out.println(
           out.color(

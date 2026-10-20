@@ -24,12 +24,14 @@ final class SonarToGitlabReport {
   void print(Result r, Path file) {
     int n = r.pairs().size();
     long joined = r.pairs().stream().filter(Pair::joined).count();
-    out.printf(
-        "  Projets Sonar : %d, dont %d appariés sûrement (%s)%n", n, joined, Text.pct(joined, n));
+    out.print(
+        Text.format(
+            "  Projets Sonar : %d, dont %d appariés sûrement (%s)%n",
+            n, joined, Text.pct(joined, n)));
     confidences(r);
     reasons(r);
     checks(r);
-    out.printf("  Sonar × tout GitLab : %d lignes → %s%n", n, file.toAbsolutePath());
+    out.print(Text.format("  Sonar × tout GitLab : %d lignes → %s%n", n, file.toAbsolutePath()));
   }
 
   /** Le compte par confiance, et les paires sûres hors de la sélection GitLab. */
@@ -44,11 +46,12 @@ final class SonarToGitlabReport {
         if (GitlabInventoryIndex.commits(g) >= 10) outsideActive++;
       }
     }
-    byConf.forEach((c, k) -> out.printf("    %-10s %d%n", c, k));
-    out.printf(
-        "  Appariés à un dépôt hors de la sélection GitLab : %d, dont %d actifs "
-            + "(10 commits ou plus)%n",
-        outside, outsideActive);
+    byConf.forEach((c, k) -> out.print(Text.format("    %-10s %d%n", c, k)));
+    out.print(
+        Text.format(
+            "  Appariés à un dépôt hors de la sélection GitLab : %d, dont %d actifs "
+                + "(10 commits ou plus)%n",
+            outside, outsideActive));
   }
 
   private void reasons(Result r) {
@@ -64,16 +67,17 @@ final class SonarToGitlabReport {
     }
     if (!reasons.isEmpty()) {
       out.println("  Sans dépôt GitLab, par raison :");
-      reasons.forEach((why, k) -> out.printf("    %-36s %d%n", why, k));
+      reasons.forEach((why, k) -> out.print(Text.format("    %-36s %d%n", why, k)));
     }
   }
 
   private void checks(Result r) {
     if (r.checks().isEmpty()) return;
     long ok = r.checks().stream().filter(Check::agrees).count();
-    out.printf(
-        "  Méthodes dérivées rejouées sur les paires exactes : %d sur %d d'accord%n",
-        ok, r.checks().size());
+    out.print(
+        Text.format(
+            "  Méthodes dérivées rejouées sur les paires exactes : %d sur %d d'accord%n",
+            ok, r.checks().size()));
     Map<String, int[]> perMethod = new TreeMap<>();
     for (Check c : r.checks()) {
       int[] a = perMethod.computeIfAbsent(c.method(), x -> new int[2]);

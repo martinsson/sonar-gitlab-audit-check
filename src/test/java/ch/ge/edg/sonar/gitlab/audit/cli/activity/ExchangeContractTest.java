@@ -14,13 +14,17 @@ import org.junit.jupiter.api.Test;
  */
 class ExchangeContractTest {
 
-  private static List<String> names(List<? extends Column<?>> columns) {
-    return columns.stream().map(Column::name).toList();
+  private static List<String> inventoryColumns() {
+    return CsvFiles.inventory(30).stream().map(Column::name).toList();
+  }
+
+  private static List<String> practicesColumns() {
+    return CsvFiles.practices(30).stream().map(Column::name).toList();
   }
 
   @Test
   void inventaire_carries_the_columns_the_crossing_reads() {
-    assertThat(names(CsvFiles.inventory(180)))
+    assertThat(inventoryColumns())
         .contains(
             GitlabInventory.ID,
             GitlabInventory.PATH,
@@ -33,10 +37,8 @@ class ExchangeContractTest {
   @Test
   void pratiques_carries_the_columns_the_crossing_reads() {
     List<String> required = List.of(GitlabPractices.required());
-    assertThat(names(CsvFiles.practices(180)))
-        .containsAll(required)
-        .containsAll(GitlabPractices.CROSSED);
-    assertThat(names(CsvFiles.practices(180)))
+    assertThat(practicesColumns()).containsAll(required).containsAll(GitlabPractices.CROSSED);
+    assertThat(practicesColumns())
         .contains(
             GitlabPractices.ID,
             GitlabPractices.LINES_CHANGED,

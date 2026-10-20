@@ -158,7 +158,10 @@ final class Capabilities {
     String fileKey = Lookups.firstFileOf(session, sample);
     if (fileKey == null) {
       Presentation.line(
-          out, "Blame SCM (sources/scm)", Verdict.EMPTY, "aucun fichier accessible pour tester");
+          out,
+          "Blame SCM (sources/scm)",
+          CallVerdict.EMPTY,
+          "aucun fichier accessible pour tester");
       return;
     }
     new Probe<>(

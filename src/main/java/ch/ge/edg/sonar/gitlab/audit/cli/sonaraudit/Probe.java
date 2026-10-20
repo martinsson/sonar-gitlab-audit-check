@@ -19,9 +19,9 @@ record Probe<T>(
 
   void run(Session session) {
     Sonar.Response r = session.sq().get(path, params);
-    Verdict v = Verdict.of(r);
+    CallVerdict v = CallVerdict.of(r);
     String detail;
-    if (v == Verdict.OK) {
+    if (v == CallVerdict.OK) {
       T parsed = r.as(type);
       detail = (parsed == null) ? "réponse illisible" : Text.orEmpty(hint.apply(parsed));
     } else {

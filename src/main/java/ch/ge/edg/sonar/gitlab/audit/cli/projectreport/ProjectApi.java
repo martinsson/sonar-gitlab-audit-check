@@ -10,20 +10,20 @@ import java.util.Map;
 /** Les appels GitLab du rapport, un par question posée au projet. */
 final class ProjectApi {
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
   private final Settings settings;
 
-  ProjectApi(Gitlab gl, Settings settings) {
-    this.gl = gl;
+  ProjectApi(Gitlab gitlab, Settings settings) {
+    this.gitlab = gitlab;
     this.settings = settings;
   }
 
   int calls() {
-    return gl.calls();
+    return gitlab.calls();
   }
 
   Gitlab.Response project(String projectPath) {
-    return gl.get("projects/" + enc(projectPath), params("statistics", "true"));
+    return gitlab.get("projects/" + enc(projectPath), params("statistics", "true"));
   }
 
   /**
@@ -37,7 +37,7 @@ final class ProjectApi {
       return new Commits(List.of(), List.of(), false, "pas de branche par défaut");
 
     Gitlab.Page<Commit> f =
-        gl.paged(
+        gitlab.paged(
             "projects/" + p.id() + "/repository/commits",
             params(
                 "ref_name",
@@ -57,7 +57,7 @@ final class ProjectApi {
   }
 
   Gitlab.Page<Contributor> contributors(Project p) {
-    return gl.paged(
+    return gitlab.paged(
         "projects/" + p.id() + "/repository/contributors",
         params("order_by", "commits", "sort", "desc"),
         Contributor.class,
@@ -65,7 +65,7 @@ final class ProjectApi {
   }
 
   Gitlab.Page<MergeRequest> mergeRequests(Project p, LocalDateTime since) {
-    return gl.paged(
+    return gitlab.paged(
         "projects/" + p.id() + "/merge_requests",
         params(
             "scope",
@@ -83,7 +83,7 @@ final class ProjectApi {
   }
 
   Gitlab.Page<Note> notes(Project p, MergeRequest m) {
-    return gl.paged(
+    return gitlab.paged(
         "projects/" + p.id() + "/merge_requests/" + m.iid() + "/notes",
         params("sort", "asc", "order_by", "created_at"),
         Note.class,

@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.pct;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.plural;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.pct;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.plural;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
@@ -15,13 +15,13 @@ import java.util.stream.Collectors;
 /** Ce que l'entonnoir affiche, étape par étape, de ce que chaque étape a établi. */
 final class FunnelReport {
 
-  private final Screen con;
+  private final Screen screen;
   private final Console out;
   private final Funnel funnel;
 
-  FunnelReport(Screen con, Funnel funnel) {
-    this.con = con;
-    this.out = con.out();
+  FunnelReport(Screen screen, Funnel funnel) {
+    this.screen = screen;
+    this.out = screen.out();
     this.funnel = funnel;
   }
 
@@ -35,7 +35,7 @@ final class FunnelReport {
   }
 
   void beginInventory() {
-    con.title("1. Inventaire (étape 0)");
+    screen.title("1. Inventaire (étape 0)");
   }
 
   void inventory(Inventory.Census census) {
@@ -58,23 +58,23 @@ final class FunnelReport {
     out.printf(
         "  Retenus pour analyse            : %d (%s du parc)%n", kept, pct(kept, all.size()));
     if (census.forbidden() > 0) {
-      con.say(
+      screen.say(
           Text.format(
               "    %d %s 403 : le jeton ne voit pas tout le parc.",
               census.forbidden(), census.forbidden() == 1 ? "réponse" : "réponses"),
           YELLOW);
-      con.say("    Un trou de permission raccourcit la liste sans lever d'erreur.", DIM);
+      screen.say("    Un trou de permission raccourcit la liste sans lever d'erreur.", DIM);
     }
   }
 
   void recency(List<AuditedProject> all) {
-    con.title("2. Filtre de fraîcheur (étape 1) — 0 appel");
+    screen.title("2. Filtre de fraîcheur (étape 1) — 0 appel");
     long kept = all.stream().filter(p -> !p.fate().excludedAt(Fate.Stage.INVENTORY)).count();
     long fresh = CommitActivity.inPlay(all).size();
     out.printf(
         "  Actifs sur %d jours              : %d / %d (%s)%n",
         funnel.sinceDays(), fresh, kept, pct(fresh, kept));
-    con.say("    Coupe la plus rentable du pipeline : gratuite.", DIM);
+    screen.say("    Coupe la plus rentable du pipeline : gratuite.", DIM);
   }
 
   void validation(List<AuditedProject> all) {
@@ -85,21 +85,21 @@ final class FunnelReport {
         "  Échantillon de contrôle sous la coupe : %d projets, %d faux négatif%s (%s)%n",
         size, leaks, plural(leaks), pct(leaks, size));
     if (leaks > 0) {
-      con.say("    Le filtre laisse passer des projets actifs. Chiffre à publier", YELLOW);
-      con.say("    tel quel dans le rapport : la sélection n'est pas exhaustive.", YELLOW);
+      screen.say("    Le filtre laisse passer des projets actifs. Chiffre à publier", YELLOW);
+      screen.say("    tel quel dans le rapport : la sélection n'est pas exhaustive.", YELLOW);
     } else {
-      con.say("    Aucune fuite mesurée : la porte tient, et elle reste gratuite.", DIM);
+      screen.say("    Aucune fuite mesurée : la porte tient, et elle reste gratuite.", DIM);
     }
   }
 
   void beginActivity() {
-    con.title("3. Activité réelle en commits (étape 2)");
+    screen.title("3. Activité réelle en commits (étape 2)");
   }
 
   void dating(CommitActivity.Dated dated, CommitActivity activity) {
     GraphqlDates.Dating dating = dated.dating();
     if (!dating.available()) {
-      con.say("  GraphQL indisponible sur cette instance — repli REST.", DIM);
+      screen.say("  GraphQL indisponible sur cette instance — repli REST.", DIM);
       return;
     }
     out.printf(
@@ -110,7 +110,7 @@ final class FunnelReport {
             .filter(activity::lastCommitBeforeWindow)
             .count();
     out.printf("    dont aucun commit dans la fenêtre : %d%n", stale);
-    con.say("    (last_activity_at récent sans commit récent : tickets, wiki, CI)", DIM);
+    screen.say("    (last_activity_at récent sans commit récent : tickets, wiki, CI)", DIM);
   }
 
   /** {@code all} après la coupe : les écartés y portent leur motif. */
@@ -122,9 +122,9 @@ final class FunnelReport {
     out.printf(
         "  Coupe --active-within %-3d       : %d projets écartés sur %d%n",
         activeWithin, tooQuiet, fresh.size());
-    con.say("    Écartés sans être comptés : « pas regardé » n'est pas « rien vu ».", DIM);
+    screen.say("    Écartés sans être comptés : « pas regardé » n'est pas « rien vu ».", DIM);
     boolean byCommit = fresh.stream().anyMatch(x -> x.head().lastCommit() != null);
-    con.say(
+    screen.say(
         byCommit
             ? "    Gratuit — la date vient de la passe GraphQL, pas d'un appel de plus."
             : "    Gratuit — GraphQL indisponible, la coupe porte sur last_activity_at,\n"
@@ -143,7 +143,7 @@ final class FunnelReport {
     long botOnly = fresh.stream().filter(p -> p.commits().botOnly()).count();
     if (botOnly > 0) {
       out.printf("  Activité exclusivement robotique : %d%n", botOnly);
-      con.say("    Renovate seul sur un dépôt est un constat, pas une ligne vide.", DIM);
+      screen.say("    Renovate seul sur un dépôt est un constat, pas une ligne vide.", DIM);
     }
   }
 
@@ -158,7 +158,7 @@ final class FunnelReport {
   }
 
   void floor(ActivityFloor.Floor floor) {
-    con.title("4. Plancher d'activité (étape 3)");
+    screen.title("4. Plancher d'activité (étape 3)");
     List<Integer> volumes = floor.volumes();
     out.print("  Distribution des commits (déciles) :");
     for (int d = 1; d <= 9; d += 2) {
@@ -185,17 +185,17 @@ final class FunnelReport {
     out.printf("  Cohorte faible activité         : %d%n", below.size() - unmeasurable);
     if (unmeasurable > 0) {
       out.printf("  Activité non mesurable          : %d%n", unmeasurable);
-      con.say("    403 ou erreur sur les commits. Écartés, pas classés à zéro :", YELLOW);
-      con.say("    « je n'ai pas pu voir » n'est pas « il ne se passe rien ».", YELLOW);
+      screen.say("    403 ou erreur sur les commits. Écartés, pas classés à zéro :", YELLOW);
+      screen.say("    « je n'ai pas pu voir » n'est pas « il ne se passe rien ».", YELLOW);
     }
-    con.say("    Cette cohorte n'est pas perdue : elle se rapporte en effectifs,", DIM);
-    con.say("    comme les « jamais analysés » côté Sonar. C'est un constat.", DIM);
+    screen.say("    Cette cohorte n'est pas perdue : elle se rapporte en effectifs,", DIM);
+    screen.say("    comme les « jamais analysés » côté Sonar. C'est un constat.", DIM);
   }
 
   void selection(FunnelResult result) {
-    con.title("5. Sélection par quotas (étape 4)");
+    screen.title("5. Sélection par quotas (étape 4)");
     if (result.eligible() == 0) {
-      con.say("  Aucun projet au-dessus du plancher.", YELLOW);
+      screen.say("  Aucun projet au-dessus du plancher.", YELLOW);
       return;
     }
     List<AuditedProject> selected = result.selected();
@@ -216,8 +216,8 @@ final class FunnelReport {
     out.printf(
         "  Namespaces représentés          : %d (plafond %d par namespace)%n",
         namespaces, Selection.namespaceCap(top));
-    con.say("    Le témoin permettra d'écrire « couverture X sur les sélectionnés,", DIM);
-    con.say("    Y sur un tirage du reste » — et si X et Y divergent, la règle", DIM);
-    con.say("    de sélection est elle-même le sujet.", DIM);
+    screen.say("    Le témoin permettra d'écrire « couverture X sur les sélectionnés,", DIM);
+    screen.say("    Y sur un tirage du reste » — et si X et Y divergent, la règle", DIM);
+    screen.say("    de sélection est elle-même le sujet.", DIM);
   }
 }

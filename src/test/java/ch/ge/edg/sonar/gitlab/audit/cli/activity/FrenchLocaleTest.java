@@ -25,6 +25,6 @@ class FrenchLocaleTest {
 
   @Test
   void csvDecimalsKeepAPoint() {
-    assertThat(Fmt.dec(1.5)).isEqualTo("1.50");
+    assertThat(CellFormat.dec(1.5)).isEqualTo("1.50");
   }
 }

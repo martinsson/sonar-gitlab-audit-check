@@ -1,9 +1,9 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.dec;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.median;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.pct;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.plural;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.dec;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.median;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.pct;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.plural;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
@@ -17,22 +17,22 @@ import java.util.stream.Collectors;
 /** Ce que la passe profonde affiche : les routes de lecture de la CI, et la couverture. */
 final class DeepReport {
 
-  private final Screen con;
+  private final Screen screen;
   private final List<Assessed> selected;
 
-  DeepReport(Screen con, List<Assessed> selected) {
-    this.con = con;
+  DeepReport(Screen screen, List<Assessed> selected) {
+    this.screen = screen;
     this.selected = selected;
   }
 
   /** Avant la passe : combien de projets elle va sonder. */
-  static void begin(Screen con, int selected) {
-    con.title(Text.format("6. Signaux de pratique sur les %d sélectionnés", selected));
+  static void begin(Screen screen, int selected) {
+    screen.title(Text.format("6. Signaux de pratique sur les %d sélectionnés", selected));
   }
 
   /** pratiques.csv vient d'être écrit. */
   void written() {
-    con.out().printf("%n  Pratiques : %d lignes.%n", selected.size());
+    screen.out().printf("%n  Pratiques : %d lignes.%n", selected.size());
   }
 
   /**
@@ -52,19 +52,20 @@ final class DeepReport {
     long lint = byRoute.getOrDefault(CiConfig.LINT, 0L);
     long back = byRoute.getOrDefault(CiConfig.FALLBACK, 0L);
     if (cached + lint + back > 0) {
-      con.out()
+      screen
+          .out()
           .printf(
               "%n  CI lue : %d par ci/lint, %d par repli, %d depuis le cache.%n",
               lint, back, cached);
     }
     if (back > 0 && lintRefusedStatus > 0) {
-      con.say(
+      screen.say(
           Text.format(
               "    ci/lint refusé (HTTP %d) : le jeton n'a pas le droit de", lintRefusedStatus),
           YELLOW);
-      con.say("    déplier la configuration. Le repli ne suit que les includes", YELLOW);
-      con.say("    « project: » qu'il sait lire — ci_sonar y sous-compte. D'un", YELLOW);
-      con.say("    « component: », il ne lit que le project_key passé en inputs.", YELLOW);
+      screen.say("    déplier la configuration. Le repli ne suit que les includes", YELLOW);
+      screen.say("    « project: » qu'il sait lire — ci_sonar y sous-compte. D'un", YELLOW);
+      screen.say("    « component: », il ne lit que le project_key passé en inputs.", YELLOW);
     }
     mavenKeys();
   }
@@ -77,12 +78,13 @@ final class DeepReport {
     long pom = count(r -> r.sonar().facts().pomKey != null);
     long pomVar = count(r -> r.sonar().facts().pomUnresolved != null);
     long both = count(r -> r.sonar().facts().pomKey != null && r.sonar().facts().sonarKey != null);
-    con.out()
+    screen
+        .out()
         .printf(
             "  Clé Maven (pom.xml) : %d projets, dont %d ont aussi une clé dans la CI.%n",
             pom, both);
     if (pomVar > 0) {
-      con.say(
+      screen.say(
           Text.format(
               "    %d pom avec ${…} dans groupId/artifactId : clé inconnue, " + "pas devinée.",
               pomVar),
@@ -103,7 +105,7 @@ final class DeepReport {
     List<Assessed> core = selected.stream().filter(p -> !isWitness(p)).toList();
     List<Assessed> witness = selected.stream().filter(DeepReport::isWitness).toList();
 
-    con.out().printf("%n  %-38s %12s %12s%n", "", "sélection", "témoin");
+    screen.out().printf("%n  %-38s %12s %12s%n", "", "sélection", "témoin");
     row("Branche par défaut protégée", core, witness, r -> r.protection().defaultProtected());
     row("Au moins une MR fusionnée", core, witness, r -> r.review().mergedMrs() > 0);
     row("Pipelines sur la branche par défaut", core, witness, r -> r.builds().pipelines() > 0);
@@ -137,14 +139,16 @@ final class DeepReport {
             .filter(Objects::nonNull)
             .toList();
     if (recoveries.isEmpty()) return;
-    con.out()
+    screen
+        .out()
         .printf(
             "%n  Retour au vert (médiane des médianes) : %s h sur %d projet%s.%n",
             dec(median(recoveries)), recoveries.size(), plural(recoveries.size()));
-    con.say("    Temps pendant lequel la branche par défaut reste cassée. " + "Ce n'est pas", DIM);
-    con.say(
+    screen.say(
+        "    Temps pendant lequel la branche par défaut reste cassée. " + "Ce n'est pas", DIM);
+    screen.say(
         "    une métrique DORA : sans environnement déclaré, aucune mise " + "en production", DIM);
-    con.say("    n'est datable, et rien ici ne s'y substitue.", DIM);
+    screen.say("    n'est datable, et rien ici ne s'y substitue.", DIM);
   }
 
   private void reverts(List<Assessed> core) {
@@ -153,11 +157,13 @@ final class DeepReport {
     long reverting = counts.stream().filter(n -> n > 0).count();
     if (reverting == 0) return;
     int total = counts.stream().mapToInt(Integer::intValue).sum();
-    con.out()
+    screen
+        .out()
         .printf(
             "%n  %d revert%s sur %d projet%s.%n",
             total, plural(total), reverting, plural(reverting));
-    con.say("    Signal de qualité direct, indépendant de Sonar et des " + "environnements.", DIM);
+    screen.say(
+        "    Signal de qualité direct, indépendant de Sonar et des " + "environnements.", DIM);
   }
 
   private void unreviewed(List<Assessed> core) {
@@ -167,16 +173,18 @@ final class DeepReport {
                 p -> p.practices().review().mergedMrs() == 0 && p.audited().commitsOrZero() >= 20)
             .count();
     if (noReview == 0) return;
-    con.out()
+    screen
+        .out()
         .printf(
             "%n  %d projet%s à ≥20 commits sans une seule MR fusionnée.%n",
             noReview, plural(noReview));
-    con.say("    Le changement atteint la branche par défaut sans revue.", YELLOW);
+    screen.say("    Le changement atteint la branche par défaut sans revue.", YELLOW);
   }
 
   private void row(
       String label, List<Assessed> core, List<Assessed> witness, Predicate<Practices> test) {
-    con.out()
+    screen
+        .out()
         .printf(
             "  %-38s %12s %12s%n",
             label, share(core, test), witness.isEmpty() ? "—" : share(witness, test));

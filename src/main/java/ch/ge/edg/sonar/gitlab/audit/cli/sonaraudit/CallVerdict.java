@@ -7,7 +7,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
 
 /** Ce que l'audit dit d'un appel : OK, REFUSE, ABSENT, VIDE ou ERREUR. */
-enum Verdict {
+enum CallVerdict {
   OK(GREEN, "OK      "),
   DENIED(RED, "REFUSE  "),
   MISSING(YELLOW, "ABSENT  "),
@@ -16,7 +16,7 @@ enum Verdict {
   final String color;
   final String tag;
 
-  Verdict(String color, String tag) {
+  CallVerdict(String color, String tag) {
     this.color = color;
     this.tag = tag;
   }
@@ -25,7 +25,7 @@ enum Verdict {
    * Le verdict est une affaire de présentation, pas de transport : le client rapporte un statut,
    * l'audit décide de ce qu'il en dit.
    */
-  static Verdict of(Sonar.Response r) {
+  static CallVerdict of(Sonar.Response r) {
     return switch (r.status()) {
       case 200 -> OK;
       case 401, 403 -> DENIED;

@@ -100,10 +100,11 @@ final class SonarAudit {
     Sonar sq = session.sq();
     int concurrency = session.concurrency();
     Presentation.title(out, "Synthèse");
-    out.printf(
-        "  %d appels API effectués%s.%n",
-        sq.calls(),
-        concurrency > 1 && !sq.replaying() ? Text.format(" (%d en vol)", concurrency) : "");
+    out.print(
+        Text.format(
+            "  %d appels API effectués%s.%n",
+            sq.calls(),
+            concurrency > 1 && !sq.replaying() ? Text.format(" (%d en vol)", concurrency) : ""));
     // Une reprise silencieuse est une mesure qu'on ne sait pas justifier :
     // si l'instance a refusé puis accepté, le rapport doit le dire.
     if (sq.throttled() > 0 || sq.retried() > 0) {

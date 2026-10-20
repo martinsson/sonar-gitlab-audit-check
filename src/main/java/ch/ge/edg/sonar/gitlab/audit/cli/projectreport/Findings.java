@@ -64,7 +64,7 @@ final class Findings {
     }
   }
 
-  private void review(Cadence cadence, Reviews reviews) {
+  private void review(Cadence cadence, ReviewMeasures reviews) {
     if (cadence.commits() > 0 && reviews.noMrs()) {
       found.add(
           Text.format(
@@ -87,7 +87,7 @@ final class Findings {
       found.add(
           Text.format(
               "9e décile du délai de fusion à %s : une MR sur dix traîne un mois.",
-              Format.hours(reviews.leadP90())));
+              ReportFormat.hours(reviews.leadP90())));
     }
   }
 
@@ -106,7 +106,7 @@ final class Findings {
     }
   }
 
-  private void habits(Commits commits, Cadence cadence, Reviews reviews) {
+  private void habits(Commits commits, Cadence cadence, ReviewMeasures reviews) {
     if (cadence.bigCommitShare() > 10) {
       found.add(
           Text.format(

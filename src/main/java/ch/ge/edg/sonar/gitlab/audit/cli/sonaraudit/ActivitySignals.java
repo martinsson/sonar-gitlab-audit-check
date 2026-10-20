@@ -67,7 +67,8 @@ final class ActivitySignals {
                 params("project", sample, "ps", "500", "from", since));
     Analyses a = r.as(Analyses.class);
     if (a == null) {
-      Presentation.line(out, "api/project_analyses/search", Verdict.of(r), "HTTP " + r.status());
+      Presentation.line(
+          out, "api/project_analyses/search", CallVerdict.of(r), "HTTP " + r.status());
       return;
     }
     List<Analysis> analyses = orEmptyList(a.analyses());
@@ -79,10 +80,11 @@ final class ActivitySignals {
             .distinct()
             .count();
 
-    out.printf(
-        "  Analyses sur %d j            : %s%n",
-        days, out.color(String.valueOf(analyses.size()), BOLD));
-    out.printf("  Versions livrées                : %d%n", versions);
+    out.print(
+        Text.format(
+            "  Analyses sur %d j            : %s%n",
+            days, out.color(String.valueOf(analyses.size()), BOLD)));
+    out.print(Text.format("  Versions livrées                : %d%n", versions));
 
     List<LocalDateTime> dates =
         analyses.stream()
@@ -92,9 +94,10 @@ final class ActivitySignals {
             .toList();
     if (dates.size() > 1) {
       long span = Math.max(1, ChronoUnit.DAYS.between(dates.get(0), dates.get(dates.size() - 1)));
-      out.printf(
-          "  Cadence moyenne                 : 1 analyse / %.1f j%n",
-          (double) span / (dates.size() - 1));
+      out.print(
+          Text.format(
+              "  Cadence moyenne                 : 1 analyse / %.1f j%n",
+              (double) span / (dates.size() - 1)));
     }
   }
 
@@ -109,23 +112,26 @@ final class ActivitySignals {
                     "componentKeys", sample, "createdAfter", since, "facets", "author", "ps", "1"));
     IssuesSearch is = r.as(IssuesSearch.class);
     if (is == null) {
-      Presentation.line(out, "Facette 'author' sur issues", Verdict.of(r), "HTTP " + r.status());
+      Presentation.line(
+          out, "Facette 'author' sur issues", CallVerdict.of(r), "HTTP " + r.status());
       return;
     }
     List<FacetValue> authors = is.facetValues("author");
     int total = Math.max(1, authors.stream().mapToInt(f -> orZero(f.count())).sum());
 
     out.println();
-    out.printf(
-        "  Auteurs distincts (%d j)      : %s%n",
-        days, out.color(String.valueOf(authors.size()), BOLD));
+    out.print(
+        Text.format(
+            "  Auteurs distincts (%d j)      : %s%n",
+            days, out.color(String.valueOf(authors.size()), BOLD)));
     if (authors.isEmpty()) return;
 
     FacetValue top = authors.get(0);
     double share = (double) orZero(top.count()) / total;
-    out.printf(
-        "  Auteur principal                : %s (%.0f%% des issues récentes)%n",
-        top.val(), share * 100);
+    out.print(
+        Text.format(
+            "  Auteur principal                : %s (%.0f%% des issues récentes)%n",
+            top.val(), share * 100));
     if (share > 0.7 && authors.size() > 1) {
       out.println(out.color("    → forte concentration : proxy de bus factor faible", YELLOW));
     }
@@ -145,9 +151,11 @@ final class ActivitySignals {
             .collect(
                 Collectors.toMap(Measure::metric, m -> orEmpty(m.effectiveValue()), (a, b) -> a));
     out.println();
-    out.printf("  Lignes neuves (new code)        : %s%n", orNa(ms.get("new_lines")));
-    out.printf("  Violations neuves               : %s%n", orNa(ms.get("new_violations")));
-    out.printf("  Couverture du code neuf         : %s%n", orNa(ms.get("new_coverage")));
+    out.print(Text.format("  Lignes neuves (new code)        : %s%n", orNa(ms.get("new_lines"))));
+    out.print(
+        Text.format("  Violations neuves               : %s%n", orNa(ms.get("new_violations"))));
+    out.print(
+        Text.format("  Couverture du code neuf         : %s%n", orNa(ms.get("new_coverage"))));
   }
 
   /** Δdette / Δlignes : la dette ajoutée par ligne écrite, le vrai signal de vélocité. */
@@ -174,8 +182,10 @@ final class ActivitySignals {
     // points sont ceux des analyses, pas ceux du calendrier. On affiche
     // l'écart réellement mesuré, sinon le lecteur rapporte à 90 jours une
     // variation qui en couvre 12.
-    out.printf("  Δ lignes sur %d j (%d j mesurés) : %+d%n", days, v.spanDays(), v.deltaNcloc());
-    out.printf("  Δ dette sur %d j (min)       : %+d%n", days, v.deltaDebt());
+    out.print(
+        Text.format(
+            "  Δ lignes sur %d j (%d j mesurés) : %+d%n", days, v.spanDays(), v.deltaNcloc()));
+    out.print(Text.format("  Δ dette sur %d j (min)       : %+d%n", days, v.deltaDebt()));
     if (v.deltaNcloc() > 0) {
       out.println(
           "  Dette ajoutée par ligne écrite  : "

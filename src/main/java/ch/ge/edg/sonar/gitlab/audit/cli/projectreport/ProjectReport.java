@@ -25,8 +25,8 @@ final class ProjectReport {
   /**
    * {@code dates} : l'instant de référence, lu une fois avant le rapport, et le fuseau des dates.
    */
-  public ProjectReport(Gitlab gl, Settings settings, Console out, Dates dates) {
-    this.api = new ProjectApi(gl, settings);
+  public ProjectReport(Gitlab gitlab, Settings settings, Console out, Dates dates) {
+    this.api = new ProjectApi(gitlab, settings);
     this.settings = settings;
     this.report = new Report(out);
     this.err = out.err();
@@ -46,7 +46,7 @@ final class ProjectReport {
         .print(new Sections(report, api, settings, dates).measure(project, since));
 
     report.println();
-    report.println(report.c(Text.format("  %d appels API.", api.calls()), DIM));
+    report.println(report.paint(Text.format("  %d appels API.", api.calls()), DIM));
     return 0;
   }
 

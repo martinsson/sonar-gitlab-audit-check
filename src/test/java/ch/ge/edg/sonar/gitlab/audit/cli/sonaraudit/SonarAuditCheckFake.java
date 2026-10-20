@@ -19,7 +19,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
@@ -91,9 +90,9 @@ final class SonarAuditCheckFake implements AutoCloseable {
     return this;
   }
 
-  /** The metric series of a project the park populated. */
-  Map<String, List<Object[]>> historyOf(String project) {
-    return Objects.requireNonNull(history.get(project), project);
+  /** Sets the series of one metric of a project, whatever the park put there before. */
+  void setHistory(String project, String metric, List<Object[]> points) {
+    history.computeIfAbsent(project, key -> new LinkedHashMap<>()).put(metric, points);
   }
 
   FakeHttpServer server() {

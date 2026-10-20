@@ -62,9 +62,10 @@ final class Bindings {
     Console out = session.out();
     out.println();
     long bound = byAlm.values().stream().mapToLong(Long::longValue).sum();
-    out.printf(
-        "  Liés à une plateforme DevOps   : %s / %d%s%n",
-        out.color(String.valueOf(bound), BOLD), projects, byAlm.isEmpty() ? "" : "  " + byAlm);
+    out.print(
+        Text.format(
+            "  Liés à une plateforme DevOps   : %s / %d%s%n",
+            out.color(String.valueOf(bound), BOLD), projects, byAlm.isEmpty() ? "" : "  " + byAlm));
     if (refused > 0) {
       out.println(
           out.color(
@@ -72,7 +73,7 @@ final class Bindings {
                   "    dont %d liaison(s) illisible(s) : lecture refusée, pas absente", refused),
               YELLOW));
     }
-    out.printf("  Avec au moins un lien saisi    : %d / %d%n", withLinks, projects);
+    out.print(Text.format("  Avec au moins un lien saisi    : %d / %d%n", withLinks, projects));
   }
 
   private Attachments attachments(String key) {

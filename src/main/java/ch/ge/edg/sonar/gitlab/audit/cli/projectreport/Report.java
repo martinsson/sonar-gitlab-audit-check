@@ -18,18 +18,21 @@ final class Report {
     this.out = out;
   }
 
-  String c(String text, String color) {
+  String paint(String text, String color) {
     return out.color(text, color);
   }
 
   void title(String text) {
     out.println();
     out.println(
-        c("=== " + text + " ", BOLD) + c("=".repeat(Math.max(0, 66 - text.length())), BOLD));
+        paint("=== " + text + " ", BOLD)
+            + paint("=".repeat(Math.max(0, 66 - text.length())), BOLD));
   }
 
-  void line(String label, Verdict v, String detail) {
-    out.printf("  %s %-42s %s%n", c(v.tag, v.color), label, detail.isBlank() ? "" : c(detail, DIM));
+  void line(String label, EndpointVerdict v, String detail) {
+    out.printf(
+        "  %s %-42s %s%n",
+        paint(v.tag, v.color), label, detail.isBlank() ? "" : paint(detail, DIM));
   }
 
   void println() {
@@ -42,6 +45,6 @@ final class Report {
 
   /** Une ligne entière dans une couleur. */
   void println(String text, String color) {
-    out.println(c(text, color));
+    out.println(paint(text, color));
   }
 }

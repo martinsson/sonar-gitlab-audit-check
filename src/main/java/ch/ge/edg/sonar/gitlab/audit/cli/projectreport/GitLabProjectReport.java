@@ -119,13 +119,13 @@ public class GitLabProjectReport implements Callable<Integer> {
             sample,
             includeBots,
             Pattern.compile(bots, Pattern.CASE_INSENSITIVE));
-    Gitlab gl =
+    Gitlab client =
         new Gitlab(
             gitlab.connectionOrAnonymous("https://gitlab.com"),
             new GitlabWarnings(out),
             host.sleeper());
 
-    return new ProjectReport(gl, settings, out, new Dates(host.clock()))
+    return new ProjectReport(client, settings, out, new Dates(host.clock()))
         .run(ProjectPath.normalize(path));
   }
 }

@@ -92,16 +92,20 @@ final class Trends {
     long measured = up + down + flat;
     Console out = session.out();
     out.println();
-    out.printf(
-        "  Tendance des issues/kLOC sur %d j (%d projets mesurables) :%n", activityDays, measured);
-    out.printf(
-        "    en hausse (> +%.0f %%/mois)    : %s%n",
-        Trend.FLAT_PCT, out.color(String.valueOf(up), up > 0 ? YELLOW : GREEN));
-    out.printf(
-        "    en baisse (< -%.0f %%/mois)    : %s%n",
-        Trend.FLAT_PCT, out.color(String.valueOf(down), GREEN));
-    out.printf("    stables                      : %d%n", flat);
-    out.printf("    non mesurables               : %d%n", total - measured);
+    out.print(
+        Text.format(
+            "  Tendance des issues/kLOC sur %d j (%d projets mesurables) :%n",
+            activityDays, measured));
+    out.print(
+        Text.format(
+            "    en hausse (> +%.0f %%/mois)    : %s%n",
+            Trend.FLAT_PCT, out.color(String.valueOf(up), up > 0 ? YELLOW : GREEN)));
+    out.print(
+        Text.format(
+            "    en baisse (< -%.0f %%/mois)    : %s%n",
+            Trend.FLAT_PCT, out.color(String.valueOf(down), GREEN)));
+    out.print(Text.format("    stables                      : %d%n", flat));
+    out.print(Text.format("    non mesurables               : %d%n", total - measured));
     out.println(
         out.color(
             Text.format(
