@@ -1,13 +1,17 @@
 # The fast gates of ./verify on every pull request: main only accepts pull requests where this job
 # is green (repository ruleset), and auto-merge.yml merges them then, without human review. The
-# full run (Docker integration tests, mutation testing, copy-paste detection, ~15 min) runs after
-# each merge into main: a red one is fixed by the next pull request.
+# full run (Docker integration tests, mutation testing, copy-paste detection, ~15 min) runs on main
+# every night and on demand: a red one is fixed by the next pull request. Not on each merge: a merge
+# made by auto-merge comes from the workflow token, and GitHub starts no workflow for its events.
 name: verify
 
 on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -20,6 +24,7 @@ jobs:
   fast:
     # The job name is the status check the ruleset requires: rename both together.
     name: verify
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -44,7 +49,7 @@ jobs:
 
   full:
     name: verify-full
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
