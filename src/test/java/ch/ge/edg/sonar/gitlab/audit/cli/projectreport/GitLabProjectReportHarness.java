@@ -1,7 +1,7 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.API;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.json;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.API;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.json;
 
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;

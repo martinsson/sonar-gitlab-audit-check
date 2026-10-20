@@ -1,11 +1,11 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.API;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.merge;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.mr;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.obj;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.user;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.API;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.merge;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.mr;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.obj;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.user;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 

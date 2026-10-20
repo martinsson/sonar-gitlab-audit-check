@@ -1,8 +1,5 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectPath;
-import ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReport;
-import ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Settings;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.io.IOException;

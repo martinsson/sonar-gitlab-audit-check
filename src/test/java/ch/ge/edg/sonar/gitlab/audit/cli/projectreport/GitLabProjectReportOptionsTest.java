@@ -1,6 +1,6 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.commit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;

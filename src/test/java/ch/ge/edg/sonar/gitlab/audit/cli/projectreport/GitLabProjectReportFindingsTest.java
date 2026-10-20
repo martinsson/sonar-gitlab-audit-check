@@ -1,9 +1,9 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.mr;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.note;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReportFakeGitlab.user;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.mr;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.note;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.user;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
