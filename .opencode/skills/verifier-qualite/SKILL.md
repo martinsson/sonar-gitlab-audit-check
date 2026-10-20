@@ -60,7 +60,7 @@ avec `export JAVA_HOME=$(jbang jdk home 26)`.
 - **Pousser.** Personne ne pousse sur `main`. On pousse une branche, puis on ouvre une PR (GitHub,
   `gh pr create --fill`) ou une merge request (GitLab), et seulement quand l'utilisateur le demande.
   Elle se merge seule, sans relecture humaine, quand `verify` est vert ; `verify-full` tourne
-  ensuite sur `main`. Si un
+  chaque nuit sur `main`. Si un
   check est rouge, corriger sur la branche et pousser de nouveau (voir « CI » dans `TOOLS.md`).
 
 ## En cas d'échec
