@@ -1,0 +1,51 @@
+{
+  "pipelines" : [ {
+    "name" : "hello-deploy-prod",
+    "counter" : 1,
+    "label" : "1",
+    "natural_order" : 1.0,
+    "can_run" : true,
+    "preparing_to_schedule" : false,
+    "comment" : null,
+    "scheduled_date" : 1792529071564,
+    "build_cause" : {
+      "trigger_message" : "Forced by anonymous",
+      "trigger_forced" : true,
+      "approver" : "anonymous",
+      "material_revisions" : [ {
+        "changed" : true,
+        "material" : {
+          "name" : "hello-deploy-recette",
+          "fingerprint" : "54d318f059cc7b02d89f067429e2b724b25222f9f5b76a9c1cadb95403b1117b",
+          "type" : "Pipeline",
+          "description" : "hello-deploy-recette [ deploy ]"
+        },
+        "modifications" : [ {
+          "revision" : "hello-deploy-recette/3/deploy/1",
+          "modified_time" : 1792529033197,
+          "user_name" : null,
+          "comment" : null,
+          "email_address" : null
+        } ]
+      } ]
+    },
+    "stages" : [ {
+      "result" : "Failed",
+      "status" : "Failed",
+      "rerun_of_counter" : null,
+      "name" : "deploy",
+      "counter" : "1",
+      "scheduled" : true,
+      "approval_type" : "manual",
+      "approved_by" : "anonymous",
+      "operate_permission" : true,
+      "can_run" : true,
+      "jobs" : [ {
+        "name" : "deploy",
+        "scheduled_date" : 1792529071564,
+        "state" : "Completed",
+        "result" : "Failed"
+      } ]
+    } ]
+  } ]
+}
