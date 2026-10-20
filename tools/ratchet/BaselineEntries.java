@@ -36,6 +36,11 @@ final class BaselineEntries {
         entries.add("(cpd) " + line.trim());
       }
     }
+    for (String line : tree.lines(BaselineFiles.JBANG)) {
+      if (!line.isBlank() && !line.startsWith("#")) {
+        entries.add("(jbang) " + line.trim());
+      }
+    }
     entries.addAll(archUnit(tree));
     return entries;
   }
