@@ -95,7 +95,7 @@ final class ActivitySignals {
       out.out()
           .printf(
               "  Cadence moyenne                 : 1 analyse / %.1f j%n",
-              (double) span / dates.size());
+              (double) span / (dates.size() - 1));
     }
   }
 

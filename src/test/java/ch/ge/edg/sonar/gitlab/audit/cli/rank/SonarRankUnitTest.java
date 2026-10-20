@@ -140,7 +140,7 @@ class SonarRankUnitTest {
     assertThat(row("key", "k", "name", "").label()).isEqualTo("k");
     assertThat(row("key", "k", "name", "n").label()).isEqualTo("n");
     assertThat(Text.ellipsize("abcd", 4)).isEqualTo("abcd");
-    assertThat(Text.ellipsize("abcde", 4)).isEqualTo("abc...");
+    assertThat(Text.ellipsize("abcde", 4)).isEqualTo("a...");
     assertThat(RankReport.RESET).isEqualTo("\033[0m");
     assertThat(RankReport.BOLD).isEqualTo("\033[1m");
     assertThat(RankReport.DIM).isEqualTo("\033[2m");

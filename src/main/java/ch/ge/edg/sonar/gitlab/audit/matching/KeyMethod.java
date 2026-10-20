@@ -38,6 +38,7 @@ public record KeyMethod(
           "méthode illisible : « " + s + " » (attendu id:gauche=droite[?colonne=valeur])");
     }
     String where = m.group(4);
+    String value = m.group(5);
     return new KeyMethod(
         m.group(1),
         m.group(1),
@@ -45,7 +46,7 @@ public record KeyMethod(
         m.group(2).trim(),
         m.group(3).trim(),
         where == null ? null : where.trim(),
-        m.group(5));
+        value == null ? null : value.trim());
   }
 
   public Confidence confidence() {

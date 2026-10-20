@@ -13,7 +13,6 @@ import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -71,9 +70,7 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
   }
 
   @Test
-  @SuspectedBug(
-      "a project GraphQL dates before the window should get 0 merges, reverts and active days")
-  void aProjectGraphqlDatesBeforeTheWindowGetsZeroCommitsButBlankMergesAndActiveDays()
+  void aProjectGraphqlDatesBeforeTheWindowGetsZeroCommitsMergesRevertsAndActiveDays()
       throws IOException {
     fake.enterprise(false)
         .group("team-a", project(1, "team-a/alpha"))
@@ -84,9 +81,9 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
     Csv.Row alpha = Csv.read(csv()).rows().getFirst();
     assertThat(alpha.str("commits_window")).isEqualTo("0");
     assertThat(alpha.str("authors_window")).isEqualTo("0");
-    assertThat(alpha.str("merge_commits")).isEmpty();
-    assertThat(alpha.str("reverts")).isEmpty();
-    assertThat(alpha.str("active_days")).isEmpty();
+    assertThat(alpha.str("merge_commits")).isEqualTo("0");
+    assertThat(alpha.str("reverts")).isEqualTo("0");
+    assertThat(alpha.str("active_days")).isEqualTo("0");
   }
 
   @Test
@@ -134,7 +131,7 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
     assertThat(r.out())
         .contains("  Dernier commit daté par GraphQL : 50 projets en 2 requêtes\n")
         .contains("    dont aucun commit dans la fenêtre : 50\n")
-        .contains("  Comptés par pagination REST     : 1 projets\n")
+        .contains("  Comptés par pagination REST     : 1 projet\n")
         .contains("  Activité non mesurable          : 1\n");
     assertThat(fake.server.requests("/api/v4/projects/150/repository/commits")).hasSize(1);
     assertThat(fake.server.requests("/api/v4/projects/149/repository/commits")).isEmpty();

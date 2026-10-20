@@ -7,7 +7,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -43,9 +42,7 @@ class SonarAuditCheckInventoryTest extends SonarAuditCheckTestBase {
   }
 
   @Test
-  @SuspectedBug(
-      "the message should state the real limit (40 pages of the returned page size), not 20 000")
-  void fortyPagesOfOneProjectAreReportedAsInterruptedAtTwentyThousandProjects() throws IOException {
+  void fortyPagesOfOneProjectAreReportedAsInterruptedAfterFortyPages() throws IOException {
     fake.projects.clear();
     for (int i = 0; i < 41; i++) fake.project("p-%02d".formatted(i), "P " + i, null);
     fake.searchPageSize = 1;
@@ -53,7 +50,7 @@ class SonarAuditCheckInventoryTest extends SonarAuditCheckTestBase {
 
     assertThat(r.out())
         .contains(
-            "  Pagination interrompue à 20 000 projets.\n  Projets visibles avec ce token : 40\n");
+            "  Pagination interrompue après 40 pages.\n  Projets visibles avec ce token : 40\n");
     assertThat(fake.server().requests("/api/components/search_projects")).hasSize(42);
     assertThat(excelCsv(csv()).lines()).hasSize(41);
   }

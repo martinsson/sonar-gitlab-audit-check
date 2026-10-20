@@ -88,7 +88,7 @@ public record MappingFile(Path path, boolean comma, boolean recomputeAll) {
         List<String> row =
             new ArrayList<>(
                 List.of(
-                    p.left().str(s.leftKey()), p.rightKey(s), p.label(), p.confidence().code()));
+                    p.left().str(s.leftKey()), p.writtenKey(s), p.label(), p.confidence().code()));
         row.addAll(DetailColumns.cells(r, p));
         w.writeNext(row.toArray(String[]::new));
       }

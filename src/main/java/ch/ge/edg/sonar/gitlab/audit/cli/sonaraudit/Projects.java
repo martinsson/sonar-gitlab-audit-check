@@ -66,7 +66,7 @@ final class Projects {
       page++;
     }
     if (page > MAX_PAGES)
-      out.println(out.color("  Pagination interrompue à 20 000 projets.", YELLOW));
+      out.println(out.color("  Pagination interrompue après " + MAX_PAGES + " pages.", YELLOW));
     return all;
   }
 

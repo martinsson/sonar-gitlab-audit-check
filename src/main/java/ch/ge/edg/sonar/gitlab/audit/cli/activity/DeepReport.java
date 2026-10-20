@@ -59,7 +59,7 @@ final class DeepReport {
     }
     if (back > 0 && lintRefusedStatus > 0) {
       con.say(
-          "    ci/lint refusé (HTTP %d) : le jeton n'a pas le droit de "
+          "    ci/lint refusé (HTTP %d) : le jeton n'a pas le droit de"
               .formatted(lintRefusedStatus),
           YELLOW);
       con.say("    déplier la configuration. Le repli ne suit que les includes", YELLOW);

@@ -64,7 +64,7 @@ Instance : http://gitlab.test
     Pagination interrompue page 1 : HTTP 404
 
   CI lue : 0 par ci/lint, 2 par repli, 0 depuis le cache.
-    ci/lint refusé (HTTP 401) : le jeton n'a pas le droit de 
+    ci/lint refusé (HTTP 401) : le jeton n'a pas le droit de
     déplier la configuration. Le repli ne suit que les includes
     « project: » qu'il sait lire — ci_sonar y sous-compte. D'un
     « component: », il ne lit que le project_key passé en inputs.

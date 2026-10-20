@@ -9,7 +9,6 @@ import static com.diffplug.selfie.Selfie.expectSelfie;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -81,9 +80,8 @@ same ->  | aucune | none | - | team-c/same (0.92), team-d/same (0.92) | homonyme
   }
 
   @Test
-  @SuspectedBug(
-      "Two originals with 0 commits should be split by last_activity_at, as the order says")
-  void two_dead_originals_are_not_split_by_last_activity_nor_by_names() throws IOException {
+  // Intended (DerivedMethods.tieBreak): two dead copies are not told apart, a person decides.
+  void two_dead_originals_are_left_to_a_person() throws IOException {
     Csv.Table inv =
         inventory(
             dir,

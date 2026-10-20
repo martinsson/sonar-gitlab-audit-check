@@ -183,7 +183,7 @@ class SonarRankCliTest {
     assertThat(r.out())
         .contains("\033[1m1. Gouvernance (constats qui ne demandent aucun score)\033[0m")
         .contains("\033[33m2 (11%)\033[0m")
-        .contains("  Actifs (< 90 j)                 : 11 (61%)\n")
+        .contains("  Actifs (≤ 90 j)                 : 11 (61%)\n")
         .contains("\033[31m")
         .contains("\033[2m");
   }

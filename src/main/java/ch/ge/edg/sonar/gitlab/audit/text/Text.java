@@ -25,9 +25,9 @@ public final class Text {
     return s.length() <= max ? s : s.substring(0, max);
   }
 
-  /** The cut is shown: {@code max - 1} characters and three dots. */
+  /** At most {@code max} characters, the cut shown: {@code max - 3} characters and three dots. */
   public static String ellipsize(String s, int max) {
-    return s.length() <= max ? s : s.substring(0, max - 1) + "...";
+    return s.length() <= max ? s : s.substring(0, Math.max(0, max - 3)) + "...";
   }
 
   /** Two decimals with a point whatever the locale: CSV files are read back by other tools. */

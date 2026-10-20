@@ -19,7 +19,7 @@
 === 4. Merge requests et revue ========================================
   Aucune MR créée sur la fenêtre.
     Le travail arrive donc directement sur la branche par défaut.
-  Ce n'est pas une absence de données : c'est l'absence de revue.
+    Ce n'est pas une absence de données : c'est l'absence de revue.
 
 === 5. Constats =======================================================
   Rien de saillant sur les seuils retenus.
@@ -54,7 +54,7 @@ du jeton (read_api) et l'accès au projet.
 === 4. Merge requests et revue ========================================
   Aucune MR créée sur la fenêtre.
     Le travail arrive donc directement sur la branche par défaut.
-  Ce n'est pas une absence de données : c'est l'absence de revue.
+    Ce n'est pas une absence de données : c'est l'absence de revue.
 
 === 5. Constats =======================================================
   → Plus de commits de bots que d'humains : dépôt surtout maintenu par l'outillage.
@@ -150,7 +150,7 @@ du jeton (read_api) et l'accès au projet.
 === 4. Merge requests et revue ========================================
   Aucune MR créée sur la fenêtre.
     Le travail arrive donc directement sur la branche par défaut.
-  Ce n'est pas une absence de données : c'est l'absence de revue.
+    Ce n'est pas une absence de données : c'est l'absence de revue.
 
 === 5. Constats =======================================================
   → 2 commits, aucune MR : le code arrive sans revue sur la branche par défaut.
@@ -182,7 +182,7 @@ du jeton (read_api) et l'accès au projet.
 === 4. Merge requests et revue ========================================
   Aucune MR créée sur la fenêtre.
     Le travail arrive donc directement sur la branche par défaut.
-  Ce n'est pas une absence de données : c'est l'absence de revue.
+    Ce n'est pas une absence de données : c'est l'absence de revue.
 
 === 5. Constats =======================================================
   Rien de saillant sur les seuils retenus.
@@ -287,7 +287,7 @@ du jeton (read_api) et l'accès au projet.
 === 4. Merge requests et revue ========================================
   Aucune MR créée sur la fenêtre.
     Le travail arrive donc directement sur la branche par défaut.
-  Ce n'est pas une absence de données : c'est l'absence de revue.
+    Ce n'est pas une absence de données : c'est l'absence de revue.
 
 === 5. Constats =======================================================
   → 5 commits, aucune MR : le code arrive sans revue sur la branche par défaut.

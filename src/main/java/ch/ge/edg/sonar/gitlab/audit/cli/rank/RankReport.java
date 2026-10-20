@@ -42,7 +42,7 @@ final class RankReport {
     out.out().printf("  Jamais analysés                 : %s%n", pct(never, total, YELLOW));
     out.out()
         .printf("  Analysés, obsolètes (> %d j)    : %s%n", staleDays, pct(stale, total, YELLOW));
-    out.out().printf("  Actifs (< %d j)                 : %s%n", staleDays, pct(active, total, ""));
+    out.out().printf("  Actifs (≤ %d j)                 : %s%n", staleDays, pct(active, total, ""));
 
     coverageBlindSpot(all, cohorts.active());
 

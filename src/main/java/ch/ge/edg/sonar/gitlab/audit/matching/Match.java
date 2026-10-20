@@ -49,6 +49,14 @@ public record Match(
     return r == null ? "" : r.str(spec.rightKey());
   }
 
+  /** La clé écrite dans l'appariement : celle de la droite retenue, ou celle d'un refus. */
+  String writtenKey(Spec spec) {
+    Csv.Row r = right();
+    if (r != null) return r.str(spec.rightKey());
+    String rejected = choice.rejectedKey();
+    return rejected == null ? "" : rejected;
+  }
+
   Match with(Choice c, @Nullable NameGuess g, @Nullable NameGuess f) {
     return new Match(index, left, c, found, g, f);
   }

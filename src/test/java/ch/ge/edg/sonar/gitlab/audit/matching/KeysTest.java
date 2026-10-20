@@ -1,9 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.matching;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import org.junit.jupiter.api.Test;
 
@@ -100,10 +98,8 @@ class KeysTest {
   }
 
   @Test
-  @SuspectedBug(
-      "mappedSonarKey takes @Nullable but throws on null; a fix would return an empty list")
-  void mapped_sonar_key_of_null_throws_before_its_null_check() {
-    assertThatThrownBy(() -> Keys.mappedSonarKey(null)).isInstanceOf(NullPointerException.class);
+  void mapped_sonar_key_of_null_is_empty() {
+    assertThat(Keys.mappedSonarKey(null)).isEmpty();
   }
 
   @Test

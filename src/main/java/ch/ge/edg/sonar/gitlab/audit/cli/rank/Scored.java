@@ -19,7 +19,7 @@ final class Scored {
   }
 
   int signalsPresent() {
-    return percentiles.size();
+    return severities.size();
   }
 
   boolean ranked() {

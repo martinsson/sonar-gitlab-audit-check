@@ -24,7 +24,7 @@ Instance : http://gitlab.test
 
 3. Activité réelle en commits (étape 2)
 ---------------------------------------
-  Comptés par pagination REST     : 1 projets
+  Comptés par pagination REST     : 1 projet
   Avec au moins un commit humain  : 1
 
 4. Plancher d'activité (étape 3)

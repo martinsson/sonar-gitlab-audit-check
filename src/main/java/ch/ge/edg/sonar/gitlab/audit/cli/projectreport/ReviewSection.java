@@ -43,7 +43,7 @@ final class ReviewSection {
       report.println(
           """
               Le travail arrive donc directement sur la branche par défaut.
-            Ce n'est pas une absence de données : c'est l'absence de revue.\
+              Ce n'est pas une absence de données : c'est l'absence de revue.\
           """,
           DIM);
       return Reviews.NONE;

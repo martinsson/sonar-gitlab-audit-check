@@ -22,7 +22,7 @@ class TextTest {
     assertThat(Text.truncate("abcde", 4)).isEqualTo("abcd");
     assertThat(Text.truncate("abcd", 4)).isEqualTo("abcd");
     assertThat(Text.ellipsize("abcd", 4)).isEqualTo("abcd");
-    assertThat(Text.ellipsize("abcde", 4)).isEqualTo("abc...");
+    assertThat(Text.ellipsize("abcde", 4)).isEqualTo("a...");
   }
 
   @Test

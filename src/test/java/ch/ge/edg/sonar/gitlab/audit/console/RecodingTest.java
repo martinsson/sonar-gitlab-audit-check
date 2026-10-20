@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.console;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -96,15 +95,12 @@ class RecodingTest {
   }
 
   @Test
-  @SuspectedBug("an invalid UTF-8 byte should be replaced, not block everything written after it")
-  void an_invalid_utf8_byte_swallows_everything_written_after_it() throws IOException {
-    // Current behaviour (suspected bug): the decoder REPORTs malformed input, the bad byte stays
-    // pending forever, and nothing after it ever reaches the console.
+  void an_invalid_utf8_byte_is_replaced_and_the_rest_still_written() throws IOException {
     Sink sink = new Sink();
     Recoding r = new Recoding(sink, CP850);
     r.write(new byte[] {'a', (byte) 0xFF, 'b'}, 0, 3);
     r.write("cd".getBytes(StandardCharsets.UTF_8));
-    assertThat(sink.toString(CP850)).isEqualTo("a");
+    assertThat(sink.toString(CP850)).isEqualTo("a?bcd");
   }
 
   @Test

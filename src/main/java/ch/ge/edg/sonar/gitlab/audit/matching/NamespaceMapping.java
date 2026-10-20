@@ -14,7 +14,7 @@ import org.yaml.snakeyaml.Yaml;
 
 /**
  * Namespace GitLab → préfixe Sonar, lu dans un YAML {@code NAMESPACE: prefixe}. Les clés du fichier
- * sont gardées telles qu'écrites, et cherchées en majuscules.
+ * sont lues et cherchées en majuscules.
  */
 public final class NamespaceMapping {
 
@@ -35,9 +35,9 @@ public final class NamespaceMapping {
   }
 
   /**
-   * Lit le fichier. Absent ou illisible, le mapping reste vide (ou partiel) et {@link #warnings()}
-   * le dit ; un contenu qui n'est pas une table de chaînes lève l'exception du lecteur YAML ou du
-   * cast.
+   * Lit le fichier. Absent, illisible ou répertoire, le mapping reste vide (ou partiel) et {@link
+   * #warnings()} le dit ; un contenu qui n'est pas une table de chaînes lève l'exception du lecteur
+   * YAML ou du cast.
    *
    * @param file le fichier tel que l'utilisateur l'a nommé, résolu contre {@code workDir}
    */
@@ -53,10 +53,16 @@ public final class NamespaceMapping {
                     + file
                     + " introuvable — le matching namespace sera désactivé"));
       }
+      if (!Files.isRegularFile(mappingFile)) {
+        return new NamespaceMapping(glToSonar, List.of("Erreur lecture mapping : " + mappingFile));
+      }
       try (InputStream is = Files.newInputStream(mappingFile)) {
         Map<?, ?> data = (Map<?, ?>) new Yaml().load(is);
         if (data != null) {
-          data.forEach((gl, sonar) -> glToSonar.put(((String) gl).trim(), ((String) sonar).trim()));
+          data.forEach(
+              (gl, sonar) ->
+                  glToSonar.put(
+                      ((String) gl).trim().toUpperCase(Locale.ROOT), ((String) sonar).trim()));
         }
       }
     } catch (IOException e) {

@@ -107,8 +107,8 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  @SuspectedBug("the day of a commit should not depend on the time zone of the machine")
-  void the_same_instant_falls_on_another_day_in_another_system_zone() {
+  // Intended: a commit's day is the day in the run's clock zone (Geneva), the reader's calendar.
+  void a_commit_day_is_the_day_in_the_zone_of_the_run_clock() {
     String lateEvening = "2024-03-04T23:30:00Z";
     String inUtc = new Dates(Clock.systemUTC()).dateOnly(lateEvening);
     String inZurich = new Dates(Clock.system(ZoneId.of("Europe/Zurich"))).dateOnly(lateEvening);

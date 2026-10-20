@@ -106,7 +106,8 @@ final class Replay {
     Confidence c = p.confidence();
     if (c == Confidence.REJETE) {
       rejected++;
-      return m.with(new Choice(null, null, REJECTED_LABEL, Confidence.REJETE), m.guess(), m.free());
+      return m.with(
+          new Choice(null, null, REJECTED_LABEL, Confidence.REJETE, p.key()), m.guess(), m.free());
     }
     if (c == Confidence.MANUEL) return manual(m, left, p);
     if ((c == Confidence.EXACT || c == Confidence.DERIVED) && !recomputeAll)
@@ -120,7 +121,7 @@ final class Replay {
     if (right == null) {
       // Saisie à la main vers une clé qui n'existe plus : on ne peut
       // pas la tenir, et on ne la remplace pas en silence.
-      stale.add(left + " → " + p.key() + " (manuel)");
+      stale.add(left + " → " + (p.key().isEmpty() ? "" : p.key() + " ") + "(manuel)");
       return m;
     }
     manual++;

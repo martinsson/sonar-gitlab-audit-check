@@ -6,11 +6,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
-/** GitlabActivityAudit messages that put a plural after a count of one. */
+/** GitlabActivityAudit messages put a singular after a count of one. */
 class CosmeticSuspectedBugsTest extends GitlabActivityAuditTestBase {
 
   private Cli.Result oneVisibleProjectAndOneForbidden() {
@@ -25,16 +24,14 @@ class CosmeticSuspectedBugsTest extends GitlabActivityAuditTestBase {
   }
 
   @Test
-  @SuspectedBug("a single 403 should read « 1 réponse 403 », in the singular")
-  void oneForbiddenProjectIsReportedAsOneReponsesInThePlural() {
+  void oneForbiddenProjectIsReportedInTheSingular() {
     assertThat(oneVisibleProjectAndOneForbidden().out())
-        .contains("    1 réponses 403 : le jeton ne voit pas tout le parc.\n");
+        .contains("    1 réponse 403 : le jeton ne voit pas tout le parc.\n");
   }
 
   @Test
-  @SuspectedBug("a single project counted by REST should read « 1 projet », in the singular")
-  void oneProjectCountedByRestIsReportedAsOneProjetsInThePlural() {
+  void oneProjectCountedByRestIsReportedInTheSingular() {
     assertThat(oneVisibleProjectAndOneForbidden().out())
-        .contains("  Comptés par pagination REST     : 1 projets\n");
+        .contains("  Comptés par pagination REST     : 1 projet\n");
   }
 }

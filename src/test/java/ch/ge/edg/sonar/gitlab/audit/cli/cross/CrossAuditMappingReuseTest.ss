@@ -1,6 +1,6 @@
-╔═ a_second_run_keeps_the_rejection_by_path_only/appariement ═╗
+╔═ a_second_run_keeps_the_rejected_pair/appariement ═╗
 ﻿"gauche_path";"droite_key";"methode";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_cle_ci";"m_cle_pom";"m_liaison";"m_ns_map";"m_chemin";"m_nom_pom";"m_liens";"liens_concorde";"m_noms_libre"
-"team-a/alpha-service";"";"rejeté à la main";"rejete";"";"";"";"";"alpha-key";"";"";"";"";"";"";"";"alpha-key (0.85)"
+"team-a/alpha-service";"alpha-key";"rejeté à la main";"rejete";"";"";"";"";"alpha-key";"";"";"";"";"";"";"";"alpha-key (0.85)"
 "team-a/beta-lib";"org.example:beta-lib";"clé Maven du pom";"exact";"";"";"";"";"";"org.example:beta-lib";"";"org.example:beta-lib";"";"";"";"";"org.example:beta-lib (0.85)"
 "team-b/gamma-api";"";"aucune";"none";"team-e_lambda-svc";"0.03";"";"sous le seuil";"";"";"";"";"";"";"";"";"team-e_lambda-svc (0.03, sous le seuil)"
 "team-b/delta-portal";"delta-portal-app";"saisi à la main";"manuel";"delta-portal-app";"0.77";"team-e_lambda-svc (0.03)";"";"";"";"";"";"";"";"";"";"delta-portal-app (0.77)"
@@ -14,9 +14,9 @@
 "team-f/mu-tool";"";"";"rejected";"";"";"";"";"";"";"";"";"";"";"";"";""
 "gone/project";"ghost-key";"clé lue dans la CI";"exact";"";"";"";"";"";"";"";"";"";"";"";"";""
 
-╔═ a_second_run_keeps_the_rejection_by_path_only/sonarGitlab ═╗
+╔═ a_second_run_keeps_the_rejected_pair/sonarGitlab ═╗
 ﻿"sonar_key";"sonar_name";"gitlab_path";"gitlab_id";"methode";"confiance";"score";"autres_candidats";"raison";"cles_sonar_sur_ce_projet";"dans_selection";"gl_commits_window";"gl_last_activity_at";"gl_exclu";"sq_analysisDate";"sq_ncloc"
-"alpha-key";"Alpha Service";"team-a/alpha-service";"11";"nom Sonar = dernier segment / nom GitLab";"derived";"0.85";"";"";"1";"oui";"30";"2026-02-01";"";"2026-01-10";"5000"
+"alpha-key";"Alpha Service";"";"";"aucune";"none";"";"";"aucun candidat";"";"";"";"";"";"2026-01-10";"5000"
 "org.example:beta-lib";"Beta Lib";"team-a/beta-lib";"12";"croisement : clé Maven du pom";"exact";"";"";"";"1";"oui";"0";"2025-01-01";"";"2025-03-01";"2000"
 "delta-portal-app";"Delta Portal App";"team-b/delta-portal";"14";"croisement : saisi à la main";"manuel";"";"";"";"1";"oui";"25";"2026-02-01";"";"2026-02-02";"3000"
 "zeta-sonar";"Zeta Web";"team-c/zeta-web";"16";"croisement : nom du pom = nom Sonar";"derived";"";"";"";"1";"oui";"40";"2026-02-01";"";"2026-02-03";"1500"
@@ -26,7 +26,7 @@
 "nu-thing";"Nu Thing";"";"";"aucune";"none";"";"";"aucun candidat";"";"";"";"";"";"";""
 "zz-other-key";"(iota-three) Legacy";"team-d/iota-three";"19";"nom Sonar = dernier segment / nom GitLab";"derived";"0.55";"";"";"1";"oui";"23";"2026-02-01";"";"2026-01-07";"600"
 
-╔═ a_second_run_keeps_the_rejection_by_path_only/stdout ═╗
+╔═ a_second_run_keeps_the_rejected_pair/stdout ═╗
 
 Croisement SonarQube × GitLab
   Côté Sonar   : 9 projets (<tmp>/projets.csv)
@@ -125,14 +125,14 @@ Ressemblance de noms, jugée sur 3 paires sûres
   La sélection ne contient que les projets GitLab retenus ; ici, chaque
   projet Sonar est cherché dans tout l'inventaire. Mêmes règles : seules
   les paires exactes et dérivées comptent, les suggestions sont à vérifier.
-  Projets Sonar : 9, dont 7 appariés sûrement (78 %)
-    derived    4
+  Projets Sonar : 9, dont 6 appariés sûrement (67 %)
+    derived    3
     exact      2
     manuel     1
-    none       2
+    none       3
   Appariés à un dépôt hors de la sélection GitLab : 2, dont 1 actifs (10 commits ou plus)
   Sans dépôt GitLab, par raison :
-    aucun candidat                       1
+    aucun candidat                       2
     homonymes non départagés             1
   Méthodes dérivées rejouées sur les paires exactes : 1 sur 1 d'accord
     nom court de la clé = dernier segment / nom GitLab : 1 d'accord, 0 non
@@ -141,18 +141,20 @@ Ressemblance de noms, jugée sur 3 paires sûres
 2. Ce qu'aucun des deux rapports ne pouvait dire seul
 -----------------------------------------------------
 
-  Actifs dans GitLab, absents de SonarQube : 4
+  Actifs dans GitLab, absents de SonarQube : 5
     Vivants et non analysés. Séparés enfin des dépôts morts, qu'un inventaire
     Sonar seul confond avec eux.
       team-b/gamma-api — 50 commits
+      team-a/alpha-service — 30 commits
       team-d/kappa-four — 24 commits
       team-d/theta-two — 22 commits
       team-d/eta-one — 21 commits
 
-  CI configurée pour Sonar, sans projet Sonar apparié : 2
+  CI configurée pour Sonar, sans projet Sonar apparié : 3
     Le pipeline dit lancer une analyse ; rien ne la reçoit sous une clé
     qu'on sache rattacher. Job en échec silencieux, ou clé qui ne correspond
     à rien. Constat concret, vérifiable projet par projet.
+      team-a/alpha-service → alpha-key
       team-b/gamma-api → gamma-wrong
       team-d/eta-one
 
@@ -187,7 +189,7 @@ Ressemblance de noms, jugée sur 3 paires sûres
 
 ╔═ hand_made_decisions_are_replayed_and_the_old_file_kept_as_bak/appariement ═╗
 ﻿"gauche_path";"droite_key";"methode";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_cle_ci";"m_cle_pom";"m_liaison";"m_ns_map";"m_chemin";"m_nom_pom";"m_liens";"liens_concorde";"m_noms_libre"
-"team-a/alpha-service";"";"rejeté à la main";"rejete";"";"";"";"";"alpha-key";"";"";"";"";"";"";"";"alpha-key (0.85)"
+"team-a/alpha-service";"alpha-key";"rejeté à la main";"rejete";"";"";"";"";"alpha-key";"";"";"";"";"";"";"";"alpha-key (0.85)"
 "team-a/beta-lib";"org.example:beta-lib";"clé Maven du pom";"exact";"";"";"";"";"";"org.example:beta-lib";"";"org.example:beta-lib";"";"";"";"";"org.example:beta-lib (0.85)"
 "team-b/gamma-api";"";"aucune";"none";"team-e_lambda-svc";"0.03";"";"sous le seuil";"";"";"";"";"";"";"";"";"team-e_lambda-svc (0.03, sous le seuil)"
 "team-b/delta-portal";"delta-portal-app";"saisi à la main";"manuel";"delta-portal-app";"0.77";"team-e_lambda-svc (0.03)";"";"";"";"";"";"";"";"";"";"delta-portal-app (0.77)"
@@ -392,7 +394,7 @@ Ressemblance de noms, jugée sur 3 paires sûres
 
 ╔═ reapparier_recomputes_exact_and_derived_but_keeps_manual_and_rejected/appariement ═╗
 ﻿"gauche_path";"droite_key";"methode";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_cle_ci";"m_cle_pom";"m_liaison";"m_ns_map";"m_chemin";"m_nom_pom";"m_liens";"liens_concorde";"m_noms_libre"
-"team-a/alpha-service";"";"rejeté à la main";"rejete";"";"";"";"";"alpha-key";"";"";"";"";"";"";"";"alpha-key (0.85)"
+"team-a/alpha-service";"alpha-key";"rejeté à la main";"rejete";"";"";"";"";"alpha-key";"";"";"";"";"";"";"";"alpha-key (0.85)"
 "team-a/beta-lib";"org.example:beta-lib";"clé Maven du pom";"exact";"";"";"";"";"";"org.example:beta-lib";"";"org.example:beta-lib";"";"";"";"";"org.example:beta-lib (0.85)"
 "team-b/gamma-api";"";"aucune";"none";"team-e_lambda-svc";"0.03";"";"sous le seuil";"";"";"";"";"";"";"";"";"team-e_lambda-svc (0.03, sous le seuil)"
 "team-b/delta-portal";"delta-portal-app";"saisi à la main";"manuel";"delta-portal-app";"0.77";"team-e_lambda-svc (0.03)";"";"";"";"";"";"";"";"";"";"delta-portal-app (0.77)"

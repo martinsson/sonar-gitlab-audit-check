@@ -60,7 +60,8 @@ final class FunnelReport {
             "  Retenus pour analyse            : %d (%s du parc)%n", kept, pct(kept, all.size()));
     if (census.forbidden() > 0) {
       con.say(
-          "    %d réponses 403 : le jeton ne voit pas tout le parc.".formatted(census.forbidden()),
+          "    %d %s 403 : le jeton ne voit pas tout le parc."
+              .formatted(census.forbidden(), census.forbidden() == 1 ? "réponse" : "réponses"),
           YELLOW);
       con.say("    Un trou de permission raccourcit la liste sans lever d'erreur.", DIM);
     }
@@ -139,7 +140,10 @@ final class FunnelReport {
   void counts(List<AuditedProject> all, int counted) {
     List<AuditedProject> fresh = fresh(all);
     long active = fresh.stream().filter(p -> p.commitsOrZero() > 0).count();
-    out.out().printf("  Comptés par pagination REST     : %d projets%n", counted);
+    out.out()
+        .printf(
+            "  Comptés par pagination REST     : %d %s%n",
+            counted, counted == 1 ? "projet" : "projets");
     out.out().printf("  Avec au moins un commit humain  : %d%n", active);
     long botOnly = fresh.stream().filter(p -> p.commits().botOnly()).count();
     if (botOnly > 0) {

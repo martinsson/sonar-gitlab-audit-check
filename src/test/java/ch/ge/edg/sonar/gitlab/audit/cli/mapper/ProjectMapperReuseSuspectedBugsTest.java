@@ -62,8 +62,8 @@ class ProjectMapperReuseSuspectedBugsTest {
   }
 
   @Test
-  @SuspectedBug("A manual row whose key vanished is replaced by the fresh match; it should be kept")
-  void a_stale_manual_row_is_rewritten_with_the_fresh_match() throws Exception {
+  // Intended (Replay.manual): a vanished key cannot be held; it is reported, not silently kept.
+  void a_stale_manual_row_is_reported_and_rewritten_with_the_fresh_match() throws Exception {
     Cli.Result r = map("nom\np0\n", "code\np0\n", "p0,gone,,manuel\n");
 
     assertThat(r.exitCode()).isZero();
@@ -84,10 +84,9 @@ class ProjectMapperReuseSuspectedBugsTest {
   }
 
   @Test
-  @SuspectedBug("A stale manual row without a key prints a double space before (manuel)")
-  void a_stale_manual_row_without_a_key_prints_two_spaces_before_manuel() throws Exception {
+  void a_stale_manual_row_without_a_key_prints_one_space_before_manuel() throws Exception {
     Cli.Result r = map("nom\np0\n", "code\np0\n", "p0,,,manuel\n");
 
-    assertThat(r.out()).contains("p0 →  (manuel)");
+    assertThat(r.out()).contains("p0 → (manuel)");
   }
 }

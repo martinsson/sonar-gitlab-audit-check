@@ -44,7 +44,11 @@ public final class Recoding extends OutputStream {
           Map.entry(' ', " "));
 
   private final OutputStream target;
-  private final CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder();
+  private final CharsetDecoder decoder =
+      StandardCharsets.UTF_8
+          .newDecoder()
+          .onMalformedInput(CodingErrorAction.REPLACE)
+          .onUnmappableCharacter(CodingErrorAction.REPLACE);
   private final CharsetEncoder encoder;
   private ByteBuffer pending = ByteBuffer.allocate(0);
 

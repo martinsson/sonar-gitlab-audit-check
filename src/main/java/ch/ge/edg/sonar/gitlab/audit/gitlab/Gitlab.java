@@ -340,10 +340,11 @@ public final class Gitlab {
   }
 
   private static String query(Map<String, String> params) {
-    if (params.isEmpty()) return "";
-    return params.entrySet().stream()
-        .filter(e -> e.getValue() != null)
-        .map(e -> enc(e.getKey()) + "=" + enc(e.getValue()))
-        .collect(Collectors.joining("&", "?", ""));
+    String joined =
+        params.entrySet().stream()
+            .filter(e -> e.getValue() != null)
+            .map(e -> enc(e.getKey()) + "=" + enc(e.getValue()))
+            .collect(Collectors.joining("&"));
+    return joined.isEmpty() ? "" : "?" + joined;
   }
 }

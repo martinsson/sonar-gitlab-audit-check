@@ -26,16 +26,19 @@ final class VelocityRanking {
       else if (s.row.noNewCode()) s.exclusion = Exclusion.NO_NEW_CODE;
     }
 
+    for (Scored s : all) {
+      if (!s.ranked()) continue;
+      measure(s);
+      if (s.severities.size() < settings.minSignals()) s.exclusion = Exclusion.TOO_FEW_SIGNALS;
+    }
     List<Scored> candidates = all.stream().filter(Scored::ranked).toList();
-    for (Scored s : candidates) measure(s);
 
     Map<Bucket, List<Scored>> byBucket = byBucket(candidates);
     byBucket.values().forEach(VelocityRanking::percentiles);
-    for (Scored s : candidates) score(s, settings.minSignals());
+    for (Scored s : candidates) score(s);
 
     List<Scored> ranked =
         candidates.stream()
-            .filter(Scored::ranked)
             .sorted(Comparator.comparingDouble((Scored s) -> s.score).reversed())
             .collect(Collectors.toCollection(ArrayList::new));
     shortlist(ranked, byBucket, settings.topPercent());
@@ -77,12 +80,8 @@ final class VelocityRanking {
     }
   }
 
-  /** Moyenne pondérée des percentiles présents ; trop peu de signaux écarte du classement. */
-  private static void score(Scored s, int minSignals) {
-    if (s.signalsPresent() < minSignals) {
-      s.exclusion = Exclusion.TOO_FEW_SIGNALS;
-      return;
-    }
+  /** Moyenne pondérée des percentiles présents. */
+  private static void score(Scored s) {
     double num = 0;
     double den = 0;
     for (Map.Entry<Signal, Double> e : s.percentiles.entrySet()) {
