@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.vues;
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.StyleOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.Crossing;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
@@ -156,7 +157,7 @@ public class Vues implements Callable<Integer> {
     // required = true : picocli refuse la ligne de commande avant d'appeler call().
     Path input = in;
     Csv.Table t = Csv.read(input);
-    t.require(input, "CrossAudit --out", "projet", "confiance");
+    t.require(input, "CrossAudit --out", Crossing.PROJECT, Crossing.CONFIDENCE);
 
     Path essential = writeEssential(t, input);
     List<Csv.Row> joined = writeDrift(t, input);
@@ -210,7 +211,7 @@ public class Vues implements Callable<Integer> {
   private List<Csv.Row> writeDrift(Csv.Table t, Path input) throws IOException {
     List<Csv.Row> joined =
         new ArrayList<>(
-            t.rows().stream().filter(r -> PAIRED.contains(r.str("confiance"))).toList());
+            t.rows().stream().filter(r -> PAIRED.contains(r.str(Crossing.CONFIDENCE))).toList());
     joined.sort(
         Comparator.comparingInt((Csv.Row r) -> signals(r).size())
             .reversed()
@@ -227,7 +228,10 @@ public class Vues implements Callable<Integer> {
     List<Csv.Row> unpaired =
         new ArrayList<>(
             t.rows().stream()
-                .filter(r -> !PAIRED.contains(r.str("confiance")) && nz(r, "gl_commits_window") > 0)
+                .filter(
+                    r ->
+                        !PAIRED.contains(r.str(Crossing.CONFIDENCE))
+                            && nz(r, "gl_commits_window") > 0)
                 .toList());
     unpaired.sort(
         Comparator.comparingDouble((Csv.Row r) -> nz(r, "gl_commits_window"))

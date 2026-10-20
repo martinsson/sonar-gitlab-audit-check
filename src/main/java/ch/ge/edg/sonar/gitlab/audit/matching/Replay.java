@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.matching;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.Mapping;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -49,7 +50,7 @@ final class Replay {
   private Replay(Result fresh, boolean recomputeAll) {
     this.fresh = fresh;
     this.leftKey = fresh.spec().leftKey();
-    this.rightColumn = "droite_" + fresh.spec().rightKey();
+    this.rightColumn = Mapping.right(fresh.spec().rightKey());
     this.recomputeAll = recomputeAll;
     for (KeyMethod m : fresh.available()) idByLabel.put(m.label(), m.id());
     idByLabel.put(Spec.NAMES_LABEL, Spec.NAMES_ID);
@@ -60,7 +61,7 @@ final class Replay {
   }
 
   private Outcome over(Csv.Table existing) {
-    String lk = "gauche_" + leftKey;
+    String lk = Mapping.left(leftKey);
     Map<String, Csv.Row> byLeft = new LinkedHashMap<>();
     for (Csv.Row r : existing.rows()) {
       String k = r.str(lk);

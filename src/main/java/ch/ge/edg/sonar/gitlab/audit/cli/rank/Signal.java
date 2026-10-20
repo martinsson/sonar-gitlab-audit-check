@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -30,17 +31,17 @@ enum Signal {
     return switch (this) {
       case INJECTION -> injection(r);
       case NEW_COVERAGE -> {
-        Double v = r.num("new_coverage");
+        Double v = r.num(SonarInventory.NEW_COVERAGE);
         yield v == null ? null : -v; // moins couvert = pire
       }
-      case NEW_DUPLICATION -> r.num("new_duplicated_lines_density");
-      case DEBT_RATIO -> r.num("sqale_debt_ratio");
+      case NEW_DUPLICATION -> r.num(SonarInventory.NEW_DUPLICATED_LINES_DENSITY);
+      case DEBT_RATIO -> r.num(SonarInventory.SQALE_DEBT_RATIO);
     };
   }
 
   private static @Nullable Double injection(InventoryRow r) {
-    Double v = r.num("new_violations");
-    Double l = r.num("new_lines");
+    Double v = r.num(SonarInventory.NEW_VIOLATIONS);
+    Double l = r.num(SonarInventory.NEW_LINES);
     if (v == null || l == null || l <= 0) return null;
     return v / l * 1000;
   }

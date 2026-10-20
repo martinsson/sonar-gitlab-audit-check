@@ -4,6 +4,8 @@ import ch.ge.edg.sonar.gitlab.audit.cli.shared.NamespaceMappingOption;
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.StyleOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Evaluation;
 import ch.ge.edg.sonar.gitlab.audit.matching.MappingFile;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report;
@@ -175,9 +177,9 @@ public class CrossAudit implements Callable<Integer> {
     Path gitlabFile = gitlabCsv;
 
     Csv.Table sonar = Csv.read(sonarFile);
-    sonar.require(sonarFile, "SonarAuditCheck --csv", "key", "ncloc", "analysisDate");
+    sonar.require(sonarFile, "SonarAuditCheck --csv", SonarInventory.required());
     Csv.Table gitlab = Csv.read(gitlabFile);
-    gitlab.require(gitlabFile, "GitlabActivityAudit --deep", "path", "commits_window");
+    gitlab.require(gitlabFile, "GitlabActivityAudit --deep", GitlabPractices.required());
     console.inputs(sonar, sonarFile, gitlab, gitlabFile);
 
     // L'appariement est repris d'un lancement à l'autre : les paires déjà

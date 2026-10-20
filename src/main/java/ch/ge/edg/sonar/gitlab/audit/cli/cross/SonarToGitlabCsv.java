@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Result;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
@@ -53,7 +54,7 @@ final class SonarToGitlabCsv {
     Double score = p.score();
     return new String[] {
       p.key(),
-      p.sonar().str("name"),
+      p.sonar().str(SonarInventory.NAME),
       p.path(),
       cell(g, "id"),
       p.method(),
@@ -66,8 +67,8 @@ final class SonarToGitlabCsv {
       cell(g, "commits_window"),
       cell(g, "last_activity_at"),
       cell(g, "exclu"),
-      p.sonar().str("analysisDate"),
-      p.sonar().str("ncloc")
+      p.sonar().str(SonarInventory.ANALYSIS_DATE),
+      p.sonar().str(SonarInventory.NCLOC)
     };
   }
 

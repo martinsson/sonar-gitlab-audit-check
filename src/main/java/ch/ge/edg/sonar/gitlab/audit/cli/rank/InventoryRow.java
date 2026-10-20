@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -19,7 +20,7 @@ record InventoryRow(Csv.Row cells) {
    */
   public static List<InventoryRow> read(Path path) throws IOException {
     Csv.Table t = Csv.read(path);
-    t.require(path, "SonarAuditCheck --csv", "key", "ncloc", "analysisDate");
+    t.require(path, "SonarAuditCheck --csv", SonarInventory.required());
     return t.rows().stream().map(InventoryRow::new).toList();
   }
 
@@ -33,22 +34,22 @@ record InventoryRow(Csv.Row cells) {
   }
 
   public String key() {
-    return str("key");
+    return str(SonarInventory.KEY);
   }
 
   public String name() {
-    return str("name");
+    return str(SonarInventory.NAME);
   }
 
   public double ncloc() {
-    Double n = num("ncloc");
+    Double n = num(SonarInventory.NCLOC);
     return n == null ? 0 : n;
   }
 
   /** {@code null} = jamais analysé. */
   public @Nullable Integer daysSinceAnalysis() {
-    Double d = num("days_since_analysis");
-    return (d == null || str("analysisDate").isEmpty()) ? null : (int) (double) d;
+    Double d = num(SonarInventory.DAYS_SINCE_ANALYSIS);
+    return (d == null || str(SonarInventory.ANALYSIS_DATE).isEmpty()) ? null : (int) (double) d;
   }
 
   /** Sans nom, un projet se désigne par sa clé. */
@@ -59,7 +60,7 @@ record InventoryRow(Csv.Row cells) {
 
   /** Pas de code neuf sur la fenêtre : rien à mesurer en vitesse. */
   boolean noNewCode() {
-    Double newLines = num("new_lines");
+    Double newLines = num(SonarInventory.NEW_LINES);
     return newLines == null || newLines <= 0;
   }
 }

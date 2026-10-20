@@ -4,6 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Check;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Result;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -33,7 +34,8 @@ final class SonarFates {
   SonarFates(List<Csv.Row> sonar) {
     this.sonar = sonar;
     this.pairs = new Pair[sonar.size()];
-    for (int s = 0; s < sonar.size(); s++) byKey.putIfAbsent(sonar.get(s).str("key"), s);
+    for (int s = 0; s < sonar.size(); s++)
+      byKey.putIfAbsent(sonar.get(s).str(SonarInventory.KEY), s);
   }
 
   int size() {

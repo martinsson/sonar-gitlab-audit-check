@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Result;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -48,7 +49,8 @@ record WidePass(
       return null;
     }
     Csv.Table t = Csv.read(f);
-    t.require(f, "GitlabActivityAudit (inventaire.csv)", "path", "selectionne");
+    t.require(
+        f, "GitlabActivityAudit (inventaire.csv)", GitlabInventory.PATH, GitlabInventory.SELECTED);
     console.inventory(t, f);
     return t;
   }
