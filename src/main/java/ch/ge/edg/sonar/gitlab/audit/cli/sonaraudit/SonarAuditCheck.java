@@ -1,10 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.ColorOption;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Mixin;
-import picocli.CommandLine.Option;
 
 /**
  * Diagnostic préalable à un audit de parc SonarQube — la ligne de commande ; le diagnostic lui-même
@@ -59,11 +59,7 @@ public class SonarAuditCheck implements Callable<Integer> {
 
   @Mixin ScanOptions scan = new ScanOptions();
 
-  @Option(
-      names = "--color",
-      defaultValue = "auto",
-      description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
-  String colorMode = "auto";
+  @Mixin ColorOption color = new ColorOption();
 
   private final Host host;
 
@@ -80,7 +76,7 @@ public class SonarAuditCheck implements Callable<Integer> {
   public Integer call() throws Exception {
     return new SonarAudit(
             new SonarAudit.Options(instance, output, scan),
-            host.console(colorMode),
+            host.console(color.mode()),
             host.clock(),
             host.sleeper(),
             host.workDir())

@@ -646,14 +646,14 @@ Croise l'inventaire SonarQube et les pratiques GitLab.
       --report=<report>      rapport JSON d'évaluation des méthodes
                                d'appariement
       --examples=<examples>  exemples par rubrique du rapport (défaut : 15)
-      --comma                CSV séparé par des virgules, sans BOM (pour un
-                               outil, pas Excel)
-      --color=<colorMode>    auto | always | never (défaut : auto)
       --namespace-mapping=<yaml>
                              namespace GitLab → préfixe Sonar (défaut :
                                namespace-mapping.yaml)
   -h, --help                 Show this help message and exit.
   -V, --version              Print version information and exit.
+      --comma                CSV séparé par des virgules, sans BOM (pour un
+                               outil, pas Excel)
+      --color=<mode>         auto | always | never (défaut : auto)
 
 Les deux fichiers d'entrée viennent des deux autres outils :
 

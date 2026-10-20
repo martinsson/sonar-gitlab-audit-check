@@ -1,9 +1,12 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.ColorOption;
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.CommaOption;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.jspecify.annotations.Nullable;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 /** Ce que l'audit écrit et où, la passe profonde qui produit pratiques.csv, et l'affichage. */
@@ -36,11 +39,7 @@ final class OutputOptions {
               + "(implique --deep ; l'inventaire est écrit à côté)")
   @Nullable Path pratiquesCsv;
 
-  @Option(
-      names = "--comma",
-      order = 20,
-      description = "CSV séparés par des virgules, sans BOM (pour un outil, pas Excel)")
-  boolean comma;
+  @Mixin CommaOption comma = new CommaOption();
 
   @Option(
       names = "--cache",
@@ -55,12 +54,7 @@ final class OutputOptions {
       description = "ignorer et ne pas écrire le cache des clés Sonar")
   boolean noCache;
 
-  @Option(
-      names = "--color",
-      order = 28,
-      defaultValue = "auto",
-      description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
-  String colorMode = "auto";
+  @Mixin ColorOption color = new ColorOption();
 
   /**
    * L'inventaire n'est pas une sortie facultative du mode --deep : c'est lui qui porte les
@@ -90,7 +84,7 @@ final class OutputOptions {
     // après la passe complète : tout le travail d'API perdu sur un mkdir.
     createParent(inventory);
     createParent(pratiques);
-    return new Outputs(inventory, pratiques, cache, deepPass, comma, !noCache);
+    return new Outputs(inventory, pratiques, cache, deepPass, comma.enabled(), !noCache);
   }
 
   private static Path parentOf(Path file) {

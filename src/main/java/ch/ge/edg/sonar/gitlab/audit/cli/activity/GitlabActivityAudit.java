@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.GitlabConnectionOptions;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.util.concurrent.Callable;
 import picocli.CommandLine.Command;
@@ -77,7 +78,7 @@ import picocli.CommandLine.Option;
     })
 public class GitlabActivityAudit implements Callable<Integer> {
 
-  @Mixin GitlabOptions gitlab = new GitlabOptions();
+  @Mixin GitlabConnectionOptions gitlab = new GitlabConnectionOptions();
   @Mixin ScopeOptions scope = new ScopeOptions();
   @Mixin FunnelOptions funnel = new FunnelOptions();
   @Mixin OutputOptions output = new OutputOptions();
@@ -114,7 +115,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
   public Integer call() throws Exception {
     return new ActivityAudit(
             new ActivityAudit.Settings(gitlab, scope, funnel, output),
-            new Screen(host.console(output.colorMode)),
+            new Screen(host.console(output.color.mode())),
             host.clock(),
             host.sleeper(),
             host.workDir())

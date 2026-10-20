@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
@@ -32,12 +33,11 @@ class GitLabProjectReportUnitTest {
     assertThat(cmd.maxCommits).isEqualTo(5000);
     assertThat(cmd.maxMrs).isEqualTo(500);
     assertThat(cmd.sample).isEqualTo(30);
-    assertThat(cmd.timeout).isEqualTo(30);
     assertThat(cmd.includeBots).isFalse();
-    assertThat(cmd.insecure).isFalse();
     assertThat(cmd.botPattern).isNull();
-    assertThat(cmd.dumpDir).isNull();
-    assertThat(cmd.colorMode).isEqualTo("auto");
+    assertThat(cmd.gitlab.connectionOrAnonymous("http://u"))
+        .isEqualTo(new Gitlab.Connection("http://u", null, 30, false, null));
+    assertThat(cmd.color.mode()).isEqualTo("auto");
   }
 
   @Test

@@ -1,14 +1,14 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.StyleOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.Callable;
-import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 /**
@@ -62,7 +62,7 @@ public class SonarRank implements Callable<Integer> {
       names = "--in",
       required = true,
       description = "CSV d'inventaire produit par SonarAuditCheck --csv")
-  @Nullable Path in;
+  Path in;
 
   @Option(
       names = "--out",
@@ -100,16 +100,7 @@ public class SonarRank implements Callable<Integer> {
       description = "signaux minimum pour retenir un score (défaut : ${DEFAULT-VALUE})")
   int minSignals;
 
-  @Option(
-      names = "--comma",
-      description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
-  boolean comma;
-
-  @Option(
-      names = "--color",
-      defaultValue = "auto",
-      description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
-  String colorMode = "auto";
+  @Mixin StyleOptions style = new StyleOptions();
 
   private final Host host;
 
@@ -137,9 +128,9 @@ public class SonarRank implements Callable<Integer> {
 
   @Override
   public Integer call() throws IOException {
-    Console console = host.console(colorMode);
+    Console console = host.console(style.colorMode());
     // required = true : picocli refuse la ligne de commande avant d'appeler call().
-    Path input = Objects.requireNonNull(in, "--in");
+    Path input = in;
     List<InventoryRow> rows = InventoryRow.read(input);
     if (rows.isEmpty()) {
       console.err().println("Aucune ligne exploitable dans " + input);
@@ -147,7 +138,7 @@ public class SonarRank implements Callable<Integer> {
     }
     new Ranking(
             new RankSettings(staleDays, abandonedDays, minNcloc, topPercent, minSignals), console)
-        .run(rows, out, comma);
+        .run(rows, out, style.comma());
     return 0;
   }
 }

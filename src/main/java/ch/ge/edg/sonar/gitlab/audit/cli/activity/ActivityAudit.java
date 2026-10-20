@@ -4,6 +4,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.activity.OutputOptions.Outputs;
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.GitlabConnectionOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
@@ -23,7 +24,10 @@ final class ActivityAudit {
 
   /** Les options de la commande, groupées comme elles se lisent. */
   record Settings(
-      GitlabOptions gitlab, ScopeOptions scope, FunnelOptions funnel, OutputOptions output) {}
+      GitlabConnectionOptions gitlab,
+      ScopeOptions scope,
+      FunnelOptions funnel,
+      OutputOptions output) {}
 
   private final Settings settings;
   private final Screen con;
@@ -68,7 +72,7 @@ final class ActivityAudit {
 
     List<Proj> all =
         new Inventory(gl, con, counters, funnel, settings.scope())
-            .run(Exclusions.file(settings.scope().exclusionsFile, workDir));
+            .run(Exclusions.file(settings.scope().exclusions.file(), workDir));
     if (all.isEmpty()) {
       con.say("\n  Aucun projet dans le périmètre. Rien à faire.", YELLOW);
       return 1;
