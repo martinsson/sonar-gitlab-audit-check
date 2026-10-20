@@ -10,6 +10,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Branch;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.BranchList;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -59,7 +60,8 @@ final class Branches {
     if (rescued > 0) {
       out.println(
           out.color(
-              "    dont %d sans aucune analyse de la branche principale".formatted(rescued), DIM));
+              Text.format("    dont %d sans aucune analyse de la branche principale", rescued),
+              DIM));
       out.println(out.color("    (invisibles dans search_projects et measures/search)", DIM));
     }
   }

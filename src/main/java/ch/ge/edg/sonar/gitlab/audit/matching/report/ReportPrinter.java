@@ -18,7 +18,6 @@ import ch.ge.edg.sonar.gitlab.audit.matching.Report.ThresholdPoint;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Vocabulary;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 /** Le rapport d'évaluation sur la console. */
@@ -36,14 +35,13 @@ public final class ReportPrinter {
     if (!rep.agreements().isEmpty()) {
       title("Accords entre méthodes");
       for (Agreement a : rep.agreements()) {
-        out.out()
-            .printf(
-                "  %-10s × %-10s : %4d en commun, %4d d'accord, %s en désaccord%n",
-                a.a(),
-                a.b(),
-                a.both(),
-                a.agree(),
-                out.color(String.valueOf(a.disagree()), a.disagree() == 0 ? GREEN : YELLOW));
+        out.printf(
+            "  %-10s × %-10s : %4d en commun, %4d d'accord, %s en désaccord%n",
+            a.a(),
+            a.b(),
+            a.both(),
+            a.agree(),
+            out.color(String.valueOf(a.disagree()), a.disagree() == 0 ? GREEN : YELLOW));
       }
       examples(rep.disagreements());
     }
@@ -55,13 +53,11 @@ public final class ReportPrinter {
   private void summary(Report rep) {
     Summary s = rep.summary();
     title("Méthodes retenues");
-    s.byMethod().forEach((label, n) -> out.out().printf("  %-34s : %5d%n", label, n));
-    out.out()
-        .printf(
-            "%n  Jointures sûres : %d / %d (%s) · suggestions : %d · sans rien : %d%n",
-            s.joined(), s.left(), Text.pct(s.joined(), s.left()), s.suggestions(), s.unmatched());
-    out.out()
-        .printf("  Lignes de droite jamais retenues : %d / %d%n", s.rightUnmatched(), s.right());
+    s.byMethod().forEach((label, n) -> out.printf("  %-34s : %5d%n", label, n));
+    out.printf(
+        "%n  Jointures sûres : %d / %d (%s) · suggestions : %d · sans rien : %d%n",
+        s.joined(), s.left(), Text.pct(s.joined(), s.left()), s.suggestions(), s.unmatched());
+    out.printf("  Lignes de droite jamais retenues : %d / %d%n", s.rightUnmatched(), s.right());
     for (String u : rep.unavailable()) out.println(out.color("  Non évaluée : " + u, YELLOW));
   }
 
@@ -71,45 +67,41 @@ public final class ReportPrinter {
         out.color("  propose = désigne quelque chose · ambiguë = plusieurs candidats", DIM));
     out.println(
         out.color("  retenue = a tranché · seule = aucune autre méthode sûre ne propose", DIM));
-    out.out().printf("  %-14s %9s %9s %9s %9s%n", "", "propose", "ambiguë", "retenue", "seule");
+    out.printf("  %-14s %9s %9s %9s %9s%n", "", "propose", "ambiguë", "retenue", "seule");
     for (MethodStats m : methods) {
-      out.out()
-          .printf(
-              "  %-14s %9d %9d %9d %9d%n",
-              m.id(), m.proposes(), m.ambiguous(), m.wins(), m.alone());
+      out.printf(
+          "  %-14s %9d %9d %9d %9d%n", m.id(), m.proposes(), m.ambiguous(), m.wins(), m.alone());
     }
   }
 
   private void links(LinkStats l) {
     title("Liens « " + l.id() + " » (informatif, n'apparie rien)");
-    out.out().printf("  Lignes de droite avec un lien de dépôt : %d%n", l.rightWithLinks());
-    out.out().printf("  Lignes de gauche désignées             : %d%n", l.leftPointedAt());
-    out.out().printf("    confirment une jointure sûre         : %d%n", l.confirmSure());
-    out.out().printf("    confirment une suggestion            : %d%n", l.confirmSuggestion());
-    out.out().printf("    contredisent la jointure             : %d%n", l.contradict());
-    out.out().printf("    apparieraient une ligne seule        : %d%n", l.wouldJoin());
+    out.printf("  Lignes de droite avec un lien de dépôt : %d%n", l.rightWithLinks());
+    out.printf("  Lignes de gauche désignées             : %d%n", l.leftPointedAt());
+    out.printf("    confirment une jointure sûre         : %d%n", l.confirmSure());
+    out.printf("    confirment une suggestion            : %d%n", l.confirmSuggestion());
+    out.printf("    contredisent la jointure             : %d%n", l.contradict());
+    out.printf("    apparieraient une ligne seule        : %d%n", l.wouldJoin());
   }
 
   private void names(NameStats n) {
-    title("Ressemblance de noms, jugée sur %d paires sûres".formatted(n.evaluatedOn()));
+    title(Text.format("Ressemblance de noms, jugée sur %d paires sûres", n.evaluatedOn()));
     out.println(
         out.color("  Meilleur candidat contre toute la droite, par tranche de score :", DIM));
     for (Bucket b : n.scoreOfBestCandidate()) {
       if (b.correct() + b.wrong() == 0) continue;
-      out.out().printf("    %s  juste %4d  faux %4d%n", b.range(), b.correct(), b.wrong());
+      out.printf("    %s  juste %4d  faux %4d%n", b.range(), b.correct(), b.wrong());
     }
     out.println(out.color("  Avec la marge actuelle, à chaque seuil :", DIM));
     for (ThresholdPoint p : n.thresholds()) {
       Double precision = p.precision();
-      out.out()
-          .printf(
-              Locale.ROOT,
-              "    %.1f  proposées %4d  justes %4d  précision %s  rappel %s%n",
-              p.threshold(),
-              p.proposed(),
-              p.correct(),
-              precision == null ? "   —" : Text.pct(precision),
-              Text.pct(p.recall()));
+      out.printf(
+          "    %.1f  proposées %4d  justes %4d  précision %s  rappel %s%n",
+          p.threshold(),
+          p.proposed(),
+          p.correct(),
+          precision == null ? "   —" : Text.pct(precision),
+          Text.pct(p.recall()));
     }
     if (!n.rejections().isEmpty()) {
       out.println("  Suggestions refusées : " + n.rejections());
@@ -153,7 +145,6 @@ public final class ReportPrinter {
 
   private void examples(List<Example> ex) {
     ex.stream().limit(5).forEach(e -> out.println("      " + e.left() + " — " + e.detail()));
-    if (ex.size() > 5)
-      out.out().printf("      … %d de plus dans le rapport JSON.%n", ex.size() - 5);
+    if (ex.size() > 5) out.printf("      … %d de plus dans le rapport JSON.%n", ex.size() - 5);
   }
 }

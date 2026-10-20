@@ -13,6 +13,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SystemStatus;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Validation;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.List;
 
 /** 1. L'API répond-elle, le jeton est-il valide, et qui est-il ? */
@@ -50,7 +51,7 @@ final class Connectivity {
           out,
           "api/system/status",
           Verdict.OK,
-          "%s · v%s · %s".formatted(st.status(), st.version(), orEmpty(st.id())));
+          Text.format("%s · v%s · %s", st.status(), st.version(), orEmpty(st.id())));
     } else {
       line(out, "api/system/status", Verdict.of(status), "HTTP " + status.status());
     }
@@ -81,7 +82,11 @@ final class Connectivity {
       return;
     }
     List<String> perms = me.globalPermissions();
-    line(out, "api/users/current", Verdict.OK, "%s (%s)".formatted(me.login(), orEmpty(me.name())));
+    line(
+        out,
+        "api/users/current",
+        Verdict.OK,
+        Text.format("%s (%s)", me.login(), orEmpty(me.name())));
     out.println();
     out.println(
         "  Permissions globales : "

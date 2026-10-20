@@ -14,8 +14,8 @@ record MapperReport(Console console) {
 
   void inputs(Csv.Table left, Path leftFile, Csv.Table right, Path rightFile) {
     console.println(console.color("\nAppariement", BOLD));
-    console.out().printf("  Gauche : %d lignes (%s)%n", left.rows().size(), leftFile);
-    console.out().printf("  Droite : %d lignes (%s)%n", right.rows().size(), rightFile);
+    console.printf("  Gauche : %d lignes (%s)%n", left.rows().size(), leftFile);
+    console.printf("  Droite : %d lignes (%s)%n", right.rows().size(), rightFile);
   }
 
   void evaluation(Report rep) {
@@ -28,6 +28,6 @@ record MapperReport(Console console) {
   }
 
   void reportWritten(Path json) {
-    console.out().printf("  Rapport     : %s%n", json.toAbsolutePath());
+    console.printf("  Rapport     : %s%n", json.toAbsolutePath());
   }
 }

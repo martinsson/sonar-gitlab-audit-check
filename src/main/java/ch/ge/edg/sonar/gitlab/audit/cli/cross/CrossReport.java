@@ -35,8 +35,8 @@ final class CrossReport {
 
   void inputs(Csv.Table sonar, Path sonarCsv, Csv.Table gitlab, Path gitlabCsv) {
     out.println(out.color("\nCroisement SonarQube × GitLab", BOLD));
-    out.out().printf("  Côté Sonar   : %d projets (%s)%n", sonar.rows().size(), sonarCsv);
-    out.out().printf("  Côté GitLab  : %d projets (%s)%n", gitlab.rows().size(), gitlabCsv);
+    out.printf("  Côté Sonar   : %d projets (%s)%n", sonar.rows().size(), sonarCsv);
+    out.printf("  Côté GitLab  : %d projets (%s)%n", gitlab.rows().size(), gitlabCsv);
 
     if (!gitlab.has("cle_sonar")) {
       out.println(out.color("\n  pratiques.csv ne porte pas de colonne cle_sonar.", YELLOW));
@@ -61,7 +61,7 @@ final class CrossReport {
   }
 
   void inventory(Csv.Table t, Path file) {
-    out.out().printf("  Tout GitLab  : %d projets (%s)%n", t.rows().size(), file);
+    out.printf("  Tout GitLab  : %d projets (%s)%n", t.rows().size(), file);
   }
 
   // ----------------------------------------------------------------------
@@ -85,7 +85,7 @@ final class CrossReport {
                 .map(p -> p.sqStr(SonarInventory.KEY))
                 .distinct()
                 .count();
-    out.out().printf("%n  Projets Sonar sans dépôt GitLab apparié : %d%n", sonarUnmatched);
+    out.printf("%n  Projets Sonar sans dépôt GitLab apparié : %d%n", sonarUnmatched);
     if (wide) {
       out.println(
           out.color(
@@ -126,6 +126,6 @@ final class CrossReport {
   }
 
   void mappingReport(Path report) {
-    out.out().printf("  Rapport d'appariement : %s%n", report.toAbsolutePath());
+    out.printf("  Rapport d'appariement : %s%n", report.toAbsolutePath());
   }
 }

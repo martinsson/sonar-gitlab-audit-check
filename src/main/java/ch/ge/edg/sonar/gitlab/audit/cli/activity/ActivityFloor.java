@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.Comparator;
 import java.util.List;
 
@@ -60,8 +61,8 @@ final class ActivityFloor {
       return new Fate.Excluded(
           Fate.Stage.FLOOR,
           measure.botOnly()
-              ? "activité robotique seule (%d commits de bots)".formatted(measure.bots())
-              : "sous le plancher (%d commits)".formatted(commits));
+              ? Text.format("activité robotique seule (%d commits de bots)", measure.bots())
+              : Text.format("sous le plancher (%d commits)", commits));
     }
     return new Fate.Eligible(Selection.bucketOf(p.project()));
   }

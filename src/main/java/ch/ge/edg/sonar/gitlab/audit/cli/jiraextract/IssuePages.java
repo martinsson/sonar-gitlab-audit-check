@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -42,7 +43,7 @@ final class IssuePages {
       if (issues.isEmpty()) break;
       for (JsonNode issue : issues) sink.accept(complete(issue));
       startAt += issues.size();
-      err.printf("  %d / %d tickets%n", startAt, total);
+      err.print(Text.format("  %d / %d tickets%n", startAt, total));
     }
   }
 

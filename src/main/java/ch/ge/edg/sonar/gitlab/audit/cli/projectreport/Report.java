@@ -29,9 +29,7 @@ final class Report {
   }
 
   void line(String label, Verdict v, String detail) {
-    out.out()
-        .printf(
-            "  %s %-42s %s%n", c(v.tag, v.color), label, detail.isBlank() ? "" : c(detail, DIM));
+    out.printf("  %s %-42s %s%n", c(v.tag, v.color), label, detail.isBlank() ? "" : c(detail, DIM));
   }
 
   void println() {

@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.Platforms;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
@@ -32,10 +33,11 @@ final class GocdSection {
     out.println("\n== GoCD");
     GocdIndex index = new IndexFile(indexFile, ctx).loadOrBuild(gocd, refresh);
     Map<String, Integer> depth = RepoPipelines.of(index, project.pathWithNamespace());
-    out.printf(
-        "  Index : %d pipelines visibles (dont %d sans run lisible, donc sans matériau connu),"
-            + " construit le %s%n",
-        index.pipelines().size(), index.unknown(), index.builtAt());
+    out.print(
+        Text.format(
+            "  Index : %d pipelines visibles (dont %d sans run lisible, donc sans matériau connu),"
+                + " construit le %s%n",
+            index.pipelines().size(), index.unknown(), index.builtAt()));
     if (depth.isEmpty()) {
       out.println(
           "  Aucun pipeline ne prend "
@@ -43,14 +45,14 @@ final class GocdSection {
               + " comme dépôt git.");
       return;
     }
-    out.printf(ROW, "pipeline", "groupe", "rôle", "plateforme?", "dernier run");
+    out.print(Text.format(ROW, "pipeline", "groupe", "rôle", "plateforme?", "dernier run"));
     Set<String> groups = new LinkedHashSet<>();
     depth.forEach(
         (name, level) -> {
           GocdIndex.Pipeline p = index.pipeline(name);
           groups.add(p.group());
           String role = level == 0 ? "dépôt direct" : "aval niveau " + level;
-          out.printf(ROW, name, p.group(), role, Platforms.guess(name), p.lastRun());
+          out.print(Text.format(ROW, name, p.group(), role, Platforms.guess(name), p.lastRun()));
         });
     ctx.suggestions().gocd(depth.keySet(), project.path());
     if (groups.size() == 1) {

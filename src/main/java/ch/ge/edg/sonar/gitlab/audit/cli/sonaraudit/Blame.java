@@ -86,14 +86,12 @@ final class Blame {
   private void accessible(String fileKey, int changesets, int authors, List<LocalDateTime> dates) {
     out.println();
     out.println(out.color("  Blame SCM accessible via l'API :", GREEN));
-    out.out().printf("    Fichier témoin                : %s%n", Values.shortName(fileKey));
-    out.out().printf("    Auteurs distincts (%d changesets): %d%n", changesets, authors);
+    out.printf("    Fichier témoin                : %s%n", Values.shortName(fileKey));
+    out.printf("    Auteurs distincts (%d changesets): %d%n", changesets, authors);
     if (!dates.isEmpty()) {
-      out.out()
-          .printf(
-              "    Dernière modification         : %s%n",
-              dates.get(dates.size() - 1).toLocalDate());
-      out.out().printf("    Plus ancienne ligne           : %s%n", dates.get(0).toLocalDate());
+      out.printf(
+          "    Dernière modification         : %s%n", dates.get(dates.size() - 1).toLocalDate());
+      out.printf("    Plus ancienne ligne           : %s%n", dates.get(0).toLocalDate());
     }
     out.println(out.color("    → churn et âge du code calculables sans accès Git", DIM));
   }

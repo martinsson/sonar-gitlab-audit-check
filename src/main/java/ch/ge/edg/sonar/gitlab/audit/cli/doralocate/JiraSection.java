@@ -3,11 +3,11 @@ package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.PrintStream;
 import java.time.Duration;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -42,25 +42,27 @@ final class JiraSection {
     KeyMentions m =
         KeyMentions.read(
             gitlab, project.id(), ctx.clock().instant().minus(Duration.ofDays(days)), maxCommits);
-    out.printf(
-        "  Lus : %d commits, %d MR, %d branches sur %d jours%n",
-        m.commits(), m.mrs(), m.branches(), days);
+    out.print(
+        Text.format(
+            "  Lus : %d commits, %d MR, %d branches sur %d jours%n",
+            m.commits(), m.mrs(), m.branches(), days));
     if (m.byPrefix().isEmpty()) {
       out.println("  Aucune clé de ticket trouvée.");
       return;
     }
     List<Map.Entry<String, Mentions>> ranked = m.ranked();
-    out.printf(
-        "  %-12s %8s %5s %8s %8s  %s%n",
-        "préfixe", "commits", "MR", "branches", "tickets", "projet Jira");
+    out.print(
+        Text.format(
+            "  %-12s %8s %5s %8s %8s  %s%n",
+            "préfixe", "commits", "MR", "branches", "tickets", "projet Jira"));
     for (Map.Entry<String, Mentions> e : ranked.subList(0, Math.min(SHOWN, ranked.size()))) {
       row(project, e.getKey(), e.getValue(), m.commits());
     }
     if (m.commits() > 0) {
-      out.printf(
-          Locale.ROOT,
-          "  Le préfixe le plus cité l'est dans %.0f %% des commits.%n",
-          100.0 * ranked.get(0).getValue().commits() / m.commits());
+      out.print(
+          Text.format(
+              "  Le préfixe le plus cité l'est dans %.0f %% des commits.%n",
+              100.0 * ranked.get(0).getValue().commits() / m.commits()));
     }
   }
 
@@ -92,8 +94,9 @@ final class JiraSection {
     if (p.ok() && commits > 0 && m.commits() * SHARE >= commits) {
       ctx.suggestions().jira(prefix, project.path());
     }
-    out.printf(
-        "  %-12s %8d %5d %8d %8d  %s%n",
-        prefix, m.commits(), m.mrs(), m.branches(), m.tickets().size(), name);
+    out.print(
+        Text.format(
+            "  %-12s %8d %5d %8d %8d  %s%n",
+            prefix, m.commits(), m.mrs(), m.branches(), m.tickets().size(), name));
   }
 }

@@ -5,6 +5,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -58,17 +59,17 @@ final class ReviewSection {
     long silent = all.stream().filter(m -> Format.orZero(m.facts().userNotesCount()) == 0).count();
     double silentShare = 100.0 * silent / all.size();
     report.println(
-        "  MR sans aucun commentaire       : %d (%.0f %%)".formatted(silent, silentShare));
+        Text.format("  MR sans aucun commentaire       : %d (%.0f %%)", silent, silentShare));
 
     double selfShare = selfMerges(merged);
 
     long squashed = all.stream().filter(m -> Boolean.TRUE.equals(m.facts().squash())).count();
     double squashShare = 100.0 * squashed / all.size();
     report.println(
-        "  Squash à la fusion              : %.0f %%%s"
-            .formatted(
-                squashShare,
-                squashShare >= 50 ? report.c("   (écrase l'historique par commit)", DIM) : ""));
+        Text.format(
+            "  Squash à la fusion              : %.0f %%%s",
+            squashShare,
+            squashShare >= 50 ? report.c("   (écrase l'historique par commit)", DIM) : ""));
 
     new ReviewSample(report, api, settings.sample(), dates).measure(p, merged);
     return new Reviews(all.size(), leadP90, silentShare, selfShare, squashShare, false);
@@ -77,8 +78,9 @@ final class ReviewSection {
   private void volume(List<MergeRequest> all, int merged, boolean truncated) {
     if (truncated) {
       report.println(
-          "  Plafond --max-mrs atteint : chiffres portant sur les %d plus récentes."
-              .formatted(settings.maxMrs()),
+          Text.format(
+              "  Plafond --max-mrs atteint : chiffres portant sur les %d plus récentes.",
+              settings.maxMrs()),
           YELLOW);
     }
     long closed = all.stream().filter(m -> "closed".equals(m.state())).count();
@@ -97,15 +99,13 @@ final class ReviewSection {
     double weeks = Math.max(1.0, observed / 7.0);
 
     report.println(
-        "  MR créées                       : %s (%.1f / semaine)%s"
-            .formatted(
-                report.c(String.valueOf(all.size()), BOLD),
-                all.size() / weeks,
-                truncated
-                    ? report.c("   (sur les %.0f j couverts)".formatted(observed), DIM)
-                    : ""));
+        Text.format(
+            "  MR créées                       : %s (%.1f / semaine)%s",
+            report.c(String.valueOf(all.size()), BOLD),
+            all.size() / weeks,
+            truncated ? report.c(Text.format("   (sur les %.0f j couverts)", observed), DIM) : ""));
     report.println(
-        "  Fusionnées / fermées / ouvertes : %d / %d / %d".formatted(merged, closed, opened));
+        Text.format("  Fusionnées / fermées / ouvertes : %d / %d / %d", merged, closed, opened));
   }
 
   /**
@@ -125,8 +125,9 @@ final class ReviewSection {
     Collections.sort(lead);
     double leadP90 = Format.percentile(lead, 90);
     report.println(
-        "  Délai création → fusion         : médiane %s, 9e décile %s"
-            .formatted(Format.hours(Format.percentile(lead, 50)), Format.hours(leadP90)));
+        Text.format(
+            "  Délai création → fusion         : médiane %s, 9e décile %s",
+            Format.hours(Format.percentile(lead, 50)), Format.hours(leadP90)));
     return leadP90;
   }
 
@@ -146,8 +147,9 @@ final class ReviewSection {
       report.println("  Auto-fusion                     : non mesurable (merge_user absent)", DIM);
     } else {
       report.println(
-          "  Fusionnées par leur auteur      : %d sur %d (%.0f %%)"
-              .formatted(selfMerged, withMerger, selfShare));
+          Text.format(
+              "  Fusionnées par leur auteur      : %d sur %d (%.0f %%)",
+              selfMerged, withMerger, selfShare));
     }
     return selfShare;
   }

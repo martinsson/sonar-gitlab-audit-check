@@ -8,6 +8,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.activity.OutputOptions.Outputs;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
@@ -43,14 +44,12 @@ final class Summary {
   private void funnel(FunnelResult n) {
     Console out = con.out();
     int calls = gl.calls();
-    out.out()
-        .printf(
-            "  %d appels API (%d GET, %d GraphQL, %d 429 réessayés).%n",
-            calls, calls - n.graphqlCalls(), n.graphqlCalls(), gl.throttled());
-    out.out()
-        .printf(
-            "  Parc %d → retenus %d → frais %d → éligibles %d → sélectionnés %d.%n",
-            n.inScope(), n.kept(), n.fresh(), n.eligible(), n.selected().size());
+    out.printf(
+        "  %d appels API (%d GET, %d GraphQL, %d 429 réessayés).%n",
+        calls, calls - n.graphqlCalls(), n.graphqlCalls(), gl.throttled());
+    out.printf(
+        "  Parc %d → retenus %d → frais %d → éligibles %d → sélectionnés %d.%n",
+        n.inScope(), n.kept(), n.fresh(), n.eligible(), n.selected().size());
   }
 
   private void reserves(FunnelResult n) {
@@ -60,22 +59,21 @@ final class Summary {
       // projets qu'elle écarte n'ont pas été mesurés, ils ont été laissés
       // de côté. Le dénominateur du rapport le dit, sinon le total se lit
       // comme un parc.
-      out.out()
-          .printf(
-              "  %d projets laissés de côté par --active-within %d, non mesurés.%n",
-              n.notCounted(), funnel.options().activeWithinDays);
+      out.printf(
+          "  %d projets laissés de côté par --active-within %d, non mesurés.%n",
+          n.notCounted(), funnel.options().activeWithinDays);
     }
     if (n.sampleSize() > 0) {
-      out.out()
-          .printf(
-              "  Filtre de fraîcheur validé sur %d projets : %d faux négatif%s.%n",
-              n.sampleSize(), n.sampleLeaks(), plural(n.sampleLeaks()));
+      out.printf(
+          "  Filtre de fraîcheur validé sur %d projets : %d faux négatif%s.%n",
+          n.sampleSize(), n.sampleLeaks(), plural(n.sampleLeaks()));
     }
     int truncated = n.truncated();
     if (truncated > 0) {
       con.say(
-          "  %d projets tronqués à %d pages de commits : leur volume est"
-              .formatted(truncated, funnel.options().maxCommitPages),
+          Text.format(
+              "  %d projets tronqués à %d pages de commits : leur volume est",
+              truncated, funnel.options().maxCommitPages),
           YELLOW);
       con.say("  un plancher, pas un compte. Ils sont marqués dans le CSV.", YELLOW);
     }
@@ -95,12 +93,12 @@ final class Summary {
     }
     Console out = con.out();
     out.println("  Fichiers écrits :");
-    if (inventory != null) out.out().printf("    inventaire : %s%n", inventory.toAbsolutePath());
+    if (inventory != null) out.printf("    inventaire : %s%n", inventory.toAbsolutePath());
     // Annoncer un fichier qu'on n'a pas écrit — aucun projet sélectionné,
     // donc pas de passe profonde — envoie chercher un chemin qui n'existe
     // pas. Le rapport ne doit pas mentir sur ses propres sorties.
     if (pratiques != null && Files.exists(pratiques)) {
-      out.out().printf("    pratiques  : %s%n", pratiques.toAbsolutePath());
+      out.printf("    pratiques  : %s%n", pratiques.toAbsolutePath());
       con.say("    Les deux se lisent ensemble : pratiques.csv ne contient " + "que les", DIM);
       con.say(
           "    sélectionnés, l'inventaire porte le parc dont ils sortent. "

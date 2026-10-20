@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -42,12 +43,13 @@ final class Extraction {
     try (Output out = new Output(settings.outDir(), settings.comma(), settings.raw())) {
       for (String pipeline : selection.pipelines()) {
         List<JsonNode> history = RunHistory.since(gocd, pipeline, since, err);
-        err.printf("%s : %d runs%n", pipeline, history.size());
+        err.print(Text.format("%s : %d runs%n", pipeline, history.size()));
         for (JsonNode run : history) write(pipeline, run, out);
       }
-      err.printf(
-          "%s : %d runs, %d stages, %d commits%n",
-          settings.outDir(), out.runs.rows(), out.stages.rows(), out.commits.rows());
+      err.print(
+          Text.format(
+              "%s : %d runs, %d stages, %d commits%n",
+              settings.outDir(), out.runs.rows(), out.stages.rows(), out.commits.rows()));
     }
   }
 

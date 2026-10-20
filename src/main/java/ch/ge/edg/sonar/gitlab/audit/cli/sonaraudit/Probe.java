@@ -25,7 +25,7 @@ record Probe<T>(
       T parsed = r.as(type);
       detail = (parsed == null) ? "réponse illisible" : Text.orEmpty(hint.apply(parsed));
     } else {
-      detail = "HTTP %d %s".formatted(r.status(), r.errorMessage());
+      detail = Text.format("HTTP %d %s", r.status(), r.errorMessage());
     }
     Presentation.line(session.out(), label, v, detail);
   }

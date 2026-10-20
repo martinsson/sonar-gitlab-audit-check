@@ -7,6 +7,7 @@ import ch.ge.edg.sonar.gitlab.audit.matching.Report.MethodStats;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.NameStats;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Summary;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -147,7 +148,8 @@ public final class Evaluation {
         disagreements.add(
             new Example(
                 ms.get(i).left().str(s.leftKey()),
-                "%s → %s ; %s → %s".formatted(a, String.join(", ", pa), b, String.join(", ", pb))));
+                Text.format(
+                    "%s → %s ; %s → %s", a, String.join(", ", pa), b, String.join(", ", pb))));
       }
     }
     return new Agreement(a, b, both, agree, disagree);

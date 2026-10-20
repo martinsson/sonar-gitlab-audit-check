@@ -1,5 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.text;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.util.Locale;
 import org.jspecify.annotations.Nullable;
 
@@ -40,10 +42,19 @@ public final class Text {
   }
 
   public static String pct(long n, long total) {
-    return total == 0 ? "—" : "%.0f %%".formatted(100.0 * n / total);
+    return total == 0 ? "—" : format("%.0f %%", 100.0 * n / total);
   }
 
   public static String pct(double ratio) {
-    return "%3.0f %%".formatted(100 * ratio);
+    return format("%3.0f %%", 100 * ratio);
+  }
+
+  /**
+   * {@link String#format} with {@link Locale#ROOT}: the one way a command formats numbers and dates
+   * into text, so a French machine still writes 1.5 and the same report comes out everywhere.
+   */
+  @FormatMethod
+  public static String format(@FormatString String pattern, @Nullable Object... args) {
+    return String.format(Locale.ROOT, pattern, args);
   }
 }

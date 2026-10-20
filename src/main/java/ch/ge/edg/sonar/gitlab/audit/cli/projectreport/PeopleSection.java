@@ -44,19 +44,22 @@ final class PeopleSection {
 
     Authors authors = Authors.of(cs);
     report.println(
-        "  Auteurs distincts               : %s"
-            .formatted(report.c(String.valueOf(authors.count()), BOLD)));
+        Text.format(
+            "  Auteurs distincts               : %s",
+            report.c(String.valueOf(authors.count()), BOLD)));
     regrouped(cs, authors.count());
 
     int busFactor = authors.busFactor();
     Map.Entry<String, Long> top = authors.ranked().get(0);
     double topShare = authors.share(top);
     report.println(
-        "  Auteur principal                : %s (%.0f %% des commits)"
-            .formatted(authors.label(top.getKey()), topShare));
+        Text.format(
+            "  Auteur principal                : %s (%.0f %% des commits)",
+            authors.label(top.getKey()), topShare));
     report.println(
-        "  Personnes couvrant 80 %% du code : %s"
-            .formatted(report.c(String.valueOf(busFactor), busFactor <= 1 ? YELLOW : BOLD)));
+        Text.format(
+            "  Personnes couvrant 80 %% du code : %s",
+            report.c(String.valueOf(busFactor), busFactor <= 1 ? YELLOW : BOLD)));
     leaders(authors);
 
     long activeRecently = activeRecently(cs, authors.count());
@@ -71,9 +74,9 @@ final class PeopleSection {
     long distinctEmails = distinct(cs, Commit::authorEmail);
     if (distinctEmails > persons) {
       report.println(
-          "  Adresses distinctes             : %d %s"
-              .formatted(
-                  distinctEmails, report.c("— ramenées à %d personnes".formatted(persons), DIM)));
+          Text.format(
+              "  Adresses distinctes             : %d %s",
+              distinctEmails, report.c(Text.format("— ramenées à %d personnes", persons), DIM)));
     }
     // Une identité qui porte plusieurs noms, c'est soit un poste partagé, soit
     // deux homonymes de partie locale sur des domaines différents — auquel cas
@@ -81,8 +84,9 @@ final class PeopleSection {
     long distinctNames = distinct(cs, Commit::authorName);
     if (distinctNames > persons) {
       report.println(
-          "  Noms distincts                  : %d %s"
-              .formatted(distinctNames, report.c("— une identité porte plusieurs noms", DIM)));
+          Text.format(
+              "  Noms distincts                  : %d %s",
+              distinctNames, report.c("— une identité porte plusieurs noms", DIM)));
     }
   }
 
@@ -99,11 +103,12 @@ final class PeopleSection {
     report.println();
     for (Map.Entry<String, Long> e : authors.ranked().subList(0, shown)) {
       report.println(
-          "    %-34s %4d  %s"
-              .formatted(authors.label(e.getKey()), e.getValue(), Format.bar(authors.share(e))));
+          Text.format(
+              "    %-34s %4d  %s",
+              authors.label(e.getKey()), e.getValue(), Format.bar(authors.share(e))));
     }
     if (authors.count() > shown) {
-      report.println("    … et %d autres".formatted(authors.count() - shown), DIM);
+      report.println(Text.format("    … et %d autres", authors.count() - shown), DIM);
     }
   }
 
@@ -123,7 +128,8 @@ final class PeopleSection {
             .count();
     report.println();
     report.println(
-        "  %-32s: %d sur %d".formatted("Actifs sur " + recentDays + " j", activeRecently, persons));
+        Text.format(
+            "  %-32s: %d sur %d", "Actifs sur " + recentDays + " j", activeRecently, persons));
     return activeRecently;
   }
 
@@ -150,8 +156,9 @@ final class PeopleSection {
     Gitlab.Page<Contributor> f = api.contributors(p);
     if (f.error() == null && !f.items().isEmpty()) {
       report.println(
-          "  Contributeurs de tout temps     : %d %s"
-              .formatted(f.items().size(), report.c("(commits de fusion inclus)", DIM)));
+          Text.format(
+              "  Contributeurs de tout temps     : %d %s",
+              f.items().size(), report.c("(commits de fusion inclus)", DIM)));
     }
   }
 }

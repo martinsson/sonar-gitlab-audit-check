@@ -4,6 +4,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -80,19 +81,19 @@ final class ReviewSample {
     }
     if (measured == 0) return;
 
-    report.println("  Échantillon de revue            : %d MR fusionnées".formatted(measured));
+    report.println(Text.format("  Échantillon de revue            : %d MR fusionnées", measured));
     report.println(
-        "  Fusionnées sans relecture       : %d (%.0f %%) %s"
-            .formatted(
-                unreviewed,
-                100.0 * unreviewed / measured,
-                report.c("— aucun commentaire d'un tiers", DIM)));
+        Text.format(
+            "  Fusionnées sans relecture       : %d (%.0f %%) %s",
+            unreviewed,
+            100.0 * unreviewed / measured,
+            report.c("— aucun commentaire d'un tiers", DIM)));
     if (latencies.isEmpty()) return;
     Collections.sort(latencies);
     report.println(
-        "  Délai avant première relecture  : médiane %s, 9e décile %s"
-            .formatted(
-                Format.hours(Format.percentile(latencies, 50)),
-                Format.hours(Format.percentile(latencies, 90))));
+        Text.format(
+            "  Délai avant première relecture  : médiane %s, 9e décile %s",
+            Format.hours(Format.percentile(latencies, 50)),
+            Format.hours(Format.percentile(latencies, 90))));
   }
 }

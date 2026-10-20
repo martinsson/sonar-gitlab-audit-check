@@ -4,6 +4,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.RED;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 import java.util.Optional;
@@ -43,7 +44,8 @@ final class Preflight {
       return Optional.empty();
     }
     JsonNode u = me.json();
-    con.line("api/v4/user", Verdict.OK, "%s (%s)".formatted(text(u, "username"), text(u, "name")));
+    con.line(
+        "api/v4/user", Verdict.OK, Text.format("%s (%s)", text(u, "username"), text(u, "name")));
     return Optional.of(new Instance(enterprise()));
   }
 
@@ -59,10 +61,10 @@ final class Preflight {
       con.line(
           "api/v4/metadata",
           enterprise ? Verdict.OK : Verdict.EMPTY,
-          "GitLab %s · %s"
-              .formatted(
-                  text(m, "version"),
-                  enterprise ? "Enterprise" : "Community — DORA et approbations indisponibles"));
+          Text.format(
+              "GitLab %s · %s",
+              text(m, "version"),
+              enterprise ? "Enterprise" : "Community — DORA et approbations indisponibles"));
       return enterprise;
     }
     con.line(

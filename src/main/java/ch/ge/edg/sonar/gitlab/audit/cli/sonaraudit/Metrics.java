@@ -74,10 +74,9 @@ final class Metrics {
   }
 
   private static void report(Console out, List<String> unsupported) {
-    out.out()
-        .printf(
-            "  Métriques inconnues de cette instance : %s%n",
-            out.color(String.join(", ", unsupported), YELLOW));
+    out.printf(
+        "  Métriques inconnues de cette instance : %s%n",
+        out.color(String.join(", ", unsupported), YELLOW));
     out.println(
         out.color(
             "    Retirées de la requête. Demandées quand même, " + "elles feraient échouer", DIM));

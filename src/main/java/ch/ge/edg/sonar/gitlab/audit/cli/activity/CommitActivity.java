@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.OffsetDateTime;
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -111,9 +112,9 @@ final class CommitActivity {
   private Fate cutReason(AuditedProject p) {
     return new Fate.Excluded(
         Fate.Stage.ACTIVITY_CUT,
-        "hors coupe d'activité (%s > %dj)"
-            .formatted(
-                p.head().lastCommit() != null ? "dernier commit" : "dernière activité",
-                funnel.options().activeWithinDays));
+        Text.format(
+            "hors coupe d'activité (%s > %dj)",
+            p.head().lastCommit() != null ? "dernier commit" : "dernière activité",
+            funnel.options().activeWithinDays));
   }
 }

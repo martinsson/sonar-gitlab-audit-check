@@ -20,18 +20,18 @@ final class Progress {
     this.live = out.colors();
     this.label = label;
     this.total = total;
-    if (live && total > 0) out.out().printf("%s 0/%d\r", label, total);
+    if (live && total > 0) out.printf("%s 0/%d\r", label, total);
   }
 
   void tick() {
     int n = done.incrementAndGet();
     if (live && (n % 25 == 0 || n == total)) {
-      out.out().printf("%s %d/%d\r", label, n, total);
+      out.printf("%s %d/%d\r", label, n, total);
       out.flush();
     }
   }
 
   void done() {
-    if (live && total > 0) out.out().printf("%s %d/%d%n", label, done.get(), total);
+    if (live && total > 0) out.printf("%s %d/%d%n", label, done.get(), total);
   }
 }

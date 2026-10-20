@@ -6,6 +6,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.num;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.orEmpty;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Column;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.List;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
@@ -44,7 +45,7 @@ final class CsvFiles {
         commits("active_days", m -> num(m.activeDays())),
         new Column<>(
             "commits_per_week",
-            a -> a.commits().human() == null ? "" : "%.2f".formatted(a.perWeek(windowDays))),
+            a -> a.commits().human() == null ? "" : Text.format("%.2f", a.perWeek(windowDays))),
         commits("tronque", m -> String.valueOf(m.truncated())),
         new Column<>("exclu", a -> a.fate().exclusion()),
         commits("fuite_filtre", m -> String.valueOf(m.leaked())),

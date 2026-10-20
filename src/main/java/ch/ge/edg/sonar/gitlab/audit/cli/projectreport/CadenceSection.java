@@ -4,6 +4,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -29,7 +30,8 @@ final class CadenceSection {
   }
 
   Cadence measure(Commits commits) {
-    report.title("2. Cadence (branche par défaut, %d derniers jours)".formatted(settings.days()));
+    report.title(
+        Text.format("2. Cadence (branche par défaut, %d derniers jours)", settings.days()));
 
     List<Commit> real = ordinaryCommits(commits);
     if (real.isEmpty()) return Cadence.EMPTY;
@@ -66,14 +68,15 @@ final class CadenceSection {
       report.println("  Aucun commit humain sur la fenêtre.", YELLOW);
       if (!commits.bots().isEmpty()) {
         report.println(
-            "  (%d commits de bots sur la même période)".formatted(commits.bots().size()));
+            Text.format("  (%d commits de bots sur la même période)", commits.bots().size()));
       }
       return List.of();
     }
     if (commits.truncated()) {
       report.println(
-          "  Plafond --max-commits atteint : les chiffres portent sur les %d plus récents."
-              .formatted(settings.maxCommits()),
+          Text.format(
+              "  Plafond --max-commits atteint : les chiffres portent sur les %d plus récents.",
+              settings.maxCommits()),
           YELLOW);
     }
 
@@ -101,25 +104,27 @@ final class CadenceSection {
     int merges = commits.humans().size() - real;
 
     report.println(
-        "  Commits (hors bots)             : %s"
-            .formatted(report.c(String.valueOf(commits.humans().size()), BOLD)));
+        Text.format(
+            "  Commits (hors bots)             : %s",
+            report.c(String.valueOf(commits.humans().size()), BOLD)));
     if (!commits.bots().isEmpty()) {
-      report.println("  Commits de bots écartés         : %d".formatted(commits.bots().size()));
+      report.println(Text.format("  Commits de bots écartés         : %d", commits.bots().size()));
     }
     if (merges > 0) {
       report.println(
-          "  dont commits de fusion          : %d %s"
-              .formatted(merges, report.c("(écartés de toutes les mesures ci-dessous)", DIM)));
+          Text.format(
+              "  dont commits de fusion          : %d %s",
+              merges, report.c("(écartés de toutes les mesures ci-dessous)", DIM)));
     }
     report.println(
-        "  Rythme                          : %.1f commits / semaine%s"
-            .formatted(
-                real / weeks,
-                commits.truncated()
-                    ? report.c("   (sur les %.0f j couverts)".formatted(observed), DIM)
-                    : ""));
+        Text.format(
+            "  Rythme                          : %.1f commits / semaine%s",
+            real / weeks,
+            commits.truncated()
+                ? report.c(Text.format("   (sur les %.0f j couverts)", observed), DIM)
+                : ""));
     report.println(
-        "  Jours avec au moins un commit   : %d sur %.0f".formatted(activeDays, observed));
+        Text.format("  Jours avec au moins un commit   : %d sur %.0f", activeDays, observed));
   }
 
   /**
@@ -134,11 +139,11 @@ final class CadenceSection {
     if (gaps.isEmpty()) return;
     Collections.sort(gaps);
     report.println(
-        "  Écart médian entre commits      : %s"
-            .formatted(Format.hours(Format.percentile(gaps, 50))));
+        Text.format(
+            "  Écart médian entre commits      : %s", Format.hours(Format.percentile(gaps, 50))));
     report.println(
-        "  Plus long silence               : %s"
-            .formatted(Format.hours(gaps.get(gaps.size() - 1))));
+        Text.format(
+            "  Plus long silence               : %s", Format.hours(gaps.get(gaps.size() - 1))));
   }
 
   /**
@@ -164,11 +169,11 @@ final class CadenceSection {
     }
     if (dated == 0) return 0;
     report.println();
-    report.println("  Répartition hebdomadaire        : %s".formatted(Format.dowBar(byDow)));
+    report.println(Text.format("  Répartition hebdomadaire        : %s", Format.dowBar(byDow)));
     report.println(
-        "  Week-end                        : %.0f %%".formatted(100.0 * weekend / dated));
+        Text.format("  Week-end                        : %.0f %%", 100.0 * weekend / dated));
     report.println(
-        "  Hors 8h-19h (heure de l'auteur) : %.0f %%".formatted(100.0 * outsideHours / dated));
+        Text.format("  Hors 8h-19h (heure de l'auteur) : %.0f %%", 100.0 * outsideHours / dated));
     return 100.0 * weekend / dated;
   }
 
@@ -200,15 +205,17 @@ final class CadenceSection {
     double bigShare = 100.0 * big / sizes.size();
     report.println();
     report.println(
-        "  Taille médiane d'un commit      : %.0f lignes".formatted(Format.percentile(sizes, 50)));
+        Text.format(
+            "  Taille médiane d'un commit      : %.0f lignes", Format.percentile(sizes, 50)));
     report.println(
-        "  9e décile                       : %.0f lignes".formatted(Format.percentile(sizes, 90)));
+        Text.format(
+            "  9e décile                       : %.0f lignes", Format.percentile(sizes, 90)));
     report.println(
-        "  Commits > %d lignes           : %d (%.0f %%) %s"
-            .formatted(
-                BIG_COMMIT, big, bigShare, report.c("— imports, code généré, vendoring ?", DIM)));
+        Text.format(
+            "  Commits > %d lignes           : %d (%.0f %%) %s",
+            BIG_COMMIT, big, bigShare, report.c("— imports, code généré, vendoring ?", DIM)));
     report.println(
-        "  Lignes touchées / lignes nettes : %s".formatted(Format.rework(added, deleted)));
+        Text.format("  Lignes touchées / lignes nettes : %s", Format.rework(added, deleted)));
     report.println(
         "    (le net masque la réécriture : un fichier refait cinq fois ne bouge pas d'une ligne)",
         DIM);

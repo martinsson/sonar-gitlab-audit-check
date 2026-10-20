@@ -66,6 +66,13 @@
       <version>${jspecify.version}</version>
       <scope>provided</scope>
     </dependency>
+    <!-- @FormatMethod on Text.format and Console.printf: Error Prone checks every format string. -->
+    <dependency>
+      <groupId>com.google.errorprone</groupId>
+      <artifactId>error_prone_annotations</artifactId>
+      <version>${errorprone.version}</version>
+      <scope>provided</scope>
+    </dependency>
     <!-- Keep in sync with the //DEPS lines of the JBang scripts at the root. -->
     <dependency>
       <groupId>com.fasterxml.jackson.core</groupId>

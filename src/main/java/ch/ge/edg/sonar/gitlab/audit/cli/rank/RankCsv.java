@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -79,12 +80,12 @@ final class RankCsv {
     row.add(s.row.key());
     row.add(s.row.name());
     row.add(s.bucket.name());
-    row.add(ranked ? "%.1f".formatted(s.score) : "");
+    row.add(ranked ? Text.format("%.1f", s.score) : "");
     row.add(velocity ? String.valueOf(s.signalsPresent()) : "");
     row.add(s.exclusion.label);
     for (Signal sig : Signal.values()) {
       Double p = s.percentiles.get(sig);
-      row.add(p == null ? "" : "%.0f".formatted(p));
+      row.add(p == null ? "" : Text.format("%.0f", p));
     }
     for (String col : RAW_COLUMNS) row.add(s.row.str(col));
     return row.toArray(String[]::new);

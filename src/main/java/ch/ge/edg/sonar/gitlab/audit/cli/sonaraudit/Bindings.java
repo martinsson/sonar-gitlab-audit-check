@@ -13,6 +13,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ProjectLink;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ProjectLinks;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -61,18 +62,17 @@ final class Bindings {
     Console out = session.out();
     out.println();
     long bound = byAlm.values().stream().mapToLong(Long::longValue).sum();
-    out.out()
-        .printf(
-            "  Liés à une plateforme DevOps   : %s / %d%s%n",
-            out.color(String.valueOf(bound), BOLD), projects, byAlm.isEmpty() ? "" : "  " + byAlm);
+    out.printf(
+        "  Liés à une plateforme DevOps   : %s / %d%s%n",
+        out.color(String.valueOf(bound), BOLD), projects, byAlm.isEmpty() ? "" : "  " + byAlm);
     if (refused > 0) {
       out.println(
           out.color(
-              "    dont %d liaison(s) illisible(s) : lecture refusée, pas absente"
-                  .formatted(refused),
+              Text.format(
+                  "    dont %d liaison(s) illisible(s) : lecture refusée, pas absente", refused),
               YELLOW));
     }
-    out.out().printf("  Avec au moins un lien saisi    : %d / %d%n", withLinks, projects);
+    out.printf("  Avec au moins un lien saisi    : %d / %d%n", withLinks, projects);
   }
 
   private Attachments attachments(String key) {

@@ -21,9 +21,8 @@ final class Presentation {
   }
 
   static void line(Console out, String label, Verdict v, String detail) {
-    out.out()
-        .printf(
-            "  %s %-42s %s%n",
-            out.color(v.tag, v.color), label, detail.isBlank() ? "" : out.color(detail, DIM));
+    out.printf(
+        "  %s %-42s %s%n",
+        out.color(v.tag, v.color), label, detail.isBlank() ? "" : out.color(detail, DIM));
   }
 }

@@ -1,5 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.console;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 import java.io.PrintStream;
 import java.util.Locale;
 import org.jspecify.annotations.Nullable;
@@ -64,6 +66,12 @@ public final class Console {
 
   public void print(String text) {
     out.print(text);
+  }
+
+  /** Une ligne formatée sur la sortie, avec {@link Locale#ROOT} : 1.5 sur toutes les machines. */
+  @FormatMethod
+  public void printf(@FormatString String pattern, @Nullable Object... args) {
+    out.print(String.format(Locale.ROOT, pattern, args));
   }
 
   public void flush() {

@@ -141,7 +141,7 @@ final class Capabilities {
             b ->
                 b.alm() == null
                     ? "aucune liaison"
-                    : "%s, dépôt %s".formatted(b.alm(), orEmpty(b.repository())),
+                    : Text.format("%s, dépôt %s", b.alm(), orEmpty(b.repository())),
             params("project", sample)),
         new Probe<>(
             "Liens du projet (project_links/search)",

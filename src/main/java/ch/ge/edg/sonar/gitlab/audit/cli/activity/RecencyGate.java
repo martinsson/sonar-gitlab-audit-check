@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,7 +29,7 @@ final class RecencyGate {
    */
   List<AuditedProject> run(List<AuditedProject> all) {
     Fate stale =
-        new Fate.Excluded(Fate.Stage.RECENCY, "inactif > %dj".formatted(funnel.sinceDays()));
+        new Fate.Excluded(Fate.Stage.RECENCY, Text.format("inactif > %dj", funnel.sinceDays()));
     return all.stream().map(p -> p.fate().inPlay() && isStale(p) ? p.with(stale) : p).toList();
   }
 

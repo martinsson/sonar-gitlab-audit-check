@@ -15,6 +15,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ProjectSearch;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -57,7 +58,7 @@ final class Projects {
       if (p == null) {
         out.println(
             out.color(
-                "  Échec de la pagination page %d : HTTP %d".formatted(page, r.status()), RED));
+                Text.format("  Échec de la pagination page %d : HTTP %d", page, r.status()), RED));
         break;
       }
       List<Component> batch = orEmptyList(p.components());
@@ -79,12 +80,11 @@ final class Projects {
     Exclusions ex = Exclusions.load(exclusionsFile);
     if (ex.isEmpty()) return projects;
     List<Component> kept = projects.stream().filter(p -> ex.match(p.key()) == null).toList();
-    out.out()
-        .printf(
-            "  Exclus par %s : %s (%d entrées)%n",
-            ex.file(),
-            out.color(String.valueOf(projects.size() - kept.size()), BOLD),
-            ex.entries().size());
+    out.printf(
+        "  Exclus par %s : %s (%d entrées)%n",
+        ex.file(),
+        out.color(String.valueOf(projects.size() - kept.size()), BOLD),
+        ex.entries().size());
     return kept;
   }
 
@@ -111,9 +111,10 @@ final class Projects {
     if (gap > 0 && real > 0) {
       out.println(
           out.color(
-              ("  → %d projet(s) hors de ton périmètre. Ton classement sera "
-                      + "tronqué%n    de %.0f%% sans aucun message d'erreur.")
-                  .formatted(gap, 100.0 * gap / real),
+              Text.format(
+                  "  → %d projet(s) hors de ton périmètre. Ton classement sera "
+                      + "tronqué%n    de %.0f%% sans aucun message d'erreur.",
+                  gap, 100.0 * gap / real),
               RED));
     } else {
       out.println(out.color("  → Périmètre complet.", GREEN));
@@ -132,14 +133,11 @@ final class Projects {
       else fresh++;
     }
     out.println();
-    out.out().printf("  Analysés il y a < %d j        : %d%n", staleDays, fresh);
-    out.out()
-        .printf(
-            "  Analysés il y a > %d j        : %s%n",
-            staleDays, out.color(String.valueOf(stale), YELLOW));
-    out.out()
-        .printf(
-            "  Jamais analysés                : %s%n", out.color(String.valueOf(never), YELLOW));
+    out.printf("  Analysés il y a < %d j        : %d%n", staleDays, fresh);
+    out.printf(
+        "  Analysés il y a > %d j        : %s%n",
+        staleDays, out.color(String.valueOf(stale), YELLOW));
+    out.printf("  Jamais analysés                : %s%n", out.color(String.valueOf(never), YELLOW));
     if (never > 0) {
       out.println(
           out.color("    (projets créés puis abandonnés, " + "ou analyse jamais configurée)", DIM));

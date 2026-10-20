@@ -31,8 +31,7 @@ record Screen(Console out) {
   }
 
   void line(String label, Verdict v, @Nullable String detail) {
-    out.out()
-        .printf(
-            "  %-32s %s  %s%n", label, c("[" + v.tag + "]", v.color), detail == null ? "" : detail);
+    out.printf(
+        "  %-32s %s  %s%n", label, c("[" + v.tag + "]", v.color), detail == null ? "" : detail);
   }
 }

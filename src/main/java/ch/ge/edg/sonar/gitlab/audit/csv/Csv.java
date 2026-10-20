@@ -124,8 +124,13 @@ public final class Csv {
       for (String c : columns) {
         if (!index.containsKey(c)) {
           throw new IOException(
-              "colonne « %s » absente de %s — ce fichier vient-il bien de %s ?"
-                  .formatted(c, path, what));
+              "colonne « "
+                  + c
+                  + " » absente de "
+                  + path
+                  + " — ce fichier vient-il bien de "
+                  + what
+                  + " ?");
         }
       }
     }

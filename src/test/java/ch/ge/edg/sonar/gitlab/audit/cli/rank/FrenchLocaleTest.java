@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -14,8 +13,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** Decimals written under a French default locale: the other tests pin Locale.ROOT. */
-class LocaleSuspectedBugsTest {
+/** A French default locale changes nothing: numbers are formatted with Locale.ROOT. */
+class FrenchLocaleTest {
 
   @TempDir Path dir;
 
@@ -33,8 +32,7 @@ class LocaleSuspectedBugsTest {
   }
 
   @Test
-  @SuspectedBug("classement.csv should write its scores with a dot whatever the default locale")
-  void sonarRankWritesScoresWithADecimalCommaUnderAFrenchLocale() throws IOException {
+  void sonarRankWritesScoresWithAPoint() throws IOException {
     Path in = dir.resolve("inventaire.csv");
     Files.writeString(
         in,
@@ -45,6 +43,8 @@ class LocaleSuspectedBugsTest {
     Cli.Result r = Cli.run(SonarRank::new, args);
 
     assertThat(r.exitCode()).isZero();
-    assertThat(Files.readString(out, StandardCharsets.UTF_8)).containsPattern("\";\"\\d+,\\d\";\"");
+    assertThat(Files.readString(out, StandardCharsets.UTF_8))
+        .containsPattern("\";\"\\d+\\.\\d\";\"")
+        .doesNotContainPattern("\";\"\\d+,\\d\";\"");
   }
 }

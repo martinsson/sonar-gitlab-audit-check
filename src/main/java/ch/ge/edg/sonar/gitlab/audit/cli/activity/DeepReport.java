@@ -7,6 +7,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.plural;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -26,12 +27,12 @@ final class DeepReport {
 
   /** Avant la passe : combien de projets elle va sonder. */
   static void begin(Screen con, int selected) {
-    con.title("6. Signaux de pratique sur les %d sélectionnés".formatted(selected));
+    con.title(Text.format("6. Signaux de pratique sur les %d sélectionnés", selected));
   }
 
   /** pratiques.csv vient d'être écrit. */
   void written() {
-    con.out().out().printf("%n  Pratiques : %d lignes.%n", selected.size());
+    con.out().printf("%n  Pratiques : %d lignes.%n", selected.size());
   }
 
   /**
@@ -52,15 +53,14 @@ final class DeepReport {
     long back = byRoute.getOrDefault(CiConfig.FALLBACK, 0L);
     if (cached + lint + back > 0) {
       con.out()
-          .out()
           .printf(
               "%n  CI lue : %d par ci/lint, %d par repli, %d depuis le cache.%n",
               lint, back, cached);
     }
     if (back > 0 && lintRefusedStatus > 0) {
       con.say(
-          "    ci/lint refusé (HTTP %d) : le jeton n'a pas le droit de"
-              .formatted(lintRefusedStatus),
+          Text.format(
+              "    ci/lint refusé (HTTP %d) : le jeton n'a pas le droit de", lintRefusedStatus),
           YELLOW);
       con.say("    déplier la configuration. Le repli ne suit que les includes", YELLOW);
       con.say("    « project: » qu'il sait lire — ci_sonar y sous-compte. D'un", YELLOW);
@@ -78,14 +78,14 @@ final class DeepReport {
     long pomVar = count(r -> r.sonar().facts().pomUnresolved != null);
     long both = count(r -> r.sonar().facts().pomKey != null && r.sonar().facts().sonarKey != null);
     con.out()
-        .out()
         .printf(
             "  Clé Maven (pom.xml) : %d projets, dont %d ont aussi une clé dans la CI.%n",
             pom, both);
     if (pomVar > 0) {
       con.say(
-          ("    %d pom avec ${…} dans groupId/artifactId : clé inconnue, " + "pas devinée.")
-              .formatted(pomVar),
+          Text.format(
+              "    %d pom avec ${…} dans groupId/artifactId : clé inconnue, " + "pas devinée.",
+              pomVar),
           YELLOW);
     }
   }
@@ -103,7 +103,7 @@ final class DeepReport {
     List<Assessed> core = selected.stream().filter(p -> !isWitness(p)).toList();
     List<Assessed> witness = selected.stream().filter(DeepReport::isWitness).toList();
 
-    con.out().out().printf("%n  %-38s %12s %12s%n", "", "sélection", "témoin");
+    con.out().printf("%n  %-38s %12s %12s%n", "", "sélection", "témoin");
     row("Branche par défaut protégée", core, witness, r -> r.protection().defaultProtected());
     row("Au moins une MR fusionnée", core, witness, r -> r.review().mergedMrs() > 0);
     row("Pipelines sur la branche par défaut", core, witness, r -> r.builds().pipelines() > 0);
@@ -138,7 +138,6 @@ final class DeepReport {
             .toList();
     if (recoveries.isEmpty()) return;
     con.out()
-        .out()
         .printf(
             "%n  Retour au vert (médiane des médianes) : %s h sur %d projet%s.%n",
             dec(median(recoveries)), recoveries.size(), plural(recoveries.size()));
@@ -155,7 +154,6 @@ final class DeepReport {
     if (reverting == 0) return;
     int total = counts.stream().mapToInt(Integer::intValue).sum();
     con.out()
-        .out()
         .printf(
             "%n  %d revert%s sur %d projet%s.%n",
             total, plural(total), reverting, plural(reverting));
@@ -170,7 +168,6 @@ final class DeepReport {
             .count();
     if (noReview == 0) return;
     con.out()
-        .out()
         .printf(
             "%n  %d projet%s à ≥20 commits sans une seule MR fusionnée.%n",
             noReview, plural(noReview));
@@ -180,7 +177,6 @@ final class DeepReport {
   private void row(
       String label, List<Assessed> core, List<Assessed> witness, Predicate<Practices> test) {
     con.out()
-        .out()
         .printf(
             "  %-38s %12s %12s%n",
             label, share(core, test), witness.isEmpty() ? "—" : share(witness, test));
@@ -188,6 +184,6 @@ final class DeepReport {
 
   private static String share(List<Assessed> ps, Predicate<Practices> test) {
     long n = ps.stream().filter(p -> test.test(p.practices())).count();
-    return "%d (%s)".formatted(n, pct(n, ps.size()));
+    return Text.format("%d (%s)", n, pct(n, ps.size()));
   }
 }
