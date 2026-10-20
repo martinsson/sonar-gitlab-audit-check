@@ -23,7 +23,8 @@ class RestClientRetryTest {
       new PrintStream(new ByteArrayOutputStream(), true, StandardCharsets.UTF_8);
 
   private RestClient client(String base, Map<String, String> headers) throws IOException {
-    return new RestClient(RestClient.Settings.of(base, headers, false), err, waits::add);
+    return new RestClient(
+        RestClient.Settings.of(base, headers, false), err, pause -> waits.add(pause.toSeconds()));
   }
 
   @Test

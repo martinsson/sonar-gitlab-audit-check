@@ -81,7 +81,8 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
 
     Cli.Result r =
         Cli.run(
-            command(),
+            fx.clock(),
+            GitLabProjectReport::new,
             "--url",
             url,
             "--path",
@@ -105,7 +106,8 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
 
     Cli.Result r =
         Cli.run(
-            command(),
+            fx.clock(),
+            GitLabProjectReport::new,
             "--url",
             server.url(),
             "--path",

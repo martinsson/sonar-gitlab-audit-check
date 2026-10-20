@@ -31,7 +31,9 @@ class SelectionAndHistoryTest {
 
   private Gocd gocd(FakeHttpServer server) throws IOException {
     return new Gocd(
-        new GocdApi(new RestClient(RestClient.Settings.of(server.url(), Map.of(), false), err)));
+        new GocdApi(
+            new RestClient(
+                RestClient.Settings.of(server.url(), Map.of(), false), err, pause -> {})));
   }
 
   @Test
@@ -128,10 +130,10 @@ class SelectionAndHistoryTest {
 
   @Test
   void a_missing_url_or_token_stops_before_any_call() {
-    assertThatThrownBy(() -> Gocd.connect(null, "t", false, err))
+    assertThatThrownBy(() -> Gocd.connect(null, "t", false, err, pause -> {}))
         .isInstanceOf(Stop.class)
         .hasMessage("GOCD_URL manquant");
-    assertThatThrownBy(() -> Gocd.connect("http://h", " ", false, err))
+    assertThatThrownBy(() -> Gocd.connect("http://h", " ", false, err, pause -> {}))
         .isInstanceOf(Stop.class)
         .hasMessage("GOCD_TOKEN manquant");
   }
@@ -139,7 +141,7 @@ class SelectionAndHistoryTest {
   @Test
   void the_url_may_end_with_go_and_the_token_goes_as_bearer() throws Exception {
     try (FakeHttpServer server = GocdFixtures.serve(new FakeHttpServer())) {
-      Gocd gocd = Gocd.connect(" " + server.url() + "/go// ", " pat ", false, err);
+      Gocd gocd = Gocd.connect(" " + server.url() + "/go// ", " pat ", false, err, pause -> {});
       Selection.resolve(gocd, List.of(), List.of("hello"), err);
       assertThat(server.requests().get(0).target()).isEqualTo("/go/api/dashboard");
       assertThat(server.requests().get(0).header("Authorization")).isEqualTo("Bearer pat");

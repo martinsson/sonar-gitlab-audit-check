@@ -54,7 +54,8 @@ final class CiConfig {
       Pattern.compile(
           "(?:file:\\s*|^\\s*-\\s*)(['\"]?[\\w./-]+\\.ya?ml['\"]?)\\s*$", Pattern.MULTILINE);
 
-  private final AuditContext ctx;
+  private final Gitlab gl;
+  private final Counters counters;
 
   /** Cache de résolution project_path -> ID, rempli au fur et à mesure. */
   private final Map<String, String> projPathToId = new ConcurrentHashMap<>();
@@ -65,8 +66,9 @@ final class CiConfig {
   /** ci/lint refusé une fois l'est pour tout le parc : le droit est sur le jeton. */
   private volatile boolean lintRefused;
 
-  CiConfig(AuditContext ctx, List<Proj> all) {
-    this.ctx = ctx;
+  CiConfig(Gitlab gl, Counters counters, List<Proj> all) {
+    this.gl = gl;
+    this.counters = counters;
     for (Proj p : all) {
       if (!p.path.isEmpty()) projPathToId.put(p.path, String.valueOf(p.id));
     }
@@ -79,13 +81,12 @@ final class CiConfig {
       if (merged != null) return merged;
     }
     Gitlab.Response raw =
-        ctx.gl()
-            .get(
-                "projects/" + p.id + "/repository/files/" + enc(".gitlab-ci.yml") + "/raw",
-                Map.of("ref", p.defaultBranch));
+        gl.get(
+            "projects/" + p.id + "/repository/files/" + enc(".gitlab-ci.yml") + "/raw",
+            Map.of("ref", p.defaultBranch));
     String body = raw.body();
     if (raw.status() != 200 || body == null) return null;
-    ctx.counters().ciByFallbackN.incrementAndGet();
+    counters.ciByFallbackN.incrementAndGet();
     StringBuilder all = new StringBuilder(body);
     chaseIncludes(body, new Chase(all, new HashSet<>()), 0);
     return new Ci(all.toString(), "includes suivis");
@@ -93,20 +94,19 @@ final class CiConfig {
 
   private @Nullable Ci lint(Proj p) {
     Gitlab.Response lint =
-        ctx.gl()
-            .get(
-                "projects/" + p.id + "/ci/lint",
-                params(
-                    "ref", p.defaultBranch,
-                    "content_ref", p.defaultBranch,
-                    "include_merged_yaml", "true"));
+        gl.get(
+            "projects/" + p.id + "/ci/lint",
+            params(
+                "ref", p.defaultBranch,
+                "content_ref", p.defaultBranch,
+                "include_merged_yaml", "true"));
     int status = lint.status();
     if (status == 200) {
       JsonNode j = lint.json();
       String merged = j.path("merged_yaml").asText(null);
       if (isBlank(merged)) merged = j.path("content").path("merged_yaml").asText(null);
       if (merged != null && !merged.isBlank()) {
-        ctx.counters().ciByLintN.incrementAndGet();
+        counters.ciByLintN.incrementAndGet();
         return new Ci(merged, "ci/lint");
       }
       // 200 sans merged_yaml : configuration invalide, ou version
@@ -116,7 +116,7 @@ final class CiConfig {
       // jeton, pas au projet. Insister coûterait un appel perdu
       // par projet du parc.
       lintRefused = true;
-      ctx.counters().lintRefusedStatus = status;
+      counters.lintRefusedStatus = status;
     }
     return null;
   }
@@ -171,10 +171,9 @@ final class CiConfig {
 
   private String fetchRaw(String projId, String file, String ref) {
     Gitlab.Response fr =
-        ctx.gl()
-            .get(
-                "projects/" + enc(projId) + "/repository/files/" + enc(file) + "/raw",
-                Map.of("ref", ref));
+        gl.get(
+            "projects/" + enc(projId) + "/repository/files/" + enc(file) + "/raw",
+            Map.of("ref", ref));
     String body = fr.body();
     return fr.status() == 200 && body != null ? body : "";
   }
@@ -190,7 +189,7 @@ final class CiConfig {
       projPathToId.put(projPath, projPath);
       return projPath;
     }
-    Gitlab.Response proj = ctx.gl().get("projects/" + enc(projPath), Map.of("per_page", "1"));
+    Gitlab.Response proj = gl.get("projects/" + enc(projPath), Map.of("per_page", "1"));
     if (proj.status() == 200 && proj.body() != null) {
       JsonNode node = proj.json();
       if (node.hasNonNull("id")) {

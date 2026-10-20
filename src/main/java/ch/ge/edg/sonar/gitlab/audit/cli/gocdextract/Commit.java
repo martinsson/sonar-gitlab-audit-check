@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
@@ -20,9 +21,8 @@ record Commit(String via, String repo, String revision, @Nullable Instant at, Se
     keys = Collections.unmodifiableSet(new LinkedHashSet<>(keys));
   }
 
-  static final String[] HEADER = {
-    "pipeline", "compteur", "via", "depot", "revision", "commit_le", "cles_jira"
-  };
+  static final List<String> HEADER =
+      List.of("pipeline", "compteur", "via", "depot", "revision", "commit_le", "cles_jira");
 
   String[] cells(String pipeline, int counter, ZoneId zone) {
     return new String[] {

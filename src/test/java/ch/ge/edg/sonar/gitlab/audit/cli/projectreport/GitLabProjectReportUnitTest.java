@@ -26,7 +26,7 @@ class GitLabProjectReportUnitTest {
 
   @Test
   void defaults_are_those_documented() {
-    GitLabProjectReport cmd = new GitLabProjectReport();
+    GitLabProjectReport cmd = new GitLabProjectReport(Cli.host());
     new CommandLine(cmd).parseArgs("--path", "a/b");
     assertThat(cmd.days).isEqualTo(180);
     assertThat(cmd.maxCommits).isEqualTo(5000);
@@ -42,7 +42,7 @@ class GitLabProjectReportUnitTest {
 
   @Test
   void the_path_is_required() {
-    Cli.Result r = Cli.run(new GitLabProjectReport(), "--url", "http://127.0.0.1:9");
+    Cli.Result r = Cli.run(GitLabProjectReport::new, "--url", "http://127.0.0.1:9");
 
     assertThat(r.exitCode()).isEqualTo(2);
     assertThat(r.err()).contains("Missing required option: '--path=<path>'");

@@ -17,12 +17,12 @@ import java.util.List;
 final class Findings {
 
   private final Report report;
-  private final LocalDateTime now;
+  private final Dates dates;
   private final List<String> found = new ArrayList<>();
 
-  Findings(Report report, LocalDateTime now) {
+  Findings(Report report, Dates dates) {
     this.report = report;
-    this.now = now;
+    this.dates = dates;
   }
 
   void print(Project p, Commits commits, Cadence cadence, People people, Reviews reviews) {
@@ -53,10 +53,10 @@ final class Findings {
     }
     LocalDateTime lastCommit = cadence.lastCommit();
     if (lastCommit == null) return;
-    long idle = ChronoUnit.DAYS.between(lastCommit, now);
+    long idle = ChronoUnit.DAYS.between(lastCommit, dates.now());
     if (idle > 90) found.add("Dernier commit il y a %d j : dépôt dormant.".formatted(idle));
-    LocalDateTime activity = Dates.parseLocal(p.lastActivityAt());
-    if (activity != null && idle > 180 && ChronoUnit.DAYS.between(activity, now) < 90) {
+    LocalDateTime activity = dates.parseLocal(p.lastActivityAt());
+    if (activity != null && idle > 180 && ChronoUnit.DAYS.between(activity, dates.now()) < 90) {
       found.add(
           "Le dépôt bouge encore (MR, tickets) mais plus la branche par défaut :"
               + " le travail vit ailleurs, ou personne ne fusionne plus.");

@@ -1,12 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -41,8 +40,6 @@ public final class Gitlab {
 
   public static final ObjectMapper MAPPER =
       new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-  private static final String YELLOW = "\033[33m";
 
   // ----------------------------------------------------------------------
   // Réponse
@@ -137,7 +134,7 @@ public final class Gitlab {
 
   public final String base;
   private final GitlabHttp http;
-  private final PrintStream out;
+  private final GitlabListener listener;
 
   public int calls() {
     return http.callCount.get();
@@ -151,26 +148,17 @@ public final class Gitlab {
     return http.throttledCount.get();
   }
 
-  /** Les avertissements vont sur la sortie et l'erreur standard telles qu'elles sont à l'appel. */
-  public Gitlab(
-      String url,
-      @Nullable String token,
-      int timeoutSeconds,
-      boolean insecure,
-      @Nullable Path dumpDir)
-      throws IOException, GeneralSecurityException {
-    this(new Connection(url, token, timeoutSeconds, insecure, dumpDir), System.out, System.err);
-  }
-
   /**
-   * {@code out} reçoit l'avertissement d'une pagination interrompue, {@code err} celui d'une
-   * capture qui n'a pas pu s'écrire.
+   * Un client.
+   *
+   * @param listener reçoit une pagination interrompue et une capture qui n'a pas pu s'écrire
+   * @param sleeper l'attente que demande un 429
    */
-  public Gitlab(Connection c, PrintStream out, PrintStream err)
+  public Gitlab(Connection c, GitlabListener listener, Sleeper sleeper)
       throws IOException, GeneralSecurityException {
     this.base = c.url().replaceAll("/+$", "");
-    this.out = out;
-    this.http = new GitlabHttp(c, err);
+    this.listener = listener;
+    this.http = new GitlabHttp(c, listener, sleeper);
   }
 
   public Response get(String path, Map<String, String> params) {
@@ -205,8 +193,7 @@ public final class Gitlab {
     for (int i = 0; i < 500 && !page.isBlank(); i++) {
       Response r = get(path, pageParams(params, page));
       if (r.status() != 200) {
-        out.println(
-            color("    Pagination interrompue page %s : HTTP %d".formatted(page, r.status())));
+        listener.pagingInterrupted(page, r.status());
         break;
       }
       JsonNode arr = r.json();
@@ -359,10 +346,6 @@ public final class Gitlab {
         .filter(e -> e.getValue() != null)
         .map(e -> enc(e.getKey()) + "=" + enc(e.getValue()))
         .collect(Collectors.joining("&", "?", ""));
-  }
-
-  private static String color(String s) {
-    return ConsoleOut.color(s, YELLOW);
   }
 
   private static boolean isBlank(@Nullable String s) {

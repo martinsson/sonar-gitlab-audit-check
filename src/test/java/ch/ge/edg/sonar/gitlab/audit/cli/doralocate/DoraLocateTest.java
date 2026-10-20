@@ -124,7 +124,7 @@ class DoraLocateTest {
     }
     List<String> args = new ArrayList<>(flags);
     options.forEach((k, v) -> args.addAll(List.of(k, v)));
-    return Cli.run(new DoraLocate(NOW, ZURICH), args.toArray(String[]::new));
+    return Cli.run(NOW.withZone(ZURICH), DoraLocate::new, args.toArray(String[]::new));
   }
 
   /** A prefix line: commits, MR, branches, tickets, then the Jira project. */
@@ -271,7 +271,8 @@ class DoraLocateTest {
       other.json(P + "/repository/commits", "[]");
       Cli.Result r =
           Cli.run(
-              new DoraLocate(NOW, ZURICH),
+              NOW.withZone(ZURICH),
+              DoraLocate::new,
               "--gitlab-project",
               "7",
               "--gitlab-url",
@@ -370,7 +371,7 @@ class DoraLocateTest {
     assertThat(refused.exitCode()).isEqualTo(2);
     assertThat(refused.err()).contains("Arrêt : " + gitlab.url() + " : jeton refusé (401)");
 
-    Cli.Result noUrl = Cli.run(new DoraLocate(), "--gitlab-project", "a/b", "--gitlab-url", "");
+    Cli.Result noUrl = Cli.run(DoraLocate::new, "--gitlab-project", "a/b", "--gitlab-url", "");
     assertThat(noUrl.exitCode()).isEqualTo(2);
     assertThat(noUrl.err()).contains("Arrêt : GITLAB_URL manquant");
   }

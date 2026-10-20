@@ -10,7 +10,11 @@ import java.time.ZoneId;
  *
  * @param out le rapport
  * @param err la progression et les avertissements
- * @param zone le fuseau des dates affichées
  */
-record Context(
-    PrintStream out, PrintStream err, Clock clock, ZoneId zone, Suggestions suggestions) {}
+record Context(PrintStream out, PrintStream err, Clock clock, Suggestions suggestions) {
+
+  /** Le fuseau des dates affichées, celui de l'horloge. */
+  ZoneId zone() {
+    return clock.getZone();
+  }
+}

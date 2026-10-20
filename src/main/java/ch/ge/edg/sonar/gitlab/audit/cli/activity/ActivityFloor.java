@@ -1,10 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.YELLOW;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.orEmpty;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.util.Comparator;
 import java.util.List;
 
@@ -24,14 +24,18 @@ final class ActivityFloor {
 
   static final int MIN_FLOOR = 5;
 
-  private final AuditContext ctx;
+  private final Screen con;
+  private final Counters counters;
+  private final Funnel funnel;
 
-  ActivityFloor(AuditContext ctx) {
-    this.ctx = ctx;
+  ActivityFloor(Screen con, Counters counters, Funnel funnel) {
+    this.con = con;
+    this.counters = counters;
+    this.funnel = funnel;
   }
 
   int run(List<Proj> fresh) {
-    ctx.con().title("4. Plancher d'activité (étape 3)");
+    con.title("4. Plancher d'activité (étape 3)");
 
     // La distribution ne porte que sur les projets effectivement comptés :
     // y verser un zéro pour chaque projet volontairement non compté
@@ -58,29 +62,29 @@ final class ActivityFloor {
         eligible++;
       }
     }
-    ctx.counters().floor = chosen;
-    ctx.counters().eligible = eligible;
+    counters.floor = chosen;
+    counters.eligible = eligible;
     report(counted.size() - eligible - unmeasurable, eligible, unmeasurable);
     return chosen;
   }
 
   private void printDeciles(List<Integer> volumes) {
-    PrintStream out = ctx.out();
+    Console out = con.out();
     out.print("  Distribution des commits (déciles) :");
     for (int d = 1; d <= 9; d += 2) {
       int idx = Math.min(volumes.size() - 1, volumes.size() * d / 10);
-      out.printf(" D%d=%d", d, volumes.isEmpty() ? 0 : volumes.get(idx));
+      out.out().printf(" D%d=%d", d, volumes.isEmpty() ? 0 : volumes.get(idx));
     }
     out.println();
   }
 
   private int choose(List<Integer> volumes) {
-    int chosen = ctx.funnel().floor;
+    int chosen = funnel.options().floor;
     if (chosen >= 0) {
-      ctx.out().printf("  Plancher imposé (--floor)       : %d commits%n", chosen);
+      con.out().out().printf("  Plancher imposé (--floor)       : %d commits%n", chosen);
       return chosen;
     }
-    long budget = ctx.funnel().top * 3L / 2;
+    long budget = funnel.options().top * 3L / 2;
     chosen = MIN_FLOOR;
     for (int t = MIN_FLOOR; t <= 60; t++) {
       final int threshold = t;
@@ -88,20 +92,20 @@ final class ActivityFloor {
       chosen = t;
       if (n <= budget) break;
     }
-    ctx.out()
+    con.out()
+        .out()
         .printf(
             "  Plancher déduit des données     : %d commits sur %d jours%n",
-            chosen, ctx.sinceDays());
+            chosen, funnel.sinceDays());
     return chosen;
   }
 
   private void report(int lowActivity, int eligible, int unmeasurable) {
-    PrintStream out = ctx.out();
-    Console con = ctx.con();
-    out.printf("  Éligibles au tirage             : %d%n", eligible);
-    out.printf("  Cohorte faible activité         : %d%n", lowActivity);
+    Console out = con.out();
+    out.out().printf("  Éligibles au tirage             : %d%n", eligible);
+    out.out().printf("  Cohorte faible activité         : %d%n", lowActivity);
     if (unmeasurable > 0) {
-      out.printf("  Activité non mesurable          : %d%n", unmeasurable);
+      out.out().printf("  Activité non mesurable          : %d%n", unmeasurable);
       con.say("    403 ou erreur sur les commits. Écartés, pas classés à zéro :", YELLOW);
       con.say("    « je n'ai pas pu voir » n'est pas « il ne se passe rien ».", YELLOW);
     }

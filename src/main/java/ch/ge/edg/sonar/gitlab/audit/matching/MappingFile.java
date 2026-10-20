@@ -1,21 +1,14 @@
 package ch.ge.edg.sonar.gitlab.audit.matching;
 
-import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.c;
-
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
-import ch.ge.edg.sonar.gitlab.audit.matching.Replay.Reuse;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.jspecify.annotations.Nullable;
 
 /**
  * Un appariement écrit : une ligne par ligne de gauche, relu au lancement suivant pour garder ce
@@ -29,17 +22,29 @@ import org.jspecify.annotations.Nullable;
 public record MappingFile(Path path, boolean comma, boolean recomputeAll) {
 
   /**
-   * Le chemin commun aux deux outils : calculer, rejouer le fichier s'il existe, le réécrire
-   * complété — l'ancien gardé en .bak. Sans fichier, l'appariement calculé tel quel.
+   * Ce que le fichier est devenu.
+   *
+   * @param result l'appariement, repris du fichier s'il existait
+   * @param reused le fichier existait et a été rejoué ; sinon il vient d'être écrit
+   * @param stats ce que la reprise a fait ({@link Reuse#NONE} sans reprise)
    */
-  public static Result mapAndKeep(
-      Spec spec, Csv.Table left, Csv.Table right, @Nullable MappingFile file, PrintStream out)
+  public record Kept(MappingFile file, Result result, boolean reused, Reuse stats) {}
+
+  /**
+   * Le chemin commun aux deux outils : calculer, rejouer le fichier s'il existe, le réécrire
+   * complété — l'ancien gardé en .bak.
+   */
+  public static Kept mapAndKeep(Spec spec, Csv.Table left, Csv.Table right, MappingFile file)
       throws IOException {
-    Result fresh = Mapper.map(spec, left, right);
-    return file == null ? fresh : file.keep(fresh, out);
+    return file.keep(Mapper.map(spec, left, right));
   }
 
-  private Result keep(Result fresh, PrintStream out) throws IOException {
+  /** Sans fichier, l'appariement calculé tel quel. */
+  public static Result map(Spec spec, Csv.Table left, Csv.Table right) {
+    return Mapper.map(spec, left, right);
+  }
+
+  private Kept keep(Result fresh) throws IOException {
     Spec spec = fresh.spec();
     Result r = fresh;
     Reuse stats = Reuse.NONE;
@@ -61,9 +66,7 @@ public record MappingFile(Path path, boolean comma, boolean recomputeAll) {
           StandardCopyOption.REPLACE_EXISTING);
     }
     write(r, stats.orphans());
-    if (existed) printReuse(stats, out);
-    else printNew(r.matches().size(), out);
-    return r;
+    return new Kept(this, r, existed, stats);
   }
 
   private void write(Result r, List<String[]> orphans) throws IOException {
@@ -94,38 +97,5 @@ public record MappingFile(Path path, boolean comma, boolean recomputeAll) {
         w.writeNext(row);
       }
     }
-  }
-
-  private void printNew(int rows, PrintStream out) {
-    out.printf("%n  Appariement : %d lignes → %s%n", rows, path.toAbsolutePath());
-    out.println(c("    Réutilisé aux prochains lancements. Pour corriger une paire :", DIM));
-    out.println(c("    confiance = manuel (et la clé dans droite_…), ou rejete.", DIM));
-  }
-
-  private void printReuse(Reuse u, PrintStream out) {
-    out.printf(
-        "%n  Appariement repris de %s%s%n",
-        path.toAbsolutePath(),
-        recomputeAll ? c(" (--reapparier : exact et derived recalculés)", YELLOW) : "");
-    out.printf(
-        "    %d gardées, %d saisies à la main, %d rejetées, "
-            + "%d recalculées, %d nouveaux projets%n",
-        u.kept(), u.manual(), u.rejected(), u.recomputed(), u.added());
-    if (!u.orphans().isEmpty()) {
-      out.println(
-          c(
-              "    %d lignes pour des projets absents de cet audit, conservées."
-                  .formatted(u.orphans().size()),
-              DIM));
-    }
-    if (!u.stale().isEmpty()) {
-      out.println(
-          c(
-              "    %d paires vers une clé qui n'existe plus, recalculées :"
-                  .formatted(u.stale().size()),
-              YELLOW));
-      u.stale().stream().limit(10).forEach(x -> out.println(c("      " + x, YELLOW)));
-    }
-    out.println(c("    Ancienne version : " + path.getFileName() + ".bak", DIM));
   }
 }

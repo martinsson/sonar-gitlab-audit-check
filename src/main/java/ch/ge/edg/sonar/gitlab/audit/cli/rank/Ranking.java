@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -17,7 +17,7 @@ final class Ranking {
   private final RankSettings settings;
   private final RankReport report;
 
-  public Ranking(RankSettings settings, PrintStream out) {
+  public Ranking(RankSettings settings, Console out) {
     this.settings = settings;
     this.report = new RankReport(out, settings);
   }

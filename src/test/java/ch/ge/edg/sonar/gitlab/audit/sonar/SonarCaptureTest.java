@@ -62,7 +62,8 @@ class SonarCaptureTest {
     Sonar sq =
         new Sonar(
             new SonarConnection(server.url(), "t", null, 5, false),
-            new Captures(dump, null, System.err));
+            new Captures(dump, null, System.err),
+            pause -> {});
     assertThat(dump).isDirectory();
 
     sq.get("api/system/status", Map.of());
@@ -83,7 +84,8 @@ class SonarCaptureTest {
     Sonar sq =
         new Sonar(
             new SonarConnection("not a url", "t", null, 5, false),
-            new Captures(dump, null, System.err));
+            new Captures(dump, null, System.err),
+            pause -> {});
     sq.get("api/x", Map.of());
     assertThat(Files.readString(dump.resolve(Captures.name("api/x", Map.of()))))
         .startsWith("IllegalArgumentException");
@@ -99,7 +101,8 @@ class SonarCaptureTest {
     Sonar sq =
         new Sonar(
             new SonarConnection(server.url(), "t", null, 5, false),
-            new Captures(dump, null, warnings));
+            new Captures(dump, null, warnings),
+            pause -> {});
     Files.createDirectories(dump.resolve(Captures.name("api/x", Map.of())));
 
     Sonar.Response r = sq.get("api/x", Map.of());
@@ -117,13 +120,15 @@ class SonarCaptureTest {
     Sonar live =
         new Sonar(
             new SonarConnection(server.url(), "t", null, 5, false),
-            new Captures(dir, null, System.err));
+            new Captures(dir, null, System.err),
+            pause -> {});
     assertThat(live.get("api/denied", Map.of()).status()).isEqualTo(403);
 
     Sonar replay =
         new Sonar(
             new SonarConnection(server.url(), "t", null, 5, false),
-            new Captures(null, dir, System.err));
+            new Captures(null, dir, System.err),
+            pause -> {});
     assertThat(replay.get("api/denied", Map.of()))
         .isEqualTo(new Sonar.Response(200, "{\"errors\":[{\"msg\":\"no\"}]}"));
   }
@@ -135,7 +140,8 @@ class SonarCaptureTest {
     Sonar sq =
         new Sonar(
             new SonarConnection(server.url(), "t", null, 5, false),
-            new Captures(null, replay, System.err));
+            new Captures(null, replay, System.err),
+            pause -> {});
 
     assertThat(sq.replaying()).isTrue();
     assertThat(sq.get("/api/x", Map.of("p", "1"))).isEqualTo(new Sonar.Response(200, "{\"r\":1}"));
@@ -150,7 +156,8 @@ class SonarCaptureTest {
     Sonar sq =
         new Sonar(
             new SonarConnection(null, null, "org-a", 5, false),
-            new Captures(null, replay, System.err));
+            new Captures(null, replay, System.err),
+            pause -> {});
     Sonar.Response r = sq.get("api/issues/search", Map.of("ps", "1"));
     Map<String, String> asked = new LinkedHashMap<>();
     asked.put("ps", "1");
@@ -176,7 +183,8 @@ class SonarCaptureTest {
     Sonar sq =
         new Sonar(
             new SonarConnection(null, null, null, 5, false),
-            new Captures(null, replay, System.err));
+            new Captures(null, replay, System.err),
+            pause -> {});
     Sonar.Response r = sq.get("api/x", Map.of());
     assertThat(r.status()).isZero();
     assertThat(r.body()).startsWith("capture illisible : ");
@@ -190,7 +198,8 @@ class SonarCaptureTest {
     Sonar sq =
         new Sonar(
             new SonarConnection(null, null, null, 5, false),
-            new Captures(null, replay, System.err));
+            new Captures(null, replay, System.err),
+            pause -> {});
     assertThat(sq.get("api/x", Map.of()).body()).startsWith("aucune capture pour api/x (attendu");
   }
 

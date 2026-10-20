@@ -8,6 +8,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.HistoryMeasure;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.HistoryPoint;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -88,7 +89,8 @@ class TrendTest {
             history(
                 pts(0, "100", 15, "110", 30, "120"),
                 pts(0, "1000", 15, "1000", 30, "0", 40, "1000"),
-                pts(0, "5", 15, "5", 30, "5")));
+                pts(0, "5", 15, "5", 30, "5")),
+            ZoneOffset.UTC);
     assertThat(t.points()).isEqualTo(4);
     assertThat(t.spanDays()).isEqualTo(40);
     assertThat(t.violationsPerMonth()).isCloseTo(20.0, within(1e-9));
@@ -100,14 +102,14 @@ class TrendTest {
 
   @Test
   void trendOfNothingIsZeroPointsAndNulls() {
-    Trend t = Trend.of(new SearchHistory(null, null));
+    Trend t = Trend.of(new SearchHistory(null, null), ZoneOffset.UTC);
     assertThat(t).isEqualTo(new Trend(0, 0, null, null, null));
     assertThat(t.violationsPerDay()).isNull();
   }
 
   @Test
   void trendOfASinglePointHasNoSpan() {
-    Trend t = Trend.of(history(pts(3, "1"), List.of(), List.of()));
+    Trend t = Trend.of(history(pts(3, "1"), List.of(), List.of()), ZoneOffset.UTC);
     assertThat(t.points()).isEqualTo(1);
     assertThat(t.spanDays()).isZero();
   }
@@ -120,7 +122,7 @@ class TrendTest {
             new HistoryPoint(null, "1"),
             new HistoryPoint(day(0), "abc"),
             new HistoryPoint(day(5), "2"));
-    Trend t = Trend.of(history(v, List.of(), List.of()));
+    Trend t = Trend.of(history(v, List.of(), List.of()), ZoneOffset.UTC);
     assertThat(t.points()).isEqualTo(1);
   }
 
@@ -131,7 +133,8 @@ class TrendTest {
             history(
                 pts(0, "10", 15, "20", 30, "30"),
                 pts(0, "1000", 15, "1000", 30, "1000"),
-                List.of()));
+                List.of()),
+            ZoneOffset.UTC);
     // density 10, 20, 30 per kLOC: slope 2/3 per day, mean 20 -> 100 % per month
     assertThat(t.densityPctPerMonth()).isCloseTo(100.0, within(1e-9));
     assertThat(t.debtRatioPctPerMonth()).isNull();
@@ -162,23 +165,26 @@ class TrendTest {
 
   @Test
   void velocityTakesTheSpanFromTheLineSeries() {
-    Velocity v = requireNonNull(Velocity.of(pts(2, "100", 12, "150"), pts(0, "10", 30, "35")));
+    Velocity v =
+        requireNonNull(
+            Velocity.of(pts(2, "100", 12, "150"), pts(0, "10", 30, "35"), ZoneOffset.UTC));
     assertThat(v).isEqualTo(new Velocity(50, 25, 10, day(2), day(12)));
     assertThat(v.debtPerLine()).isEqualTo(0.5);
   }
 
   @Test
   void velocityIsNullWhenEitherDeltaIsMissing() {
-    assertThat(Velocity.of(pts(0, "1"), pts(0, "1", 5, "2"))).isNull();
-    assertThat(Velocity.of(pts(0, "1", 5, "2"), pts(0, "1"))).isNull();
+    assertThat(Velocity.of(pts(0, "1"), pts(0, "1", 5, "2"), ZoneOffset.UTC)).isNull();
+    assertThat(Velocity.of(pts(0, "1", 5, "2"), pts(0, "1"), ZoneOffset.UTC)).isNull();
   }
 
   @Test
   void velocityWithUnreadableDatesHasNoSpan() {
     List<HistoryPoint> lines = List.of(new HistoryPoint("bad", "1"), new HistoryPoint(day(4), "3"));
-    assertThat(requireNonNull(Velocity.of(lines, pts(0, "1", 5, "2"))).spanDays()).isZero();
+    assertThat(requireNonNull(Velocity.of(lines, pts(0, "1", 5, "2"), ZoneOffset.UTC)).spanDays())
+        .isZero();
     List<HistoryPoint> lines2 = List.of(new HistoryPoint(day(4), "1"), new HistoryPoint(null, "3"));
-    Velocity v = requireNonNull(Velocity.of(lines2, pts(0, "1", 5, "2")));
+    Velocity v = requireNonNull(Velocity.of(lines2, pts(0, "1", 5, "2"), ZoneOffset.UTC));
     assertThat(v.spanDays()).isZero();
     assertThat(v.to()).isEmpty();
   }

@@ -2,8 +2,9 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.testing.Printed;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -26,13 +27,11 @@ class GitlabActivityAuditHelpersTest {
   void fixLocale() {
     saved = Locale.getDefault();
     Locale.setDefault(Locale.ROOT);
-    ConsoleOut.colorMode("never");
   }
 
   @AfterEach
   void restoreLocale() {
     Locale.setDefault(saved);
-    ConsoleOut.colorMode("never");
   }
 
   @Test
@@ -134,11 +133,11 @@ class GitlabActivityAuditHelpersTest {
     assertThat(Verdict.MISSING.tag).isEqualTo("ABSENT");
     assertThat(Verdict.EMPTY.tag).isEqualTo("VIDE");
     assertThat(Verdict.ERROR.tag).isEqualTo("ERREUR");
-    assertThat(Verdict.OK.color).isEqualTo(Console.GREEN);
-    assertThat(Verdict.DENIED.color).isEqualTo(Console.RED);
-    assertThat(Verdict.MISSING.color).isEqualTo(Console.YELLOW);
-    assertThat(Verdict.EMPTY.color).isEqualTo(Console.YELLOW);
-    assertThat(Verdict.ERROR.color).isEqualTo(Console.RED);
+    assertThat(Verdict.OK.color).isEqualTo(Screen.GREEN);
+    assertThat(Verdict.DENIED.color).isEqualTo(Screen.RED);
+    assertThat(Verdict.MISSING.color).isEqualTo(Screen.YELLOW);
+    assertThat(Verdict.EMPTY.color).isEqualTo(Screen.YELLOW);
+    assertThat(Verdict.ERROR.color).isEqualTo(Screen.RED);
   }
 
   @Test
@@ -159,15 +158,16 @@ class GitlabActivityAuditHelpersTest {
 
   @Test
   void colourCodesWhenColoursAreOn() {
-    ConsoleOut.colorMode("always");
-    assertThat(Console.c("x", Console.BOLD)).isEqualTo("\033[1mx\033[0m");
-    assertThat(Console.RESET).isEqualTo("\033[0m");
-    assertThat(Console.DIM).isEqualTo("\033[2m");
+    Screen screen = new Screen(Printed.colored().console());
+    assertThat(screen.c("x", Screen.BOLD)).isEqualTo("\033[1mx\033[0m");
+    assertThat(Screen.RESET).isEqualTo("\033[0m");
+    assertThat(Screen.DIM).isEqualTo("\033[2m");
   }
 
-  private static String printed(Consumer<Console> r) {
+  private static String printed(Consumer<Screen> r) {
     ByteArrayOutputStream buf = new ByteArrayOutputStream();
-    r.accept(new Console(new PrintStream(buf, true, StandardCharsets.UTF_8)));
+    PrintStream out = new PrintStream(buf, true, StandardCharsets.UTF_8);
+    r.accept(new Screen(new Console(out, out, false)));
     return buf.toString(StandardCharsets.UTF_8);
   }
 }

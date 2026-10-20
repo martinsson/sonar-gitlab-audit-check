@@ -1,17 +1,15 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -76,35 +74,32 @@ public class GocdExtract implements Callable<Integer> {
   @Option(names = "--insecure", description = "Accepte un certificat auto-signé")
   boolean insecure;
 
-  private final Clock clock;
-  private final ZoneId zone;
+  private final Host host;
 
-  public GocdExtract() {
-    this(Clock.systemUTC(), ZoneId.systemDefault());
-  }
-
-  /** La date de départ vient de {@code clock}, les dates écrites sont dans {@code zone}. */
-  GocdExtract(Clock clock, ZoneId zone) {
-    this.clock = clock;
-    this.zone = zone;
+  /**
+   * La date de départ vient de l'horloge de {@code host}, les dates écrites sont dans son fuseau.
+   */
+  GocdExtract(Host host) {
+    this.host = host;
   }
 
   public static void main(String[] args) {
-    ConsoleOut.install();
-    System.exit(new CommandLine(new GocdExtract()).execute(args));
+    Host host = Host.system();
+    System.exit(host.commandLine(new GocdExtract(host)).execute(args));
   }
 
   @Override
   public Integer call() throws IOException {
-    PrintStream err = System.err;
+    PrintStream err = host.err();
+    Clock clock = host.clock();
     try {
-      Gocd gocd = Gocd.connect(url, token, insecure, err);
+      Gocd gocd = Gocd.connect(url, token, insecure, err, host.sleeper());
       Selection selection = Selection.resolve(gocd, pipelines, groups, err);
       if (selection.pipelines().isEmpty()) {
         throw new Stop("aucun pipeline : donner --pipeline ou --group");
       }
       Extraction.Settings settings =
-          new Extraction.Settings(outDir, comma, !noRaw, maxUpstream, durations, zone);
+          new Extraction.Settings(outDir, comma, !noRaw, maxUpstream, durations, clock.getZone());
       new Extraction(gocd, selection, settings, err)
           .run(clock.instant().minus(Duration.ofDays(days)));
       err.println(gocd.calls() + " requêtes GET.");

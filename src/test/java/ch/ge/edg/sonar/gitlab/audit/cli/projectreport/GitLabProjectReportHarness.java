@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.API;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.json;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
@@ -45,7 +44,6 @@ abstract class GitLabProjectReportHarness {
     server.close();
     Locale.setDefault(locale);
     TimeZone.setDefault(zone);
-    ConsoleOut.colorMode("never");
   }
 
   String projectRoute() {
@@ -87,12 +85,7 @@ abstract class GitLabProjectReportHarness {
     args.addAll(List.of(extra));
     if (!args.contains("--token")) args.addAll(List.of("--token", "glpat-test"));
     if (!args.contains("--color")) args.addAll(List.of("--color", "never"));
-    return Cli.run(command(), args.toArray(String[]::new));
-  }
-
-  /** The command under test, on the fixture's clock. */
-  GitLabProjectReport command() {
-    return new GitLabProjectReport(fx.clock());
+    return Cli.run(fx.clock(), GitLabProjectReport::new, args.toArray(String[]::new));
   }
 
   /** The output with the dates that move with the clock replaced by names. */

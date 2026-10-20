@@ -20,20 +20,22 @@ import com.fasterxml.jackson.databind.JsonNode;
  */
 final class Churn {
 
-  private final AuditContext ctx;
+  private final Gitlab gl;
+  private final Funnel funnel;
   private long lines;
   private int counted;
 
-  private Churn(AuditContext ctx) {
-    this.ctx = ctx;
+  private Churn(Gitlab gl, Funnel funnel) {
+    this.gl = gl;
+    this.funnel = funnel;
   }
 
-  static void measure(AuditContext ctx, Proj p, Prat r) {
-    new Churn(ctx).run(p, r);
+  static void measure(Gitlab gl, Funnel funnel, Proj p, Prat r) {
+    new Churn(gl, funnel).run(p, r);
   }
 
   private void run(Proj p, Prat r) {
-    CommitPager.Walk w = new CommitPager(ctx).walk(p, true, CommitPager.each(this::add));
+    CommitPager.Walk w = new CommitPager(gl, funnel).walk(p, true, CommitPager.each(this::add));
     // Illisible n'est pas « aucune ligne » : la colonne reste vide.
     if (!w.ok()) return;
     r.churnTruncated = w.truncated();
@@ -42,7 +44,7 @@ final class Churn {
   }
 
   private void add(JsonNode c) {
-    if (Gitlab.isBot(ctx.bots(), text(c, "author_email"), text(c, "author_name"))) return;
+    if (Gitlab.isBot(funnel.bots(), text(c, "author_email"), text(c, "author_name"))) return;
     if (Gitlab.isMerge(c)) return;
     JsonNode st = c.path("stats");
     if (st.isMissingNode()) return;

@@ -8,10 +8,8 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.ProjectMapperFixtures.writ
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import java.nio.file.Path;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -20,14 +18,9 @@ class ProjectMapperOptionsCliTest {
 
   @TempDir Path dir;
 
-  @AfterEach
-  void noColours() {
-    ConsoleOut.colorMode("never");
-  }
-
   @Test
   void help_lists_every_option_and_the_footer() {
-    Cli.Result r = Cli.run(new ProjectMapper(), "--help");
+    Cli.Result r = Cli.run(ProjectMapper::new, "--help");
 
     assertThat(r.exitCode()).isZero();
     expectSelfie(r.out()).toMatchDisk();
@@ -42,7 +35,7 @@ class ProjectMapperOptionsCliTest {
 
     Cli.Result r =
         Cli.run(
-            new ProjectMapper(),
+            ProjectMapper::new,
             "--color",
             "always",
             "--left",

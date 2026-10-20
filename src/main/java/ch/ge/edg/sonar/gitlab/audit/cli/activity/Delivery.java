@@ -14,38 +14,40 @@ import java.util.Map;
  */
 final class Delivery {
 
-  private final AuditContext ctx;
+  private final Gitlab gl;
+  private final Counters counters;
+  private final Funnel funnel;
 
-  Delivery(AuditContext ctx) {
-    this.ctx = ctx;
+  Delivery(Gitlab gl, Counters counters, Funnel funnel) {
+    this.gl = gl;
+    this.counters = counters;
+    this.funnel = funnel;
   }
 
   void measure(Proj p, Prat r) {
-    Gitlab.Response env =
-        ctx.gl().get("projects/" + p.id + "/environments", Map.of("per_page", "1"));
+    Gitlab.Response env = gl.get("projects/" + p.id + "/environments", Map.of("per_page", "1"));
     Integer environments = null;
     if (env.status() == 200) {
       Integer t = env.intHeader("x-total");
       environments = t != null ? t : env.json().size();
       r.environments = environments;
     }
-    if (!ctx.counters().enterprise || (environments != null && environments == 0)) return;
+    if (!counters.enterprise || (environments != null && environments == 0)) return;
     dora(p, r);
   }
 
   /** La fréquence de déploiement sur la fenêtre, ou le constat qu'elle n'est pas disponible. */
   private void dora(Proj p, Prat r) {
     Gitlab.Response df =
-        ctx.gl()
-            .get(
-                "projects/" + p.id + "/dora/metrics",
-                params(
-                    "metric",
-                    "deployment_frequency",
-                    "start_date",
-                    iso(ctx.windowStart()).substring(0, 10),
-                    "interval",
-                    "monthly"));
+        gl.get(
+            "projects/" + p.id + "/dora/metrics",
+            params(
+                "metric",
+                "deployment_frequency",
+                "start_date",
+                iso(funnel.windowStart()).substring(0, 10),
+                "interval",
+                "monthly"));
     if (df.status() == 200 && df.json().isArray()) {
       double sum = 0;
       for (JsonNode d : df.json()) sum += d.path("value").asDouble(0);

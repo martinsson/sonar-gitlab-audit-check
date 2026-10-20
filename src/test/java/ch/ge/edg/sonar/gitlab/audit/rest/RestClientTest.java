@@ -24,7 +24,8 @@ class RestClientTest {
   private final PrintStream err = new PrintStream(errBytes, true, StandardCharsets.UTF_8);
 
   private RestClient client(String base, Map<String, String> headers) throws IOException {
-    return new RestClient(RestClient.Settings.of(base, headers, false), err, waits::add);
+    return new RestClient(
+        RestClient.Settings.of(base, headers, false), err, pause -> waits.add(pause.toSeconds()));
   }
 
   @Test
@@ -67,7 +68,9 @@ class RestClientTest {
       Path dumps = dir.resolve("dumps");
       RestClient c =
           new RestClient(
-              new RestClient.Settings(jira.url(), Map.of(), 5, false, dumps), err, waits::add);
+              new RestClient.Settings(jira.url(), Map.of(), 5, false, dumps),
+              err,
+              pause -> waits.add(pause.toSeconds()));
       c.get("/rest/api/2/serverInfo");
       try (var files = Files.list(dumps)) {
         Path only = files.toList().get(0);
@@ -84,7 +87,9 @@ class RestClientTest {
       Path dumps = dir.resolve("gone");
       RestClient c =
           new RestClient(
-              new RestClient.Settings(jira.url(), Map.of(), 5, false, dumps), err, waits::add);
+              new RestClient.Settings(jira.url(), Map.of(), 5, false, dumps),
+              err,
+              pause -> waits.add(pause.toSeconds()));
       Files.delete(dumps);
       assertThat(c.get("/x").ok()).isTrue();
       assertThat(errBytes.toString(StandardCharsets.UTF_8)).contains("capture non écrite");
@@ -94,7 +99,10 @@ class RestClientTest {
   @Test
   void insecure_builds_a_client_that_trusts_any_certificate() throws IOException {
     RestClient c =
-        new RestClient(RestClient.Settings.of("https://self-signed.invalid", Map.of(), true), err);
+        new RestClient(
+            RestClient.Settings.of("https://self-signed.invalid", Map.of(), true),
+            err,
+            pause -> {});
     assertThat(c.base()).isEqualTo("https://self-signed.invalid");
   }
 }

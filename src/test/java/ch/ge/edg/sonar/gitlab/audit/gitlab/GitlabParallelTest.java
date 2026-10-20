@@ -17,7 +17,7 @@ class GitlabParallelTest {
 
   @BeforeEach
   void create() throws Exception {
-    gl = new Gitlab("http://127.0.0.1:1", "t", 1, false, null);
+    gl = GitlabStreams.quiet(new Gitlab.Connection("http://127.0.0.1:1", "t", 1, false, null));
   }
 
   private static List<Integer> upTo(int n) {

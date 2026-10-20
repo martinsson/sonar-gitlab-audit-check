@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
@@ -7,6 +8,7 @@ import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.security.GeneralSecurityException;
@@ -26,7 +28,11 @@ final class Access {
   private Access() {}
 
   public static Gitlab gitlab(
-      @Nullable String url, @Nullable String token, boolean insecure, PrintStream err)
+      @Nullable String url,
+      @Nullable String token,
+      boolean insecure,
+      Console console,
+      Sleeper sleeper)
       throws Stop, IOException, GeneralSecurityException {
     Gitlab.Connection c =
         new Gitlab.Connection(
@@ -35,26 +41,35 @@ final class Access {
             TIMEOUT_SECONDS,
             insecure,
             null);
-    return new Gitlab(c, err, err);
+    return new Gitlab(c, new GitlabWarnings(console), sleeper);
   }
 
   public static JiraApi jira(
-      @Nullable String url, @Nullable String token, boolean insecure, PrintStream err)
+      @Nullable String url,
+      @Nullable String token,
+      boolean insecure,
+      PrintStream err,
+      Sleeper sleeper)
       throws Stop, IOException {
     Map<String, String> headers =
         new HashMap<>(AuthHeaders.bearer(Stop.require(token, "JIRA_TOKEN")));
     headers.put("Accept", "application/json");
     return new JiraApi(
-        new RestClient(Settings.of(Stop.require(url, "JIRA_URL"), headers, insecure), err));
+        new RestClient(
+            Settings.of(Stop.require(url, "JIRA_URL"), headers, insecure), err, sleeper));
   }
 
   /** Une URL GoCD donnée avec ou sans « /go » final : les chemins d'API le remettent. */
   public static GocdApi gocd(
-      @Nullable String url, @Nullable String token, boolean insecure, PrintStream err)
+      @Nullable String url,
+      @Nullable String token,
+      boolean insecure,
+      PrintStream err,
+      Sleeper sleeper)
       throws Stop, IOException {
     String base = Stop.require(url, "GOCD_URL").replaceAll("/+$", "").replaceFirst("/go$", "");
     Map<String, String> headers = AuthHeaders.bearer(Stop.require(token, "GOCD_TOKEN"));
-    return new GocdApi(new RestClient(Settings.of(base, headers, insecure), err));
+    return new GocdApi(new RestClient(Settings.of(base, headers, insecure), err, sleeper));
   }
 
   /** Une réponse Jira ou GoCD, telle quelle sauf un 401. */

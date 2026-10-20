@@ -24,7 +24,9 @@ class IssuePagesTest {
 
   private static JiraSource source(FakeHttpServer jira) throws IOException {
     return new JiraSource(
-        new JiraApi(new RestClient(RestClient.Settings.of(jira.url(), Map.of(), false), QUIET)));
+        new JiraApi(
+            new RestClient(
+                RestClient.Settings.of(jira.url(), Map.of(), false), QUIET, pause -> {})));
   }
 
   @Test

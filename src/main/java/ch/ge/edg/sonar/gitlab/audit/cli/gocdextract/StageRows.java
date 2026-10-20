@@ -20,20 +20,20 @@ import org.jspecify.annotations.Nullable;
  */
 final class StageRows {
 
-  static final String[] HEADER = {
-    "pipeline",
-    "compteur",
-    "stage",
-    "compteur_stage",
-    "plateforme_supposee",
-    "lance",
-    "resultat",
-    "approbation",
-    "relance",
-    "debut_le",
-    "fin_le",
-    "duree_min"
-  };
+  static final List<String> HEADER =
+      List.of(
+          "pipeline",
+          "compteur",
+          "stage",
+          "compteur_stage",
+          "plateforme_supposee",
+          "lance",
+          "resultat",
+          "approbation",
+          "relance",
+          "debut_le",
+          "fin_le",
+          "duree_min");
 
   private final Gocd gocd;
   private final boolean durations;

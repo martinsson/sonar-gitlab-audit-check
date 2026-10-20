@@ -12,10 +12,12 @@ import java.util.function.Consumer;
 /** Les commits de la branche par défaut sur la fenêtre, lus en REST. */
 final class CommitPager {
 
-  private final AuditContext ctx;
+  private final Gitlab gl;
+  private final Funnel funnel;
 
-  CommitPager(AuditContext ctx) {
-    this.ctx = ctx;
+  CommitPager(Gitlab gl, Funnel funnel) {
+    this.gl = gl;
+    this.funnel = funnel;
   }
 
   /** L'issue d'une pagination : lue jusqu'au bout, plafonnée, ou interrompue sur un statut. */
@@ -23,9 +25,9 @@ final class CommitPager {
 
   /** Compte sans pagination quand X-Total est là ; sinon pagine. */
   int count(Proj p) {
-    String since = iso(ctx.windowStart());
+    String since = iso(funnel.windowStart());
     Gitlab.Response r =
-        ctx.gl().get(path(p), params("ref_name", p.defaultBranch, "since", since, "per_page", "1"));
+        gl.get(path(p), params("ref_name", p.defaultBranch, "since", since, "per_page", "1"));
     if (r.status() != 200) return 0;
     Integer total = r.intHeader("x-total");
     if (total != null) return total;
@@ -34,8 +36,7 @@ final class CommitPager {
     // manquant comme un 0 — c'est exactement la confusion « absent = zéro »
     // qui a déjà coûté cher côté Sonar.
     Gitlab.Response full =
-        ctx.gl()
-            .get(path(p), params("ref_name", p.defaultBranch, "since", since, "per_page", "100"));
+        gl.get(path(p), params("ref_name", p.defaultBranch, "since", since, "per_page", "100"));
     return full.status() == 200 && full.json().isArray() ? full.json().size() : 0;
   }
 
@@ -45,7 +46,7 @@ final class CommitPager {
    * bruts.
    */
   void measure(Proj p) {
-    CommitTally tally = new CommitTally(ctx.windowStart(), ctx.bots());
+    CommitTally tally = new CommitTally(funnel.windowStart(), funnel.bots());
     Walk w =
         walk(
             p,
@@ -76,11 +77,10 @@ final class CommitPager {
    * marque le résultat tronqué. Le premier statut autre que 200 arrête tout.
    */
   Walk walk(Proj p, boolean withStats, PageVisitor visitor) {
-    int max = ctx.funnel().maxCommitPages;
+    int max = funnel.options().maxCommitPages;
     boolean truncated = false;
     for (int page = 1; page <= max; page++) {
-      Gitlab.Response r =
-          ctx.gl().get(path(p), Api.commitPage(p, ctx.windowStart(), page, withStats));
+      Gitlab.Response r = gl.get(path(p), Api.commitPage(p, funnel.windowStart(), page, withStats));
       if (r.status() != 200) return new Walk(false, r.status(), truncated);
       JsonNode arr = r.json();
       if (!arr.isArray() || arr.isEmpty()) break;

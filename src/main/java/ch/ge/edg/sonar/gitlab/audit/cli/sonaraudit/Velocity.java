@@ -6,6 +6,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.HistoryPoint;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
@@ -32,15 +33,15 @@ record Velocity(long deltaNcloc, long deltaDebt, long spanDays, String from, Str
    * confusion absent / zéro que ce dépôt documente partout ailleurs, et elle devient dangereuse le
    * jour où ce calcul alimente une colonne de CSV plutôt qu'une ligne de console.
    */
-  static @Nullable Velocity of(List<HistoryPoint> ncloc, List<HistoryPoint> debt) {
+  static @Nullable Velocity of(List<HistoryPoint> ncloc, List<HistoryPoint> debt, ZoneId zone) {
     Long dNcloc = delta(ncloc);
     Long dDebt = delta(debt);
     if (dNcloc == null || dDebt == null) return null;
 
     String first = ncloc.get(0).date();
     String last = ncloc.get(ncloc.size() - 1).date();
-    LocalDateTime from = parseDate(first);
-    LocalDateTime to = parseDate(last);
+    LocalDateTime from = parseDate(first, zone);
+    LocalDateTime to = parseDate(last, zone);
     long span = (from == null || to == null) ? 0 : ChronoUnit.DAYS.between(from, to);
     return new Velocity(dNcloc, dDebt, span, orEmpty(first), orEmpty(last));
   }

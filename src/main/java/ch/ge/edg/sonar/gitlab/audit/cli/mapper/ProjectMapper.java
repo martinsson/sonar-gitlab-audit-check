@@ -1,18 +1,18 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.NamespaceMappingOption;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Evaluation;
 import ch.ge.edg.sonar.gitlab.audit.matching.KeyMethod;
-import ch.ge.edg.sonar.gitlab.audit.matching.Keys;
 import ch.ge.edg.sonar.gitlab.audit.matching.Kind;
 import ch.ge.edg.sonar.gitlab.audit.matching.MappingFile;
 import ch.ge.edg.sonar.gitlab.audit.matching.NameSpec;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report;
 import ch.ge.edg.sonar.gitlab.audit.matching.Result;
 import ch.ge.edg.sonar.gitlab.audit.matching.Spec;
-import ch.ge.edg.sonar.gitlab.audit.matching.report.ReportPrinter;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.matching.report.MappingFilePrinter;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -102,6 +102,8 @@ public class ProjectMapper implements Callable<Integer> {
 
   @Mixin NameOptions nameOptions = new NameOptions();
 
+  @Mixin NamespaceMappingOption namespaceMapping = new NamespaceMappingOption();
+
   @Option(names = "--out", description = "CSV d'appariement, une ligne par ligne de gauche")
   @Nullable Path out;
 
@@ -131,24 +133,23 @@ public class ProjectMapper implements Callable<Integer> {
       description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
   String colorMode = "auto";
 
-  private static final String BOLD = "\033[1m";
-  private static final String DIM = "\033[2m";
+  private final Host host;
 
-  static {
-    // Le mapping namespace-mapping.yaml du répertoire de travail se charge — et prévient s'il
-    // manque — au chargement de la commande, avant qu'elle n'écrive quoi que ce soit.
-    Keys.namespaces();
+  ProjectMapper(Host host) {
+    this.host = host;
   }
 
   public static void main(String[] args) {
-    ConsoleOut.install();
-    System.exit(new CommandLine(new ProjectMapper()).execute(args));
+    Host host = Host.system();
+    System.exit(host.commandLine(new ProjectMapper(host)).execute(args));
   }
 
   @Override
   public Integer call() throws Exception {
-    PrintStream console = System.out;
-    ConsoleOut.colorMode(colorMode);
+    Console console = host.console(colorMode);
+    // Le mapping namespace-mapping.yaml du répertoire de travail se lit — et prévient s'il
+    // manque — avant que la commande n'écrive quoi que ce soit.
+    namespaceMapping.load(host.workDir(), console.err());
     Spec spec = spec();
     // picocli refuse la ligne de commande sans --left ni --right : jamais null ici.
     Path leftFile = Objects.requireNonNull(leftCsv);
@@ -158,26 +159,22 @@ public class ProjectMapper implements Callable<Integer> {
     left.require(leftFile, "--left", spec.leftKey());
     right.require(rightFile, "--right", spec.rightKey());
 
-    console.println(ConsoleOut.color("\nAppariement", BOLD));
-    console.printf("  Gauche : %d lignes (%s)%n", left.rows().size(), leftFile);
-    console.printf("  Droite : %d lignes (%s)%n", right.rows().size(), rightFile);
+    MapperReport screen = new MapperReport(console);
+    screen.inputs(left, leftFile, right, rightFile);
 
     Path mapping = out;
     Result r =
-        MappingFile.mapAndKeep(
-            spec,
-            left,
-            right,
-            mapping == null ? null : new MappingFile(mapping, comma, recompute),
-            console);
+        mapping == null
+            ? MappingFile.map(spec, left, right)
+            : MappingFilePrinter.mapAndKeep(
+                spec, left, right, new MappingFile(mapping, comma, recompute), console);
     Report rep = Evaluation.evaluate(r, examples);
-    new ReportPrinter(console).print(rep);
-
-    if (mapping != null) console.println(ConsoleOut.color(Csv.openingHint(mapping, comma), DIM));
+    screen.evaluation(rep);
+    if (mapping != null) screen.openingHint(mapping, comma);
     Path json = report;
     if (json != null) {
       rep.writeTo(json);
-      console.printf("  Rapport     : %s%n", json.toAbsolutePath());
+      screen.reportWritten(json);
     }
     return 0;
   }
@@ -204,22 +201,22 @@ public class ProjectMapper implements Callable<Integer> {
   }
 
   /** Une méthode de la ligne de commande ; illisible, l'erreur de saisie de picocli. */
-  static KeyMethod method(String s, Kind kind) {
+  KeyMethod method(String s, Kind kind) {
     try {
       return KeyMethod.parse(s, kind);
     } catch (IllegalArgumentException e) {
       throw new CommandLine.ParameterException(
-          new CommandLine(new ProjectMapper()), e.getMessage(), e);
+          host.commandLine(new ProjectMapper(host)), e.getMessage(), e);
     }
   }
 
   /** --names ; illisible, l'erreur de saisie de picocli. */
-  static NameSpec nameSpec(String s, boolean pathLike) {
+  NameSpec nameSpec(String s, boolean pathLike) {
     try {
       return NameSpec.parse(s, pathLike);
     } catch (IllegalArgumentException e) {
       throw new CommandLine.ParameterException(
-          new CommandLine(new ProjectMapper()), e.getMessage(), e);
+          host.commandLine(new ProjectMapper(host)), e.getMessage(), e);
     }
   }
 

@@ -42,7 +42,7 @@ class LocaleSuspectedBugsTest {
         StandardCharsets.UTF_8);
     Path out = dir.resolve("classement.csv");
     String[] args = {"--in", in.toString(), "--out", out.toString(), "--color", "never"};
-    Cli.Result r = Cli.run(new SonarRank(), args);
+    Cli.Result r = Cli.run(SonarRank::new, args);
 
     assertThat(r.exitCode()).isZero();
     assertThat(Files.readString(out, StandardCharsets.UTF_8)).containsPattern("\";\"\\d+,\\d\";\"");

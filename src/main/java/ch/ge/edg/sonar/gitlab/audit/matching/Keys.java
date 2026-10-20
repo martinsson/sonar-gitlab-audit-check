@@ -8,12 +8,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 
-/**
- * Clés Sonar, chemins GitLab et liens de dépôt ramenés à une forme comparable des deux côtés.
- *
- * <p>Le premier usage de cette classe charge {@value NamespaceMapping#DEFAULT_FILE} depuis le
- * répertoire de travail, une fois par JVM, et prévient sur la sortie d'erreur s'il manque.
- */
+/** Clés Sonar, chemins GitLab et liens de dépôt ramenés à une forme comparable des deux côtés. */
 public final class Keys {
 
   private static final Pattern SLASH = Pattern.compile("/");
@@ -23,15 +18,7 @@ public final class Keys {
   private static final Pattern DIGITS = Pattern.compile("\\d+");
   private static final Pattern KEY_PREFIX = Pattern.compile("^[A-Za-z0-9]+[._/-]");
 
-  private static final NamespaceMapping NAMESPACES =
-      NamespaceMapping.load(NamespaceMapping.DEFAULT_FILE, System.err);
-
   private Keys() {}
-
-  /** Le mapping lu dans le répertoire de travail au chargement de la classe. */
-  public static NamespaceMapping namespaces() {
-    return NAMESPACES;
-  }
 
   /**
    * Les clés s'écrivent {@code groupe:projet}, {@code groupe_projet} ou {@code groupe-projet} selon
@@ -106,11 +93,6 @@ public final class Keys {
 
     // Nom court = dernier segment, sans numéro de ticket en début
     return normalise(stripTicketNumber(parts[parts.length - 1]));
-  }
-
-  /** Les variantes de {@link NamespaceMapping#mappedGitlabPaths}, avec le mapping par défaut. */
-  public static List<String> mappedGitlabPaths(@Nullable String gitlabPath) {
-    return NAMESPACES.mappedGitlabPaths(gitlabPath);
   }
 
   /**

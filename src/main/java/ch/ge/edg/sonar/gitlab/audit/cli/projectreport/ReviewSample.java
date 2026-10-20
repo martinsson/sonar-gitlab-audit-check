@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.c;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.time.LocalDateTime;
@@ -24,16 +23,18 @@ final class ReviewSample {
   private final Report report;
   private final ProjectApi api;
   private final int sample;
+  private final Dates dates;
 
   private final List<Long> latencies = new ArrayList<>();
   private int unreviewed;
   private int measured;
   private @Nullable String error;
 
-  ReviewSample(Report report, ProjectApi api, int sample) {
+  ReviewSample(Report report, ProjectApi api, int sample, Dates dates) {
     this.report = report;
     this.api = api;
     this.sample = sample;
+    this.dates = dates;
   }
 
   void measure(Project p, List<MergeRequest> merged) {
@@ -59,10 +60,10 @@ final class ReviewSample {
     Optional<LocalDateTime> first =
         f.items().stream()
             .filter(n -> n.isThirdPartyReview(m.authorUsername()))
-            .map(n -> Dates.parseLocal(n.createdAt()))
+            .map(n -> dates.parseLocal(n.createdAt()))
             .filter(Objects::nonNull)
             .min(Comparator.naturalOrder());
-    LocalDateTime created = Dates.parseLocal(m.createdAt());
+    LocalDateTime created = dates.parseLocal(m.createdAt());
     if (first.isEmpty()) unreviewed++;
     else if (created != null)
       latencies.add(Math.max(0, ChronoUnit.HOURS.between(created, first.get())));
@@ -85,7 +86,7 @@ final class ReviewSample {
             .formatted(
                 unreviewed,
                 100.0 * unreviewed / measured,
-                c("— aucun commentaire d'un tiers", DIM)));
+                report.c("— aucun commentaire d'un tiers", DIM)));
     if (latencies.isEmpty()) return;
     Collections.sort(latencies);
     report.println(

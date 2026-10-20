@@ -42,7 +42,7 @@ class LocaleSuspectedBugsTest {
       "--out", dir.resolve("croisement.csv").toString(),
       "--color", "never"
     };
-    Cli.Result r = Cli.run(new CrossAudit(), args);
+    Cli.Result r = Cli.run(CrossAudit::new, args);
 
     assertThat(r.out()).contains("team-a/alpha-service — +18,0 issues / kLOC modifié");
   }

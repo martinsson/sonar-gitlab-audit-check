@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.c;
 
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
@@ -21,12 +20,12 @@ final class CadenceSection {
 
   private final Report report;
   private final Settings settings;
-  private final LocalDateTime now;
+  private final Dates dates;
 
-  CadenceSection(Report report, Settings settings, LocalDateTime now) {
+  CadenceSection(Report report, Settings settings, Dates dates) {
     this.report = report;
     this.settings = settings;
-    this.now = now;
+    this.dates = dates;
   }
 
   Cadence measure(Commits commits) {
@@ -35,16 +34,16 @@ final class CadenceSection {
     List<Commit> real = ordinaryCommits(commits);
     if (real.isEmpty()) return Cadence.EMPTY;
 
-    List<LocalDateTime> dates =
+    List<LocalDateTime> committed =
         real.stream()
-            .map(x -> Dates.parseLocal(x.committedDate()))
+            .map(x -> dates.parseLocal(x.committedDate()))
             .filter(Objects::nonNull)
             .sorted()
             .toList();
-    long activeDays = dates.stream().map(LocalDateTime::toLocalDate).distinct().count();
+    long activeDays = committed.stream().map(LocalDateTime::toLocalDate).distinct().count();
 
-    rhythm(commits, real.size(), dates, activeDays);
-    gaps(dates);
+    rhythm(commits, real.size(), committed, activeDays);
+    gaps(committed);
     double weekendShare = weekly(real);
     double bigShare = volumes(real);
     return new Cadence(
@@ -52,7 +51,7 @@ final class CadenceSection {
         activeDays,
         bigShare,
         weekendShare,
-        dates.isEmpty() ? null : dates.get(dates.size() - 1));
+        committed.isEmpty() ? null : committed.get(committed.size() - 1));
   }
 
   /** Les commits humains hors fusions ; vide, avec la raison imprimée, quand il n'y a rien. */
@@ -96,28 +95,28 @@ final class CadenceSection {
     // une mesure.
     double observed = settings.days();
     if (commits.truncated() && !dates.isEmpty()) {
-      observed = Math.max(1, ChronoUnit.DAYS.between(dates.get(0), now));
+      observed = Math.max(1, ChronoUnit.DAYS.between(dates.get(0), this.dates.now()));
     }
     double weeks = Math.max(1.0, observed / 7.0);
     int merges = commits.humans().size() - real;
 
     report.println(
         "  Commits (hors bots)             : %s"
-            .formatted(c(String.valueOf(commits.humans().size()), BOLD)));
+            .formatted(report.c(String.valueOf(commits.humans().size()), BOLD)));
     if (!commits.bots().isEmpty()) {
       report.println("  Commits de bots écartés         : %d".formatted(commits.bots().size()));
     }
     if (merges > 0) {
       report.println(
           "  dont commits de fusion          : %d %s"
-              .formatted(merges, c("(écartés de toutes les mesures ci-dessous)", DIM)));
+              .formatted(merges, report.c("(écartés de toutes les mesures ci-dessous)", DIM)));
     }
     report.println(
         "  Rythme                          : %.1f commits / semaine%s"
             .formatted(
                 real / weeks,
                 commits.truncated()
-                    ? c("   (sur les %.0f j couverts)".formatted(observed), DIM)
+                    ? report.c("   (sur les %.0f j couverts)".formatted(observed), DIM)
                     : ""));
     report.println(
         "  Jours avec au moins un commit   : %d sur %.0f".formatted(activeDays, observed));
@@ -206,7 +205,8 @@ final class CadenceSection {
         "  9e décile                       : %.0f lignes".formatted(Format.percentile(sizes, 90)));
     report.println(
         "  Commits > %d lignes           : %d (%.0f %%) %s"
-            .formatted(BIG_COMMIT, big, bigShare, c("— imports, code généré, vendoring ?", DIM)));
+            .formatted(
+                BIG_COMMIT, big, bigShare, report.c("— imports, code généré, vendoring ?", DIM)));
     report.println(
         "  Lignes touchées / lignes nettes : %s".formatted(Format.rework(added, deleted)));
     report.println(

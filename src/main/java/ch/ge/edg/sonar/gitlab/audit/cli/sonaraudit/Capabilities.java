@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.size;
@@ -19,7 +18,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.QualityProfiles;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ScmResponse;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SettingsValues;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 
@@ -27,7 +26,7 @@ import org.jspecify.annotations.Nullable;
 final class Capabilities {
 
   private final Session session;
-  private final PrintStream out;
+  private final Console out;
   private final Metrics metrics;
 
   Capabilities(Session session, Metrics metrics) {
@@ -40,10 +39,11 @@ final class Capabilities {
     Presentation.title(out, "2. Capacités du token sur les endpoints utiles");
     if (sample == null) {
       out.println(
-          c("  Aucun projet visible : " + "impossible de tester les endpoints projet.", YELLOW));
+          out.color(
+              "  Aucun projet visible : " + "impossible de tester les endpoints projet.", YELLOW));
       return;
     }
-    out.println("  Projet témoin : " + c(sample, DIM) + "\n");
+    out.println("  Projet témoin : " + out.color(sample, DIM) + "\n");
     measureProbes(sample).forEach(p -> p.run(session));
     governanceProbes(sample).forEach(p -> p.run(session));
     repositoryProbes(sample).forEach(p -> p.run(session));

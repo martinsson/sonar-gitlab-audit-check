@@ -96,7 +96,7 @@ class VuesCliTest {
   void writes_three_excel_views_and_summarizes_them() throws IOException {
     Path in = writeInput("croisement.csv", csv(fullHeader(), sampleRows()));
 
-    Cli.Result r = Cli.run(new Vues(), "--in", in.toString(), "--color", "never");
+    Cli.Result r = Cli.run(Vues::new, "--in", in.toString(), "--color", "never");
 
     assertThat(r.exitCode()).isZero();
     assertThat(r.err()).isEmpty();
@@ -121,7 +121,7 @@ class VuesCliTest {
   void drift_view_is_ordered_by_signal_count_then_density_slope() throws IOException {
     Path in = writeInput("croisement.csv", csv(fullHeader(), sampleRows()));
 
-    Cli.run(new Vues(), "--in", in.toString(), "--comma", "--color", "never");
+    Cli.run(Vues::new, "--in", in.toString(), "--comma", "--color", "never");
 
     List<String> firstCells =
         read("croisement-derive.csv").lines().map(l -> l.substring(0, l.indexOf(','))).toList();
@@ -141,7 +141,7 @@ class VuesCliTest {
   void unpaired_view_keeps_active_projects_most_active_first() throws IOException {
     Path in = writeInput("croisement.csv", csv(fullHeader(), sampleRows()));
 
-    Cli.run(new Vues(), "--in", in.toString(), "--comma", "--color", "never");
+    Cli.run(Vues::new, "--in", in.toString(), "--comma", "--color", "never");
 
     assertThat(read("croisement-non-apparies.csv").lines().map(l -> l.split(",", -1)[0]).toList())
         .containsExactly("\"projet\"", "\"team-b/theta\"", "\"team-a/eta\"", "\"team-a/zeta\"");
@@ -151,7 +151,7 @@ class VuesCliTest {
   void comma_mode_writes_plain_csv_without_bom() throws IOException {
     Path in = writeInput("croisement.csv", csv(fullHeader(), sampleRows()));
 
-    Cli.run(new Vues(), "--in", in.toString(), "--comma", "--color", "never");
+    Cli.run(Vues::new, "--in", in.toString(), "--comma", "--color", "never");
 
     expectSelfie(read("croisement-essentiel.csv")).toMatchDisk("essentiel");
     expectSelfie(read("croisement-derive.csv")).toMatchDisk("derive");
@@ -162,7 +162,7 @@ class VuesCliTest {
   void an_older_crossing_without_the_drift_columns_is_read_and_the_gap_said() throws IOException {
     Path in = writeInput("old.csv", "projet;confiance;gl_commits_window\nalpha;exact;3\nbeta;;4\n");
 
-    Cli.Result r = Cli.run(new Vues(), "--in", in.toString(), "--color", "never");
+    Cli.Result r = Cli.run(Vues::new, "--in", in.toString(), "--color", "never");
 
     assertThat(r.exitCode()).isZero();
     expectSelfie(normalized(r.out())).toMatchDisk("stdout");
@@ -175,7 +175,7 @@ class VuesCliTest {
   void colors_wrap_the_hints_when_asked() throws IOException {
     Path in = writeInput("old.csv", "projet,confiance\nalpha,exact\n");
 
-    Cli.Result r = Cli.run(new Vues(), "--in", in.toString(), "--color", "always");
+    Cli.Result r = Cli.run(Vues::new, "--in", in.toString(), "--color", "always");
 
     assertThat(r.out())
         .contains("\033[2m    Triée par nombre de signaux")
@@ -187,7 +187,7 @@ class VuesCliTest {
   void a_file_without_the_crossing_columns_is_refused() throws IOException {
     Path in = writeInput("wrong.csv", "key,name\nalpha,Alpha\n");
 
-    Cli.Result r = Cli.run(new Vues(), "--in", in.toString(), "--color", "never");
+    Cli.Result r = Cli.run(Vues::new, "--in", in.toString(), "--color", "never");
 
     assertThat(r.exitCode()).isEqualTo(1);
     assertThat(r.out()).isEmpty();
@@ -197,7 +197,7 @@ class VuesCliTest {
 
   @Test
   void the_input_option_is_required() {
-    Cli.Result r = Cli.run(new Vues());
+    Cli.Result r = Cli.run(Vues::new);
 
     assertThat(r.exitCode()).isEqualTo(2);
     assertThat(r.err()).contains("Missing required option: '--in=<in>'");

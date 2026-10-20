@@ -7,6 +7,7 @@ import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -21,9 +22,9 @@ final class Output implements AutoCloseable {
     private final CSVWriter w;
     private int rows;
 
-    Table(Path path, boolean comma, String[] header) throws IOException {
+    Table(Path path, boolean comma, List<String> header) throws IOException {
       w = Csv.writer(path, comma);
-      w.writeNext(header);
+      w.writeNext(header.toArray(String[]::new));
     }
 
     void row(String[] cells) {

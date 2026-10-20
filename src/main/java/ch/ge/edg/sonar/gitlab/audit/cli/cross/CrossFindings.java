@@ -4,9 +4,8 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.num;
 import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.nz;
 import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.orZero;
 import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.perKlocChanged;
-import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossReport.c;
 
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -15,9 +14,9 @@ import java.util.function.Function;
 /** Ce que ni l'un ni l'autre ne pouvait dire seul : les constats de {@link CrossAudit}. */
 final class CrossFindings {
 
-  private final PrintStream out;
+  private final Console out;
 
-  CrossFindings(PrintStream out) {
+  CrossFindings(Console out) {
     this.out = out;
   }
 
@@ -203,12 +202,13 @@ final class CrossFindings {
   private void finding(
       String title, String reading, List<CrossPair> examples, Function<CrossPair, String> line) {
     int n = examples.size();
-    out.printf(
-        "%n  %s : %s%n",
-        title, c(String.valueOf(n), n > 0 ? CrossReport.YELLOW : CrossReport.GREEN));
+    out.out()
+        .printf(
+            "%n  %s : %s%n",
+            title, out.color(String.valueOf(n), n > 0 ? CrossReport.YELLOW : CrossReport.GREEN));
     if (n == 0) return;
-    out.println(c("    " + reading, CrossReport.DIM));
+    out.println(out.color("    " + reading, CrossReport.DIM));
     examples.stream().limit(5).forEach(p -> out.println("      " + line.apply(p)));
-    if (n > 5) out.printf("      … et %d autres, dans le CSV.%n", n - 5);
+    if (n > 5) out.out().printf("      … et %d autres, dans le CSV.%n", n - 5);
   }
 }

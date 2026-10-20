@@ -3,14 +3,12 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.GREEN;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.HashMap;
@@ -52,7 +50,7 @@ final class Trends {
     String metrics = METRICS.stream().filter(supported::supports).collect(Collectors.joining(","));
     if (metrics.isEmpty()) return Map.of();
     String since =
-        LocalDateTime.now(ZoneId.systemDefault())
+        LocalDateTime.now(session.clock())
             .minusDays(activityDays)
             .format(DateTimeFormatter.ISO_LOCAL_DATE);
 
@@ -64,7 +62,7 @@ final class Trends {
       SearchHistory h = read.get(i);
       if (h == null) continue;
       histories.put(projects.get(i).key(), h);
-      byKey.put(projects.get(i).key(), Trend.of(h));
+      byKey.put(projects.get(i).key(), Trend.of(h, session.zone()));
     }
     report(projects.size(), byKey.values());
     return byKey;
@@ -91,20 +89,24 @@ final class Trends {
       else flat++;
     }
     long measured = up + down + flat;
-    PrintStream out = session.out();
+    Console out = session.out();
     out.println();
-    out.printf(
-        "  Tendance des issues/kLOC sur %d j (%d projets mesurables) :%n", activityDays, measured);
-    out.printf(
-        "    en hausse (> +%.0f %%/mois)    : %s%n",
-        Trend.FLAT_PCT, c(String.valueOf(up), up > 0 ? YELLOW : GREEN));
-    out.printf(
-        "    en baisse (< -%.0f %%/mois)    : %s%n",
-        Trend.FLAT_PCT, c(String.valueOf(down), GREEN));
-    out.printf("    stables                      : %d%n", flat);
-    out.printf("    non mesurables               : %d%n", total - measured);
+    out.out()
+        .printf(
+            "  Tendance des issues/kLOC sur %d j (%d projets mesurables) :%n",
+            activityDays, measured);
+    out.out()
+        .printf(
+            "    en hausse (> +%.0f %%/mois)    : %s%n",
+            Trend.FLAT_PCT, out.color(String.valueOf(up), up > 0 ? YELLOW : GREEN));
+    out.out()
+        .printf(
+            "    en baisse (< -%.0f %%/mois)    : %s%n",
+            Trend.FLAT_PCT, out.color(String.valueOf(down), GREEN));
+    out.out().printf("    stables                      : %d%n", flat);
+    out.out().printf("    non mesurables               : %d%n", total - measured);
     out.println(
-        c(
+        out.color(
             ("    (moins de %d analyses ou moins de %d j d'historique dans la "
                     + "fenêtre, ou\n     aucune issue : une pente relative à zéro n'existe pas)")
                 .formatted(Trend.MIN_POINTS, Trend.MIN_SPAN_DAYS),

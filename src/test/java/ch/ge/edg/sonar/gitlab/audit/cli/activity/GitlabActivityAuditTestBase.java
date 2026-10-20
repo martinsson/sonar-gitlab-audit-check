@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -36,7 +35,6 @@ abstract class GitlabActivityAuditTestBase {
   void tearDownBase() {
     fake.close();
     Locale.setDefault(savedLocale);
-    ConsoleOut.colorMode("never");
   }
 
   /** Stdout with the port and temp directory replaced, stderr appended when not empty. */

@@ -64,7 +64,7 @@ final class ProjectMapperFixtures {
   static Cli.Result run(String... args) {
     List<String> all = new ArrayList<>(List.of("--color", "never"));
     all.addAll(List.of(args));
-    return Cli.run(new ProjectMapper(), all.toArray(String[]::new));
+    return Cli.run(ProjectMapper::new, all.toArray(String[]::new));
   }
 
   /** Output with the temporary directory replaced, so that it can be compared across runs. */

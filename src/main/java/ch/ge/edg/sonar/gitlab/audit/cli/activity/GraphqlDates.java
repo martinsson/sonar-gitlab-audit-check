@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.parse;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -21,10 +21,14 @@ final class GraphqlDates {
 
   private static final int BATCH = 50;
 
-  private final AuditContext ctx;
+  private final Gitlab gl;
+  private final Screen con;
+  private final Counters counters;
 
-  GraphqlDates(AuditContext ctx) {
-    this.ctx = ctx;
+  GraphqlDates(Gitlab gl, Screen con, Counters counters) {
+    this.gl = gl;
+    this.con = con;
+    this.counters = counters;
   }
 
   /** Le nombre de projets datés, ou -1 quand GraphQL est indisponible dès le premier lot. */
@@ -32,11 +36,11 @@ final class GraphqlDates {
     int done = 0;
     for (int i = 0; i < fresh.size(); i += BATCH) {
       List<Proj> batch = fresh.subList(i, Math.min(i + BATCH, fresh.size()));
-      ctx.counters().graphqlCalls++;
-      JsonNode data = data(ctx.gl().graphql(query(batch)));
+      counters.graphqlCalls++;
+      JsonNode data = data(gl.graphql(query(batch)));
       if (data == null) {
         if (i == 0) {
-          ctx.con().say("  GraphQL indisponible sur cette instance — repli REST.", DIM);
+          con.say("  GraphQL indisponible sur cette instance — repli REST.", DIM);
           return -1;
         }
         break; // partiel : les projets non datés passeront par REST

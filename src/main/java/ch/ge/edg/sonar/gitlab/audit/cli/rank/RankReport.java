@@ -1,7 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.List;
@@ -17,10 +16,10 @@ final class RankReport {
   public static final String YELLOW = ESC + "[33m";
   public static final String RESET = ESC + "[0m";
 
-  private final PrintStream out;
+  private final Console out;
   private final RankSettings settings;
 
-  RankReport(PrintStream out, RankSettings settings) {
+  RankReport(Console out, RankSettings settings) {
     this.out = out;
     this.settings = settings;
   }
@@ -38,14 +37,15 @@ final class RankReport {
     int active = cohorts.active().size();
     int staleDays = settings.staleDays();
 
-    out.printf("  Projets dans l'inventaire       : %d%n", total);
-    out.printf("  Jamais analysés                 : %s%n", pct(never, total, YELLOW));
-    out.printf("  Analysés, obsolètes (> %d j)    : %s%n", staleDays, pct(stale, total, YELLOW));
-    out.printf("  Actifs (< %d j)                 : %s%n", staleDays, pct(active, total, ""));
+    out.out().printf("  Projets dans l'inventaire       : %d%n", total);
+    out.out().printf("  Jamais analysés                 : %s%n", pct(never, total, YELLOW));
+    out.out()
+        .printf("  Analysés, obsolètes (> %d j)    : %s%n", staleDays, pct(stale, total, YELLOW));
+    out.out().printf("  Actifs (< %d j)                 : %s%n", staleDays, pct(active, total, ""));
 
     coverageBlindSpot(all, cohorts.active());
 
-    out.printf("%n  → Population classable          : %d projets actifs.%n", active);
+    out.out().printf("%n  → Population classable          : %d projets actifs.%n", active);
   }
 
   /** Le point aveugle de tout tri par couverture : ces projets n'y figurent pas. */
@@ -53,10 +53,11 @@ final class RankReport {
     long noCoverageAll = all.stream().filter(r -> r.num("coverage") == null).count();
     long noCoverageActive = active.stream().filter(r -> r.num("coverage") == null).count();
     out.println();
-    out.printf("  Sans donnée de couverture       : %d sur %d%n", noCoverageAll, all.size());
-    out.printf(
-        "    dont projets actifs           : %s%n",
-        pct((int) noCoverageActive, active.size(), RED));
+    out.out().printf("  Sans donnée de couverture       : %d sur %d%n", noCoverageAll, all.size());
+    out.out()
+        .printf(
+            "    dont projets actifs           : %s%n",
+            pct((int) noCoverageActive, active.size(), RED));
     if (noCoverageActive > 0) {
       // Le bloc texte retire l'indentation commune : le décalage de la
       // fermeture est ce qui donne les quatre espaces d'alignement.
@@ -94,39 +95,44 @@ final class RankReport {
       return;
     }
 
-    out.printf("  Projets classés                 : %d%n", ranked.size());
-    out.printf(
-        "  Retenus (décile haut / strate)  : %s%n%n", c(String.valueOf(shortlist.size()), BOLD));
+    out.out().printf("  Projets classés                 : %d%n", ranked.size());
+    out.out()
+        .printf(
+            "  Retenus (décile haut / strate)  : %s%n%n",
+            c(String.valueOf(shortlist.size()), BOLD));
     shortlistTable(shortlist);
     partialNote(ranked);
     exclusions(scored);
   }
 
   private void shortlistTable(List<Scored> shortlist) {
-    out.printf(
-        "  %-4s %-44s %-7s %8s %7s %6s%n", "#", "projet", "strate", "ncloc", "score", "sig.");
+    out.out()
+        .printf(
+            "  %-4s %-44s %-7s %8s %7s %6s%n", "#", "projet", "strate", "ncloc", "score", "sig.");
     int rank = 0;
     for (Scored s : shortlist) {
-      out.printf(
-          "  %-4d %-44s %-7s %8.0f %7.1f %6s%n",
-          ++rank,
-          truncate(s.row.label(), 44),
-          s.bucket.name(),
-          s.row.ncloc(),
-          s.score,
-          s.signalsPresent() + "/4");
+      out.out()
+          .printf(
+              "  %-4d %-44s %-7s %8.0f %7.1f %6s%n",
+              ++rank,
+              truncate(s.row.label(), 44),
+              s.bucket.name(),
+              s.row.ncloc(),
+              s.score,
+              s.signalsPresent() + "/4");
     }
   }
 
   private void partialNote(List<Scored> ranked) {
     long partial = ranked.stream().filter(s -> s.signalsPresent() < Signal.values().length).count();
     if (partial == 0) return;
-    out.printf(
-        "%n  %s%n",
-        c(
-            ("%d des %d projets classés le sont sur un " + "sous-ensemble de signaux.")
-                .formatted(partial, ranked.size()),
-            DIM));
+    out.out()
+        .printf(
+            "%n  %s%n",
+            c(
+                ("%d des %d projets classés le sont sur un " + "sous-ensemble de signaux.")
+                    .formatted(partial, ranked.size()),
+                DIM));
     out.println(
         c("  Une métrique absente est retirée de la moyenne, jamais " + "comptée comme 0 :", DIM));
     out.println(c("  lire signaux_presents avant de comparer deux scores.", DIM));
@@ -140,7 +146,7 @@ final class RankReport {
     }
     if (counts.isEmpty()) return;
     out.println("\n  Écartés du classement :");
-    counts.forEach((e, n) -> out.printf("    %-38s %d%n", e.label, n));
+    counts.forEach((e, n) -> out.out().printf("    %-38s %d%n", e.label, n));
   }
 
   // ----------------------------------------------------------------------
@@ -149,12 +155,14 @@ final class RankReport {
 
   void sideLists(List<Scored> carrying, List<Scored> abandoned) {
     title("3. Listes annexes");
-    out.printf(
-        "  Portent la dette sans en créer  : %d " + "(actifs, aucune ligne neuve)%n",
-        carrying.size());
-    out.printf(
-        "  Abandons récents (%d-%d j)     : %d%n",
-        settings.staleDays(), settings.abandonedDays(), abandoned.size());
+    out.out()
+        .printf(
+            "  Portent la dette sans en créer  : %d " + "(actifs, aucune ligne neuve)%n",
+            carrying.size());
+    out.out()
+        .printf(
+            "  Abandons récents (%d-%d j)     : %d%n",
+            settings.staleDays(), settings.abandonedDays(), abandoned.size());
     out.println(
         c(
             "    Les deux se classent sur sqale_debt_ratio seul : " + "un niveau, pas une vitesse.",
@@ -162,7 +170,7 @@ final class RankReport {
   }
 
   void written(Path file, boolean comma) {
-    out.printf("%n  Classement écrit : %s%n", file.toAbsolutePath());
+    out.out().printf("%n  Classement écrit : %s%n", file.toAbsolutePath());
     out.println(c("  Filtrer la colonne 'liste', puis 'retenu' = O " + "pour la shortlist.", DIM));
     if (!comma) {
       out.println(
@@ -185,11 +193,11 @@ final class RankReport {
     out.println("-".repeat(Math.min(78, text.length() + 4)));
   }
 
-  public static String c(String s, String color) {
-    return color.isEmpty() ? s : ConsoleOut.color(s, color);
+  String c(String s, String color) {
+    return color.isEmpty() ? s : out.color(s, color);
   }
 
-  public static String pct(int n, int total, String color) {
+  String pct(int n, int total, String color) {
     String s = total == 0 ? String.valueOf(n) : "%d (%.0f%%)".formatted(n, 100.0 * n / total);
     return c(s, color);
   }

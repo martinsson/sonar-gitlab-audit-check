@@ -102,7 +102,8 @@ Appariement<ESC>[0m
 Usage: ProjectMapper [-hV] [--comma] [--plain-names] [--reapparier]
                      [--color=<colorMode>] [--examples=<examples>]
                      --left=<leftCsv> [--left-key=<leftKey>]
-                     [--marge-nom=<margin>] [--names=<names>] [--out=<out>]
+                     [--marge-nom=<margin>] [--names=<names>]
+                     [--namespace-mapping=<yaml>] [--out=<out>]
                      [--report=<report>] --right=<rightCsv>
                      [--right-key=<rightKey>] [--seuil-nom=<threshold>]
                      [--derived=<derived>]... [--exact=<exact>]...
@@ -124,6 +125,9 @@ Apparie deux CSV et évalue chaque méthode d'appariement.
                              score minimal d'une suggestion, 0–1 (défaut : 0.5)
       --marge-nom=<margin>   écart minimal avec le candidat suivant (défaut :
                                0.1)
+      --namespace-mapping=<yaml>
+                             namespace GitLab → préfixe Sonar (défaut :
+                               namespace-mapping.yaml)
       --out=<out>            CSV d'appariement, une ligne par ligne de gauche
       --reapparier           recalculer les paires exact/derived d'un --out
                                existant (manuel et rejete restent)

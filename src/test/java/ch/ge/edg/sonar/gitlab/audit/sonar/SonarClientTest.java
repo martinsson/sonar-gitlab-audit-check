@@ -6,6 +6,8 @@ import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import java.net.ServerSocket;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +19,9 @@ import org.junit.jupiter.api.Test;
 /** The transport: URL building, headers, organization, retries, unreachable instance. */
 class SonarClientTest {
 
+  /** What the clients of this test asked to wait, in order. */
+  private final List<Duration> pauses = new ArrayList<>();
+
   private final FakeHttpServer server = new FakeHttpServer();
 
   @AfterEach
@@ -25,7 +30,10 @@ class SonarClientTest {
   }
 
   private Sonar client(@Nullable String organization) throws Exception {
-    return new Sonar(new SonarConnection(server.url() + "//", "tok-1", organization, 5, false));
+    return new Sonar(
+        new SonarConnection(server.url() + "//", "tok-1", organization, 5, false),
+        Captures.none(),
+        pauses::add);
   }
 
   @Test
@@ -47,7 +55,10 @@ class SonarClientTest {
 
   @Test
   void baseIsEmptyWhenUrlIsNull() throws Exception {
-    assertThat(new Sonar(new SonarConnection(null, "t", null, 1, false)).base).isEmpty();
+    assertThat(
+            new Sonar(new SonarConnection(null, "t", null, 1, false), Captures.none(), pause -> {})
+                .base)
+        .isEmpty();
   }
 
   @Test
@@ -136,9 +147,8 @@ class SonarClientTest {
             n.getAndIncrement() == 0
                 ? Response.status(429, "").withHeader("Retry-After", "1")
                 : Response.json("{}"));
-    long start = System.nanoTime();
     assertThat(client(null).get("api/t", Map.of()).ok()).isTrue();
-    assertThat((System.nanoTime() - start) / 1_000_000).isBetween(950L, 4000L);
+    assertThat(pauses).containsExactly(Duration.ofSeconds(1));
   }
 
   @Test
@@ -151,9 +161,8 @@ class SonarClientTest {
                 ? Response.status(429, "").withHeader("Retry-After", "soon")
                 : Response.json("{}"));
     Sonar sq = client(null);
-    long start = System.nanoTime();
     assertThat(sq.get("api/t", Map.of()).ok()).isTrue();
-    assertThat((System.nanoTime() - start) / 1_000_000).isBetween(4900L, 9000L);
+    assertThat(pauses).containsExactly(Duration.ofSeconds(5));
     assertThat(sq.throttled()).isEqualTo(1);
   }
 
@@ -163,10 +172,8 @@ class SonarClientTest {
     int[] codes = {503, 504, 502};
     server.on("/api/g", r -> Response.status(codes[n.getAndIncrement()], "gw"));
     Sonar sq = client(null);
-    long start = System.nanoTime();
     Sonar.Response r = sq.get("api/g", Map.of());
-    // Back-off of 1 s then 2 s.
-    assertThat((System.nanoTime() - start) / 1_000_000).isBetween(2900L, 6000L);
+    assertThat(pauses).as("back-off").containsExactly(Duration.ofSeconds(1), Duration.ofSeconds(2));
     assertThat(r).isEqualTo(new Sonar.Response(502, "gw"));
     assertThat(sq.calls()).isEqualTo(3);
     assertThat(sq.retried()).isEqualTo(2);
@@ -188,7 +195,11 @@ class SonarClientTest {
     try (ServerSocket s = new ServerSocket(0)) {
       port = s.getLocalPort();
     }
-    Sonar sq = new Sonar(new SonarConnection("http://127.0.0.1:" + port, "t", null, 2, false));
+    Sonar sq =
+        new Sonar(
+            new SonarConnection("http://127.0.0.1:" + port, "t", null, 2, false),
+            Captures.none(),
+            pause -> {});
     Sonar.Response r = sq.get("api/system/status", Map.of());
     assertThat(r.unreachable()).isTrue();
     // "ConnectException: Connection refused" on macOS and Linux; the class name always leads.
@@ -198,7 +209,9 @@ class SonarClientTest {
 
   @Test
   void malformedUrlIsReportedAsUnreachable() throws Exception {
-    Sonar sq = new Sonar(new SonarConnection("not a url", "t", null, 2, false));
+    Sonar sq =
+        new Sonar(
+            new SonarConnection("not a url", "t", null, 2, false), Captures.none(), pause -> {});
     Sonar.Response r = sq.get("api/x", Map.of());
     assertThat(r.status()).isZero();
     assertThat(r.body()).startsWith("IllegalArgumentException: ");
@@ -206,7 +219,8 @@ class SonarClientTest {
 
   @Test
   void urlWithoutSchemeIsReportedWithTheExceptionMessage() throws Exception {
-    Sonar sq = new Sonar(new SonarConnection("", "t", null, 2, false));
+    Sonar sq =
+        new Sonar(new SonarConnection("", "t", null, 2, false), Captures.none(), pause -> {});
     assertThat(sq.get("api/x", Map.of()))
         .isEqualTo(new Sonar.Response(0, "IllegalArgumentException: URI with undefined scheme"));
   }
@@ -229,9 +243,11 @@ class SonarClientTest {
   void insecureClientStillTalksPlainHttp() throws Exception {
     server.json("/api/x", "{\"v\":1}");
     System.clearProperty("jdk.internal.httpclient.disableHostnameVerification");
-    new Sonar(new SonarConnection(server.url(), "t", null, 5, false));
+    new Sonar(new SonarConnection(server.url(), "t", null, 5, false), Captures.none(), pause -> {});
     assertThat(System.getProperty("jdk.internal.httpclient.disableHostnameVerification")).isNull();
-    Sonar sq = new Sonar(new SonarConnection(server.url(), "t", null, 5, true));
+    Sonar sq =
+        new Sonar(
+            new SonarConnection(server.url(), "t", null, 5, true), Captures.none(), pause -> {});
     assertThat(sq.get("api/x", Map.of()).body()).isEqualTo("{\"v\":1}");
     assertThat(System.getProperty("jdk.internal.httpclient.disableHostnameVerification"))
         .isEqualTo("true");

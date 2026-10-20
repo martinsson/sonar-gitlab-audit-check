@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.RED;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.RED;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -10,18 +10,21 @@ import java.util.Map;
 /** Préambule : connectivité, identité, licence. */
 final class Preflight {
 
-  private final AuditContext ctx;
+  private final Gitlab gl;
+  private final Screen con;
+  private final Counters counters;
 
-  Preflight(AuditContext ctx) {
-    this.ctx = ctx;
+  Preflight(Gitlab gl, Screen con, Counters counters) {
+    this.gl = gl;
+    this.con = con;
+    this.counters = counters;
   }
 
   /** Faux quand l'instance est injoignable ou le jeton refusé : rien d'autre n'a de sens. */
   boolean run() {
-    Console con = ctx.con();
     con.title("0. Connectivité, identité, licence");
 
-    Gitlab.Response me = ctx.gl().get("user", Map.of());
+    Gitlab.Response me = gl.get("user", Map.of());
     if (me.unreachable()) {
       con.line("api/v4/user", Verdict.ERROR, me.errorMessage());
       con.say("\n  Instance injoignable. Vérifie l'URL, le proxy, le TLS.", RED);
@@ -44,8 +47,7 @@ final class Preflight {
    * découvrir après coup, c'est réécrire l'analyse.
    */
   private void license() {
-    Console con = ctx.con();
-    Gitlab.Response meta = ctx.gl().get("metadata", Map.of());
+    Gitlab.Response meta = gl.get("metadata", Map.of());
     if (meta.status() == 200) {
       JsonNode m = meta.json();
       boolean enterprise = m.path("enterprise").asBoolean(false);
@@ -56,7 +58,7 @@ final class Preflight {
               .formatted(
                   text(m, "version"),
                   enterprise ? "Enterprise" : "Community — DORA et approbations indisponibles"));
-      ctx.counters().enterprise = enterprise;
+      counters.enterprise = enterprise;
     } else {
       con.line(
           "api/v4/metadata",

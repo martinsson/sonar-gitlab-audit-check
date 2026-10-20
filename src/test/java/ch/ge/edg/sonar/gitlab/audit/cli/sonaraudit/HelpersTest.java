@@ -7,53 +7,41 @@ import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
 import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 import org.junit.jupiter.api.Test;
 
 /** Small pure helpers: dates, parameters, null-safe accessors, verdicts. */
 class HelpersTest {
 
   @Test
-  void parseDateReadsColonOffsetsIntoTheLocalZone() {
-    TimeZone old = TimeZone.getDefault();
-    TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-    try {
-      assertThat(Values.parseDate("2026-08-16T05:43:07+02:00"))
-          .isEqualTo(LocalDateTime.of(2026, 8, 16, 3, 43, 7));
-      // Sonar writes "+0200": ISO_OFFSET_DATE_TIME rejects it, so the offset is dropped and
-      // the wall-clock time is kept as is (the comment above parseDate says otherwise).
-      assertThat(Values.parseDate("2026-08-16T05:43:07+0200"))
-          .isEqualTo(LocalDateTime.of(2026, 8, 16, 5, 43, 7));
-    } finally {
-      TimeZone.setDefault(old);
-    }
+  void parseDateReadsColonOffsetsIntoTheClockZone() {
+    assertThat(Values.parseDate("2026-08-16T05:43:07+02:00", ZoneOffset.UTC))
+        .isEqualTo(LocalDateTime.of(2026, 8, 16, 3, 43, 7));
+    // Sonar writes "+0200": ISO_OFFSET_DATE_TIME rejects it, so the offset is dropped and
+    // the wall-clock time is kept as is (the comment above parseDate says otherwise).
+    assertThat(Values.parseDate("2026-08-16T05:43:07+0200", ZoneOffset.UTC))
+        .isEqualTo(LocalDateTime.of(2026, 8, 16, 5, 43, 7));
   }
 
   @Test
   @SuspectedBug("Sonar's compact offset +0200 should be read and converted, not dropped")
   void parseDateDropsSonarsCompactOffset() {
-    TimeZone old = TimeZone.getDefault();
-    TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-    try {
-      assertThat(Values.parseDate("2026-08-16T05:43:07+0200"))
-          .isEqualTo(LocalDateTime.of(2026, 8, 16, 5, 43, 7));
-    } finally {
-      TimeZone.setDefault(old);
-    }
+    assertThat(Values.parseDate("2026-08-16T05:43:07+0200", ZoneOffset.UTC))
+        .isEqualTo(LocalDateTime.of(2026, 8, 16, 5, 43, 7));
   }
 
   @Test
   void parseDateFallsBackToTheFirstNineteenCharacters() {
-    assertThat(Values.parseDate("2026-08-16T05:43:07.123Zjunk"))
+    assertThat(Values.parseDate("2026-08-16T05:43:07.123Zjunk", ZoneOffset.UTC))
         .isEqualTo(LocalDateTime.of(2026, 8, 16, 5, 43, 7));
-    assertThat(Values.parseDate("2026-08-16T05:43:07"))
+    assertThat(Values.parseDate("2026-08-16T05:43:07", ZoneOffset.UTC))
         .isEqualTo(LocalDateTime.of(2026, 8, 16, 5, 43, 7));
-    assertThat(Values.parseDate("2026-08-16T05:43:0")).isNull();
-    assertThat(Values.parseDate(null)).isNull();
-    assertThat(Values.parseDate("not-a-date-at-all-xx")).isNull();
+    assertThat(Values.parseDate("2026-08-16T05:43:0", ZoneOffset.UTC)).isNull();
+    assertThat(Values.parseDate(null, ZoneOffset.UTC)).isNull();
+    assertThat(Values.parseDate("not-a-date-at-all-xx", ZoneOffset.UTC)).isNull();
   }
 
   @Test

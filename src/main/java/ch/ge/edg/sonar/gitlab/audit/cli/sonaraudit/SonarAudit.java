@@ -3,15 +3,18 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.isBlank;
 
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
+import java.time.Clock;
 
 /**
  * Diagnostic préalable à un audit de parc SonarQube.
@@ -26,17 +29,26 @@ final class SonarAudit {
   record Options(InstanceOptions instance, OutputOptions output, ScanOptions scan) {}
 
   private final Options options;
-  private final PrintStream out;
+  private final Console out;
   private final PrintStream err;
+  private final Clock clock;
+  private final Sleeper sleeper;
+  private final Path workDir;
 
   /**
-   * @param out le rapport
-   * @param err les erreurs d'usage, et les captures qui n'ont pas pu être écrites
+   * @param out le rapport ; sur son erreur, les erreurs d'usage et les captures qui n'ont pas pu
+   *     être écrites
+   * @param clock maintenant, et le fuseau de toutes les dates
+   * @param sleeper l'attente avant un nouvel essai
+   * @param workDir où chercher exclusions.txt quand --exclusions n'est pas donné
    */
-  public SonarAudit(Options options, PrintStream out, PrintStream err) {
+  SonarAudit(Options options, Console out, Clock clock, Sleeper sleeper, Path workDir) {
     this.options = options;
     this.out = out;
-    this.err = err;
+    this.err = out.err();
+    this.clock = clock;
+    this.sleeper = sleeper;
+    this.workDir = workDir;
   }
 
   /** Le code de sortie : 0 fait, 1 instance injoignable ou jeton refusé, 2 usage. */
@@ -45,11 +57,12 @@ final class SonarAudit {
     OutputOptions output = options.output();
     ScanOptions scan = options.scan();
     if (!usable(instance, output)) return 2;
-    Session session = Session.open(options, out, err);
+    Session session = Session.open(options, out, clock, sleeper);
     Sonar sq = session.sq();
 
     out.println(
-        c("\nInstance : " + (sq.replaying() ? "rejeu de " + output.replayDir : sq.base), BOLD));
+        out.color(
+            "\nInstance : " + (sq.replaying() ? "rejeu de " + output.replayDir : sq.base), BOLD));
 
     if (!new Connectivity(session).check()) return 1;
 
@@ -59,7 +72,8 @@ final class SonarAudit {
     // Avant la première mesure : savoir ce que cette instance sait nommer.
     Metrics metrics = Metrics.negotiate(session);
     new Capabilities(session, metrics).check(sample);
-    new Inventory(session, metrics, output, scan).run();
+    new Inventory(session, metrics, output, scan)
+        .run(Exclusions.file(output.exclusionsFile, workDir));
     if (sample != null) new ActivitySignals(session, sample, scan.activityDays).report();
 
     summary(session);
@@ -85,15 +99,16 @@ final class SonarAudit {
     Sonar sq = session.sq();
     int concurrency = session.concurrency();
     Presentation.title(out, "Synthèse");
-    out.printf(
-        "  %d appels API effectués%s.%n",
-        sq.calls(),
-        concurrency > 1 && !sq.replaying() ? " (%d en vol)".formatted(concurrency) : "");
+    out.out()
+        .printf(
+            "  %d appels API effectués%s.%n",
+            sq.calls(),
+            concurrency > 1 && !sq.replaying() ? " (%d en vol)".formatted(concurrency) : "");
     // Une reprise silencieuse est une mesure qu'on ne sait pas justifier :
     // si l'instance a refusé puis accepté, le rapport doit le dire.
     if (sq.throttled() > 0 || sq.retried() > 0) {
       out.println(
-          c(
+          out.color(
               "  dont %d ralenti(s) (429) et %d repris (5xx)."
                   .formatted(sq.throttled(), sq.retried()),
               DIM));
@@ -102,13 +117,13 @@ final class SonarAudit {
     // ressemblerait sinon à un parc plus petit qu'il n'est.
     if (sq.replaying() && sq.missingCaptures() > 0) {
       out.println(
-          c(
+          out.color(
               "  %d capture(s) manquante(s) : le rejeu est incomplet."
                   .formatted(sq.missingCaptures()),
               YELLOW));
     }
     out.println(
-        c(
+        out.color(
             """
                   Rappel : search_projects filtre silencieusement sur ce que le token
                   peut voir. Une permission manquante ne produit pas d'erreur, seulement

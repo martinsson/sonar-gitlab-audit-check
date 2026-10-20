@@ -32,7 +32,8 @@ public final class GocdFixtures {
   public static GocdApi api(FakeHttpServer server) {
     try {
       return new GocdApi(
-          new RestClient(RestClient.Settings.of(server.url(), Map.of(), false), QUIET));
+          new RestClient(
+              RestClient.Settings.of(server.url(), Map.of(), false), QUIET, pause -> {}));
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

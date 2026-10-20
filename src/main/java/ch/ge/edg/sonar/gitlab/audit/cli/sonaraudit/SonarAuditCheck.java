@@ -1,9 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.util.concurrent.Callable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
@@ -67,18 +65,25 @@ public class SonarAuditCheck implements Callable<Integer> {
       description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
   String colorMode = "auto";
 
+  private final Host host;
+
+  SonarAuditCheck(Host host) {
+    this.host = host;
+  }
+
   public static void main(String[] args) {
-    ConsoleOut.install();
-    System.exit(new CommandLine(new SonarAuditCheck()).execute(args));
+    Host host = Host.system();
+    System.exit(host.commandLine(new SonarAuditCheck(host)).execute(args));
   }
 
   @Override
   public Integer call() throws Exception {
-    ConsoleOut.colorMode(colorMode);
-    // Lus ici et pas à la construction : c'est au moment de l'exécution que la
-    // console (ou le test) a posé ses flux.
-    PrintStream out = System.out;
-    PrintStream err = System.err;
-    return new SonarAudit(new SonarAudit.Options(instance, output, scan), out, err).run();
+    return new SonarAudit(
+            new SonarAudit.Options(instance, output, scan),
+            host.console(colorMode),
+            host.clock(),
+            host.sleeper(),
+            host.workDir())
+        .run();
   }
 }

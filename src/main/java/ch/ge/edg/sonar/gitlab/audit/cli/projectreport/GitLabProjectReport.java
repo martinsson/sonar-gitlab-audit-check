@@ -1,16 +1,14 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
-import java.time.Clock;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -111,34 +109,27 @@ public class GitLabProjectReport implements Callable<Integer> {
       description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
   String colorMode = "auto";
 
-  /** L'horloge des mesures « depuis maintenant » ; les tests en fixent une. */
-  private final Clock clock;
+  private final Host host;
 
-  public GitLabProjectReport() {
-    this(Clock.systemUTC());
-  }
-
-  GitLabProjectReport(Clock clock) {
-    this.clock = clock;
+  /** {@code host} : les tests en fixent l'horloge des mesures « depuis maintenant ». */
+  GitLabProjectReport(Host host) {
+    this.host = host;
   }
 
   public static void main(String[] args) {
-    ConsoleOut.install();
-    System.exit(new CommandLine(new GitLabProjectReport()).execute(args));
+    Host host = Host.system();
+    System.exit(host.commandLine(new GitLabProjectReport(host)).execute(args));
   }
 
   @Override
   public Integer call() throws IOException, GeneralSecurityException {
-    PrintStream out = System.out;
-    PrintStream err = System.err;
-    ConsoleOut.colorMode(colorMode);
+    Console out = host.console(colorMode);
     if (isBlank(token)) {
       // Un projet public de gitlab.com se lit sans jeton. C'est marginal en
       // audit, mais c'est le seul moyen de vérifier l'outil contre une vraie
       // instance sans en posséder une — et le README dit assez pourquoi on
       // ne vérifie pas contre un bouchon.
-      out.println(
-          ConsoleOut.color("  Aucun jeton : lecture anonyme, projets publics seulement.", YELLOW));
+      out.println(out.color("  Aucun jeton : lecture anonyme, projets publics seulement.", YELLOW));
     }
     String instance = url == null || url.isBlank() ? "https://gitlab.com" : url;
     String bots = botPattern == null || botPattern.isBlank() ? Gitlab.BOT_PATTERN : botPattern;
@@ -151,9 +142,13 @@ public class GitLabProjectReport implements Callable<Integer> {
             includeBots,
             Pattern.compile(bots, Pattern.CASE_INSENSITIVE));
     Gitlab gl =
-        new Gitlab(new Gitlab.Connection(instance, token, timeout, insecure, dumpDir), out, err);
+        new Gitlab(
+            new Gitlab.Connection(instance, token, timeout, insecure, dumpDir),
+            new GitlabWarnings(out),
+            host.sleeper());
 
-    return new ProjectReport(gl, settings, out, err, clock).run(ProjectPath.normalize(path));
+    return new ProjectReport(gl, settings, out, new Dates(host.clock()))
+        .run(ProjectPath.normalize(path));
   }
 
   private static boolean isBlank(@Nullable String s) {

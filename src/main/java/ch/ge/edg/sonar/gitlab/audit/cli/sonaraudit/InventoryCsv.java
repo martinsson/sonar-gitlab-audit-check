@@ -11,8 +11,8 @@ import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -46,12 +46,15 @@ final class InventoryCsv {
       Map<String, Trend> trends) {}
 
   private final boolean comma;
+  private final Clock clock;
 
   /**
    * @param comma virgules sans BOM plutôt que la forme Excel
+   * @param clock l'âge des analyses se compte depuis maintenant, dans le fuseau de l'horloge
    */
-  InventoryCsv(boolean comma) {
+  InventoryCsv(boolean comma, Clock clock) {
     this.comma = comma;
+    this.clock = clock;
   }
 
   void write(Path csv, Park park) throws IOException {
@@ -62,7 +65,7 @@ final class InventoryCsv {
     header.addAll(ATTACHMENT_COLUMNS);
     header.addAll(TREND_COLUMNS);
 
-    LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
+    LocalDateTime now = LocalDateTime.now(clock);
     // Le même écrivain que les trois autres outils : un inventaire qui
     // s'ouvre de travers dans Excel passe pour un outil cassé, et personne
     // ne fait le détour par l'assistant d'import. Les outils qui relisent ce
@@ -115,8 +118,8 @@ final class InventoryCsv {
     return row.toArray(String[]::new);
   }
 
-  private static String[] row(Component p, Park park, LocalDateTime now) {
-    LocalDateTime d = parseDate(p.analysisDate());
+  private String[] row(Component p, Park park, LocalDateTime now) {
+    LocalDateTime d = parseDate(p.analysisDate(), clock.getZone());
     List<String> row =
         new ArrayList<>(
             List.of(

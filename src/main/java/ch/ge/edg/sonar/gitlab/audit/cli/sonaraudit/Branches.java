@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
@@ -10,7 +9,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Branch;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.BranchList;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -53,13 +52,15 @@ final class Branches {
       nonMain++;
       if (before.get(i).analysisDate() == null) rescued++;
     }
-    PrintStream out = session.out();
+    Console out = session.out();
     out.println(
-        "  Dernier scan sur une branche non principale : " + c(String.valueOf(nonMain), BOLD));
+        "  Dernier scan sur une branche non principale : "
+            + out.color(String.valueOf(nonMain), BOLD));
     if (rescued > 0) {
       out.println(
-          c("    dont %d sans aucune analyse de la branche principale".formatted(rescued), DIM));
-      out.println(c("    (invisibles dans search_projects et measures/search)", DIM));
+          out.color(
+              "    dont %d sans aucune analyse de la branche principale".formatted(rescued), DIM));
+      out.println(out.color("    (invisibles dans search_projects et measures/search)", DIM));
     }
   }
 
@@ -69,12 +70,12 @@ final class Branches {
         session.read("api/project_branches/list", params("project", key), BranchList.class);
     if (bl == null) return null;
     return orEmptyList(bl.branches()).stream()
-        .filter(b -> parseDate(b.analysisDate()) != null)
-        .max(Comparator.comparing(Branches::analysed))
+        .filter(b -> parseDate(b.analysisDate(), session.zone()) != null)
+        .max(Comparator.comparing(this::analysed))
         .orElse(null);
   }
 
-  private static LocalDateTime analysed(Branch b) {
-    return Objects.requireNonNull(parseDate(b.analysisDate()), "filtrée plus haut");
+  private LocalDateTime analysed(Branch b) {
+    return Objects.requireNonNull(parseDate(b.analysisDate(), session.zone()), "filtrée plus haut");
   }
 }

@@ -19,7 +19,8 @@ class JiraApiTest {
       new PrintStream(new ByteArrayOutputStream(), true, java.nio.charset.StandardCharsets.UTF_8);
 
   private static JiraApi api(FakeHttpServer jira) throws IOException {
-    return new JiraApi(new RestClient(RestClient.Settings.of(jira.url(), Map.of(), false), QUIET));
+    return new JiraApi(
+        new RestClient(RestClient.Settings.of(jira.url(), Map.of(), false), QUIET, pause -> {}));
   }
 
   @Test

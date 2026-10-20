@@ -2,31 +2,22 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
-import org.junit.jupiter.api.AfterEach;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.testing.Printed;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 
 /** Console helpers: progress counter, titles, verdict lines, colors. */
 class PresentationTest {
 
-  @AfterEach
-  void noColors() {
-    ConsoleOut.colorMode("never");
+  private static String capture(Consumer<Console> r) {
+    return capture(false, r);
   }
 
-  private static String capture(Runnable r) {
-    PrintStream old = System.out;
-    ByteArrayOutputStream buf = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(buf, true, StandardCharsets.UTF_8));
-    try {
-      r.run();
-    } finally {
-      System.setOut(old);
-    }
-    return buf.toString(StandardCharsets.UTF_8);
+  private static String capture(boolean colors, Consumer<Console> r) {
+    Printed printed = colors ? Printed.colored() : Printed.plain();
+    r.accept(printed.console());
+    return printed.text();
   }
 
   private static void tick(Progress p, int times) {
@@ -35,11 +26,11 @@ class PresentationTest {
 
   @Test
   void liveProgressRewritesEveryTwentyFiveAndAtTheEnd() {
-    ConsoleOut.colorMode("always");
     String out =
         capture(
-            () -> {
-              Progress p = new Progress(System.out, "x", 30);
+            true,
+            c -> {
+              Progress p = new Progress(c, "x", 30);
               tick(p, 30);
               p.done();
             });
@@ -48,11 +39,11 @@ class PresentationTest {
 
   @Test
   void liveProgressOfNothingIsSilent() {
-    ConsoleOut.colorMode("always");
     String out =
         capture(
-            () -> {
-              Progress p = new Progress(System.out, "x", 0);
+            true,
+            c -> {
+              Progress p = new Progress(c, "x", 0);
               p.done();
             });
     assertThat(out).isEmpty();
@@ -60,11 +51,10 @@ class PresentationTest {
 
   @Test
   void progressIsSilentWithoutColors() {
-    ConsoleOut.colorMode("never");
     String out =
         capture(
-            () -> {
-              Progress p = new Progress(System.out, "x", 25);
+            c -> {
+              Progress p = new Progress(c, "x", 25);
               tick(p, 25);
               p.done();
             });
@@ -73,28 +63,27 @@ class PresentationTest {
 
   @Test
   void titlePadsToSixtySixWithEquals() {
-    String out = capture(() -> Presentation.title(System.out, "abc"));
+    String out = capture(c -> Presentation.title(c, "abc"));
     assertThat(out).isEqualTo("\n=== abc " + "=".repeat(63) + "\n");
     String longTitle = "t".repeat(70);
-    assertThat(capture(() -> Presentation.title(System.out, longTitle)))
+    assertThat(capture(c -> Presentation.title(c, longTitle)))
         .isEqualTo("\n=== " + longTitle + " \n");
   }
 
   @Test
   void lineAlignsLabelAndDropsBlankDetail() {
-    assertThat(capture(() -> Presentation.line(System.out, "lbl", Verdict.OK, "d")))
+    assertThat(capture(c -> Presentation.line(c, "lbl", Verdict.OK, "d")))
         .isEqualTo("  OK       lbl" + " ".repeat(39) + " d\n");
-    assertThat(capture(() -> Presentation.line(System.out, "lbl", Verdict.ERROR, " ")))
+    assertThat(capture(c -> Presentation.line(c, "lbl", Verdict.ERROR, " ")))
         .isEqualTo("  ERREUR   lbl" + " ".repeat(39) + " \n");
   }
 
   @Test
   void colorsWrapWhenEnabled() {
-    ConsoleOut.colorMode("always");
-    assertThat(Presentation.c("t", Presentation.RED)).isEqualTo("\033[31mt\033[0m");
-    assertThat(capture(() -> Presentation.line(System.out, "l", Verdict.DENIED, "d")))
+    assertThat(Printed.colored().console().color("t", Presentation.RED))
+        .isEqualTo("\033[31mt\033[0m");
+    assertThat(capture(true, c -> Presentation.line(c, "l", Verdict.DENIED, "d")))
         .isEqualTo("  \033[31mREFUSE  \033[0m l" + " ".repeat(41) + " \033[2md\033[0m\n");
-    ConsoleOut.colorMode("never");
-    assertThat(Presentation.c("t", Presentation.RED)).isEqualTo("t");
+    assertThat(Printed.plain().console().color("t", Presentation.RED)).isEqualTo("t");
   }
 }

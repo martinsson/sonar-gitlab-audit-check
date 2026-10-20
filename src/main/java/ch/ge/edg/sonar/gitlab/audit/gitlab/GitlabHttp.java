@@ -2,8 +2,8 @@ package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.Response;
 import ch.ge.edg.sonar.gitlab.audit.rest.InsecureTls;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -25,7 +25,8 @@ final class GitlabHttp {
   private final @Nullable String token;
   private final Duration timeout;
   private final @Nullable Path dumpDir;
-  private final PrintStream err;
+  private final GitlabListener listener;
+  private final Sleeper sleeper;
   private final HttpClient client;
 
   // Comptés depuis plusieurs fils dès que parallel() est utilisé : un int nu
@@ -35,11 +36,13 @@ final class GitlabHttp {
   final AtomicInteger forbiddenCount = new AtomicInteger();
   final AtomicInteger throttledCount = new AtomicInteger();
 
-  GitlabHttp(Gitlab.Connection c, PrintStream err) throws IOException, GeneralSecurityException {
+  GitlabHttp(Gitlab.Connection c, GitlabListener listener, Sleeper sleeper)
+      throws IOException, GeneralSecurityException {
     this.token = c.token();
     this.timeout = Duration.ofSeconds(c.timeoutSeconds());
     this.dumpDir = c.dumpDir();
-    this.err = err;
+    this.listener = listener;
+    this.sleeper = sleeper;
     if (dumpDir != null) Files.createDirectories(dumpDir);
 
     HttpClient.Builder b =
@@ -67,7 +70,7 @@ final class GitlabHttp {
                 HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         if (res.statusCode() == 429 && attempt < 3) {
           throttledCount.incrementAndGet();
-          Thread.sleep(Math.min(retryAfter(res), 60) * 1000);
+          sleeper.sleep(Duration.ofSeconds(Math.min(retryAfter(res), 60)));
           continue;
         }
         if (res.statusCode() == 403) forbiddenCount.incrementAndGet();
@@ -147,7 +150,7 @@ final class GitlabHttp {
     try {
       Files.writeString(dumpDir.resolve(Gitlab.truncate(name, 120)), body);
     } catch (IOException e) {
-      err.println("  (capture non écrite : " + e.getMessage() + ")");
+      listener.captureNotWritten(String.valueOf(e.getMessage()));
     }
   }
 }

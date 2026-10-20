@@ -32,7 +32,7 @@ class GocdExtractTest {
         new java.util.ArrayList<>(
             List.of("--url", gocd.url(), "--token", "pat", "--out-dir", dir.toString()));
     all.addAll(List.of(args));
-    return Cli.run(new GocdExtract(DAY_AFTER, ZURICH), all.toArray(String[]::new));
+    return Cli.run(DAY_AFTER.withZone(ZURICH), GocdExtract::new, all.toArray(String[]::new));
   }
 
   /** The file without BOM, quotes or CRLF: what Excel shows. */
@@ -178,7 +178,7 @@ class GocdExtractTest {
 
   @Test
   void a_missing_url_stops_with_exit_2() {
-    Cli.Result r = Cli.run(new GocdExtract(), "--url", "", "--token", "t", "--pipeline", "p");
+    Cli.Result r = Cli.run(GocdExtract::new, "--url", "", "--token", "t", "--pipeline", "p");
     assertThat(r.exitCode()).isEqualTo(2);
     assertThat(r.err()).contains("Arrêt : GOCD_URL manquant");
   }
