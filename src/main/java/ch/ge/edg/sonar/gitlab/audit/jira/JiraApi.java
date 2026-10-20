@@ -84,10 +84,14 @@ public final class JiraApi {
 
   /** id de statut → catégorie (new, indeterminate, done), vide si illisible. */
   public Map<String, String> statusCategories() {
-    Map<String, String> out = new HashMap<>();
     RestResponse r = statuses();
-    if (!r.ok()) return out;
-    for (JsonNode s : r.json()) {
+    return r.ok() ? statusCategories(r.json()) : new HashMap<>();
+  }
+
+  /** id de statut → catégorie, lu dans une réponse de /rest/api/2/status déjà obtenue. */
+  public static Map<String, String> statusCategories(JsonNode statuses) {
+    Map<String, String> out = new HashMap<>();
+    for (JsonNode s : statuses) {
       out.put(s.path("id").asText(), s.path("statusCategory").path("key").asText(""));
     }
     return out;

@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -70,6 +72,17 @@ class JiraApiTest {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       assertThat(api(jira).statusCategories()).isEmpty();
     }
+  }
+
+  @Test
+  void status_categories_parse_a_status_list_already_read() throws IOException {
+    JsonNode statuses =
+        new ObjectMapper()
+            .readTree(
+                "[{\"id\":\"6\",\"statusCategory\":{\"key\":\"done\"}},"
+                    + "{\"id\":\"4\",\"statusCategory\":{}}]");
+    assertThat(JiraApi.statusCategories(statuses))
+        .containsOnly(Map.entry("6", "done"), Map.entry("4", ""));
   }
 
   @Test
