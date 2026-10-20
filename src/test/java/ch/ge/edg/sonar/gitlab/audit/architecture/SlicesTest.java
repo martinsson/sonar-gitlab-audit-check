@@ -4,7 +4,6 @@ import static com.tngtech.archunit.base.DescribedPredicate.alwaysTrue;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
-import com.tngtech.archunit.base.DescribedPredicate;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -65,11 +64,6 @@ class SlicesTest {
           // by those clients' tests: that is test wiring, not a dependency between packages.
           .ignoreDependency(resideInAPackage(ROOT + "testing.."), alwaysTrue())
           .ignoreDependency(alwaysTrue(), resideInAPackage(ROOT + "testing.."))
-          // Iteration 2 moves MappingFile's printing into matching.report and removes this
-          // exception: until then MappingFile (matching) prints with matching.report's colours,
-          // while matching.report reads matching's results.
-          .ignoreDependency(
-              nameIs(ROOT + "matching.MappingFile"), resideInAPackage(ROOT + "matching.report"))
           .because(
               "a cycle welds packages together: none of them can be understood, tested or"
                   + " moved without the others. Every package, sub-packages included, is a"
@@ -94,11 +88,5 @@ class SlicesTest {
         return "the top-level packages " + wanted;
       }
     };
-  }
-
-  /** The class itself and its nested classes. */
-  private static DescribedPredicate<JavaClass> nameIs(String name) {
-    return DescribedPredicate.describe(
-        name, c -> c.getName().equals(name) || c.getName().startsWith(name + "$"));
   }
 }
