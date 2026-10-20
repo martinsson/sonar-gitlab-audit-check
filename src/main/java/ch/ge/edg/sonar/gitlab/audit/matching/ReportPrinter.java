@@ -1,20 +1,20 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
+package ch.ge.edg.sonar.gitlab.audit.matching;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt.BOLD;
-import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt.GREEN;
-import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt.c;
+import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.BOLD;
+import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.GREEN;
+import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.YELLOW;
+import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.c;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Agreement;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Bucket;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Example;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.LinkStats;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.MethodStats;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.NameStats;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Summary;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.ThresholdPoint;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Vocabulary;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.Agreement;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.Bucket;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.Example;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.LinkStats;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.MethodStats;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.NameStats;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.Summary;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.ThresholdPoint;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.Vocabulary;
 import java.io.PrintStream;
 import java.util.List;
 import java.util.Locale;

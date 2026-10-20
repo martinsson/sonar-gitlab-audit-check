@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Match;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Match;
 import org.jspecify.annotations.Nullable;
 
 /**

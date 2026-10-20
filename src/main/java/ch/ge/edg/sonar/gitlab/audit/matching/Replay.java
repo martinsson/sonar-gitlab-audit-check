@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
+package ch.ge.edg.sonar.gitlab.audit.matching;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import java.util.ArrayList;

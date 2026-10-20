@@ -2,8 +2,8 @@ package ch.ge.edg.sonar.gitlab.audit.cli;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Pair;
 import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Result;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.nio.file.Files;

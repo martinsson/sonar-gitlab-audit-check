@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Keys;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Keys;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;

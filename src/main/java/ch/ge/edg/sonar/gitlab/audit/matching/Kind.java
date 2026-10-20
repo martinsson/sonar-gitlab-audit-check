@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
+package ch.ge.edg.sonar.gitlab.audit.matching;
 
 /**
  * NAME : un nom affiché, normalisé des deux côtés comme DERIVED, mais qui n'apparie que s'il ne

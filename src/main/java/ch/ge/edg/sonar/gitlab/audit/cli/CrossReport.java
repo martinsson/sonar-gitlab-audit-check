@@ -1,9 +1,9 @@
 package ch.ge.edg.sonar.gitlab.audit.cli;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.ReportPrinter;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report;
+import ch.ge.edg.sonar.gitlab.audit.matching.ReportPrinter;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.List;

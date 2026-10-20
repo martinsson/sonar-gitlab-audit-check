@@ -1,10 +1,10 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
+package ch.ge.edg.sonar.gitlab.audit.matching;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Bucket;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.Example;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.NameStats;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report.ThresholdPoint;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.Bucket;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.Example;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.NameStats;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report.ThresholdPoint;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
 import java.util.ArrayList;
 import java.util.Comparator;

@@ -1,11 +1,11 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
+package ch.ge.edg.sonar.gitlab.audit.matching;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt.c;
+import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.YELLOW;
+import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.c;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Replay.Reuse;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Replay.Reuse;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.io.PrintStream;

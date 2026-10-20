@@ -3,9 +3,9 @@ package ch.ge.edg.sonar.gitlab.audit.cli;
 import static ch.ge.edg.sonar.gitlab.audit.cli.CrossReport.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.CrossReport.c;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.DetailColumns;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Result;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.DetailColumns;
+import ch.ge.edg.sonar.gitlab.audit.matching.Result;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.io.PrintStream;

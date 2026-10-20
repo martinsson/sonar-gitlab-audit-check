@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
+package ch.ge.edg.sonar.gitlab.audit.matching;
 
 import java.text.Normalizer;
 import java.util.Locale;

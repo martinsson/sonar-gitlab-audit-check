@@ -1,10 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.cli;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Choice;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Match;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Choice;
+import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
+import ch.ge.edg.sonar.gitlab.audit.matching.Match;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;

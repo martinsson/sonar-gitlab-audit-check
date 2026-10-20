@@ -1,8 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.cli;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Fmt;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Keys;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
+import ch.ge.edg.sonar.gitlab.audit.matching.Keys;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;

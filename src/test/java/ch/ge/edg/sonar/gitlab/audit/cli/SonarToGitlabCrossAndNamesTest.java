@@ -9,9 +9,9 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlabFixtures.sonar;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Match;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.matching.Match;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

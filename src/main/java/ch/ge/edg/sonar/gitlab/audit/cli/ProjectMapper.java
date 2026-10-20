@@ -1,17 +1,17 @@
 package ch.ge.edg.sonar.gitlab.audit.cli;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Evaluation;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.KeyMethod;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Keys;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Kind;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.MappingFile;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.NameSpec;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Report;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.ReportPrinter;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Result;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Spec;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Evaluation;
+import ch.ge.edg.sonar.gitlab.audit.matching.KeyMethod;
+import ch.ge.edg.sonar.gitlab.audit.matching.Keys;
+import ch.ge.edg.sonar.gitlab.audit.matching.Kind;
+import ch.ge.edg.sonar.gitlab.audit.matching.MappingFile;
+import ch.ge.edg.sonar.gitlab.audit.matching.NameSpec;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report;
+import ch.ge.edg.sonar.gitlab.audit.matching.ReportPrinter;
+import ch.ge.edg.sonar.gitlab.audit.matching.Result;
+import ch.ge.edg.sonar.gitlab.audit.matching.Spec;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.ArrayList;

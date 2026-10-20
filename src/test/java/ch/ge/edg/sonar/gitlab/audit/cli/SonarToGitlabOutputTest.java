@@ -8,9 +8,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Check;
 import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Pair;
-import ch.ge.edg.sonar.gitlab.audit.cli.mapper.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
