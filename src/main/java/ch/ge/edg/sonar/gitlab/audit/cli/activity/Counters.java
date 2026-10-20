@@ -2,11 +2,9 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** Les effectifs de l'entonnoir, publiés dans la synthèse. */
+/** Ce que la passe profonde compte en chemin. */
 final class Counters {
   boolean enterprise;
-  int inScope, kept, fresh, eligible, selected, floor;
-  int sampleSize, sampleLeaks, commitPassed, graphqlCalls, notCounted;
   // Écrits depuis la passe profonde, qui tourne en parallèle.
   final AtomicInteger ciFromCacheN = new AtomicInteger();
   final AtomicInteger ciByLintN = new AtomicInteger();

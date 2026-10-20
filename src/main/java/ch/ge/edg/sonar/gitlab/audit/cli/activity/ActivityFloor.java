@@ -1,9 +1,5 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
-
-import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.util.Comparator;
 import java.util.List;
 
@@ -23,96 +19,62 @@ final class ActivityFloor {
 
   static final int MIN_FLOOR = 5;
 
-  private final Screen con;
-  private final Counters counters;
   private final Funnel funnel;
 
-  ActivityFloor(Screen con, Counters counters, Funnel funnel) {
-    this.con = con;
-    this.counters = counters;
+  ActivityFloor(Funnel funnel) {
     this.funnel = funnel;
   }
 
-  int run(List<Proj> fresh) {
-    con.title("4. Plancher d'activité (étape 3)");
+  /**
+   * Le plancher retenu, et chaque projet en lice départagé : éligible dans sa strate, ou écarté.
+   *
+   * @param volumes les commits humains des projets comptés, du plus grand au plus petit
+   * @param imposed vrai quand --floor l'impose, faux quand il est déduit de la distribution
+   */
+  record Floor(List<AuditedProject> all, List<Integer> volumes, int threshold, boolean imposed) {}
 
+  Floor run(List<AuditedProject> all) {
     // La distribution ne porte que sur les projets effectivement comptés :
     // y verser un zéro pour chaque projet volontairement non compté
     // déplacerait les déciles, donc le plancher déduit, donc la sélection.
-    List<Proj> counted = fresh.stream().filter(p -> p.fate.inPlay()).toList();
     List<Integer> volumes =
-        counted.stream().map(Proj::commitsOrZero).sorted(Comparator.reverseOrder()).toList();
-    printDeciles(volumes);
-    int chosen = choose(volumes);
-
-    int eligible = 0;
-    int unmeasurable = 0;
-    for (Proj p : counted) {
-      Integer commits = p.commits.human();
-      if (commits == null) {
-        String status = p.commits instanceof CommitMeasure.Unmeasurable u ? u.status() : "";
-        p.fate = new Fate.Excluded(Fate.Stage.FLOOR, "activité non mesurable (" + status + ")");
-        unmeasurable++;
-      } else if (commits < chosen) {
-        p.fate =
-            new Fate.Excluded(
-                Fate.Stage.FLOOR,
-                p.commits.botOnly()
-                    ? "activité robotique seule (%d commits de bots)".formatted(p.commits.bots())
-                    : "sous le plancher (%d commits)".formatted(commits));
-      } else {
-        p.fate = new Fate.Eligible(Selection.bucketOf(p));
-        eligible++;
-      }
-    }
-    counters.floor = chosen;
-    counters.eligible = eligible;
-    report(counted.size() - eligible - unmeasurable, eligible, unmeasurable);
-    return chosen;
+        CommitActivity.inPlay(all).stream()
+            .map(AuditedProject::commitsOrZero)
+            .sorted(Comparator.reverseOrder())
+            .toList();
+    int imposed = funnel.options().floor;
+    int chosen = imposed >= 0 ? imposed : deduce(volumes);
+    List<AuditedProject> decided =
+        all.stream().map(p -> p.fate().inPlay() ? p.with(fate(p, chosen)) : p).toList();
+    return new Floor(decided, volumes, chosen, imposed >= 0);
   }
 
-  private void printDeciles(List<Integer> volumes) {
-    Console out = con.out();
-    out.print("  Distribution des commits (déciles) :");
-    for (int d = 1; d <= 9; d += 2) {
-      int idx = Math.min(volumes.size() - 1, volumes.size() * d / 10);
-      out.out().printf(" D%d=%d", d, volumes.isEmpty() ? 0 : volumes.get(idx));
+  private static Fate fate(AuditedProject p, int floor) {
+    CommitMeasure measure = p.commits();
+    Integer commits = measure.human();
+    if (commits == null) {
+      String status = measure instanceof CommitMeasure.Unmeasurable u ? u.status() : "";
+      return new Fate.Excluded(Fate.Stage.FLOOR, "activité non mesurable (" + status + ")");
     }
-    out.println();
+    if (commits < floor) {
+      return new Fate.Excluded(
+          Fate.Stage.FLOOR,
+          measure.botOnly()
+              ? "activité robotique seule (%d commits de bots)".formatted(measure.bots())
+              : "sous le plancher (%d commits)".formatted(commits));
+    }
+    return new Fate.Eligible(Selection.bucketOf(p.project()));
   }
 
-  private int choose(List<Integer> volumes) {
-    int chosen = funnel.options().floor;
-    if (chosen >= 0) {
-      con.out().out().printf("  Plancher imposé (--floor)       : %d commits%n", chosen);
-      return chosen;
-    }
+  private int deduce(List<Integer> volumes) {
     long budget = funnel.options().top * 3L / 2;
-    chosen = MIN_FLOOR;
+    int chosen = MIN_FLOOR;
     for (int t = MIN_FLOOR; t <= 60; t++) {
       final int threshold = t;
       long n = volumes.stream().filter(v -> v >= threshold).count();
       chosen = t;
       if (n <= budget) break;
     }
-    con.out()
-        .out()
-        .printf(
-            "  Plancher déduit des données     : %d commits sur %d jours%n",
-            chosen, funnel.sinceDays());
     return chosen;
-  }
-
-  private void report(int lowActivity, int eligible, int unmeasurable) {
-    Console out = con.out();
-    out.out().printf("  Éligibles au tirage             : %d%n", eligible);
-    out.out().printf("  Cohorte faible activité         : %d%n", lowActivity);
-    if (unmeasurable > 0) {
-      out.out().printf("  Activité non mesurable          : %d%n", unmeasurable);
-      con.say("    403 ou erreur sur les commits. Écartés, pas classés à zéro :", YELLOW);
-      con.say("    « je n'ai pas pu voir » n'est pas « il ne se passe rien ».", YELLOW);
-    }
-    con.say("    Cette cohorte n'est pas perdue : elle se rapporte en effectifs,", DIM);
-    con.say("    comme les « jamais analysés » côté Sonar. C'est un constat.", DIM);
   }
 }

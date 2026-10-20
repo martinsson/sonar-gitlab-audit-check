@@ -1,77 +1,90 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
-
-import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /** Étape 2 : activité réelle, en commits. */
 final class CommitActivity {
 
   private final Gitlab gl;
-  private final Screen con;
-  private final Counters counters;
   private final Funnel funnel;
 
-  CommitActivity(Gitlab gl, Screen con, Counters counters, Funnel funnel) {
+  CommitActivity(Gitlab gl, Funnel funnel) {
     this.gl = gl;
-    this.con = con;
-    this.counters = counters;
     this.funnel = funnel;
   }
 
-  void run(List<Proj> fresh) {
-    con.title("3. Activité réelle en commits (étape 2)");
-    if (funnel.options().graphql) dateByGraphql(fresh);
+  /** Les projets en lice, datés par GraphQL ; et la datation, pour le rapport. */
+  record Dated(List<AuditedProject> all, GraphqlDates.Dating dating) {}
 
-    // La date du dernier commit vient de coûter un appel pour cinquante
-    // projets. Elle décide donc gratuitement qui mérite la pagination REST,
-    // qui est le seul poste de l'étape 2 à coûter un appel par projet.
-    int activeWithin = funnel.options().activeWithinDays;
-    OffsetDateTime cut =
-        activeWithin > 0 ? funnel.now().minusDays(activeWithin) : funnel.windowStart();
-    List<Proj> toCount = new ArrayList<>();
-    int tooQuiet = 0;
-    for (Proj p : fresh) {
-      // Si GraphQL a daté le dernier commit hors fenêtre, le compte est zéro
-      // par construction : inutile de le redemander en REST.
-      if (lastCommitBeforeWindow(p)) {
-        p.commits = new CommitMeasure.NoneInWindow();
-      } else if (belowCut(p, cut)) {
-        tooQuiet++;
-      } else {
-        toCount.add(p);
-      }
-    }
-    if (activeWithin > 0) reportCut(fresh, tooQuiet, activeWithin);
-
-    // Un appel par projet, sans lien entre eux : c'est le poste le plus
-    // lourd de l'outil sur un gros parc, et il n'avait aucune raison d'être
-    // séquentiel.
-    gl.parallel(toCount, funnel.concurrency(), new CommitPager(gl, funnel)::measure);
-    counters.commitPassed = toCount.size();
-    counters.notCounted = tooQuiet;
-    reportCounts(fresh, toCount.size());
+  /** La date du dernier commit des projets en lice, à cinquante projets la requête. */
+  Dated date(List<AuditedProject> all) {
+    List<AuditedProject> fresh = inPlay(all);
+    GraphqlDates.Dating dating = new GraphqlDates(gl).date(fresh);
+    IdentityHashMap<AuditedProject, CommitMeasure.Head> heads = new IdentityHashMap<>();
+    for (int i = 0; i < fresh.size(); i++) heads.put(fresh.get(i), dating.heads().get(i));
+    List<AuditedProject> dated =
+        all.stream()
+            .map(
+                p -> {
+                  CommitMeasure.Head h = heads.get(p);
+                  return h == null ? p : p.with(h);
+                })
+            .toList();
+    return new Dated(dated, dating);
   }
 
-  private void dateByGraphql(List<Proj> fresh) {
-    int refined = new GraphqlDates(gl, con, counters).date(fresh);
-    if (refined < 0) return;
-    Console out = con.out();
-    out.out()
-        .printf(
-            "  Dernier commit daté par GraphQL : %d projets en %d requêtes%n",
-            refined, counters.graphqlCalls);
-    long stale = fresh.stream().filter(this::lastCommitBeforeWindow).count();
-    out.out().printf("    dont aucun commit dans la fenêtre : %d%n", stale);
-    con.say("    (last_activity_at récent sans commit récent : tickets, wiki, CI)", DIM);
+  /**
+   * La date du dernier commit vient de coûter un appel pour cinquante projets. Elle décide donc
+   * gratuitement qui mérite la pagination REST, qui est le seul poste de l'étape 2 à coûter un
+   * appel par projet.
+   */
+  List<AuditedProject> cut(List<AuditedProject> all) {
+    return all.stream().map(p -> p.fate().inPlay() ? cut(p) : p).toList();
   }
 
-  private boolean lastCommitBeforeWindow(Proj p) {
-    OffsetDateTime last = p.head.lastCommit();
+  private AuditedProject cut(AuditedProject p) {
+    // Si GraphQL a daté le dernier commit hors fenêtre, le compte est zéro
+    // par construction : inutile de le redemander en REST.
+    if (lastCommitBeforeWindow(p)) return p.with(new CommitMeasure.NoneInWindow());
+    return belowCut(p) ? p.with(cutReason(p)) : p;
+  }
+
+  /**
+   * Un appel par projet, sans lien entre eux : c'est le poste le plus lourd de l'outil sur un gros
+   * parc, et il n'avait aucune raison d'être séquentiel.
+   */
+  List<AuditedProject> count(List<AuditedProject> all) {
+    List<AuditedProject> toCount = toCount(all);
+    CommitPager pager = new CommitPager(gl, funnel);
+    List<CommitMeasure> measures = gl.map(toCount, funnel.concurrency(), pager::measure);
+    IdentityHashMap<AuditedProject, CommitMeasure> measured = new IdentityHashMap<>();
+    for (int i = 0; i < toCount.size(); i++) measured.put(toCount.get(i), measures.get(i));
+    return all.stream()
+        .map(
+            p -> {
+              CommitMeasure m = measured.get(p);
+              return m == null ? p : p.with(m);
+            })
+        .toList();
+  }
+
+  /** En lice, et pas encore compté : ce que la pagination REST doit lire. */
+  static List<AuditedProject> toCount(List<AuditedProject> all) {
+    return all.stream()
+        .filter(p -> p.fate().inPlay() && p.commits() instanceof CommitMeasure.NotCounted)
+        .toList();
+  }
+
+  static List<AuditedProject> inPlay(List<AuditedProject> all) {
+    return all.stream().filter(p -> p.fate().inPlay()).toList();
+  }
+
+  boolean lastCommitBeforeWindow(AuditedProject p) {
+    OffsetDateTime last = p.head().lastCommit();
     return last != null && last.isBefore(funnel.windowStart());
   }
 
@@ -84,44 +97,23 @@ final class CommitActivity {
    * trompe dans le sens sûr : il est gonflé par les événements non-commit, donc un projet sous la
    * coupe selon lui l'est forcément selon ses commits. La coupe reste gratuite.
    */
-  private boolean belowCut(Proj p, OffsetDateTime cut) {
+  private boolean belowCut(AuditedProject p) {
     int activeWithin = funnel.options().activeWithinDays;
-    OffsetDateTime dated = p.head.lastCommit();
-    OffsetDateTime seen = dated != null ? dated : p.lastActivity;
-    if (activeWithin <= 0 || seen == null || !seen.isBefore(cut)) return false;
-    p.fate =
-        new Fate.Excluded(
-            Fate.Stage.ACTIVITY_CUT,
-            "hors coupe d'activité (%s > %dj)"
-                .formatted(dated != null ? "dernier commit" : "dernière activité", activeWithin));
-    return true;
+    OffsetDateTime seen = seen(p);
+    return activeWithin > 0 && seen != null && seen.isBefore(funnel.now().minusDays(activeWithin));
   }
 
-  private void reportCut(List<Proj> fresh, int tooQuiet, int activeWithin) {
-    con.out()
-        .out()
-        .printf(
-            "  Coupe --active-within %-3d       : %d projets écartés sur %d%n",
-            activeWithin, tooQuiet, fresh.size());
-    con.say("    Écartés sans être comptés : « pas regardé » n'est pas « rien vu ».", DIM);
-    boolean byCommit = fresh.stream().anyMatch(x -> x.head.lastCommit() != null);
-    con.say(
-        byCommit
-            ? "    Gratuit — la date vient de la passe GraphQL, pas d'un appel de plus."
-            : "    Gratuit — GraphQL indisponible, la coupe porte sur last_activity_at,\n"
-                + "    qui majore l'activité : elle écarte donc moins, jamais à tort.",
-        DIM);
+  private static @Nullable OffsetDateTime seen(AuditedProject p) {
+    OffsetDateTime dated = p.head().lastCommit();
+    return dated != null ? dated : p.project().lastActivity();
   }
 
-  private void reportCounts(List<Proj> fresh, int counted) {
-    Console out = con.out();
-    long active = fresh.stream().filter(p -> p.commitsOrZero() > 0).count();
-    out.out().printf("  Comptés par pagination REST     : %d projets%n", counted);
-    out.out().printf("  Avec au moins un commit humain  : %d%n", active);
-    long botOnly = fresh.stream().filter(p -> p.commits.botOnly()).count();
-    if (botOnly > 0) {
-      out.out().printf("  Activité exclusivement robotique : %d%n", botOnly);
-      con.say("    Renovate seul sur un dépôt est un constat, pas une ligne vide.", DIM);
-    }
+  private Fate cutReason(AuditedProject p) {
+    return new Fate.Excluded(
+        Fate.Stage.ACTIVITY_CUT,
+        "hors coupe d'activité (%s > %dj)"
+            .formatted(
+                p.head().lastCommit() != null ? "dernier commit" : "dernière activité",
+                funnel.options().activeWithinDays));
   }
 }

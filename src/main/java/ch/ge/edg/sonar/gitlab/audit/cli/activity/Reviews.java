@@ -37,7 +37,7 @@ final class Reviews {
     this.funnel = funnel;
   }
 
-  void measure(Proj p, Prat r) {
+  void measure(GitlabProject p, Prat r) {
     List<JsonNode> mrs = mergedMrs(p);
     r.mergedMrs = mrs.size();
     List<Double> ttm = new ArrayList<>();
@@ -63,17 +63,17 @@ final class Reviews {
     if (counters.enterprise && !mrs.isEmpty()) approvals(p, r, mrs);
   }
 
-  private List<JsonNode> mergedMrs(Proj p) {
+  private List<JsonNode> mergedMrs(GitlabProject p) {
     List<JsonNode> mrs = new ArrayList<>();
     for (int page = 1; page <= 3; page++) {
       Gitlab.Response m =
           gl.get(
-              "projects/" + p.id + "/merge_requests",
+              "projects/" + p.id() + "/merge_requests",
               params(
                   "state",
                   "merged",
                   "target_branch",
-                  p.defaultBranch,
+                  p.defaultBranch(),
                   "updated_after",
                   iso(funnel.windowStart()),
                   "per_page",
@@ -88,7 +88,7 @@ final class Reviews {
     return mrs;
   }
 
-  private void approvals(Proj p, Prat r, List<JsonNode> mrs) {
+  private void approvals(GitlabProject p, Prat r, List<JsonNode> mrs) {
     int sample = Math.min(APPROVAL_SAMPLE, mrs.size());
     int approved = 0;
     int selfApproved = 0;
@@ -97,7 +97,7 @@ final class Reviews {
       JsonNode mr = mrs.get(i);
       Gitlab.Response ap =
           gl.get(
-              "projects/" + p.id + "/merge_requests/" + mr.path("iid").asInt() + "/approvals",
+              "projects/" + p.id() + "/merge_requests/" + mr.path("iid").asInt() + "/approvals",
               Map.of());
       if (ap.status() != 200) break;
       seen++;

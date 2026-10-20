@@ -16,9 +16,9 @@ final class DeepReport {
 
   private final Screen con;
   private final Counters counters;
-  private final List<Proj> selected;
+  private final List<Assessed> selected;
 
-  DeepReport(Screen con, Counters counters, List<Proj> selected) {
+  DeepReport(Screen con, Counters counters, List<Assessed> selected) {
     this.con = con;
     this.counters = counters;
     this.selected = selected;
@@ -77,7 +77,7 @@ final class DeepReport {
   }
 
   private long count(Predicate<Prat> test) {
-    return selected.stream().filter(p -> test.test(p.prat)).count();
+    return selected.stream().filter(p -> test.test(p.practices())).count();
   }
 
   /**
@@ -86,8 +86,8 @@ final class DeepReport {
    * pratiques.
    */
   void coverage() {
-    List<Proj> core = selected.stream().filter(p -> !isWitness(p)).toList();
-    List<Proj> witness = selected.stream().filter(DeepReport::isWitness).toList();
+    List<Assessed> core = selected.stream().filter(p -> !isWitness(p)).toList();
+    List<Assessed> witness = selected.stream().filter(DeepReport::isWitness).toList();
 
     con.out().out().printf("%n  %-38s %12s %12s%n", "", "sélection", "témoin");
     row("Branche par défaut protégée", core, witness, r -> r.defaultProtected);
@@ -107,13 +107,13 @@ final class DeepReport {
     unreviewed(core);
   }
 
-  private static boolean isWitness(Proj p) {
-    return p.fate instanceof Fate.Selected s && s.isWitness();
+  private static boolean isWitness(Assessed p) {
+    return p.audited().fate() instanceof Fate.Selected s && s.isWitness();
   }
 
-  private void recovery(List<Proj> core) {
+  private void recovery(List<Assessed> core) {
     List<Double> recoveries =
-        core.stream().map(p -> p.prat.recoveryMedianHours).filter(Objects::nonNull).toList();
+        core.stream().map(p -> p.practices().recoveryMedianHours).filter(Objects::nonNull).toList();
     if (recoveries.isEmpty()) return;
     con.out()
         .out()
@@ -126,9 +126,9 @@ final class DeepReport {
     con.say("    n'est datable, et rien ici ne s'y substitue.", DIM);
   }
 
-  private void reverts(List<Proj> core) {
+  private void reverts(List<Assessed> core) {
     List<Integer> counts =
-        core.stream().map(p -> p.commits.reverts()).filter(Objects::nonNull).toList();
+        core.stream().map(p -> p.audited().commits().reverts()).filter(Objects::nonNull).toList();
     long reverting = counts.stream().filter(n -> n > 0).count();
     if (reverting == 0) return;
     int total = counts.stream().mapToInt(Integer::intValue).sum();
@@ -140,9 +140,11 @@ final class DeepReport {
     con.say("    Signal de qualité direct, indépendant de Sonar et des " + "environnements.", DIM);
   }
 
-  private void unreviewed(List<Proj> core) {
+  private void unreviewed(List<Assessed> core) {
     long noReview =
-        core.stream().filter(p -> p.prat.mergedMrs == 0 && p.commitsOrZero() >= 20).count();
+        core.stream()
+            .filter(p -> p.practices().mergedMrs == 0 && p.audited().commitsOrZero() >= 20)
+            .count();
     if (noReview == 0) return;
     con.out()
         .out()
@@ -152,7 +154,8 @@ final class DeepReport {
     con.say("    Le changement atteint la branche par défaut sans revue.", YELLOW);
   }
 
-  private void row(String label, List<Proj> core, List<Proj> witness, Predicate<Prat> test) {
+  private void row(
+      String label, List<Assessed> core, List<Assessed> witness, Predicate<Prat> test) {
     con.out()
         .out()
         .printf(
@@ -160,8 +163,8 @@ final class DeepReport {
             label, share(core, test), witness.isEmpty() ? "—" : share(witness, test));
   }
 
-  private static String share(List<Proj> ps, Predicate<Prat> test) {
-    long n = ps.stream().filter(p -> test.test(p.prat)).count();
+  private static String share(List<Assessed> ps, Predicate<Prat> test) {
+    long n = ps.stream().filter(p -> test.test(p.practices())).count();
     return "%d (%s)".formatted(n, pct(n, ps.size()));
   }
 }

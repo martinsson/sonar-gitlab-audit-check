@@ -25,13 +25,13 @@ final class Pipelines {
     this.funnel = funnel;
   }
 
-  void measure(Proj p, Prat r) {
+  void measure(GitlabProject p, Prat r) {
     Gitlab.Response pl =
         gl.get(
-            "projects/" + p.id + "/pipelines",
+            "projects/" + p.id() + "/pipelines",
             params(
                 "ref",
-                p.defaultBranch,
+                p.defaultBranch(),
                 "updated_after",
                 iso(funnel.windowStart()),
                 "per_page",

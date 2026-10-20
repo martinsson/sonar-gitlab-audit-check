@@ -3,11 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.enc;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.isBlank;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.pct;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
-import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -19,78 +15,64 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 /** Étape 0 : inventaire et exclusions dures. */
 final class Inventory {
 
   private final Gitlab gl;
-  private final Screen con;
-  private final Counters counters;
   private final Funnel funnel;
   private final ScopeOptions scope;
 
-  Inventory(Gitlab gl, Screen con, Counters counters, Funnel funnel, ScopeOptions scope) {
+  Inventory(Gitlab gl, Funnel funnel, ScopeOptions scope) {
     this.gl = gl;
-    this.con = con;
-    this.counters = counters;
     this.funnel = funnel;
     this.scope = scope;
   }
 
   /**
-   * Tout le périmètre, exclus compris : ils portent leur motif jusque dans le CSV.
+   * Ce que l'inventaire a trouvé : tout le périmètre, exclus compris — ils portent leur motif
+   * jusque dans le CSV.
+   *
+   * @param ignored les chemins de --projects-file que GitLab n'a pas rendus
+   * @param exclusions la liste d'exclusion appliquée, vide sans liste
+   * @param forbidden les réponses 403 reçues : le jeton ne voit pas tout le parc
+   */
+  record Census(
+      List<AuditedProject> all, List<Ignored> ignored, Exclusions exclusions, int forbidden) {}
+
+  /** Un chemin de --projects-file auquel GitLab a répondu autre chose que 200. */
+  record Ignored(String path, int status) {}
+
+  /**
+   * Le périmètre, chaque projet exclu d'office portant son motif.
    *
    * @param exclusionsFile la liste d'exclusion, ou null sans liste
    */
-  List<Proj> run(@Nullable Path exclusionsFile) throws IOException {
-    con.title("1. Inventaire (étape 0)");
-    Console out = con.out();
-
-    List<Proj> all = fetch().stream().map(Proj::of).collect(Collectors.toList());
-    out.out().printf("  Projets retournés               : %d%n", all.size());
-
+  Census run(@Nullable Path exclusionsFile) throws IOException {
+    List<Ignored> ignored = new ArrayList<>();
+    List<JsonNode> found = fetch(ignored);
     // Les exclusions sont comptées, jamais escamotées. Un parc où 30 % des
     // dépôts sont des miroirs n'est pas le même parc que 30 % d'archivés,
     // et un total sans dénominateur se lit comme complet alors qu'il ne l'est pas.
     Exclusions exclusions = Exclusions.load(exclusionsFile);
-    if (!exclusions.isEmpty()) {
-      out.out()
-          .printf(
-              "  Liste d'exclusion               : %s (%d entrées)%n",
-              exclusions.file(), exclusions.entries().size());
-    }
-    for (Proj p : all) {
-      String reason = exclusionReason(p, exclusions);
-      if (reason != null) p.fate = new Fate.Excluded(Fate.Stage.INVENTORY, reason);
-    }
-    Map<String, Long> byReason = new TreeMap<>();
-    for (Proj p : all) {
-      if (p.fate instanceof Fate.Excluded e) byReason.merge(e.reason(), 1L, Long::sum);
-    }
-    byReason.forEach((r, n) -> out.out().printf("    exclu — %-22s : %d%n", r, n));
-
-    long kept = all.stream().filter(p -> p.fate.inPlay()).count();
-    counters.inScope = all.size();
-    counters.kept = (int) kept;
-    out.out()
-        .printf(
-            "  Retenus pour analyse            : %d (%s du parc)%n", kept, pct(kept, all.size()));
-    int forbidden = gl.forbidden();
-    if (forbidden > 0) {
-      con.say(
-          "    %d réponses 403 : le jeton ne voit pas tout le parc.".formatted(forbidden), YELLOW);
-      con.say("    Un trou de permission raccourcit la liste sans lever d'erreur.", DIM);
-    }
-    return all;
+    List<AuditedProject> all =
+        found.stream()
+            .map(GitlabProject::of)
+            .map(p -> AuditedProject.entering(p).with(fate(p, exclusions)))
+            .toList();
+    return new Census(all, ignored, exclusions, gl.forbidden());
   }
 
-  private List<JsonNode> fetch() throws IOException {
+  private Fate fate(GitlabProject p, Exclusions exclusions) {
+    String reason = exclusionReason(p, exclusions);
+    return reason == null ? new Fate.InPlay() : new Fate.Excluded(Fate.Stage.INVENTORY, reason);
+  }
+
+  private List<JsonNode> fetch(List<Ignored> ignored) throws IOException {
     String archived = scope.includeArchived ? null : "false";
     Path file = scope.projectsFile;
-    if (file != null) return fromFile(file);
+    if (file != null) return fromFile(file, ignored);
     String group = scope.group;
     if (group != null && !group.isBlank()) {
       return gl.paged(
@@ -110,7 +92,7 @@ final class Inventory {
         params("statistics", "true", "archived", archived, "order_by", "id", "sort", "asc"));
   }
 
-  private List<JsonNode> fromFile(Path file) throws IOException {
+  private List<JsonNode> fromFile(Path file, List<Ignored> ignored) throws IOException {
     List<String> paths =
         Files.readAllLines(file, StandardCharsets.UTF_8).stream()
             .map(String::trim)
@@ -125,26 +107,27 @@ final class Inventory {
     for (int i = 0; i < paths.size(); i++) {
       Gitlab.Response r = rs.get(i);
       if (r.status() == 200) found.add(r.json());
-      else con.out().out().printf("    %-40s HTTP %d — ignoré%n", paths.get(i), r.status());
+      else ignored.add(new Ignored(paths.get(i), r.status()));
     }
     return found;
   }
 
-  private @Nullable String exclusionReason(Proj p, Exclusions exclusions) {
-    if (exclusions.match(p.path) != null) return "liste d'exclusion";
-    if (p.archived && !scope.includeArchived) return "archivé";
-    if (p.emptyRepo) return "dépôt vide";
-    if (p.mirror) return "miroir";
+  private @Nullable String exclusionReason(GitlabProject p, Exclusions exclusions) {
+    GitlabProject.Repository repo = p.repository();
+    if (exclusions.match(p.path()) != null) return "liste d'exclusion";
+    if (repo.archived() && !scope.includeArchived) return "archivé";
+    if (repo.empty()) return "dépôt vide";
+    if (repo.mirror()) return "miroir";
     if (isUndivergedFork(p)) return "fork non divergé";
-    if (isBlank(p.defaultBranch)) return "sans branche par défaut";
+    if (isBlank(repo.defaultBranch())) return "sans branche par défaut";
     return null;
   }
 
   /** Un fork sans activité depuis sa création n'est qu'une copie. */
-  private static boolean isUndivergedFork(Proj p) {
-    OffsetDateTime last = p.lastActivity;
-    OffsetDateTime created = p.created;
-    return p.forkedFrom != null
+  private static boolean isUndivergedFork(GitlabProject p) {
+    OffsetDateTime last = p.dates().lastActivity();
+    OffsetDateTime created = p.dates().created();
+    return p.repository().forkedFrom() != null
         && last != null
         && created != null
         && last.isBefore(created.plusDays(1));

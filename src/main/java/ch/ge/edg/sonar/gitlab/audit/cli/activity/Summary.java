@@ -10,29 +10,26 @@ import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
 /** La synthèse : l'entonnoir en effectifs, ses réserves, et les fichiers écrits. */
 final class Summary {
 
   private final Gitlab gl;
   private final Screen con;
-  private final Counters counters;
   private final Funnel funnel;
   private final Outputs outputs;
 
-  Summary(Gitlab gl, Screen con, Counters counters, Funnel funnel, Outputs outputs) {
+  Summary(Gitlab gl, Screen con, Funnel funnel, Outputs outputs) {
     this.gl = gl;
     this.con = con;
-    this.counters = counters;
     this.funnel = funnel;
     this.outputs = outputs;
   }
 
-  void print(List<Proj> all) {
+  void print(FunnelResult result) {
     con.title("Synthèse");
-    funnel();
-    reserves(all);
+    funnel(result);
+    reserves(result);
     files();
     con.say(
         """
@@ -43,24 +40,22 @@ final class Summary {
         DIM);
   }
 
-  private void funnel() {
+  private void funnel(FunnelResult n) {
     Console out = con.out();
-    Counters n = counters;
     int calls = gl.calls();
     out.out()
         .printf(
             "  %d appels API (%d GET, %d GraphQL, %d 429 réessayés).%n",
-            calls, calls - n.graphqlCalls, n.graphqlCalls, gl.throttled());
+            calls, calls - n.graphqlCalls(), n.graphqlCalls(), gl.throttled());
     out.out()
         .printf(
             "  Parc %d → retenus %d → frais %d → éligibles %d → sélectionnés %d.%n",
-            n.inScope, n.kept, n.fresh, n.eligible, n.selected);
+            n.inScope(), n.kept(), n.fresh(), n.eligible(), n.selected().size());
   }
 
-  private void reserves(List<Proj> all) {
+  private void reserves(FunnelResult n) {
     Console out = con.out();
-    Counters n = counters;
-    if (n.notCounted > 0) {
+    if (n.notCounted() > 0) {
       // La coupe d'activité n'est pas une exclusion comme les autres : les
       // projets qu'elle écarte n'ont pas été mesurés, ils ont été laissés
       // de côté. Le dénominateur du rapport le dit, sinon le total se lit
@@ -68,15 +63,15 @@ final class Summary {
       out.out()
           .printf(
               "  %d projets laissés de côté par --active-within %d, non mesurés.%n",
-              n.notCounted, funnel.options().activeWithinDays);
+              n.notCounted(), funnel.options().activeWithinDays);
     }
-    if (n.sampleSize > 0) {
+    if (n.sampleSize() > 0) {
       out.out()
           .printf(
               "  Filtre de fraîcheur validé sur %d projets : %d faux négatif%s.%n",
-              n.sampleSize, n.sampleLeaks, plural(n.sampleLeaks));
+              n.sampleSize(), n.sampleLeaks(), plural(n.sampleLeaks()));
     }
-    long truncated = all.stream().filter(p -> p.commits.truncated()).count();
+    int truncated = n.truncated();
     if (truncated > 0) {
       con.say(
           "  %d projets tronqués à %d pages de commits : leur volume est"

@@ -66,24 +66,24 @@ final class CiConfig {
   /** ci/lint refusé une fois l'est pour tout le parc : le droit est sur le jeton. */
   private volatile boolean lintRefused;
 
-  CiConfig(Gitlab gl, Counters counters, List<Proj> all) {
+  CiConfig(Gitlab gl, Counters counters, List<GitlabProject> all) {
     this.gl = gl;
     this.counters = counters;
-    for (Proj p : all) {
-      if (!p.path.isEmpty()) projPathToId.put(p.path, String.valueOf(p.id));
+    for (GitlabProject p : all) {
+      if (!p.path().isEmpty()) projPathToId.put(p.path(), String.valueOf(p.id()));
     }
   }
 
   /** Le YAML de CI du projet, ou null quand ni ci/lint ni le fichier brut ne le donnent. */
-  @Nullable Ci read(Proj p) {
+  @Nullable Ci read(GitlabProject p) {
     if (!lintRefused) {
       Ci merged = lint(p);
       if (merged != null) return merged;
     }
     Gitlab.Response raw =
         gl.get(
-            "projects/" + p.id + "/repository/files/" + enc(".gitlab-ci.yml") + "/raw",
-            Map.of("ref", p.defaultBranch));
+            "projects/" + p.id() + "/repository/files/" + enc(".gitlab-ci.yml") + "/raw",
+            Map.of("ref", p.defaultBranch()));
     String body = raw.body();
     if (raw.status() != 200 || body == null) return null;
     counters.ciByFallbackN.incrementAndGet();
@@ -92,13 +92,13 @@ final class CiConfig {
     return new Ci(all.toString(), "includes suivis");
   }
 
-  private @Nullable Ci lint(Proj p) {
+  private @Nullable Ci lint(GitlabProject p) {
     Gitlab.Response lint =
         gl.get(
-            "projects/" + p.id + "/ci/lint",
+            "projects/" + p.id() + "/ci/lint",
             params(
-                "ref", p.defaultBranch,
-                "content_ref", p.defaultBranch,
+                "ref", p.defaultBranch(),
+                "content_ref", p.defaultBranch(),
                 "include_merged_yaml", "true"));
     int status = lint.status();
     if (status == 200) {

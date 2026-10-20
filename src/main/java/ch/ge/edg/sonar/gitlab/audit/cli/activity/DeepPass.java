@@ -1,14 +1,12 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
-
 import ch.ge.edg.sonar.gitlab.audit.cli.activity.OutputOptions.Outputs;
+import ch.ge.edg.sonar.gitlab.audit.csv.Column;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /** §4 — signaux de pratique sur les sélectionnés. */
 final class DeepPass {
@@ -18,10 +16,11 @@ final class DeepPass {
   private final Counters counters;
   private final Funnel funnel;
 
-  DeepPass(Gitlab gl, Screen con, Counters counters, Funnel funnel) {
+  DeepPass(Gitlab gl, Screen con, Preflight.Instance instance, Funnel funnel) {
     this.gl = gl;
     this.con = con;
-    this.counters = counters;
+    this.counters = new Counters();
+    counters.enterprise = instance.enterprise();
     this.funnel = funnel;
   }
 
@@ -29,16 +28,17 @@ final class DeepPass {
    * La passe entière, entre la lecture et l'écriture du cache des clés Sonar ; le cache dit sur
    * l'erreur de la console ce qu'il n'a pas pu écrire.
    */
-  void run(Outputs outputs, List<Proj> all) throws IOException {
+  void run(Outputs outputs, FunnelResult funnelResult) throws IOException {
     SonarCache cache = new SonarCache(outputs.cache(), outputs.useCache(), con.out().err());
     cache.load();
-    List<Proj> selected = all.stream().filter(p -> p.fate.isSelected()).toList();
+    List<GitlabProject> all =
+        funnelResult.projects().stream().map(AuditedProject::project).toList();
     measureAll(
-        outputs, selected, new SonarProbe(gl, counters, cache, new CiConfig(gl, counters, all)));
+        outputs, funnelResult.selected(), new PracticeProbes(gl, counters, funnel, cache, all));
     cache.save();
   }
 
-  private void measureAll(Outputs outputs, List<Proj> selected, SonarProbe sonar)
+  private void measureAll(Outputs outputs, List<AuditedProject> selected, PracticeProbes probes)
       throws IOException {
     if (selected.isEmpty()) return;
     con.title("6. Signaux de pratique sur les %d sélectionnés".formatted(selected.size()));
@@ -46,43 +46,18 @@ final class DeepPass {
     // Une dizaine d'appels par projet, sans lien d'un projet à l'autre :
     // la seule raison de les faire l'un après l'autre était qu'on ne
     // s'était pas posé la question. C'est le facteur qui compte.
-    gl.parallel(selected, funnel.concurrency(), p -> measure(p, sonar));
-    DeepReport report = new DeepReport(con, counters, selected);
+    List<Prat> measured = gl.map(selected, funnel.concurrency(), probes::measure);
+    List<Assessed> assessed = new ArrayList<>();
+    for (int i = 0; i < selected.size(); i++) {
+      assessed.add(new Assessed(selected.get(i), measured.get(i)));
+    }
+    DeepReport report = new DeepReport(con, counters, assessed);
     report.ciRoutes();
     report.coverage();
     Path pratiques = outputs.pratiques();
     if (pratiques != null) {
-      CsvFiles.write(
-          pratiques,
-          outputs.comma(),
-          CsvFiles.PRATIQUES,
-          selected,
-          p -> p.pratRow(funnel.sinceDays()));
+      Column.write(pratiques, outputs.comma(), CsvFiles.practices(funnel.sinceDays()), assessed);
       con.out().out().printf("%n  Pratiques : %d lignes.%n", selected.size());
-    }
-  }
-
-  private void measure(Proj p, SonarProbe sonar) {
-    Prat r = p.prat;
-    protection(p, r);
-    new Reviews(gl, counters, funnel).measure(p, r);
-    new Pipelines(gl, funnel).measure(p, r);
-    new Delivery(gl, counters, funnel).measure(p, r);
-    sonar.measure(p, r);
-    Churn.measure(gl, funnel, p, r);
-  }
-
-  /** Binaire, non ambigu, et cela explique le nombre de poussées directes. */
-  private void protection(Proj p, Prat r) {
-    Gitlab.Response br =
-        gl.get("projects/" + p.id + "/protected_branches", Map.of("per_page", "100"));
-    if (br.status() != 200) return;
-    for (JsonNode b : br.json()) {
-      if (p.defaultBranch.equals(text(b, "name"))) {
-        r.defaultProtected = true;
-        JsonNode lvl = b.path("push_access_levels");
-        r.pushLocked = lvl.size() > 0 && lvl.get(0).path("access_level").asInt(-1) == 0;
-      }
     }
   }
 }

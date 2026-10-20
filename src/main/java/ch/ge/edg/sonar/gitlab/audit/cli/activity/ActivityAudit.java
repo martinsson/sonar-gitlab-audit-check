@@ -6,6 +6,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 import ch.ge.edg.sonar.gitlab.audit.cli.activity.OutputOptions.Outputs;
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.GitlabConnectionOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.csv.Column;
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
@@ -63,31 +64,34 @@ final class ActivityAudit {
       return 2;
     }
     Gitlab gl = new Gitlab(connection.get(), new GitlabWarnings(out), sleeper);
-    Counters counters = new Counters();
     Funnel funnel = Funnel.start(settings.funnel(), clock);
     Outputs outputs = settings.output().resolve();
 
     con.say("\nInstance : " + gl.base, BOLD);
-    if (!new Preflight(gl, con, counters).run()) return 1;
+    Optional<Preflight.Instance> instance = new Preflight(gl, con).run();
+    if (instance.isEmpty()) return 1;
 
-    List<Proj> all =
-        new Inventory(gl, con, counters, funnel, settings.scope())
+    FunnelReport report = new FunnelReport(con, funnel);
+    report.beginInventory();
+    Inventory.Census census =
+        new Inventory(gl, funnel, settings.scope())
             .run(Exclusions.file(settings.scope().exclusions.file(), workDir));
-    if (all.isEmpty()) {
+    report.inventory(census);
+    if (census.all().isEmpty()) {
       con.say("\n  Aucun projet dans le périmètre. Rien à faire.", YELLOW);
       return 1;
     }
-    FunnelStages.run(gl, con, counters, funnel, all);
-    write(outputs, all, funnel.sinceDays());
-    if (outputs.deep()) new DeepPass(gl, con, counters, funnel).run(outputs, all);
-    new Summary(gl, con, counters, funnel, outputs).print(all);
+    FunnelResult result = FunnelStages.run(gl, report, funnel, census.all());
+    write(outputs, result.projects(), funnel.sinceDays());
+    if (outputs.deep()) new DeepPass(gl, con, instance.get(), funnel).run(outputs, result);
+    new Summary(gl, con, funnel, outputs).print(result);
     return 0;
   }
 
-  private void write(Outputs outputs, List<Proj> all, int sinceDays) throws IOException {
+  private void write(Outputs outputs, List<AuditedProject> all, int sinceDays) throws IOException {
     Path inventory = outputs.inventory();
     if (inventory == null) return;
-    CsvFiles.write(inventory, outputs.comma(), CsvFiles.INVENTORY, all, p -> p.row(sinceDays));
+    Column.write(inventory, outputs.comma(), CsvFiles.inventory(sinceDays), all);
     out.out().printf("%n  Inventaire : %d lignes.%n", all.size());
   }
 }

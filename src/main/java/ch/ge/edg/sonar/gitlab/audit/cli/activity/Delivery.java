@@ -24,8 +24,8 @@ final class Delivery {
     this.funnel = funnel;
   }
 
-  void measure(Proj p, Prat r) {
-    Gitlab.Response env = gl.get("projects/" + p.id + "/environments", Map.of("per_page", "1"));
+  void measure(GitlabProject p, Prat r) {
+    Gitlab.Response env = gl.get("projects/" + p.id() + "/environments", Map.of("per_page", "1"));
     Integer environments = null;
     if (env.status() == 200) {
       Integer t = env.intHeader("x-total");
@@ -37,10 +37,10 @@ final class Delivery {
   }
 
   /** La fréquence de déploiement sur la fenêtre, ou le constat qu'elle n'est pas disponible. */
-  private void dora(Proj p, Prat r) {
+  private void dora(GitlabProject p, Prat r) {
     Gitlab.Response df =
         gl.get(
-            "projects/" + p.id + "/dora/metrics",
+            "projects/" + p.id() + "/dora/metrics",
             params(
                 "metric",
                 "deployment_frequency",
