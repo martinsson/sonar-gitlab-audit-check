@@ -2,10 +2,10 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.size;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.total;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.AlmBinding;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Analyses;

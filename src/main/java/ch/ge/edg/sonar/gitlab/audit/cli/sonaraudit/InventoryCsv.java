@@ -1,8 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.dec;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.decimal;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.HistoryPoint;
@@ -141,8 +141,8 @@ final class InventoryCsv {
     }
     row.add(String.valueOf(t.points()));
     row.add(String.valueOf(t.spanDays()));
-    row.add(dec(t.violationsPerMonth()));
-    row.add(dec(t.densityPctPerMonth()));
-    row.add(dec(t.debtRatioPctPerMonth()));
+    row.add(decimal(t.violationsPerMonth()));
+    row.add(decimal(t.densityPctPerMonth()));
+    row.add(decimal(t.debtRatioPctPerMonth()));
   }
 }

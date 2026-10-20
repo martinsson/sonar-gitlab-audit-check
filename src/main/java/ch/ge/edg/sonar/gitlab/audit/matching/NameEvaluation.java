@@ -6,6 +6,7 @@ import ch.ge.edg.sonar.gitlab.audit.matching.Report.Example;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.NameStats;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.ThresholdPoint;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -92,7 +93,11 @@ final class NameEvaluation {
         m.left().str(s.leftKey()),
         "proposé %s (%s), vrai %s (%s, par %s)"
             .formatted(
-                f.candidate(), Fmt.score(f.score()), m.rightKey(s), Fmt.score(ts), m.method()));
+                f.candidate(),
+                Text.decimal(f.score()),
+                m.rightKey(s),
+                Text.decimal(ts),
+                m.method()));
   }
 
   private List<ThresholdPoint> thresholds() {
@@ -112,8 +117,8 @@ final class NameEvaluation {
               th,
               proposed,
               ok,
-              proposed == 0 ? null : Fmt.round(ok / (double) proposed),
-              sure.isEmpty() ? 0 : Fmt.round(ok / (double) sure.size())));
+              proposed == 0 ? null : Text.round(ok / (double) proposed),
+              sure.isEmpty() ? 0 : Text.round(ok / (double) sure.size())));
     }
     return points;
   }
@@ -140,7 +145,7 @@ final class NameEvaluation {
           new Example(
               m.left().str(s.leftKey()),
               "%s — score %s, apparié par %s"
-                  .formatted(shown, Fmt.score(d.trueScore()), m.method())));
+                  .formatted(shown, Text.decimal(d.trueScore()), m.method())));
     }
     return divergent;
   }
@@ -182,10 +187,11 @@ final class NameEvaluation {
         "%s (%s) — %s%s"
             .formatted(
                 g.candidate(),
-                Fmt.score(g.score()),
+                Text.decimal(g.score()),
                 g.rejection(),
                 g.runnerUp().isEmpty()
                     ? ""
-                    : ", suivant %s (%s)".formatted(g.runnerUp(), Fmt.score(g.runnerUpScore()))));
+                    : ", suivant %s (%s)"
+                        .formatted(g.runnerUp(), Text.decimal(g.runnerUpScore()))));
   }
 }

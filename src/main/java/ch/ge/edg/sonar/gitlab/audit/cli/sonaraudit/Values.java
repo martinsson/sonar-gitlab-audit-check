@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Paging;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.DateTimeException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -9,7 +10,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
@@ -59,11 +59,6 @@ final class Values {
     return m;
   }
 
-  /** Point décimal quelle que soit la locale : le CSV est relu par d'autres outils. */
-  static String dec(@Nullable Double d) {
-    return d == null ? "" : String.format(Locale.ROOT, "%.2f", d);
-  }
-
   static int orZero(@Nullable Integer i) {
     return i == null ? 0 : i;
   }
@@ -80,10 +75,6 @@ final class Values {
     return c == null ? 0 : c.size();
   }
 
-  static boolean isBlank(@Nullable String s) {
-    return s == null || s.isBlank();
-  }
-
   static boolean notEmpty(@Nullable Collection<?> c) {
     return c != null && !c.isEmpty();
   }
@@ -92,20 +83,8 @@ final class Values {
     return l == null ? List.of() : l;
   }
 
-  static String orEmpty(@Nullable String s) {
-    return s == null ? "" : s;
-  }
-
-  static String orNa(@Nullable String s) {
-    return isBlank(s) ? "n/a" : orEmpty(s);
-  }
-
-  static String truncate(String s, int max) {
-    return s.length() <= max ? s : s.substring(0, max);
-  }
-
   static String shortName(String key) {
     String tail = key.substring(key.lastIndexOf(':') + 1);
-    return truncate(tail, 50);
+    return Text.truncate(tail, 50);
   }
 }

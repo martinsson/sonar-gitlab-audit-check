@@ -1,8 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.numeric;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.HistoryPoint;
 import java.time.LocalDateTime;

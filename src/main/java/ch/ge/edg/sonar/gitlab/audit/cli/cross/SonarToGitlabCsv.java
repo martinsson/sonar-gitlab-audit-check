@@ -4,7 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Result;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
-import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -59,7 +59,7 @@ final class SonarToGitlabCsv {
       cell(g, "id"),
       p.method(),
       p.confidence().code(),
-      score == null ? "" : Fmt.score(score),
+      score == null ? "" : Text.decimal(score),
       p.candidates(),
       p.reason(),
       g == null ? "" : String.valueOf(perPath.get(p.path())),

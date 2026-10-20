@@ -3,12 +3,12 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orNa;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orZero;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.orNa;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Analyses;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Analysis;

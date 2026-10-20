@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +65,7 @@ final class Format {
   }
 
   static String label(Map<String, String> labels, String identity) {
-    return truncate(labels.getOrDefault(identity, identity), 32);
+    return Text.truncate(labels.getOrDefault(identity, identity), 32);
   }
 
   static int orZero(@Nullable Integer i) {
@@ -73,21 +74,5 @@ final class Format {
 
   static @Nullable String str(@Nullable Object o) {
     return o == null ? null : String.valueOf(o);
-  }
-
-  static boolean isBlank(@Nullable String s) {
-    return s == null || s.isBlank();
-  }
-
-  static String orEmpty(@Nullable String s) {
-    return s == null ? "" : s;
-  }
-
-  static String orNa(@Nullable String s) {
-    return s == null || s.isBlank() ? "n/a" : s;
-  }
-
-  static String truncate(String s, int max) {
-    return s.length() <= max ? s : s.substring(0, max);
   }
 }

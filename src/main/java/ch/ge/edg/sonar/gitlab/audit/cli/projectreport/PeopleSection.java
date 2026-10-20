@@ -5,6 +5,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
@@ -87,7 +88,7 @@ final class PeopleSection {
 
   private static long distinct(List<Commit> cs, Function<Commit, @Nullable String> field) {
     return cs.stream()
-        .map(x -> Format.orEmpty(field.apply(x)).trim().toLowerCase(Locale.ROOT))
+        .map(x -> Text.orEmpty(field.apply(x)).trim().toLowerCase(Locale.ROOT))
         .filter(s -> !s.isBlank())
         .distinct()
         .count();
@@ -135,7 +136,7 @@ final class PeopleSection {
     Set<String> botNames =
         commits.bots().stream()
             .map(Commit::authorName)
-            .filter(s -> !Format.isBlank(s))
+            .filter(s -> !Text.isBlank(s))
             .collect(Collectors.toCollection(TreeSet::new));
     report.println("  Écartés comme bots              : " + String.join(", ", botNames), DIM);
   }

@@ -3,9 +3,9 @@ package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Choice;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
-import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
 import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import ch.ge.edg.sonar.gitlab.audit.matching.Match;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -53,7 +53,7 @@ final class SonarToGitlabFixtures {
                     p.key() + " -> " + p.path(),
                     p.method(),
                     p.confidence().code(),
-                    p.score() == null ? "-" : Fmt.score(p.score()),
+                    p.score() == null ? "-" : Text.decimal(p.score()),
                     p.candidates(),
                     p.reason()))
         .collect(Collectors.joining("\n"));

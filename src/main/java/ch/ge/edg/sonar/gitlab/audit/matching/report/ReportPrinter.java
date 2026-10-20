@@ -6,7 +6,6 @@ import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.GREEN;
 import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.YELLOW;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
-import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Agreement;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Bucket;
@@ -17,6 +16,7 @@ import ch.ge.edg.sonar.gitlab.audit.matching.Report.NameStats;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Summary;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.ThresholdPoint;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Vocabulary;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -59,7 +59,7 @@ public final class ReportPrinter {
     out.out()
         .printf(
             "%n  Jointures sûres : %d / %d (%s) · suggestions : %d · sans rien : %d%n",
-            s.joined(), s.left(), Fmt.pct(s.joined(), s.left()), s.suggestions(), s.unmatched());
+            s.joined(), s.left(), Text.pct(s.joined(), s.left()), s.suggestions(), s.unmatched());
     out.out()
         .printf("  Lignes de droite jamais retenues : %d / %d%n", s.rightUnmatched(), s.right());
     for (String u : rep.unavailable()) out.println(out.color("  Non évaluée : " + u, YELLOW));
@@ -108,8 +108,8 @@ public final class ReportPrinter {
               p.threshold(),
               p.proposed(),
               p.correct(),
-              precision == null ? "   —" : Fmt.pct(precision),
-              Fmt.pct(p.recall()));
+              precision == null ? "   —" : Text.pct(precision),
+              Text.pct(p.recall()));
     }
     if (!n.rejections().isEmpty()) {
       out.println("  Suggestions refusées : " + n.rejections());

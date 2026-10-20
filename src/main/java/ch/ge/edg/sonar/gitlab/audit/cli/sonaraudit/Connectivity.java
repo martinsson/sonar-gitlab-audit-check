@@ -4,9 +4,9 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.RED;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.line;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.CurrentUser;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SystemStatus;

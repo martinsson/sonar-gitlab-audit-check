@@ -4,8 +4,8 @@ import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabInventory;
 import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
 import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
-import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
 import ch.ge.edg.sonar.gitlab.audit.matching.Keys;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -90,7 +90,7 @@ final class GitlabInventoryIndex {
 
   /** « chemin (score) » : un candidat tel que le CSV le montre. */
   String described(int g, double score) {
-    return "%s (%s)".formatted(path(g), Fmt.score(score));
+    return "%s (%s)".formatted(path(g), Text.decimal(score));
   }
 
   @Nullable Integer byPath(String path) {

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -64,7 +65,7 @@ class SonarRankSuspectedBugsTest {
   @Test
   @SuspectedBug("truncate should return at most max characters, not max + 2")
   void truncate_returns_two_characters_more_than_max() {
-    String cut = RankReport.truncate("abcdefghij", 6);
+    String cut = Text.ellipsize("abcdefghij", 6);
 
     assertThat(cut).isEqualTo("abcde...").hasSize(6 + 2);
   }

@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
 import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,7 +67,7 @@ public final class Gitlab {
 
     /** Lecture typée, pour l'outil qui préfère des records à un arbre. */
     public <T> @Nullable T as(Class<T> type) {
-      if (!ok() || isBlank(body)) return null;
+      if (!ok() || Text.isBlank(body)) return null;
       try {
         return MAPPER.readValue(body, type);
       } catch (IOException e) {
@@ -79,7 +80,7 @@ public final class Gitlab {
      * pagination typée doit pouvoir rapporter « réponse illisible » au lieu d'un plancher.
      */
     public <T> Optional<List<T>> asList(Class<T> type) {
-      if (!ok() || isBlank(body)) return Optional.empty();
+      if (!ok() || Text.isBlank(body)) return Optional.empty();
       try {
         List<T> list =
             MAPPER.readValue(
@@ -106,9 +107,9 @@ public final class Gitlab {
       if (body == null) return "";
       JsonNode j = json();
       for (String k : List.of("message", "error", "error_description")) {
-        if (j.hasNonNull(k) && j.get(k).isTextual()) return truncate(j.get(k).asText(), 90);
+        if (j.hasNonNull(k) && j.get(k).isTextual()) return Text.truncate(j.get(k).asText(), 90);
       }
-      return truncate(body.replace("\n", " "), 90);
+      return Text.truncate(body.replace("\n", " "), 90);
     }
   }
 
@@ -283,7 +284,7 @@ public final class Gitlab {
           + "|(^|[^\\p{L}])project_\\d+_bot";
 
   public static boolean isBot(Pattern bots, @Nullable String email, @Nullable String name) {
-    return bots.matcher(orEmpty(email) + " " + orEmpty(name)).find();
+    return bots.matcher(Text.orEmpty(email) + " " + Text.orEmpty(name)).find();
   }
 
   /**
@@ -344,17 +345,5 @@ public final class Gitlab {
         .filter(e -> e.getValue() != null)
         .map(e -> enc(e.getKey()) + "=" + enc(e.getValue()))
         .collect(Collectors.joining("&", "?", ""));
-  }
-
-  private static boolean isBlank(@Nullable String s) {
-    return s == null || s.isBlank();
-  }
-
-  private static String orEmpty(@Nullable String s) {
-    return s == null ? "" : s;
-  }
-
-  static String truncate(String s, int max) {
-    return s.length() <= max ? s : s.substring(0, max);
   }
 }

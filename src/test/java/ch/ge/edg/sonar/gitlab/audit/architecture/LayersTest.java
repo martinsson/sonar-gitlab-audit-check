@@ -43,6 +43,7 @@ class LayersTest {
               ROOT + "rest..",
               ROOT + "csv..",
               ROOT + "console..",
+              ROOT + "text..",
               ROOT + "parallel..",
               ROOT + "runtime..")
           .whereLayer("Commands")

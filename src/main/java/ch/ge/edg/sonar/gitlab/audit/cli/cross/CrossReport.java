@@ -29,10 +29,6 @@ final class CrossReport {
     out.println(out.color("-".repeat(Math.min(text.length(), 72)), DIM));
   }
 
-  static String pct(long n, long total) {
-    return total == 0 ? "—" : "%.0f %%".formatted(100.0 * n / total);
-  }
-
   // ----------------------------------------------------------------------
   // Les entrées
   // ----------------------------------------------------------------------

@@ -7,6 +7,7 @@ import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Retries;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -99,7 +100,7 @@ public final class Sonar {
         ErrorResponse e = MAPPER.readValue(body, ErrorResponse.class);
         List<ErrorMessage> errors = e.errors();
         if (errors != null && !errors.isEmpty()) {
-          return truncate(
+          return Text.truncate(
               errors.stream()
                   .map(ErrorMessage::msg)
                   .filter(Objects::nonNull)
@@ -109,7 +110,7 @@ public final class Sonar {
       } catch (IOException ignored) {
         // corps non-JSON : on le montre tel quel
       }
-      return truncate(body.replace("\n", " "), 90);
+      return Text.truncate(body.replace("\n", " "), 90);
     }
   }
 
@@ -221,9 +222,5 @@ public final class Sonar {
 
   private static String encode(String s) {
     return URLEncoder.encode(s, StandardCharsets.UTF_8);
-  }
-
-  static String truncate(String s, int max) {
-    return s.length() <= max ? s : s.substring(0, max);
   }
 }

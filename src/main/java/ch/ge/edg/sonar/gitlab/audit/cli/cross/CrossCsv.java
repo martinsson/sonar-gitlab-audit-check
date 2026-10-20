@@ -8,14 +8,13 @@ import ch.ge.edg.sonar.gitlab.audit.exchange.Crossing;
 import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
 import ch.ge.edg.sonar.gitlab.audit.matching.DetailColumns;
 import ch.ge.edg.sonar.gitlab.audit.matching.Result;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import org.jspecify.annotations.Nullable;
 
 /** croisement.csv : une ligne par projet GitLab, appariée ou non, les deux côtés préfixés. */
 final class CrossCsv {
@@ -54,12 +53,8 @@ final class CrossCsv {
     row.addAll(DetailColumns.cells(mapping, p.m()));
     GitlabPractices.CROSSED.forEach(col -> row.add(p.gl().str(col)));
     Crossing.SONAR_SIDE.forEach(col -> row.add(p.sqStr(col)));
-    row.add(dec(CrossPair.perKlocChanged(p)));
-    row.add(dec(CrossPair.perCommit(p)));
+    row.add(Text.decimal(CrossPair.perKlocChanged(p)));
+    row.add(Text.decimal(CrossPair.perCommit(p)));
     return row.toArray(String[]::new);
-  }
-
-  static String dec(@Nullable Double d) {
-    return d == null ? "" : String.format(Locale.ROOT, "%.2f", d);
   }
 }

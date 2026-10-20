@@ -4,6 +4,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import org.jspecify.annotations.Nullable;
@@ -23,14 +24,14 @@ final class IdentitySection {
     report.title("1. Le projet");
     report.println(
         "  Chemin                          : %s"
-            .formatted(report.c(Format.orEmpty(p.pathWithNamespace()), BOLD)));
+            .formatted(report.c(Text.orEmpty(p.pathWithNamespace()), BOLD)));
     report.println(
         "  Id / branche par défaut         : %s / %s"
-            .formatted(p.id(), Format.orNa(p.defaultBranch())));
+            .formatted(p.id(), Text.orNa(p.defaultBranch())));
     report.println(
         "  Visibilité                      : %s%s"
             .formatted(
-                Format.orNa(p.visibility()),
+                Text.orNa(p.visibility()),
                 Boolean.TRUE.equals(p.archived()) ? report.c("   ARCHIVÉ", YELLOW) : ""));
     report.println(
         "  Créé le                         : %s%s"
@@ -39,7 +40,7 @@ final class IdentitySection {
         "  Dernière activité               : %s%s"
             .formatted(dates.dateOnly(p.lastActivityAt()), ago(p.lastActivityAt())));
     statistics(p.statistics());
-    if (Format.isBlank(p.defaultBranch())) {
+    if (Text.isBlank(p.defaultBranch())) {
       report.println("  → dépôt sans branche par défaut : vide, ou jamais poussé.", YELLOW);
     }
   }
@@ -55,7 +56,7 @@ final class IdentitySection {
     if (s != null) {
       report.println(
           "  Commits (toute l'histoire)      : %s"
-              .formatted(Format.orNa(Format.str(s.commitCount()))));
+              .formatted(Text.orNa(Format.str(s.commitCount()))));
       report.println(
           "  Taille du dépôt                 : %s"
               .formatted(Format.humanBytes(s.repositorySize())));
