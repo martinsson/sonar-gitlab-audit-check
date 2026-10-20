@@ -44,15 +44,9 @@ class SonarAuditCheckReplayTest extends SonarAuditCheckTestBase {
     Cli.Result r = replay(dump, again);
 
     assertThat(r.exitCode()).isZero();
-    // A capture keeps the body, not the status. For delta-legacy, the refused binding (403)
-    // replays as a 200 without platform ("no binding" instead of "unreadable"), and the
-    // missing history (404) replays as an empty series (0 points over 0 days, not "no trend").
-    assertThat(Files.readString(again))
-        .isEqualTo(
-            Files.readString(csv())
-                .replace(
-                    "\"illisible (HTTP 403)\";\"\";\"\";\"\";\"\";\"\";\"\";\"\"",
-                    "\"\";\"\";\"\";\"0\";\"0\";\"\";\"\";\"\""));
+    // A capture keeps the status: delta-legacy's refused binding (403) and missing history (404)
+    // replay as what they were, and the inventory comes out identical.
+    assertThat(Files.readString(again)).isEqualTo(Files.readString(csv()));
     assertThat(Files.readString(tmp.resolve("rejoue-historique.csv")))
         .isEqualTo(Files.readString(historyCsv()));
     assertThat(stable(r.out()))

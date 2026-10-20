@@ -36,9 +36,10 @@ class GitLabProjectReportOptionsTest extends GitLabProjectReportHarness {
     assertThat(r.exitCode()).isZero();
     try (Stream<Path> files = Files.list(dumps)) {
       List<String> names = files.map(p -> p.getFileName().toString()).sorted().toList();
-      assertThat(names).hasSize(4);
-      assertThat(names.getFirst()).startsWith("0001-api_v4_projects_team_a_2Falpha_service_");
-      assertThat(names.get(3)).startsWith("0004-api_v4_projects_42_merge_requests_");
+      // Four answers, named after their request, and the index that keeps their order.
+      assertThat(names).hasSize(5).contains("index.txt");
+      assertThat(names).anyMatch(n -> n.startsWith("v4_projects_team_a_2Falpha_service-"));
+      assertThat(names).anyMatch(n -> n.startsWith("v4_projects_42_merge_requests-"));
     }
     assertThat(r.out()).contains("  4 appels API.");
   }
