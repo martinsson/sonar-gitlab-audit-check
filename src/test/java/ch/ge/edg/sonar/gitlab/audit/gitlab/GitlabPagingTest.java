@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
@@ -28,14 +27,15 @@ class GitlabPagingTest {
 
   @BeforeEach
   void start() throws Exception {
-    ConsoleOut.colorMode("never");
-    gl = new Gitlab(server.url(), "t", 5, false, null);
+    gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, null));
   }
 
-  /** A client made inside the capture: it prints on the streams in place when it is built. */
+  private final GitlabStreams printed = new GitlabStreams();
+
+  /** A client that reports to {@link #printed}. */
   private Gitlab printing() {
     try {
-      return new Gitlab(server.url(), "t", 5, false, null);
+      return printed.client(new Gitlab.Connection(server.url(), "t", 5, false, null));
     } catch (IOException | GeneralSecurityException e) {
       throw new IllegalStateException(e);
     }
@@ -89,8 +89,7 @@ class GitlabPagingTest {
                 ? Response.json("[{\"n\":1}]").withHeader("X-Next-Page", "2")
                 : Response.status(500, "{}"));
     List<JsonNode> got = new ArrayList<>();
-    GitlabStreams.Printed printed =
-        GitlabStreams.capture(() -> got.addAll(printing().paged("items", Map.of())));
+    got.addAll(printing().paged("items", Map.of()));
     assertThat(numbers(got)).containsExactly(1);
     assertThat(printed.out()).isEqualTo("    Pagination interrompue page 2 : HTTP 500\n");
   }
@@ -98,16 +97,14 @@ class GitlabPagingTest {
   @Test
   void pagedTreatsAnyNon200AsAnError() {
     server.on("/api/v4/items", r -> Response.status(201, "[{\"n\":1}]"));
-    GitlabStreams.Printed printed =
-        GitlabStreams.capture(() -> assertThat(printing().paged("items", Map.of())).isEmpty());
+    assertThat(printing().paged("items", Map.of())).isEmpty();
     assertThat(printed.out()).contains("page 1 : HTTP 201");
   }
 
   @Test
   void pagedStopsSilentlyOnANonArray() {
     server.on("/api/v4/items", r -> Response.json("{\"n\":1}").withHeader("X-Next-Page", "2"));
-    GitlabStreams.Printed printed =
-        GitlabStreams.capture(() -> assertThat(printing().paged("items", Map.of())).isEmpty());
+    assertThat(printing().paged("items", Map.of())).isEmpty();
     assertThat(printed.out()).isEmpty();
     assertThat(server.requests()).hasSize(1);
   }

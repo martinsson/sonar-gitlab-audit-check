@@ -190,7 +190,7 @@ final class SonarAuditCheckFake implements AutoCloseable {
       args.addAll(List.of("--exclusions", emptyExclusions(tmp).toString()));
     }
     args.addAll(Arrays.asList(extra));
-    return Cli.run(new SonarAuditCheck(), args.toArray(String[]::new));
+    return Cli.run(SonarAuditCheck::new, args.toArray(String[]::new));
   }
 
   static Path emptyExclusions(Path tmp) {

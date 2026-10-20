@@ -137,7 +137,7 @@ final class GitlabAuditFake implements AutoCloseable {
         new ArrayList<>(
             List.of("--url", server.url(), "--token", "glpat-test", "--color", "never"));
     all.addAll(Arrays.asList(args));
-    return Cli.run(new GitlabActivityAudit(), all.toArray(String[]::new));
+    return Cli.run(GitlabActivityAudit::new, all.toArray(String[]::new));
   }
 
   /** Output with the random port and the temp directory replaced by fixed marks. */

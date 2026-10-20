@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.matching;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -17,31 +16,42 @@ import org.yaml.snakeyaml.Yaml;
  * Namespace GitLab → préfixe Sonar, lu dans un YAML {@code NAMESPACE: prefixe}. Les clés du fichier
  * sont gardées telles qu'écrites, et cherchées en majuscules.
  */
-final class NamespaceMapping {
+public final class NamespaceMapping {
 
   /** Le fichier lu dans le répertoire de travail. */
   public static final String DEFAULT_FILE = "namespace-mapping.yaml";
 
   private final Map<String, String> glToSonar;
+  private final List<String> warnings;
 
-  private NamespaceMapping(Map<String, String> glToSonar) {
-    this.glToSonar = glToSonar;
+  private NamespaceMapping(Map<String, String> glToSonar, List<String> warnings) {
+    this.glToSonar = Map.copyOf(glToSonar);
+    this.warnings = List.copyOf(warnings);
+  }
+
+  /** Le mapping vide : chaque namespace se normalise tel quel. */
+  public static NamespaceMapping empty() {
+    return new NamespaceMapping(Map.of(), List.of());
   }
 
   /**
-   * Lit le fichier. Absent ou illisible, le mapping reste vide (ou partiel) et {@code err} le dit ;
-   * un contenu qui n'est pas une table de chaînes lève l'exception du lecteur YAML ou du cast.
+   * Lit le fichier. Absent ou illisible, le mapping reste vide (ou partiel) et {@link #warnings()}
+   * le dit ; un contenu qui n'est pas une table de chaînes lève l'exception du lecteur YAML ou du
+   * cast.
+   *
+   * @param file le fichier tel que l'utilisateur l'a nommé, résolu contre {@code workDir}
    */
-  public static NamespaceMapping load(String filename, PrintStream err) {
+  public static NamespaceMapping load(Path workDir, Path file) {
     Map<String, String> glToSonar = new HashMap<>();
+    Path mappingFile = workDir.resolve(file);
     try {
-      Path mappingFile = Path.of(filename);
       if (!Files.exists(mappingFile)) {
-        err.println(
-            "Avertissement : fichier de mapping "
-                + filename
-                + " introuvable — le matching namespace sera désactivé");
-        return new NamespaceMapping(glToSonar);
+        return new NamespaceMapping(
+            glToSonar,
+            List.of(
+                "Avertissement : fichier de mapping "
+                    + file
+                    + " introuvable — le matching namespace sera désactivé"));
       }
       try (InputStream is = Files.newInputStream(mappingFile)) {
         Map<?, ?> data = (Map<?, ?>) new Yaml().load(is);
@@ -50,9 +60,14 @@ final class NamespaceMapping {
         }
       }
     } catch (IOException e) {
-      err.println("Erreur lecture mapping : " + e.getMessage());
+      return new NamespaceMapping(glToSonar, List.of("Erreur lecture mapping : " + e.getMessage()));
     }
-    return new NamespaceMapping(glToSonar);
+    return new NamespaceMapping(glToSonar, List.of());
+  }
+
+  /** Ce que la lecture du fichier a rencontré, à dire à l'utilisateur ; vide quand tout va bien. */
+  public List<String> warnings() {
+    return warnings;
   }
 
   /** Le préfixe Sonar d'un namespace GitLab, ou le namespace normalisé s'il n'est pas mappé. */

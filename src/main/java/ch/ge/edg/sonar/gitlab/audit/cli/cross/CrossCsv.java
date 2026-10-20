@@ -1,14 +1,13 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossReport.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossReport.c;
 
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.DetailColumns;
 import ch.ge.edg.sonar.gitlab.audit.matching.Result;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -87,8 +86,7 @@ final class CrossCsv {
 
   private CrossCsv() {}
 
-  static void write(
-      Result mapping, List<CrossPair> pairs, Path file, boolean comma, PrintStream out)
+  static void write(Result mapping, List<CrossPair> pairs, Path file, boolean comma, Console out)
       throws IOException {
     Path dir = file.toAbsolutePath().getParent();
     if (dir != null) Files.createDirectories(dir);
@@ -97,13 +95,16 @@ final class CrossCsv {
       w.writeNext(header(mapping).toArray(String[]::new));
       for (CrossPair p : pairs) w.writeNext(row(mapping, p));
     }
-    out.printf("%n  Croisement : %d lignes → %s%n", pairs.size(), file.toAbsolutePath());
-    out.println(c(Csv.openingHint(file, comma), DIM));
+    out.out().printf("%n  Croisement : %d lignes → %s%n", pairs.size(), file.toAbsolutePath());
+    out.println(out.color(Csv.openingHint(file, comma), DIM));
     out.println(
-        c("    Une ligne par projet GitLab, appariée ou non. " + "Filtrer sur confiance", DIM));
+        out.color(
+            "    Une ligne par projet GitLab, appariée ou non. " + "Filtrer sur confiance", DIM));
     out.println(
-        c("    = suggestion donne la liste des rapprochements " + "qu'un humain doit", DIM));
-    out.println(c("    confirmer ; ils ne comptent dans aucun des constats " + "ci-dessus.", DIM));
+        out.color(
+            "    = suggestion donne la liste des rapprochements " + "qu'un humain doit", DIM));
+    out.println(
+        out.color("    confirmer ; ils ne comptent dans aucun des constats " + "ci-dessus.", DIM));
   }
 
   /**

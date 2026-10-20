@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.isBlank;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
@@ -12,8 +11,8 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.AlmBinding;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ProjectLink;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ProjectLinks;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
-import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -59,20 +58,21 @@ final class Bindings {
       else if (!a.alm().isEmpty()) byAlm.merge(a.alm(), 1L, Long::sum);
       if (!a.links().isEmpty()) withLinks++;
     }
-    PrintStream out = session.out();
+    Console out = session.out();
     out.println();
     long bound = byAlm.values().stream().mapToLong(Long::longValue).sum();
-    out.printf(
-        "  Liés à une plateforme DevOps   : %s / %d%s%n",
-        c(String.valueOf(bound), BOLD), projects, byAlm.isEmpty() ? "" : "  " + byAlm);
+    out.out()
+        .printf(
+            "  Liés à une plateforme DevOps   : %s / %d%s%n",
+            out.color(String.valueOf(bound), BOLD), projects, byAlm.isEmpty() ? "" : "  " + byAlm);
     if (refused > 0) {
       out.println(
-          c(
+          out.color(
               "    dont %d liaison(s) illisible(s) : lecture refusée, pas absente"
                   .formatted(refused),
               YELLOW));
     }
-    out.printf("  Avec au moins un lien saisi    : %d / %d%n", withLinks, projects);
+    out.out().printf("  Avec au moins un lien saisi    : %d / %d%n", withLinks, projects);
   }
 
   private Attachments attachments(String key) {

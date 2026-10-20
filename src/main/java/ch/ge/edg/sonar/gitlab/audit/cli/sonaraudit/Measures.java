@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 
@@ -10,7 +9,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ComponentMeasures;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Measure;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.MeasuresSearch;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -76,16 +75,20 @@ final class Measures {
   }
 
   static void reportMissingCoverage(
-      PrintStream out, List<Component> projects, Map<String, Map<String, String>> measures) {
+      Console out, List<Component> projects, Map<String, Map<String, String>> measures) {
     long missing =
         projects.stream()
             .filter(p -> !measures.getOrDefault(p.key(), Map.of()).containsKey("coverage"))
             .count();
-    out.printf("  Sans aucune donnée de couverture: %s%n", c(String.valueOf(missing), YELLOW));
+    out.out()
+        .printf(
+            "  Sans aucune donnée de couverture: %s%n", out.color(String.valueOf(missing), YELLOW));
     if (missing > 0) {
       out.println(
-          c("    (coverage absente ≠ coverage à 0 : " + "ces projets sont invisibles", DIM));
-      out.println(c("     dans tout tri par couverture, " + "et souvent les plus à risque)", DIM));
+          out.color(
+              "    (coverage absente ≠ coverage à 0 : " + "ces projets sont invisibles", DIM));
+      out.println(
+          out.color("     dans tout tri par couverture, " + "et souvent les plus à risque)", DIM));
     }
   }
 }

@@ -3,9 +3,9 @@ package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
+import ch.ge.edg.sonar.gitlab.audit.testing.Printed;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,7 +35,6 @@ class SonarRankUnitTest {
   @AfterEach
   void restore() {
     Locale.setDefault(locale);
-    ConsoleOut.colorMode("never");
   }
 
   static InventoryRow row(String... kv) {
@@ -130,12 +129,13 @@ class SonarRankUnitTest {
 
   @Test
   void presentation_helpers() {
-    ConsoleOut.colorMode("always");
-    assertThat(RankReport.c("x", "")).isEqualTo("x");
-    assertThat(RankReport.c("x", RankReport.RED)).isEqualTo("\033[31mx\033[0m");
-    assertThat(RankReport.pct(3, 0, "")).isEqualTo("3");
-    assertThat(RankReport.pct(1, 3, "")).isEqualTo("1 (33%)");
-    assertThat(RankReport.pct(2, 3, RankReport.YELLOW)).isEqualTo("\033[33m2 (67%)\033[0m");
+    RankReport report =
+        new RankReport(Printed.colored().console(), new RankSettings(365, 730, 0, 10, 2));
+    assertThat(report.c("x", "")).isEqualTo("x");
+    assertThat(report.c("x", RankReport.RED)).isEqualTo("\033[31mx\033[0m");
+    assertThat(report.pct(3, 0, "")).isEqualTo("3");
+    assertThat(report.pct(1, 3, "")).isEqualTo("1 (33%)");
+    assertThat(report.pct(2, 3, RankReport.YELLOW)).isEqualTo("\033[33m2 (67%)\033[0m");
     assertThat(row("key", "k", "name", "").label()).isEqualTo("k");
     assertThat(row("key", "k", "name", "n").label()).isEqualTo("n");
     assertThat(RankReport.truncate("abcd", 4)).isEqualTo("abcd");
@@ -147,7 +147,7 @@ class SonarRankUnitTest {
 
   @Test
   void defaults_are_those_documented() {
-    SonarRank cmd = new SonarRank();
+    SonarRank cmd = new SonarRank(Cli.host());
     new CommandLine(cmd).parseArgs("--in", "x.csv");
     assertThat(cmd.out).isEqualTo(Path.of("classement.csv"));
     assertThat(cmd.staleDays).isEqualTo(90);
@@ -163,7 +163,7 @@ class SonarRankUnitTest {
     Path in = dir.resolve("in.csv");
     Files.writeString(in, content, StandardCharsets.UTF_8);
     return Cli.run(
-        new SonarRank(),
+        SonarRank::new,
         "--in",
         in.toString(),
         "--out",
@@ -202,7 +202,7 @@ class SonarRankUnitTest {
   @Test
   void a_missing_input_file_fails() {
     Cli.Result r =
-        Cli.run(new SonarRank(), "--in", dir.resolve("nope.csv").toString(), "--color", "never");
+        Cli.run(SonarRank::new, "--in", dir.resolve("nope.csv").toString(), "--color", "never");
 
     assertThat(r.exitCode()).isEqualTo(1);
     assertThat(r.err()).contains("NoSuchFileException");

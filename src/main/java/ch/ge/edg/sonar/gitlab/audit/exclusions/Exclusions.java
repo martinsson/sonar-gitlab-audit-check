@@ -23,20 +23,30 @@ import org.jspecify.annotations.Nullable;
  *   *-archive
  * </pre>
  *
- * Sans --exclusions, {@code exclusions.txt} du répertoire courant est lu s'il existe : la liste se
- * tient une fois et vaut pour tous les outils.
+ * Sans --exclusions, {@value #DEFAULT_FILE} du répertoire de travail est lu s'il existe : la liste
+ * se tient une fois et vaut pour tous les outils.
  */
 public record Exclusions(@Nullable Path file, List<String> entries, List<Pattern> patterns) {
 
-  static final Path DEFAULT = Path.of("exclusions.txt");
+  /** Le fichier lu dans le répertoire de travail quand aucun n'est donné. */
+  public static final String DEFAULT_FILE = "exclusions.txt";
 
   static Exclusions none() {
     return new Exclusions(null, List.of(), List.of());
   }
 
-  /** Le fichier donné, ou exclusions.txt s'il est là, ou rien. */
-  public static Exclusions load(@Nullable Path explicit) throws IOException {
-    Path file = explicit != null ? explicit : Files.exists(DEFAULT) ? DEFAULT : null;
+  /**
+   * Le fichier à lire : celui donné, résolu contre {@code workDir}, sinon {@value #DEFAULT_FILE} du
+   * répertoire de travail s'il est là, sinon aucun.
+   */
+  public static @Nullable Path file(@Nullable Path explicit, Path workDir) {
+    if (explicit != null) return workDir.resolve(explicit);
+    Path dflt = workDir.resolve(DEFAULT_FILE);
+    return Files.exists(dflt) ? dflt : null;
+  }
+
+  /** Le fichier donné, ou rien. Un fichier donné qui n'existe pas est une erreur. */
+  public static Exclusions load(@Nullable Path file) throws IOException {
     if (file == null) return none();
     List<String> entries = new ArrayList<>();
     List<Pattern> patterns = new ArrayList<>();

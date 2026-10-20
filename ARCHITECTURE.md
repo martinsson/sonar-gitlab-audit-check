@@ -44,10 +44,11 @@ In a command package only the `@Command` class is public.
 
 ## The outside world comes in at the edge
 
-`runtime.Runtime.system()` is the only place that reads `System.out`/`err`, the environment, the
-system clock and zone, the console and the working directory. A command's `call()` takes the
-`Runtime` and hands each piece on separately: a `Console` (streams, colour, locale) to printers, a
-`Clock` to whatever needs the time, a `Sleeper` to `rest`. Nothing below a command sees `Runtime`.
+`runtime.Host.system()` is the only place that reads `System.out`/`err`, the environment, the
+system clock and zone, the console and the working directory (`Host`, not `Runtime`: that name is
+`java.lang.Runtime`'s). A command's `main` builds the `Host` and its `call()` hands each piece on
+separately: a `Console` (streams, colour, locale) to printers, a `Clock` to whatever needs the
+time, a `Sleeper` to the HTTP clients. Nothing below a command sees `Host`.
 Tests build it with fixed values.
 
 - No static state other than constants. No I/O in static initialisers.

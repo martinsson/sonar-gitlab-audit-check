@@ -1,7 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 
 /** La sortie du rapport : titres de section, lignes de statut, couleurs. */
 final class Report {
@@ -13,14 +12,14 @@ final class Report {
   static final String RED = "\033[31m";
   static final String YELLOW = "\033[33m";
 
-  private final PrintStream out;
+  private final Console out;
 
-  Report(PrintStream out) {
+  Report(Console out) {
     this.out = out;
   }
 
-  static String c(String text, String color) {
-    return ConsoleOut.color(text, color);
+  String c(String text, String color) {
+    return out.color(text, color);
   }
 
   void title(String text) {
@@ -30,7 +29,9 @@ final class Report {
   }
 
   void line(String label, Verdict v, String detail) {
-    out.printf("  %s %-42s %s%n", c(v.tag, v.color), label, detail.isBlank() ? "" : c(detail, DIM));
+    out.out()
+        .printf(
+            "  %s %-42s %s%n", c(v.tag, v.color), label, detail.isBlank() ? "" : c(detail, DIM));
   }
 
   void println() {

@@ -17,24 +17,25 @@ import java.util.List;
 /** Les pipelines de la branche par défaut : volume, taux de succès, temps de retour au vert. */
 final class Pipelines {
 
-  private final AuditContext ctx;
+  private final Gitlab gl;
+  private final Funnel funnel;
 
-  Pipelines(AuditContext ctx) {
-    this.ctx = ctx;
+  Pipelines(Gitlab gl, Funnel funnel) {
+    this.gl = gl;
+    this.funnel = funnel;
   }
 
   void measure(Proj p, Prat r) {
     Gitlab.Response pl =
-        ctx.gl()
-            .get(
-                "projects/" + p.id + "/pipelines",
-                params(
-                    "ref",
-                    p.defaultBranch,
-                    "updated_after",
-                    iso(ctx.windowStart()),
-                    "per_page",
-                    "100"));
+        gl.get(
+            "projects/" + p.id + "/pipelines",
+            params(
+                "ref",
+                p.defaultBranch,
+                "updated_after",
+                iso(funnel.windowStart()),
+                "per_page",
+                "100"));
     JsonNode arr = pl.json();
     if (pl.status() != 200 || !arr.isArray()) return;
     int n = arr.size();

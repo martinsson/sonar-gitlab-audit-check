@@ -5,7 +5,6 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.GREEN;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.RED;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
@@ -13,13 +12,12 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.totalOf;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ProjectSearch;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +30,7 @@ final class Projects {
   private static final int MAX_PAGES = 40;
 
   private final Session session;
-  private final PrintStream out;
+  private final Console out;
 
   Projects(Session session) {
     this.session = session;
@@ -58,7 +56,8 @@ final class Projects {
       ProjectSearch p = r.as(ProjectSearch.class);
       if (p == null) {
         out.println(
-            c("  Échec de la pagination page %d : HTTP %d".formatted(page, r.status()), RED));
+            out.color(
+                "  Échec de la pagination page %d : HTTP %d".formatted(page, r.status()), RED));
         break;
       }
       List<Component> batch = orEmptyList(p.components());
@@ -66,7 +65,8 @@ final class Projects {
       if (batch.isEmpty() || all.size() >= totalOf(p.paging())) break;
       page++;
     }
-    if (page > MAX_PAGES) out.println(c("  Pagination interrompue à 20 000 projets.", YELLOW));
+    if (page > MAX_PAGES)
+      out.println(out.color("  Pagination interrompue à 20 000 projets.", YELLOW));
     return all;
   }
 
@@ -79,9 +79,12 @@ final class Projects {
     Exclusions ex = Exclusions.load(exclusionsFile);
     if (ex.isEmpty()) return projects;
     List<Component> kept = projects.stream().filter(p -> ex.match(p.key()) == null).toList();
-    out.printf(
-        "  Exclus par %s : %s (%d entrées)%n",
-        ex.file(), c(String.valueOf(projects.size() - kept.size()), BOLD), ex.entries().size());
+    out.out()
+        .printf(
+            "  Exclus par %s : %s (%d entrées)%n",
+            ex.file(),
+            out.color(String.valueOf(projects.size() - kept.size()), BOLD),
+            ex.entries().size());
     return kept;
   }
 
@@ -92,7 +95,7 @@ final class Projects {
     Integer real = (p == null || p.paging() == null) ? null : p.paging().total();
     if (real == null) {
       out.println(
-          c(
+          out.color(
               // Le délimiteur fermant, deux colonnes à gauche, garde le retrait du texte.
               """
                   Total réel indisponible (nécessite 'Administer System').
@@ -104,37 +107,42 @@ final class Projects {
       return;
     }
     int gap = real - visible;
-    out.println("  Projets réellement présents    : " + c(String.valueOf(real), BOLD));
+    out.println("  Projets réellement présents    : " + out.color(String.valueOf(real), BOLD));
     if (gap > 0 && real > 0) {
       out.println(
-          c(
+          out.color(
               ("  → %d projet(s) hors de ton périmètre. Ton classement sera "
                       + "tronqué%n    de %.0f%% sans aucun message d'erreur.")
                   .formatted(gap, 100.0 * gap / real),
               RED));
     } else {
-      out.println(c("  → Périmètre complet.", GREEN));
+      out.println(out.color("  → Périmètre complet.", GREEN));
     }
   }
 
   void reportFreshness(List<Component> projects, int staleDays) {
-    LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
+    LocalDateTime now = LocalDateTime.now(session.clock());
     int never = 0;
     int stale = 0;
     int fresh = 0;
     for (Component p : projects) {
-      LocalDateTime d = parseDate(p.analysisDate());
+      LocalDateTime d = parseDate(p.analysisDate(), session.zone());
       if (d == null) never++;
       else if (ChronoUnit.DAYS.between(d, now) > staleDays) stale++;
       else fresh++;
     }
     out.println();
-    out.printf("  Analysés il y a < %d j        : %d%n", staleDays, fresh);
-    out.printf(
-        "  Analysés il y a > %d j        : %s%n", staleDays, c(String.valueOf(stale), YELLOW));
-    out.printf("  Jamais analysés                : %s%n", c(String.valueOf(never), YELLOW));
+    out.out().printf("  Analysés il y a < %d j        : %d%n", staleDays, fresh);
+    out.out()
+        .printf(
+            "  Analysés il y a > %d j        : %s%n",
+            staleDays, out.color(String.valueOf(stale), YELLOW));
+    out.out()
+        .printf(
+            "  Jamais analysés                : %s%n", out.color(String.valueOf(never), YELLOW));
     if (never > 0) {
-      out.println(c("    (projets créés puis abandonnés, " + "ou analyse jamais configurée)", DIM));
+      out.println(
+          out.color("    (projets créés puis abandonnés, " + "ou analyse jamais configurée)", DIM));
     }
   }
 }

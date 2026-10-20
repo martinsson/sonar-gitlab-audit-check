@@ -649,6 +649,9 @@ Croise l'inventaire SonarQube et les pratiques GitLab.
       --comma                CSV séparé par des virgules, sans BOM (pour un
                                outil, pas Excel)
       --color=<colorMode>    auto | always | never (défaut : auto)
+      --namespace-mapping=<yaml>
+                             namespace GitLab → préfixe Sonar (défaut :
+                               namespace-mapping.yaml)
   -h, --help                 Show this help message and exit.
   -V, --version              Print version information and exit.
 

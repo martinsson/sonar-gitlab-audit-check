@@ -24,7 +24,7 @@ class SonarAuditCheckConnectivityTest extends SonarAuditCheckTestBase {
     }
     String url = "http://127.0.0.1:" + port;
     Cli.Result r =
-        Cli.run(new SonarAuditCheck(), "--url", url + "/", "--token", "t", "--color", "never");
+        Cli.run(SonarAuditCheck::new, "--url", url + "/", "--token", "t", "--color", "never");
 
     assertThat(r.exitCode()).isEqualTo(1);
     assertThat(r.out().replace(url, "<URL>"))

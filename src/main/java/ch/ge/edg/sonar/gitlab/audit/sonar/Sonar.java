@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.sonar;
 
 import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -126,11 +127,13 @@ public final class Sonar {
   private final Transport transport;
   private final AtomicInteger callCount = new AtomicInteger();
 
-  public Sonar(SonarConnection connection) throws IOException, GeneralSecurityException {
-    this(connection, Captures.none());
-  }
-
-  public Sonar(SonarConnection connection, Captures captures)
+  /**
+   * Un client.
+   *
+   * @param captures où écrire chaque réponse, ou d'où la rejouer
+   * @param sleeper l'attente avant un nouvel essai
+   */
+  public Sonar(SonarConnection connection, Captures captures, Sleeper sleeper)
       throws IOException, GeneralSecurityException {
     String url = connection.url();
     this.base = url == null ? "" : url.replaceAll("/+$", "");
@@ -138,7 +141,7 @@ public final class Sonar {
     this.organization = org == null || org.isBlank() ? null : org;
     this.captures = captures;
     captures.prepare();
-    this.transport = new Transport(connection, callCount);
+    this.transport = new Transport(connection, callCount, sleeper);
   }
 
   public int calls() {

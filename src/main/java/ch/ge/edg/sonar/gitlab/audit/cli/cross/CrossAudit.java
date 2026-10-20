@@ -1,23 +1,23 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.NamespaceMappingOption;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Evaluation;
 import ch.ge.edg.sonar.gitlab.audit.matching.MappingFile;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report;
 import ch.ge.edg.sonar.gitlab.audit.matching.Result;
 import ch.ge.edg.sonar.gitlab.audit.matching.Spec;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.nio.file.Files;
+import ch.ge.edg.sonar.gitlab.audit.matching.report.MappingFilePrinter;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 /**
@@ -161,15 +161,23 @@ public class CrossAudit implements Callable<Integer> {
       description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
   String colorMode = "auto";
 
+  @Mixin NamespaceMappingOption namespaceMapping = new NamespaceMappingOption();
+
+  private final Host host;
+
+  CrossAudit(Host host) {
+    this.host = host;
+  }
+
   public static void main(String[] args) {
-    ConsoleOut.install();
-    System.exit(new CommandLine(new CrossAudit()).execute(args));
+    Host host = Host.system();
+    System.exit(host.commandLine(new CrossAudit(host)).execute(args));
   }
 
   @Override
   public Integer call() throws Exception {
-    PrintStream stdout = System.out;
-    ConsoleOut.colorMode(colorMode);
+    Console stdout = host.console(colorMode);
+    namespaceMapping.load(host.workDir(), stdout.err());
     CrossReport console = new CrossReport(stdout);
     // required = true : picocli refuse la ligne de commande avant d'appeler call().
     Path sonarFile = Objects.requireNonNull(sonarCsv, "--sonar");
@@ -192,7 +200,7 @@ public class CrossAudit implements Callable<Integer> {
     // ensuite que son chemin, et la passe sur tout GitLab doit le respecter.
     SonarToGitlab.Rejections rejected = SonarToGitlab.Rejections.read(file);
     Result mapping =
-        MappingFile.mapAndKeep(
+        MappingFilePrinter.mapAndKeep(
             Spec.sonarGitlab(nameThreshold, nameMargin),
             gitlab,
             sonar,
@@ -200,9 +208,10 @@ public class CrossAudit implements Callable<Integer> {
             stdout);
     Report rep = Evaluation.evaluate(mapping, examples);
     List<CrossPair> pairs = mapping.matches().stream().map(CrossPair::new).toList();
-    SonarToGitlab.Result wide = wide(sonar, gitlabFile, mapping, rejected, console);
+    WidePass widePass = widePass();
+    SonarToGitlab.Result wide = widePass.run(sonar, gitlabFile, mapping, rejected, console);
     console.matchRate(pairs, sonar, rep, wide != null);
-    if (wide != null) writeWide(wide, gitlabFile, console, stdout);
+    if (wide != null) widePass.write(wide, gitlabFile, console, stdout);
     new CrossFindings(stdout).print(pairs, wide == null ? Set.of() : wide.joinedPaths());
     if (out != null) CrossCsv.write(mapping, pairs, out, comma, stdout);
     if (report != null) {
@@ -212,50 +221,13 @@ public class CrossAudit implements Callable<Integer> {
     return 0;
   }
 
-  /** Chaque projet Sonar contre tout l'inventaire GitLab ; null sans inventaire. */
-  private SonarToGitlab.@Nullable Result wide(
-      Csv.Table sonar,
-      Path gitlabFile,
-      Result mapping,
-      SonarToGitlab.Rejections rejected,
-      CrossReport console)
-      throws IOException {
-    Csv.Table inventory = inventory(gitlabFile, console);
-    if (inventory == null) return null;
-    return SonarToGitlab.map(
-        sonar,
-        inventory,
-        mapping.matches(),
-        rejected,
+  /** La passe sur tout GitLab telle que les options la décrivent. */
+  private WidePass widePass() {
+    return new WidePass(
+        inventoryCsv,
+        sonarGitlabCsv,
+        out,
+        comma,
         new SonarToGitlab.NameThresholds(nameThreshold, nameMargin));
-  }
-
-  /** L'inventaire GitLab complet, s'il est là ; null sinon, et on dit pourquoi. */
-  private Csv.@Nullable Table inventory(Path gitlabFile, CrossReport console) throws IOException {
-    Path f =
-        inventoryCsv != null
-            ? inventoryCsv
-            : gitlabFile.toAbsolutePath().resolveSibling("inventaire.csv");
-    if (!Files.exists(f)) {
-      if (inventoryCsv != null) throw new IOException("introuvable : " + f);
-      console.noInventory();
-      return null;
-    }
-    Csv.Table t = Csv.read(f);
-    t.require(f, "GitlabActivityAudit (inventaire.csv)", "path", "selectionne");
-    console.inventory(t, f);
-    return t;
-  }
-
-  private void writeWide(
-      SonarToGitlab.Result wide, Path gitlabFile, CrossReport console, PrintStream stdout)
-      throws IOException {
-    console.wideIntro();
-    Path wideFile =
-        sonarGitlabCsv != null
-            ? sonarGitlabCsv
-            : (out != null ? out : gitlabFile).toAbsolutePath().resolveSibling("sonar-gitlab.csv");
-    SonarToGitlabCsv.write(wide, wideFile, comma);
-    new SonarToGitlabReport(stdout).print(wide, wideFile);
   }
 }

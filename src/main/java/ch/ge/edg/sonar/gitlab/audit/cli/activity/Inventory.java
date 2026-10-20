@@ -2,16 +2,16 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.enc;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.YELLOW;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.isBlank;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.pct;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,56 +26,65 @@ import org.jspecify.annotations.Nullable;
 /** Étape 0 : inventaire et exclusions dures. */
 final class Inventory {
 
-  private final AuditContext ctx;
+  private final Gitlab gl;
+  private final Screen con;
+  private final Counters counters;
+  private final Funnel funnel;
   private final ScopeOptions scope;
 
-  Inventory(AuditContext ctx, ScopeOptions scope) {
-    this.ctx = ctx;
+  Inventory(Gitlab gl, Screen con, Counters counters, Funnel funnel, ScopeOptions scope) {
+    this.gl = gl;
+    this.con = con;
+    this.counters = counters;
+    this.funnel = funnel;
     this.scope = scope;
   }
 
-  /** Tout le périmètre, exclus compris : ils portent leur motif jusque dans le CSV. */
-  List<Proj> run() throws IOException {
-    ctx.con().title("1. Inventaire (étape 0)");
-    PrintStream out = ctx.out();
+  /**
+   * Tout le périmètre, exclus compris : ils portent leur motif jusque dans le CSV.
+   *
+   * @param exclusionsFile la liste d'exclusion, ou null sans liste
+   */
+  List<Proj> run(@Nullable Path exclusionsFile) throws IOException {
+    con.title("1. Inventaire (étape 0)");
+    Console out = con.out();
 
     List<Proj> all = fetch().stream().map(Proj::of).collect(Collectors.toList());
-    out.printf("  Projets retournés               : %d%n", all.size());
+    out.out().printf("  Projets retournés               : %d%n", all.size());
 
     // Les exclusions sont comptées, jamais escamotées. Un parc où 30 % des
     // dépôts sont des miroirs n'est pas le même parc que 30 % d'archivés,
     // et un total sans dénominateur se lit comme complet alors qu'il ne l'est pas.
-    Exclusions exclusions = Exclusions.load(scope.exclusionsFile);
+    Exclusions exclusions = Exclusions.load(exclusionsFile);
     if (!exclusions.isEmpty()) {
-      out.printf(
-          "  Liste d'exclusion               : %s (%d entrées)%n",
-          exclusions.file(), exclusions.entries().size());
+      out.out()
+          .printf(
+              "  Liste d'exclusion               : %s (%d entrées)%n",
+              exclusions.file(), exclusions.entries().size());
     }
     for (Proj p : all) p.excluded = exclusionReason(p, exclusions);
     Map<String, Long> byReason = new TreeMap<>();
     for (Proj p : all) {
       if (p.excluded != null) byReason.merge(p.excluded, 1L, Long::sum);
     }
-    byReason.forEach((r, n) -> out.printf("    exclu — %-22s : %d%n", r, n));
+    byReason.forEach((r, n) -> out.out().printf("    exclu — %-22s : %d%n", r, n));
 
     long kept = all.stream().filter(p -> p.excluded == null).count();
-    ctx.counters().inScope = all.size();
-    ctx.counters().kept = (int) kept;
-    out.printf(
-        "  Retenus pour analyse            : %d (%s du parc)%n", kept, pct(kept, all.size()));
-    int forbidden = ctx.gl().forbidden();
+    counters.inScope = all.size();
+    counters.kept = (int) kept;
+    out.out()
+        .printf(
+            "  Retenus pour analyse            : %d (%s du parc)%n", kept, pct(kept, all.size()));
+    int forbidden = gl.forbidden();
     if (forbidden > 0) {
-      ctx.con()
-          .say(
-              "    %d réponses 403 : le jeton ne voit pas tout le parc.".formatted(forbidden),
-              YELLOW);
-      ctx.con().say("    Un trou de permission raccourcit la liste sans lever d'erreur.", DIM);
+      con.say(
+          "    %d réponses 403 : le jeton ne voit pas tout le parc.".formatted(forbidden), YELLOW);
+      con.say("    Un trou de permission raccourcit la liste sans lever d'erreur.", DIM);
     }
     return all;
   }
 
   private List<JsonNode> fetch() throws IOException {
-    Gitlab gl = ctx.gl();
     String archived = scope.includeArchived ? null : "false";
     Path file = scope.projectsFile;
     if (file != null) return fromFile(file);
@@ -104,17 +113,16 @@ final class Inventory {
             .map(String::trim)
             .filter(l -> !l.isEmpty() && !l.startsWith("#"))
             .toList();
-    Gitlab gl = ctx.gl();
     List<Gitlab.Response> rs =
         gl.map(
             paths,
-            ctx.concurrency(),
+            funnel.concurrency(),
             path -> gl.get("projects/" + enc(path), Map.of("statistics", "true")));
     List<JsonNode> found = new ArrayList<>();
     for (int i = 0; i < paths.size(); i++) {
       Gitlab.Response r = rs.get(i);
       if (r.status() == 200) found.add(r.json());
-      else ctx.out().printf("    %-40s HTTP %d — ignoré%n", paths.get(i), r.status());
+      else con.out().out().printf("    %-40s HTTP %d — ignoré%n", paths.get(i), r.status());
     }
     return found;
   }

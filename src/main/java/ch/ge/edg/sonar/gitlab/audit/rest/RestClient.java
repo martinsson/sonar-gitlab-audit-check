@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.rest;
 
+import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.ProxySelector;
@@ -59,21 +60,11 @@ public final class RestClient {
   private final PrintStream err;
   private int calls;
 
-  /** Attendre entre deux essais ; remplaçable en test. */
-  @FunctionalInterface
-  public interface Sleeper {
-    void sleep(long seconds) throws InterruptedException;
-  }
-
   /**
    * Un client.
    *
    * @param err où dire qu'une capture n'a pas pu s'écrire
    */
-  public RestClient(Settings settings, PrintStream err) throws IOException {
-    this(settings, err, seconds -> Thread.sleep(seconds * 1000));
-  }
-
   public RestClient(Settings settings, PrintStream err, Sleeper sleeper) throws IOException {
     this.settings = settings;
     this.err = err;
@@ -130,7 +121,7 @@ public final class RestClient {
     if (r.status() == 0) return true;
     if (r.status() != 429) return false;
     try {
-      sleeper.sleep(Math.min(retryAfter(r), MAX_WAIT_SECONDS));
+      sleeper.sleep(Duration.ofSeconds(Math.min(retryAfter(r), MAX_WAIT_SECONDS)));
       return true;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();

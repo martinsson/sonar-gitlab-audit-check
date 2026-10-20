@@ -1,14 +1,13 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -112,12 +111,18 @@ public class SonarRank implements Callable<Integer> {
       description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
   String colorMode = "auto";
 
+  private final Host host;
+
+  SonarRank(Host host) {
+    this.host = host;
+  }
+
   public static void main(String[] args) {
-    ConsoleOut.install();
+    Host host = Host.system();
     // Un CSV illisible est le cas d'erreur courant ici : une trace de pile
     // n'y apprend rien à personne, la ligne de message si.
     int code =
-        new CommandLine(new SonarRank())
+        host.commandLine(new SonarRank(host))
             .setExecutionExceptionHandler(
                 (e, cmd, parse) -> {
                   if (e instanceof IOException) {
@@ -132,18 +137,16 @@ public class SonarRank implements Callable<Integer> {
 
   @Override
   public Integer call() throws IOException {
-    PrintStream stdout = System.out;
-    PrintStream stderr = System.err;
-    ConsoleOut.colorMode(colorMode);
+    Console console = host.console(colorMode);
     // required = true : picocli refuse la ligne de commande avant d'appeler call().
     Path input = Objects.requireNonNull(in, "--in");
     List<InventoryRow> rows = InventoryRow.read(input);
     if (rows.isEmpty()) {
-      stderr.println("Aucune ligne exploitable dans " + input);
+      console.err().println("Aucune ligne exploitable dans " + input);
       return 1;
     }
     new Ranking(
-            new RankSettings(staleDays, abandonedDays, minNcloc, topPercent, minSignals), stdout)
+            new RankSettings(staleDays, abandonedDays, minNcloc, topPercent, minSignals), console)
         .run(rows, out, comma);
     return 0;
   }

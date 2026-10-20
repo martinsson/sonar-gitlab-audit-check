@@ -12,7 +12,7 @@ class GitlabActivityAuditPreflightTest extends GitlabActivityAuditTestBase {
 
   @Test
   void helpListsEveryOption() {
-    Cli.Result r = Cli.run(new GitlabActivityAudit(), "--help");
+    Cli.Result r = Cli.run(GitlabActivityAudit::new, "--help");
     // Not a golden master: usageHelpAutoWidth makes the layout depend on the terminal.
     assertThat(r.exitCode()).isZero();
     assertThat(r.out())
@@ -59,8 +59,8 @@ class GitlabActivityAuditPreflightTest extends GitlabActivityAuditTestBase {
 
   @Test
   void urlAndTokenAreRequired() {
-    Cli.Result noUrl = Cli.run(new GitlabActivityAudit(), "--url", "", "--token", "t");
-    Cli.Result noToken = Cli.run(new GitlabActivityAudit(), "--url", "http://x", "--token", " ");
+    Cli.Result noUrl = Cli.run(GitlabActivityAudit::new, "--url", "", "--token", "t");
+    Cli.Result noToken = Cli.run(GitlabActivityAudit::new, "--url", "http://x", "--token", " ");
     for (Cli.Result r : new Cli.Result[] {noUrl, noToken}) {
       assertThat(r.exitCode()).isEqualTo(2);
       assertThat(r.out()).isEmpty();
@@ -78,7 +78,7 @@ class GitlabActivityAuditPreflightTest extends GitlabActivityAuditTestBase {
     }
     Cli.Result r =
         Cli.run(
-            new GitlabActivityAudit(),
+            GitlabActivityAudit::new,
             "--url",
             "http://127.0.0.1:" + port,
             "--token",
@@ -131,7 +131,7 @@ class GitlabActivityAuditPreflightTest extends GitlabActivityAuditTestBase {
     fake.user(req -> Response.status(403, "{}"));
     Cli.Result r =
         Cli.run(
-            new GitlabActivityAudit(),
+            GitlabActivityAudit::new,
             "--url",
             fake.server.url(),
             "--token",

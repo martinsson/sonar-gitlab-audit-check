@@ -1,11 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.YELLOW;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.dec;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.median;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.pct;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.plural;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
 import java.util.List;
 import java.util.Objects;
@@ -14,11 +14,13 @@ import java.util.function.Predicate;
 /** Ce que la passe profonde affiche : les routes de lecture de la CI, et la couverture. */
 final class DeepReport {
 
-  private final AuditContext ctx;
+  private final Screen con;
+  private final Counters counters;
   private final List<Proj> selected;
 
-  DeepReport(AuditContext ctx, List<Proj> selected) {
-    this.ctx = ctx;
+  DeepReport(Screen con, Counters counters, List<Proj> selected) {
+    this.con = con;
+    this.counters = counters;
     this.selected = selected;
   }
 
@@ -30,18 +32,18 @@ final class DeepReport {
    * d'exécution.
    */
   void ciRoutes() {
-    Counters n = ctx.counters();
+    Counters n = counters;
     int cached = n.ciFromCacheN.get();
     int lint = n.ciByLintN.get();
     int back = n.ciByFallbackN.get();
     if (cached + lint + back > 0) {
-      ctx.out()
+      con.out()
+          .out()
           .printf(
               "%n  CI lue : %d par ci/lint, %d par repli, %d depuis le cache.%n",
               lint, back, cached);
     }
     if (back > 0 && n.lintRefusedStatus > 0) {
-      Console con = ctx.con();
       con.say(
           "    ci/lint refusé (HTTP %d) : le jeton n'a pas le droit de "
               .formatted(n.lintRefusedStatus),
@@ -61,16 +63,16 @@ final class DeepReport {
     long pom = count(r -> r.pomKey != null);
     long pomVar = count(r -> r.pomUnresolved != null);
     long both = count(r -> r.pomKey != null && r.sonarKey != null);
-    ctx.out()
+    con.out()
+        .out()
         .printf(
             "  Clé Maven (pom.xml) : %d projets, dont %d ont aussi une clé dans la CI.%n",
             pom, both);
     if (pomVar > 0) {
-      ctx.con()
-          .say(
-              ("    %d pom avec ${…} dans groupId/artifactId : clé inconnue, " + "pas devinée.")
-                  .formatted(pomVar),
-              YELLOW);
+      con.say(
+          ("    %d pom avec ${…} dans groupId/artifactId : clé inconnue, " + "pas devinée.")
+              .formatted(pomVar),
+          YELLOW);
     }
   }
 
@@ -87,7 +89,7 @@ final class DeepReport {
     List<Proj> core = selected.stream().filter(p -> !isWitness(p)).toList();
     List<Proj> witness = selected.stream().filter(DeepReport::isWitness).toList();
 
-    ctx.out().printf("%n  %-38s %12s %12s%n", "", "sélection", "témoin");
+    con.out().out().printf("%n  %-38s %12s %12s%n", "", "sélection", "témoin");
     row("Branche par défaut protégée", core, witness, r -> r.defaultProtected);
     row("Au moins une MR fusionnée", core, witness, r -> r.mergedMrs > 0);
     row("Pipelines sur la branche par défaut", core, witness, r -> r.pipelines > 0);
@@ -113,11 +115,11 @@ final class DeepReport {
     List<Double> recoveries =
         core.stream().map(p -> p.prat.recoveryMedianHours).filter(Objects::nonNull).toList();
     if (recoveries.isEmpty()) return;
-    ctx.out()
+    con.out()
+        .out()
         .printf(
             "%n  Retour au vert (médiane des médianes) : %s h sur %d projet%s.%n",
             dec(median(recoveries)), recoveries.size(), plural(recoveries.size()));
-    Console con = ctx.con();
     con.say("    Temps pendant lequel la branche par défaut reste cassée. " + "Ce n'est pas", DIM);
     con.say(
         "    une métrique DORA : sans environnement déclaré, aucune mise " + "en production", DIM);
@@ -128,27 +130,29 @@ final class DeepReport {
     long reverting = core.stream().filter(p -> p.reverts != null && p.reverts > 0).count();
     if (reverting == 0) return;
     int total = core.stream().mapToInt(p -> p.reverts == null ? 0 : p.reverts).sum();
-    ctx.out()
+    con.out()
+        .out()
         .printf(
             "%n  %d revert%s sur %d projet%s.%n",
             total, plural(total), reverting, plural(reverting));
-    ctx.con()
-        .say("    Signal de qualité direct, indépendant de Sonar et des " + "environnements.", DIM);
+    con.say("    Signal de qualité direct, indépendant de Sonar et des " + "environnements.", DIM);
   }
 
   private void unreviewed(List<Proj> core) {
     long noReview =
         core.stream().filter(p -> p.prat.mergedMrs == 0 && p.commitsOrZero() >= 20).count();
     if (noReview == 0) return;
-    ctx.out()
+    con.out()
+        .out()
         .printf(
             "%n  %d projet%s à ≥20 commits sans une seule MR fusionnée.%n",
             noReview, plural(noReview));
-    ctx.con().say("    Le changement atteint la branche par défaut sans revue.", YELLOW);
+    con.say("    Le changement atteint la branche par défaut sans revue.", YELLOW);
   }
 
   private void row(String label, List<Proj> core, List<Proj> witness, Predicate<Prat> test) {
-    ctx.out()
+    con.out()
+        .out()
         .printf(
             "  %-38s %12s %12s%n",
             label, share(core, test), witness.isEmpty() ? "—" : share(witness, test));

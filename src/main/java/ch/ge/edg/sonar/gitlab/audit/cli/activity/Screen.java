@@ -1,13 +1,12 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Le rapport à l'écran : la sortie prise une fois à l'entrée de la commande, et sa mise en forme.
+ * La mise en forme du rapport à l'écran, sur la console prise une fois à l'entrée de la commande.
  */
-record Console(PrintStream out) {
+record Screen(Console out) {
 
   static final String BOLD = "\033[1m";
   static final String DIM = "\033[2m";
@@ -16,8 +15,8 @@ record Console(PrintStream out) {
   static final String RED = "\033[31m";
   static final String YELLOW = "\033[33m";
 
-  static String c(String text, String color) {
-    return ConsoleOut.color(text, color);
+  String c(String text, String color) {
+    return out.color(text, color);
   }
 
   /** Une ligne colorée. */
@@ -32,7 +31,8 @@ record Console(PrintStream out) {
   }
 
   void line(String label, Verdict v, @Nullable String detail) {
-    out.printf(
-        "  %-32s %s  %s%n", label, c("[" + v.tag + "]", v.color), detail == null ? "" : detail);
+    out.out()
+        .printf(
+            "  %-32s %s  %s%n", label, c("[" + v.tag + "]", v.color), detail == null ? "" : detail);
   }
 }

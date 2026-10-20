@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orNa;
@@ -19,10 +18,9 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.FacetValue;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.IssuesSearch;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Measure;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
-import java.io.PrintStream;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -34,7 +32,7 @@ import java.util.stream.Collectors;
 final class ActivitySignals {
 
   private final Session session;
-  private final PrintStream out;
+  private final Console out;
   private final String sample;
   private final int days;
 
@@ -49,9 +47,7 @@ final class ActivitySignals {
     Presentation.title(
         out, "4. Signaux d'activité disponibles sans Git (sur %s)".formatted(sample));
     String since =
-        LocalDateTime.now(ZoneId.systemDefault())
-            .minusDays(days)
-            .format(DateTimeFormatter.ISO_LOCAL_DATE);
+        LocalDateTime.now(session.clock()).minusDays(days).format(DateTimeFormatter.ISO_LOCAL_DATE);
 
     reportAnalysisCadence(since);
     reportAuthorConcentration(since);
@@ -82,16 +78,24 @@ final class ActivitySignals {
             .distinct()
             .count();
 
-    out.printf(
-        "  Analyses sur %d j            : %s%n", days, c(String.valueOf(analyses.size()), BOLD));
-    out.printf("  Versions livrées                : %d%n", versions);
+    out.out()
+        .printf(
+            "  Analyses sur %d j            : %s%n",
+            days, out.color(String.valueOf(analyses.size()), BOLD));
+    out.out().printf("  Versions livrées                : %d%n", versions);
 
     List<LocalDateTime> dates =
-        analyses.stream().map(x -> parseDate(x.date())).filter(Objects::nonNull).sorted().toList();
+        analyses.stream()
+            .map(x -> parseDate(x.date(), session.zone()))
+            .filter(Objects::nonNull)
+            .sorted()
+            .toList();
     if (dates.size() > 1) {
       long span = Math.max(1, ChronoUnit.DAYS.between(dates.get(0), dates.get(dates.size() - 1)));
-      out.printf(
-          "  Cadence moyenne                 : 1 analyse / %.1f j%n", (double) span / dates.size());
+      out.out()
+          .printf(
+              "  Cadence moyenne                 : 1 analyse / %.1f j%n",
+              (double) span / dates.size());
     }
   }
 
@@ -113,17 +117,20 @@ final class ActivitySignals {
     int total = Math.max(1, authors.stream().mapToInt(f -> orZero(f.count())).sum());
 
     out.println();
-    out.printf(
-        "  Auteurs distincts (%d j)      : %s%n", days, c(String.valueOf(authors.size()), BOLD));
+    out.out()
+        .printf(
+            "  Auteurs distincts (%d j)      : %s%n",
+            days, out.color(String.valueOf(authors.size()), BOLD));
     if (authors.isEmpty()) return;
 
     FacetValue top = authors.get(0);
     double share = (double) orZero(top.count()) / total;
-    out.printf(
-        "  Auteur principal                : %s (%.0f%% des issues récentes)%n",
-        top.val(), share * 100);
+    out.out()
+        .printf(
+            "  Auteur principal                : %s (%.0f%% des issues récentes)%n",
+            top.val(), share * 100);
     if (share > 0.7 && authors.size() > 1) {
-      out.println(c("    → forte concentration : proxy de bus factor faible", YELLOW));
+      out.println(out.color("    → forte concentration : proxy de bus factor faible", YELLOW));
     }
   }
 
@@ -141,9 +148,9 @@ final class ActivitySignals {
             .collect(
                 Collectors.toMap(Measure::metric, m -> orEmpty(m.effectiveValue()), (a, b) -> a));
     out.println();
-    out.printf("  Lignes neuves (new code)        : %s%n", orNa(ms.get("new_lines")));
-    out.printf("  Violations neuves               : %s%n", orNa(ms.get("new_violations")));
-    out.printf("  Couverture du code neuf         : %s%n", orNa(ms.get("new_coverage")));
+    out.out().printf("  Lignes neuves (new code)        : %s%n", orNa(ms.get("new_lines")));
+    out.out().printf("  Violations neuves               : %s%n", orNa(ms.get("new_violations")));
+    out.out().printf("  Couverture du code neuf         : %s%n", orNa(ms.get("new_coverage")));
   }
 
   /** Δdette / Δlignes : la dette ajoutée par ligne écrite, le vrai signal de vélocité. */
@@ -156,11 +163,11 @@ final class ActivitySignals {
             SearchHistory.class);
     if (h == null) return;
 
-    Velocity v = Velocity.of(h.pointsFor("ncloc"), h.pointsFor("sqale_index"));
+    Velocity v = Velocity.of(h.pointsFor("ncloc"), h.pointsFor("sqale_index"), session.zone());
     out.println();
     if (v == null) {
       out.println(
-          c(
+          out.color(
               "  Vélocité de dette indisponible : moins de deux analyses "
                   + "chiffrées sur la fenêtre.",
               DIM));
@@ -170,13 +177,14 @@ final class ActivitySignals {
     // points sont ceux des analyses, pas ceux du calendrier. On affiche
     // l'écart réellement mesuré, sinon le lecteur rapporte à 90 jours une
     // variation qui en couvre 12.
-    out.printf("  Δ lignes sur %d j (%d j mesurés) : %+d%n", days, v.spanDays(), v.deltaNcloc());
-    out.printf("  Δ dette sur %d j (min)       : %+d%n", days, v.deltaDebt());
+    out.out()
+        .printf("  Δ lignes sur %d j (%d j mesurés) : %+d%n", days, v.spanDays(), v.deltaNcloc());
+    out.out().printf("  Δ dette sur %d j (min)       : %+d%n", days, v.deltaDebt());
     if (v.deltaNcloc() > 0) {
       out.println(
           "  Dette ajoutée par ligne écrite  : "
-              + c("%+.2f min/LOC".formatted(v.debtPerLine()), BOLD));
-      out.println(c("    (négatif = l'équipe rembourse ; > 10 = signal fort)", DIM));
+              + out.color("%+.2f min/LOC".formatted(v.debtPerLine()), BOLD));
+      out.println(out.color("    (négatif = l'équipe rembourse ; > 10 = signal fort)", DIM));
     }
   }
 }

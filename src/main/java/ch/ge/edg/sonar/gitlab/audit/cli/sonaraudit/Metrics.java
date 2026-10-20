@@ -2,13 +2,12 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Metric;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.MetricsSearch;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Paging;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -140,12 +139,15 @@ final class Metrics {
     return pg != null && pg.total() != null && seen >= Values.orZero(pg.total());
   }
 
-  private static void report(PrintStream out, List<String> unsupported) {
-    out.printf(
-        "  Métriques inconnues de cette instance : %s%n",
-        c(String.join(", ", unsupported), YELLOW));
+  private static void report(Console out, List<String> unsupported) {
+    out.out()
+        .printf(
+            "  Métriques inconnues de cette instance : %s%n",
+            out.color(String.join(", ", unsupported), YELLOW));
     out.println(
-        c("    Retirées de la requête. Demandées quand même, " + "elles feraient échouer", DIM));
-    out.println(c("    l'appel entier et le parc ressortirait sans " + "aucune mesure.", DIM));
+        out.color(
+            "    Retirées de la requête. Demandées quand même, " + "elles feraient échouer", DIM));
+    out.println(
+        out.color("    l'appel entier et le parc ressortirait sans " + "aucune mesure.", DIM));
   }
 }

@@ -27,10 +27,14 @@ final class Reviews {
   /** Approbations lues par projet : un appel par MR. */
   private static final int APPROVAL_SAMPLE = 10;
 
-  private final AuditContext ctx;
+  private final Gitlab gl;
+  private final Counters counters;
+  private final Funnel funnel;
 
-  Reviews(AuditContext ctx) {
-    this.ctx = ctx;
+  Reviews(Gitlab gl, Counters counters, Funnel funnel) {
+    this.gl = gl;
+    this.counters = counters;
+    this.funnel = funnel;
   }
 
   void measure(Proj p, Prat r) {
@@ -56,27 +60,26 @@ final class Reviews {
     // Approbations : la mesure réelle, réservée aux plans Enterprise. On
     // échantillonne 10 MR par projet — 1 appel par MR sur 200 projets
     // coûterait plus cher que tout le reste de la passe réuni.
-    if (ctx.counters().enterprise && !mrs.isEmpty()) approvals(p, r, mrs);
+    if (counters.enterprise && !mrs.isEmpty()) approvals(p, r, mrs);
   }
 
   private List<JsonNode> mergedMrs(Proj p) {
     List<JsonNode> mrs = new ArrayList<>();
     for (int page = 1; page <= 3; page++) {
       Gitlab.Response m =
-          ctx.gl()
-              .get(
-                  "projects/" + p.id + "/merge_requests",
-                  params(
-                      "state",
-                      "merged",
-                      "target_branch",
-                      p.defaultBranch,
-                      "updated_after",
-                      iso(ctx.windowStart()),
-                      "per_page",
-                      "100",
-                      "page",
-                      String.valueOf(page)));
+          gl.get(
+              "projects/" + p.id + "/merge_requests",
+              params(
+                  "state",
+                  "merged",
+                  "target_branch",
+                  p.defaultBranch,
+                  "updated_after",
+                  iso(funnel.windowStart()),
+                  "per_page",
+                  "100",
+                  "page",
+                  String.valueOf(page)));
       JsonNode arr = m.json();
       if (m.status() != 200 || !arr.isArray() || arr.isEmpty()) break;
       arr.forEach(mrs::add);
@@ -93,10 +96,9 @@ final class Reviews {
     for (int i = 0; i < sample; i++) {
       JsonNode mr = mrs.get(i);
       Gitlab.Response ap =
-          ctx.gl()
-              .get(
-                  "projects/" + p.id + "/merge_requests/" + mr.path("iid").asInt() + "/approvals",
-                  Map.of());
+          gl.get(
+              "projects/" + p.id + "/merge_requests/" + mr.path("iid").asInt() + "/approvals",
+              Map.of());
       if (ap.status() != 200) break;
       seen++;
       JsonNode by = ap.json().path("approved_by");

@@ -37,7 +37,8 @@ through Excel and back still loads.
 page when talking to a terminal and in UTF-8 when redirected, and turn `—`, `≥`,
 `→` into ASCII where the code page lacks them, so `chcp 65001` is not needed.
 Colour is off in conhost unless the terminal announces itself; `--color
-always|never` or `NO_COLOR` override it. The logic is in `console/ConsoleOut.java`.
+always|never` or `NO_COLOR` override it. The logic is in `runtime/Host.java` and
+`runtime/Terminal.java`.
 
 ## Captures: `--dump-dir` and `--replay-dir`
 

@@ -1,7 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -10,28 +9,29 @@ import java.util.concurrent.atomic.AtomicInteger;
  * log n'a que faire de 500 lignes de compteur.
  */
 final class Progress {
-  private final PrintStream out;
+  private final Console out;
   private final String label;
   private final int total;
   private final AtomicInteger done = new AtomicInteger();
-  private final boolean live = ConsoleOut.colors();
+  private final boolean live;
 
-  Progress(PrintStream out, String label, int total) {
+  Progress(Console out, String label, int total) {
     this.out = out;
+    this.live = out.colors();
     this.label = label;
     this.total = total;
-    if (live && total > 0) out.printf("%s 0/%d\r", label, total);
+    if (live && total > 0) out.out().printf("%s 0/%d\r", label, total);
   }
 
   void tick() {
     int n = done.incrementAndGet();
     if (live && (n % 25 == 0 || n == total)) {
-      out.printf("%s %d/%d\r", label, n, total);
+      out.out().printf("%s %d/%d\r", label, n, total);
       out.flush();
     }
   }
 
   void done() {
-    if (live && total > 0) out.printf("%s %d/%d%n", label, done.get(), total);
+    if (live && total > 0) out.out().printf("%s %d/%d%n", label, done.get(), total);
   }
 }

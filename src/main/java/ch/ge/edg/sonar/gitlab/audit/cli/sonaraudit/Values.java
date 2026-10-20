@@ -24,13 +24,13 @@ final class Values {
    * Sonar date les analyses avec un décalage : « 2026-08-16T05:43:07+0200 ». Tronquer à 19
    * caractères jette ce décalage et compare ensuite une heure locale à une heure distante — d'où
    * des âges faux de quelques heures, et un « il y a -1 jour » sur une analyse toute fraîche. On
-   * lit donc le décalage quand il est présent et on ramène tout à l'heure locale.
+   * lit donc le décalage quand il est présent et on ramène tout à l'heure du fuseau de la course.
    */
-  static @Nullable LocalDateTime parseDate(@Nullable String s) {
+  static @Nullable LocalDateTime parseDate(@Nullable String s, ZoneId zone) {
     if (s == null || s.length() < 19) return null;
     try {
       return OffsetDateTime.parse(s, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-          .atZoneSameInstant(ZoneId.systemDefault())
+          .atZoneSameInstant(zone)
           .toLocalDateTime();
     } catch (DateTimeException ignored) {
       // pas de décalage (ou format inattendu) : on retombe sur l'heure nue

@@ -1,10 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.vues;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -16,7 +16,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -65,9 +64,15 @@ public class Vues implements Callable<Integer> {
       description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
   String colorMode = "auto";
 
+  private final Host host;
+
+  Vues(Host host) {
+    this.host = host;
+  }
+
   public static void main(String[] args) {
-    ConsoleOut.install();
-    System.exit(new CommandLine(new Vues()).execute(args));
+    Host host = Host.system();
+    System.exit(host.commandLine(new Vues(host)).execute(args));
   }
 
   /** Tout le croisement, ces colonnes d'abord : ce qu'on lit avant de défiler. */
@@ -155,8 +160,7 @@ public class Vues implements Callable<Integer> {
 
   @Override
   public Integer call() throws IOException {
-    PrintStream out = System.out;
-    ConsoleOut.colorMode(colorMode);
+    Console out = host.console(colorMode);
     // required = true : picocli refuse la ligne de commande avant d'appeler call().
     Path input = Objects.requireNonNull(in, "--in");
     Csv.Table t = Csv.read(input);
@@ -167,24 +171,26 @@ public class Vues implements Callable<Integer> {
     List<Csv.Row> unpaired = writeUnpaired(t, input);
 
     List<String> missing = DRIFT.stream().filter(c -> !c.equals("signaux") && !t.has(c)).toList();
-    out.printf("  Vue essentiel : %d lignes → %s%n", t.rows().size(), essential.toAbsolutePath());
-    out.printf(
-        "  Vue dérive    : %d projets appariés → %s%n",
-        joined.size(), sibling(input, "derive").toAbsolutePath());
+    out.out()
+        .printf("  Vue essentiel : %d lignes → %s%n", t.rows().size(), essential.toAbsolutePath());
+    out.out()
+        .printf(
+            "  Vue dérive    : %d projets appariés → %s%n",
+            joined.size(), sibling(input, "derive").toAbsolutePath());
     out.println(
-        ConsoleOut.color(
-            "    Triée par nombre de signaux, puis par pente de la densité d'issues.", DIM));
-    out.printf(
-        "  Vue non appariés : %d projets actifs sans projet Sonar → %s%n",
-        unpaired.size(), sibling(input, "non-apparies").toAbsolutePath());
+        out.color("    Triée par nombre de signaux, puis par pente de la densité d'issues.", DIM));
+    out.out()
+        .printf(
+            "  Vue non appariés : %d projets actifs sans projet Sonar → %s%n",
+            unpaired.size(), sibling(input, "non-apparies").toAbsolutePath());
     out.println(
-        ConsoleOut.color(
+        out.color(
             "    Les plus actifs d'abord. Seulement l'échantillon de pratiques.csv : "
                 + "un projet hors sélection n'y est pas.",
             DIM));
     if (!missing.isEmpty()) {
       out.println(
-          ConsoleOut.color(
+          out.color(
               ("  Colonnes absentes du croisement, laissées vides : %s%n"
                       + "    Un croisement plus ancien : relancer les trois outils les remplit.")
                   .formatted(String.join(", ", missing)),

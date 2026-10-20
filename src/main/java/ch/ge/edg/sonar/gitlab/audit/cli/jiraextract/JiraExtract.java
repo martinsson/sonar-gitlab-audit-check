@@ -1,17 +1,15 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -76,26 +74,21 @@ public class JiraExtract implements Callable<Integer> {
   @Option(names = "--insecure", description = "Accepte un certificat auto-signé")
   boolean insecure;
 
-  private final ZoneId zone;
+  private final Host host;
 
-  /** Les dates s'écrivent à l'heure du poste. */
-  public JiraExtract() {
-    this(ZoneId.systemDefault());
-  }
-
-  /** Les dates s'écrivent dans {@code zone} : pour des tests qui ne dépendent pas du poste. */
-  public JiraExtract(ZoneId zone) {
-    this.zone = zone;
+  /** Les dates s'écrivent dans le fuseau de l'horloge de {@code host} : celui du poste. */
+  JiraExtract(Host host) {
+    this.host = host;
   }
 
   public static void main(String[] args) {
-    ConsoleOut.install();
-    System.exit(new CommandLine(new JiraExtract()).execute(args));
+    Host host = Host.system();
+    System.exit(host.commandLine(new JiraExtract(host)).execute(args));
   }
 
   @Override
   public Integer call() {
-    PrintStream err = System.err;
+    PrintStream err = host.err();
     try {
       extract(err);
       return 0;
@@ -106,14 +99,14 @@ public class JiraExtract implements Callable<Integer> {
   }
 
   private void extract(PrintStream err) throws ExtractionStop, IOException {
-    JiraSource jira = JiraSource.connect(url, token, insecure, err);
+    JiraSource jira = JiraSource.connect(url, token, insecure, err, host.sleeper());
     FieldSelection fields = FieldSelection.of(jira.fields(), extraFields, err);
     Map<String, String> categories = jira.statusCategories();
     fields.announce(err);
     String query = jql != null ? jql : IssuePages.defaultJql(projects, days);
     err.println("JQL : " + query);
     Files.createDirectories(outDir);
-    Output output = new Output(outDir, !noRaw, comma, zone);
+    Output output = new Output(outDir, !noRaw, comma, host.clock().getZone());
     try (TicketFiles files = new TicketFiles(output, fields, categories)) {
       new IssuePages(jira, err).each(query, files::write);
       err.println(files.summary());

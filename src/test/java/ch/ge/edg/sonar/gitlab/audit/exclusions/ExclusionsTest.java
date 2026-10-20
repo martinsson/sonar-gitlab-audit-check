@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.exclusions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -69,8 +68,8 @@ class ExclusionsTest {
 
   @Test
   void without_an_explicit_file_and_no_default_file_nothing_is_excluded() throws IOException {
-    assumeFalse(Files.exists(Exclusions.DEFAULT), "exclusions.txt present in the working dir");
-    assertThat(Exclusions.DEFAULT).isEqualTo(Path.of("exclusions.txt"));
+    assertThat(Exclusions.DEFAULT_FILE).isEqualTo("exclusions.txt");
+    assertThat(Exclusions.file(null, dir)).isNull();
     Exclusions e = Exclusions.load(null);
     assertThat(e.file()).isNull();
     assertThat(e.isEmpty()).isTrue();
@@ -78,15 +77,18 @@ class ExclusionsTest {
 
   @Test
   void without_an_explicit_file_exclusions_txt_of_the_working_dir_is_read() throws IOException {
-    assumeFalse(Files.exists(Exclusions.DEFAULT), "exclusions.txt present in the working dir");
-    Files.writeString(Exclusions.DEFAULT, "team-a/sandbox # synthetic\n", StandardCharsets.UTF_8);
-    try {
-      Exclusions e = Exclusions.load(null);
-      assertThat(e.file()).isEqualTo(Exclusions.DEFAULT);
-      assertThat(e.entries()).containsExactly("team-a/sandbox");
-    } finally {
-      Files.delete(Exclusions.DEFAULT);
-    }
+    Path dflt = dir.resolve("exclusions.txt");
+    Files.writeString(dflt, "team-a/sandbox # synthetic\n", StandardCharsets.UTF_8);
+    Exclusions e = Exclusions.load(Exclusions.file(null, dir));
+    assertThat(e.file()).isEqualTo(dflt);
+    assertThat(e.entries()).containsExactly("team-a/sandbox");
+  }
+
+  @Test
+  void an_explicit_file_is_resolved_against_the_working_dir_even_when_absent() {
+    assertThat(Exclusions.file(Path.of("mine.txt"), dir)).isEqualTo(dir.resolve("mine.txt"));
+    assertThat(Exclusions.file(dir.resolve("abs.txt"), Path.of("elsewhere")))
+        .isEqualTo(dir.resolve("abs.txt"));
   }
 
   @Test

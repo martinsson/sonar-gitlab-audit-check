@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +36,7 @@ class JiraExtractTest {
                 "--out-dir",
                 dir.resolve("out").toString()));
     args.addAll(List.of(extra));
-    return Cli.run(new JiraExtract(ZURICH), args.toArray(String[]::new));
+    return Cli.run(Clock.system(ZURICH), JiraExtract::new, args.toArray(String[]::new));
   }
 
   private String file(String name) throws IOException {
@@ -193,7 +194,7 @@ class JiraExtractTest {
               "ABC",
               "--out-dir",
               dir.resolve("out").toString());
-      Cli.Result r = Cli.run(new JiraExtract(ZoneId.of("UTC")), args.toArray(String[]::new));
+      Cli.Result r = Cli.run(Clock.systemUTC(), JiraExtract::new, args.toArray(String[]::new));
       assertThat(r.exitCode()).isZero();
       assertThat(file("jira-transitions.csv"))
           .contains("ABC-1;2026-03-04 09:15:30;In Progress;Closed;done\r\n");
@@ -305,11 +306,26 @@ class JiraExtractTest {
   void a_missing_url_or_token_stops_before_any_call() {
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       Cli.Result noUrl =
-          Cli.run(new JiraExtract(ZURICH), "--url", " ", "--token", "t", "--project", "ABC");
+          Cli.run(
+              Clock.system(ZURICH),
+              JiraExtract::new,
+              "--url",
+              " ",
+              "--token",
+              "t",
+              "--project",
+              "ABC");
       assertThat(noUrl.exitCode()).isEqualTo(2);
       assertThat(noUrl.err()).isEqualTo("Arrêt : JIRA_URL manquant\n");
       Cli.Result noToken =
-          Cli.run(new JiraExtract(ZURICH), "--url", jira.url(), "--token=", "--project", "ABC");
+          Cli.run(
+              Clock.system(ZURICH),
+              JiraExtract::new,
+              "--url",
+              jira.url(),
+              "--token=",
+              "--project",
+              "ABC");
       assertThat(noToken.err()).isEqualTo("Arrêt : JIRA_TOKEN manquant\n");
       assertThat(jira.requests()).isEmpty();
     }
@@ -327,7 +343,7 @@ class JiraExtractTest {
 
   @Test
   void the_project_is_required() {
-    Cli.Result r = Cli.run(new JiraExtract(), "--url", "http://x", "--token", "t");
+    Cli.Result r = Cli.run(JiraExtract::new, "--url", "http://x", "--token", "t");
     assertThat(r.exitCode()).isEqualTo(2);
     assertThat(r.err()).contains("--project");
   }

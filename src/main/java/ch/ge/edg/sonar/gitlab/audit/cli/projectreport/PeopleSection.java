@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.c;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.time.LocalDateTime;
@@ -22,13 +21,13 @@ final class PeopleSection {
   private final Report report;
   private final ProjectApi api;
   private final Settings settings;
-  private final LocalDateTime now;
+  private final Dates dates;
 
-  PeopleSection(Report report, ProjectApi api, Settings settings, LocalDateTime now) {
+  PeopleSection(Report report, ProjectApi api, Settings settings, Dates dates) {
     this.report = report;
     this.api = api;
     this.settings = settings;
-    this.now = now;
+    this.dates = dates;
   }
 
   People measure(Project p, Commits commits) {
@@ -45,7 +44,7 @@ final class PeopleSection {
     Authors authors = Authors.of(cs);
     report.println(
         "  Auteurs distincts               : %s"
-            .formatted(c(String.valueOf(authors.count()), BOLD)));
+            .formatted(report.c(String.valueOf(authors.count()), BOLD)));
     regrouped(cs, authors.count());
 
     int busFactor = authors.busFactor();
@@ -56,7 +55,7 @@ final class PeopleSection {
             .formatted(authors.label(top.getKey()), topShare));
     report.println(
         "  Personnes couvrant 80 %% du code : %s"
-            .formatted(c(String.valueOf(busFactor), busFactor <= 1 ? YELLOW : BOLD)));
+            .formatted(report.c(String.valueOf(busFactor), busFactor <= 1 ? YELLOW : BOLD)));
     leaders(authors);
 
     long activeRecently = activeRecently(cs, authors.count());
@@ -72,7 +71,8 @@ final class PeopleSection {
     if (distinctEmails > persons) {
       report.println(
           "  Adresses distinctes             : %d %s"
-              .formatted(distinctEmails, c("— ramenées à %d personnes".formatted(persons), DIM)));
+              .formatted(
+                  distinctEmails, report.c("— ramenées à %d personnes".formatted(persons), DIM)));
     }
     // Une identité qui porte plusieurs noms, c'est soit un poste partagé, soit
     // deux homonymes de partie locale sur des domaines différents — auquel cas
@@ -81,7 +81,7 @@ final class PeopleSection {
     if (distinctNames > persons) {
       report.println(
           "  Noms distincts                  : %d %s"
-              .formatted(distinctNames, c("— une identité porte plusieurs noms", DIM)));
+              .formatted(distinctNames, report.c("— une identité porte plusieurs noms", DIM)));
     }
   }
 
@@ -113,10 +113,10 @@ final class PeopleSection {
    */
   private long activeRecently(List<Commit> cs, int persons) {
     int recentDays = Math.min(90, settings.days());
-    LocalDateTime recent = now.minusDays(recentDays);
+    LocalDateTime recent = dates.now().minusDays(recentDays);
     long activeRecently =
         cs.stream()
-            .filter(x -> isAfter(Dates.parseLocal(x.committedDate()), recent))
+            .filter(x -> isAfter(dates.parseLocal(x.committedDate()), recent))
             .map(Authors::identity)
             .distinct()
             .count();
@@ -150,7 +150,7 @@ final class PeopleSection {
     if (f.error() == null && !f.items().isEmpty()) {
       report.println(
           "  Contributeurs de tout temps     : %d %s"
-              .formatted(f.items().size(), c("(commits de fusion inclus)", DIM)));
+              .formatted(f.items().size(), report.c("(commits de fusion inclus)", DIM)));
     }
   }
 }

@@ -51,7 +51,7 @@ class SonarRankSuspectedBugsTest {
                 "--color",
                 "never"));
     args.addAll(List.of(extra));
-    return Cli.run(new SonarRank(), args.toArray(String[]::new));
+    return Cli.run(SonarRank::new, args.toArray(String[]::new));
   }
 
   Csv.Row velocityRow(String key) throws IOException {

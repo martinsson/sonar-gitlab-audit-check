@@ -19,7 +19,8 @@ class GocdApiTest {
       new PrintStream(new ByteArrayOutputStream(), true, java.nio.charset.StandardCharsets.UTF_8);
 
   private static GocdApi api(FakeHttpServer gocd) throws IOException {
-    return new GocdApi(new RestClient(RestClient.Settings.of(gocd.url(), Map.of(), false), QUIET));
+    return new GocdApi(
+        new RestClient(RestClient.Settings.of(gocd.url(), Map.of(), false), QUIET, pause -> {}));
   }
 
   private static String run(int counter, long scheduled) {

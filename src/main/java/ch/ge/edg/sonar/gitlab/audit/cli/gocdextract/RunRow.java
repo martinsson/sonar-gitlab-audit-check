@@ -15,24 +15,24 @@ import org.jspecify.annotations.Nullable;
 /** Une ligne de gocd-runs.csv : un run, ses matériaux, son issue, et les commits embarqués. */
 final class RunRow {
 
-  static final String[] HEADER = {
-    "pipeline",
-    "groupe",
-    "plateforme_supposee",
-    "compteur",
-    "label",
-    "planifie_le",
-    "declenchement",
-    "resultat",
-    "stages",
-    "depots_git",
-    "amont",
-    "nb_commits",
-    "premier_commit_le",
-    "dernier_commit_le",
-    "delai_premier_commit_h",
-    "cles_jira"
-  };
+  static final List<String> HEADER =
+      List.of(
+          "pipeline",
+          "groupe",
+          "plateforme_supposee",
+          "compteur",
+          "label",
+          "planifie_le",
+          "declenchement",
+          "resultat",
+          "stages",
+          "depots_git",
+          "amont",
+          "nb_commits",
+          "premier_commit_le",
+          "dernier_commit_le",
+          "delai_premier_commit_h",
+          "cles_jira");
 
   private RunRow() {}
 

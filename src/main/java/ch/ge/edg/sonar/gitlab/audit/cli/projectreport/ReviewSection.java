@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.c;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.time.LocalDateTime;
@@ -20,13 +19,13 @@ final class ReviewSection {
   private final Report report;
   private final ProjectApi api;
   private final Settings settings;
-  private final LocalDateTime now;
+  private final Dates dates;
 
-  ReviewSection(Report report, ProjectApi api, Settings settings, LocalDateTime now) {
+  ReviewSection(Report report, ProjectApi api, Settings settings, Dates dates) {
     this.report = report;
     this.api = api;
     this.settings = settings;
-    this.now = now;
+    this.dates = dates;
   }
 
   Reviews measure(Project p, LocalDateTime since) {
@@ -69,9 +68,9 @@ final class ReviewSection {
         "  Squash à la fusion              : %.0f %%%s"
             .formatted(
                 squashShare,
-                squashShare >= 50 ? c("   (écrase l'historique par commit)", DIM) : ""));
+                squashShare >= 50 ? report.c("   (écrase l'historique par commit)", DIM) : ""));
 
-    new ReviewSample(report, api, settings.sample()).measure(p, merged);
+    new ReviewSample(report, api, settings.sample(), dates).measure(p, merged);
     return new Reviews(all.size(), leadP90, silentShare, selfShare, squashShare, false);
   }
 
@@ -89,20 +88,22 @@ final class ReviewSection {
     if (truncated) {
       LocalDateTime oldest =
           all.stream()
-              .map(m -> Dates.parseLocal(m.createdAt()))
+              .map(m -> dates.parseLocal(m.createdAt()))
               .filter(Objects::nonNull)
               .min(Comparator.naturalOrder())
               .orElse(null);
-      if (oldest != null) observed = Math.max(1, ChronoUnit.DAYS.between(oldest, now));
+      if (oldest != null) observed = Math.max(1, ChronoUnit.DAYS.between(oldest, dates.now()));
     }
     double weeks = Math.max(1.0, observed / 7.0);
 
     report.println(
         "  MR créées                       : %s (%.1f / semaine)%s"
             .formatted(
-                c(String.valueOf(all.size()), BOLD),
+                report.c(String.valueOf(all.size()), BOLD),
                 all.size() / weeks,
-                truncated ? c("   (sur les %.0f j couverts)".formatted(observed), DIM) : ""));
+                truncated
+                    ? report.c("   (sur les %.0f j couverts)".formatted(observed), DIM)
+                    : ""));
     report.println(
         "  Fusionnées / fermées / ouvertes : %d / %d / %d".formatted(merged, closed, opened));
   }
@@ -116,8 +117,8 @@ final class ReviewSection {
   private double leadTimes(List<MergeRequest> merged) {
     List<Long> lead = new ArrayList<>();
     for (MergeRequest m : merged) {
-      LocalDateTime a = Dates.parseLocal(m.createdAt());
-      LocalDateTime b = Dates.parseLocal(m.mergedAt());
+      LocalDateTime a = dates.parseLocal(m.createdAt());
+      LocalDateTime b = dates.parseLocal(m.mergedAt());
       if (a != null && b != null && !b.isBefore(a)) lead.add(ChronoUnit.HOURS.between(a, b));
     }
     if (lead.isEmpty()) return 0;

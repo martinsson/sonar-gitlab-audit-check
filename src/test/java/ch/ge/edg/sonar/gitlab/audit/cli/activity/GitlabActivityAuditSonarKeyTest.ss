@@ -334,7 +334,4 @@ Synthèse
   chaque projet, et la sélection porte son motif d'entrée.
 
 
---- stderr ---
-[Fatal Error] :1:25: XML document structures must start and end within the same entity.
-
 ╔═ [end of file] ═╗

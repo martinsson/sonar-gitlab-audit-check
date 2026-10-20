@@ -1,30 +1,42 @@
 package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import java.security.GeneralSecurityException;
 
-/** Captures what a piece of code prints on System.out and System.err. Tests must not overlap. */
-final class GitlabStreams {
+/**
+ * Records what a client signals, written as the commands print it: an interrupted paging on the
+ * output, a capture that could not be written on the error. Builds clients that never sleep.
+ */
+final class GitlabStreams implements GitlabListener {
 
-  /** What was printed. */
-  record Printed(String out, String err) {}
+  private final StringBuilder out = new StringBuilder();
+  private final StringBuilder err = new StringBuilder();
 
-  private GitlabStreams() {}
+  /** A client that reports here. */
+  Gitlab client(Gitlab.Connection c) throws IOException, GeneralSecurityException {
+    return new Gitlab(c, this, pause -> {});
+  }
 
-  static Printed capture(Runnable action) {
-    PrintStream oldOut = System.out;
-    PrintStream oldErr = System.err;
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
-    ByteArrayOutputStream err = new ByteArrayOutputStream();
-    try {
-      System.setOut(new PrintStream(out, true, StandardCharsets.UTF_8));
-      System.setErr(new PrintStream(err, true, StandardCharsets.UTF_8));
-      action.run();
-    } finally {
-      System.setOut(oldOut);
-      System.setErr(oldErr);
-    }
-    return new Printed(out.toString(StandardCharsets.UTF_8), err.toString(StandardCharsets.UTF_8));
+  /** A client whose signals nobody reads. */
+  static Gitlab quiet(Gitlab.Connection c) throws IOException, GeneralSecurityException {
+    return new GitlabStreams().client(c);
+  }
+
+  @Override
+  public void pagingInterrupted(String page, int status) {
+    out.append("    Pagination interrompue page %s : HTTP %d%n".formatted(page, status));
+  }
+
+  @Override
+  public void captureNotWritten(String reason) {
+    err.append("  (capture non écrite : ").append(reason).append(")\n");
+  }
+
+  String out() {
+    return out.toString();
+  }
+
+  String err() {
+    return err.toString();
   }
 }

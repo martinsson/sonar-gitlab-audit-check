@@ -1,7 +1,5 @@
 package ch.ge.edg.sonar.gitlab.audit.matching.report;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
-
 /** Couleurs telles que l'appariement les affiche. */
 public final class Colors {
 
@@ -11,8 +9,4 @@ public final class Colors {
   public static final String YELLOW = "\033[33m";
 
   private Colors() {}
-
-  public static String c(String text, String color) {
-    return ConsoleOut.color(text, color);
-  }
 }

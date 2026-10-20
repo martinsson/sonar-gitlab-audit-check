@@ -27,22 +27,6 @@ final class Replay {
   static final String MANUAL_LABEL = "saisi à la main";
   static final String REJECTED_LABEL = "rejeté à la main";
 
-  /**
-   * Ce que la reprise a fait. {@code stale} : paires dont la clé de droite n'existe plus — projet
-   * Sonar renommé ou supprimé —, recalculées.
-   */
-  record Reuse(
-      int kept,
-      int manual,
-      int rejected,
-      int recomputed,
-      int added,
-      List<String> stale,
-      List<String[]> orphans) {
-
-    static final Reuse NONE = new Reuse(0, 0, 0, 0, 0, List.of(), List.of());
-  }
-
   /** L'appariement rejoué, et ce que la reprise a fait. */
   record Outcome(Result result, Reuse stats) {}
 

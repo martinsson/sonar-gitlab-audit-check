@@ -6,11 +6,11 @@ import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
-import java.io.IOException;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.GeneralSecurityException;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,15 +32,7 @@ class GitlabClientTest {
   }
 
   private Gitlab client(@Nullable String token) throws Exception {
-    return new Gitlab(server.url() + "//", token, 5, false, null);
-  }
-
-  private Gitlab dumpingTo(Path dir) {
-    try {
-      return new Gitlab(server.url(), "t", 5, false, dir);
-    } catch (IOException | GeneralSecurityException e) {
-      throw new IllegalStateException(e);
-    }
+    return GitlabStreams.quiet(new Gitlab.Connection(server.url() + "//", token, 5, false, null));
   }
 
   @Test
@@ -152,10 +144,14 @@ class GitlabClientTest {
             n.incrementAndGet() == 1
                 ? Response.status(429, "{}").withHeader("Retry-After", "1")
                 : Response.json("{}"));
-    Gitlab gl = client("t");
-    long start = System.nanoTime();
+    List<Duration> pauses = new ArrayList<>();
+    Gitlab gl =
+        new Gitlab(
+            new Gitlab.Connection(server.url(), "t", 5, false, null),
+            new GitlabStreams(),
+            pauses::add);
     assertThat(gl.get("user", Map.of()).ok()).isTrue();
-    assertThat((System.nanoTime() - start) / 1_000_000).isGreaterThanOrEqualTo(950);
+    assertThat(pauses).containsExactly(Duration.ofSeconds(1));
   }
 
   @Test
@@ -188,7 +184,8 @@ class GitlabClientTest {
     try (ServerSocket s = new ServerSocket(0)) {
       port = s.getLocalPort();
     }
-    Gitlab gl = new Gitlab("http://127.0.0.1:" + port, "t", 5, false, null);
+    Gitlab gl =
+        GitlabStreams.quiet(new Gitlab.Connection("http://127.0.0.1:" + port, "t", 5, false, null));
     Gitlab.Response r = gl.get("user", Map.of());
     assertThat(r.unreachable()).isTrue();
     assertThat(r.body()).startsWith("ConnectException");
@@ -198,7 +195,7 @@ class GitlabClientTest {
 
   @Test
   void anExceptionWithAMessageKeepsBoth() throws Exception {
-    Gitlab gl = new Gitlab("http://bad host", "t", 5, false, null);
+    Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection("http://bad host", "t", 5, false, null));
     Gitlab.Response r = gl.get("user", Map.of());
     assertThat(r.status()).isZero();
     assertThat(r.body()).startsWith("IllegalArgumentException: ");
@@ -222,7 +219,7 @@ class GitlabClientTest {
     String before = System.getProperty(key);
     try {
       server.json("/api/v4/user", "{}");
-      Gitlab gl = new Gitlab(server.url(), "t", 5, true, null);
+      Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, true, null));
       assertThat(gl.get("user", Map.of()).ok()).isTrue();
       assertThat(System.getProperty(key)).isEqualTo("true");
     } finally {
@@ -236,7 +233,7 @@ class GitlabClientTest {
     server.json("/api/v4/projects/1/repository/commits", "[{\"id\":\"abc\"}]");
     server.on("/api/v4/user", r -> Response.status(401, "{\"message\":\"401\"}"));
     Path dir = tmp.resolve("nested/dump");
-    Gitlab gl = new Gitlab(server.url(), "t", 5, false, dir);
+    Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, dir));
     assertThat(dir).isDirectory();
 
     gl.get("projects/1/repository/commits", Map.of("ref_name", "main"));
@@ -257,7 +254,8 @@ class GitlabClientTest {
     server.json("/api/v4/projects", "[]");
     Map<String, String> params = new LinkedHashMap<>();
     params.put("skipped", null);
-    new Gitlab(server.url(), "t", 5, false, tmp).get("projects", params);
+    GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, tmp))
+        .get("projects", params);
     try (var files = Files.list(tmp)) {
       assertThat(files.map(p -> p.getFileName().toString()).toList())
           .containsExactly("0001-api_v4_projects_.json");
@@ -268,7 +266,7 @@ class GitlabClientTest {
   void dumpFileNamesAreCutAt120CharactersThenGetTheirExtension() throws Exception {
     String path = "projects/" + "a".repeat(200);
     server.json("/api/v4/" + path, "{}");
-    Gitlab gl = new Gitlab(server.url(), "t", 5, false, tmp);
+    Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
     gl.get(path, Map.of());
     try (var files = Files.list(tmp)) {
       List<String> names = files.map(p -> p.getFileName().toString()).toList();
@@ -281,13 +279,9 @@ class GitlabClientTest {
   void aDumpThatCannotBeWrittenIsReportedNotFatal() throws Exception {
     server.json("/api/v4/user", "{\"id\":1}");
     Files.createDirectories(tmp.resolve("0001-api_v4_user.json"));
-    GitlabStreams.Printed printed =
-        GitlabStreams.capture(
-            () -> {
-              // built inside the capture: it prints on the streams in place when it is built
-              Gitlab gl = dumpingTo(tmp);
-              assertThat(gl.get("user", Map.of()).ok()).isTrue();
-            });
+    GitlabStreams printed = new GitlabStreams();
+    Gitlab gl = printed.client(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
+    assertThat(gl.get("user", Map.of()).ok()).isTrue();
     assertThat(printed.err()).startsWith("  (capture non écrite : ").endsWith(")\n");
     assertThat(printed.out()).isEmpty();
   }
@@ -301,7 +295,7 @@ class GitlabClientTest {
             n.incrementAndGet() == 1
                 ? Response.status(429, "{}").withHeader("Retry-After", "0")
                 : Response.json("{\"id\":1}"));
-    Gitlab gl = new Gitlab(server.url(), "t", 5, false, tmp);
+    Gitlab gl = GitlabStreams.quiet(new Gitlab.Connection(server.url(), "t", 5, false, tmp));
     gl.get("user", Map.of());
     try (var files = Files.list(tmp)) {
       assertThat(files.map(p -> p.getFileName().toString()).toList())

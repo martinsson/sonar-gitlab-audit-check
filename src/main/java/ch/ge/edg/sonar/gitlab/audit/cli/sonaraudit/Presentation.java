@@ -1,7 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 
 /** Couleurs, titres de section et lignes de verdict du rapport console. */
 final class Presentation {
@@ -14,17 +13,17 @@ final class Presentation {
 
   private Presentation() {}
 
-  static String c(String text, String color) {
-    return ConsoleOut.color(text, color);
-  }
-
-  static void title(PrintStream out, String text) {
+  static void title(Console out, String text) {
     out.println();
     out.println(
-        c("=== " + text + " ", BOLD) + c("=".repeat(Math.max(0, 66 - text.length())), BOLD));
+        out.color("=== " + text + " ", BOLD)
+            + out.color("=".repeat(Math.max(0, 66 - text.length())), BOLD));
   }
 
-  static void line(PrintStream out, String label, Verdict v, String detail) {
-    out.printf("  %s %-42s %s%n", c(v.tag, v.color), label, detail.isBlank() ? "" : c(detail, DIM));
+  static void line(Console out, String label, Verdict v, String detail) {
+    out.out()
+        .printf(
+            "  %s %-42s %s%n",
+            out.color(v.tag, v.color), label, detail.isBlank() ? "" : out.color(detail, DIM));
   }
 }

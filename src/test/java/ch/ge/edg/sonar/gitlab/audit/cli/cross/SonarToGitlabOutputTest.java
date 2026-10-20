@@ -8,36 +8,20 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Check;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
-import java.io.ByteArrayOutputStream;
+import ch.ge.edg.sonar.gitlab.audit.testing.Printed;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
+import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class SonarToGitlabOutputTest {
 
   @TempDir Path dir;
-
-  private boolean savedColors;
-
-  @BeforeEach
-  void colorsOff() {
-    savedColors = ConsoleOut.colors();
-    ConsoleOut.colorMode("never");
-  }
-
-  @AfterEach
-  void restoreColors() {
-    ConsoleOut.colorMode(savedColors ? "always" : "never");
-  }
 
   private SonarToGitlab.Result result() throws IOException {
     List<Csv.Row> s =
@@ -71,16 +55,10 @@ class SonarToGitlabOutputTest {
         List.of(new Check("m1", true), new Check("m1", false), new Check("m0", true)));
   }
 
-  private static String captured(Runnable r) {
-    PrintStream old = System.out;
-    ByteArrayOutputStream buf = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(buf, true, StandardCharsets.UTF_8));
-    try {
-      r.run();
-    } finally {
-      System.setOut(old);
-    }
-    return buf.toString(StandardCharsets.UTF_8);
+  private static String captured(Consumer<Console> r) {
+    Printed printed = Printed.plain();
+    r.accept(printed.console());
+    return printed.text();
   }
 
   @Test
@@ -105,15 +83,14 @@ class SonarToGitlabOutputTest {
   void print_sums_up_by_confidence_outside_selection_reasons_and_checks() throws IOException {
     SonarToGitlab.Result r = result();
     Path file = dir.resolve("sg.csv");
-    String out = captured(() -> new SonarToGitlabReport(System.out).print(r, file));
+    String out = captured(c -> new SonarToGitlabReport(c).print(r, file));
     expectSelfie(CrossAuditFixtures.scrub(out, dir)).toMatchDisk();
   }
 
   @Test
   void print_of_nothing() {
     SonarToGitlab.Result r = new SonarToGitlab.Result(List.of(), List.of());
-    String out =
-        captured(() -> new SonarToGitlabReport(System.out).print(r, dir.resolve("sg.csv")));
+    String out = captured(c -> new SonarToGitlabReport(c).print(r, dir.resolve("sg.csv")));
     expectSelfie(CrossAuditFixtures.scrub(out, dir)).toMatchDisk();
   }
 

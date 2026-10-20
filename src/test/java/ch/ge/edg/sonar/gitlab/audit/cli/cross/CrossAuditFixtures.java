@@ -109,7 +109,7 @@ final class CrossAuditFixtures {
     Locale saved = Locale.getDefault();
     Locale.setDefault(Locale.ROOT);
     try {
-      return Cli.run(new CrossAudit(), args);
+      return Cli.run(CrossAudit::new, args);
     } finally {
       Locale.setDefault(saved);
     }

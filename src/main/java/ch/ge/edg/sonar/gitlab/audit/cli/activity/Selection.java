@@ -1,9 +1,9 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Console.YELLOW;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -28,27 +28,31 @@ import org.jspecify.annotations.Nullable;
  */
 final class Selection {
 
-  private final AuditContext ctx;
+  private final Screen con;
+  private final Counters counters;
+  private final Funnel funnel;
   private final int top;
   private final int nsCap;
   private final Map<String, Integer> perNamespace = new HashMap<>();
   private final List<Proj> selected = new ArrayList<>();
 
-  Selection(AuditContext ctx) {
-    this.ctx = ctx;
-    this.top = ctx.funnel().top;
+  Selection(Screen con, Counters counters, Funnel funnel) {
+    this.con = con;
+    this.counters = counters;
+    this.funnel = funnel;
+    this.top = funnel.options().top;
     this.nsCap = Math.max(3, (int) Math.ceil(top * 0.15));
   }
 
   void run(List<Proj> fresh) {
-    ctx.con().title("5. Sélection par quotas (étape 4)");
+    con.title("5. Sélection par quotas (étape 4)");
 
     List<Proj> eligible =
         fresh.stream()
             .filter(p -> p.excluded == null)
             .collect(Collectors.toCollection(ArrayList::new));
     if (eligible.isEmpty()) {
-      ctx.con().say("  Aucun projet au-dessus du plancher.", YELLOW);
+      con.say("  Aucun projet au-dessus du plancher.", YELLOW);
       return;
     }
     for (Proj p : eligible) p.bucket = bucketOf(p);
@@ -58,7 +62,7 @@ final class Selection {
     witness(eligible, Math.max(1, top * 15 / 100));
     remainder(eligible);
 
-    ctx.counters().selected = selected.size();
+    counters.selected = selected.size();
     report();
   }
 
@@ -115,7 +119,7 @@ final class Selection {
   private void witness(List<Proj> eligible, int controlQuota) {
     List<Proj> rest =
         eligible.stream().filter(p -> !p.selected).collect(Collectors.toCollection(ArrayList::new));
-    Collections.shuffle(rest, new Random(ctx.funnel().seed));
+    Collections.shuffle(rest, new Random(funnel.options().seed));
     rest.stream().limit(controlQuota).forEach(p -> take(p, "témoin aléatoire"));
   }
 
@@ -133,7 +137,7 @@ final class Selection {
   }
 
   private Comparator<Proj> byWeeklyCommits() {
-    int days = ctx.sinceDays();
+    int days = funnel.sinceDays();
     return Comparator.comparingDouble((Proj p) -> p.perWeek(days)).reversed();
   }
 
@@ -149,22 +153,23 @@ final class Selection {
   }
 
   private void report() {
-    PrintStream out = ctx.out();
-    out.printf("  Budget                          : %d%n", top);
-    out.printf("  Sélectionnés                    : %d%n", selected.size());
+    Console out = con.out();
+    out.out().printf("  Budget                          : %d%n", top);
+    out.out().printf("  Sélectionnés                    : %d%n", selected.size());
     selected.stream()
         .collect(
             Collectors.groupingBy(
                 p -> p.selectionReason.startsWith("tête") ? "tête de strate" : p.selectionReason,
                 TreeMap::new,
                 Collectors.counting()))
-        .forEach((r, n) -> out.printf("    %-32s : %d%n", r, n));
-    out.printf(
-        "  Namespaces représentés          : %d (plafond %d par namespace)%n",
-        perNamespace.size(), nsCap);
-    ctx.con().say("    Le témoin permettra d'écrire « couverture X sur les sélectionnés,", DIM);
-    ctx.con().say("    Y sur un tirage du reste » — et si X et Y divergent, la règle", DIM);
-    ctx.con().say("    de sélection est elle-même le sujet.", DIM);
+        .forEach((r, n) -> out.out().printf("    %-32s : %d%n", r, n));
+    out.out()
+        .printf(
+            "  Namespaces représentés          : %d (plafond %d par namespace)%n",
+            perNamespace.size(), nsCap);
+    con.say("    Le témoin permettra d'écrire « couverture X sur les sélectionnés,", DIM);
+    con.say("    Y sur un tirage du reste » — et si X et Y divergent, la règle", DIM);
+    con.say("    de sélection est elle-même le sujet.", DIM);
   }
 
   /** Strates sur le volume historique : une même mesure ne se compare qu'à taille comparable. */

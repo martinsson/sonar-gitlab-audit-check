@@ -167,7 +167,7 @@ class SonarAuditCheckOptionsTest extends SonarAuditCheckTestBase {
 
   @Test
   void helpPrintsTheUsage() {
-    Cli.Result r = Cli.run(new SonarAuditCheck(), "--help");
+    Cli.Result r = Cli.run(SonarAuditCheck::new, "--help");
     assertThat(r.exitCode()).isZero();
     expectSelfie(r.out()).toMatchDisk("usage");
   }

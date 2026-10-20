@@ -1,9 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.util.concurrent.Callable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
@@ -101,17 +99,25 @@ public class GitlabActivityAudit implements Callable<Integer> {
       description = "Print version information and exit.")
   boolean version;
 
-  public static void main(String[] args) {
-    ConsoleOut.install();
-    System.exit(new CommandLine(new GitlabActivityAudit()).execute(args));
+  private final Host host;
+
+  GitlabActivityAudit(Host host) {
+    this.host = host;
   }
 
-  /** Les flux sont lus ici, à l'appel : c'est eux que le rapport doit viser. */
+  public static void main(String[] args) {
+    Host host = Host.system();
+    System.exit(host.commandLine(new GitlabActivityAudit(host)).execute(args));
+  }
+
   @Override
   public Integer call() throws Exception {
-    PrintStream out = System.out;
-    PrintStream err = System.err;
-    return new ActivityAudit(new ActivityAudit.Settings(gitlab, scope, funnel, output), out, err)
+    return new ActivityAudit(
+            new ActivityAudit.Settings(gitlab, scope, funnel, output),
+            new Screen(host.console(output.colorMode)),
+            host.clock(),
+            host.sleeper(),
+            host.workDir())
         .run();
   }
 }

@@ -74,7 +74,7 @@ class SonarRankCliTest {
             List.of("--in", in.toString(), "--out", dir.resolve("classement.csv").toString()));
     args.addAll(List.of(extra));
     if (!args.contains("--color")) args.addAll(List.of("--color", "never"));
-    return Cli.run(new SonarRank(), args.toArray(String[]::new));
+    return Cli.run(SonarRank::new, args.toArray(String[]::new));
   }
 
   String normalized(String s) {

@@ -2,16 +2,16 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /** 3. Combien de projets je vois, combien m'échappent, et ce que chacun mesure. */
 final class Inventory {
@@ -28,16 +28,20 @@ final class Inventory {
     this.scan = scan;
   }
 
-  void run() throws IOException {
-    PrintStream out = session.out();
+  /**
+   * @param exclusions la liste d'exclusion, ou null sans liste
+   */
+  void run(@Nullable Path exclusions) throws IOException {
+    Console out = session.out();
     Presentation.title(out, "3. Inventaire des projets visibles");
 
     Projects visible = new Projects(session);
     List<Component> projects = visible.fetchAll();
-    out.println("  Projets visibles avec ce token : " + c(String.valueOf(projects.size()), BOLD));
+    out.println(
+        "  Projets visibles avec ce token : " + out.color(String.valueOf(projects.size()), BOLD));
 
     visible.reportScopeGap(projects.size());
-    projects = visible.exclude(projects, output.exclusionsFile);
+    projects = visible.exclude(projects, exclusions);
     if (!scan.mainBranchOnly) projects = new Branches(session).resolveLatest(projects);
     visible.reportFreshness(projects, scan.staleDays);
 
@@ -57,16 +61,16 @@ final class Inventory {
 
   private void write(Path csv, InventoryCsv.Park park, Map<String, SearchHistory> histories)
       throws IOException {
-    PrintStream out = session.out();
-    InventoryCsv writer = new InventoryCsv(output.comma);
+    Console out = session.out();
+    InventoryCsv writer = new InventoryCsv(output.comma, session.clock());
     writer.write(csv, park);
     out.println();
-    out.println("  CSV écrit : " + c(csv.toString(), BOLD));
-    out.println(c(Csv.openingHint(csv, output.comma), DIM));
+    out.println("  CSV écrit : " + out.color(csv.toString(), BOLD));
+    out.println(out.color(Csv.openingHint(csv, output.comma), DIM));
     if (!histories.isEmpty()) {
       Path history = InventoryCsv.historyPath(csv);
       writer.writeHistory(history, histories);
-      out.println("  Historique écrit : " + c(history.toString(), BOLD));
+      out.println("  Historique écrit : " + out.color(history.toString(), BOLD));
     }
   }
 }

@@ -1,16 +1,15 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.time.Clock;
-import java.time.ZoneId;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -77,41 +76,41 @@ public class DoraLocate implements Callable<Integer> {
   @Option(names = "--insecure", description = "Accepte un certificat auto-signé")
   boolean insecure;
 
-  private final Clock clock;
-  private final ZoneId zone;
+  private final Host host;
 
-  public DoraLocate() {
-    this(Clock.systemUTC(), ZoneId.systemDefault());
-  }
-
-  /** L'âge de l'index et la période lue viennent de {@code clock}, les dates de {@code zone}. */
-  DoraLocate(Clock clock, ZoneId zone) {
-    this.clock = clock;
-    this.zone = zone;
+  /**
+   * L'âge de l'index et la période lue viennent de l'horloge de {@code host}, les dates de son
+   * fuseau.
+   */
+  DoraLocate(Host host) {
+    this.host = host;
   }
 
   public static void main(String[] args) {
-    ConsoleOut.install();
-    System.exit(new CommandLine(new DoraLocate()).execute(args));
+    Host host = Host.system();
+    System.exit(host.commandLine(new DoraLocate(host)).execute(args));
   }
 
   @Override
   public Integer call() throws IOException, GeneralSecurityException {
-    PrintStream out = System.out;
-    PrintStream err = System.err;
+    Console console = host.console("auto");
+    PrintStream out = console.out();
+    PrintStream err = console.err();
+    Clock clock = host.clock();
     try {
-      Gitlab gitlab = Access.gitlab(gitlabUrl, gitlabToken, insecure, err);
+      Gitlab gitlab = Access.gitlab(gitlabUrl, gitlabToken, insecure, console, host.sleeper());
       GitlabProject p = GitlabProject.find(gitlab, project);
       out.println("Projet GitLab : " + p.pathWithNamespace() + " (id " + p.id() + ")");
-      Context ctx = new Context(out, err, clock, zone, new Suggestions());
+      Context ctx = new Context(out, err, clock, new Suggestions());
       if (present(jiraUrl) && present(jiraToken)) {
-        new JiraSection(gitlab, Access.jira(jiraUrl, jiraToken, insecure, err), ctx)
+        new JiraSection(gitlab, Access.jira(jiraUrl, jiraToken, insecure, err, host.sleeper()), ctx)
             .run(p, days, maxCommits);
       } else {
         out.println("\n(Jira ignoré : JIRA_URL / JIRA_TOKEN absents)");
       }
       if (present(gocdUrl) && present(gocdToken)) {
-        new GocdSection(Access.gocd(gocdUrl, gocdToken, insecure, err), ctx).run(p, index, refresh);
+        new GocdSection(Access.gocd(gocdUrl, gocdToken, insecure, err, host.sleeper()), ctx)
+            .run(p, index, refresh);
       } else {
         out.println("\n(GoCD ignoré : GOCD_URL / GOCD_TOKEN absents)");
       }

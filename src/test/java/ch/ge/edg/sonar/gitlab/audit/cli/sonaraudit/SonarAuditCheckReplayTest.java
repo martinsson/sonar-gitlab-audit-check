@@ -16,7 +16,7 @@ class SonarAuditCheckReplayTest extends SonarAuditCheckTestBase {
 
   private Cli.Result replay(Path dir, Path out) {
     return Cli.run(
-        new SonarAuditCheck(),
+        SonarAuditCheck::new,
         "--url",
         "",
         "--token",
@@ -91,7 +91,7 @@ class SonarAuditCheckReplayTest extends SonarAuditCheckTestBase {
 
   @Test
   void urlIsRequiredOutsideReplay() {
-    Cli.Result r = Cli.run(new SonarAuditCheck(), "--url", "", "--token", "t", "--color", "never");
+    Cli.Result r = Cli.run(SonarAuditCheck::new, "--url", "", "--token", "t", "--color", "never");
     assertThat(r.exitCode()).isEqualTo(2);
     assertThat(r.out()).isEmpty();
     assertThat(r.err())
@@ -102,7 +102,7 @@ class SonarAuditCheckReplayTest extends SonarAuditCheckTestBase {
   void tokenIsRequiredOutsideReplay() {
     Cli.Result r =
         Cli.run(
-            new SonarAuditCheck(),
+            SonarAuditCheck::new,
             "--url",
             "http://127.0.0.1:1",
             "--token",

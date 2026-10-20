@@ -3,10 +3,9 @@ package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Check;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Result;
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
-import java.io.PrintStream;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.TreeMap;
@@ -16,21 +15,23 @@ final class SonarToGitlabReport {
 
   private static final String DIM = "\033[2m";
 
-  private final PrintStream out;
+  private final Console out;
 
-  SonarToGitlabReport(PrintStream out) {
+  SonarToGitlabReport(Console out) {
     this.out = out;
   }
 
   void print(Result r, Path file) {
     int n = r.pairs().size();
     long joined = r.pairs().stream().filter(Pair::joined).count();
-    out.printf(
-        "  Projets Sonar : %d, dont %d appariés sûrement (%s)%n", n, joined, Fmt.pct(joined, n));
+    out.out()
+        .printf(
+            "  Projets Sonar : %d, dont %d appariés sûrement (%s)%n",
+            n, joined, Fmt.pct(joined, n));
     confidences(r);
     reasons(r);
     checks(r);
-    out.printf("  Sonar × tout GitLab : %d lignes → %s%n", n, file.toAbsolutePath());
+    out.out().printf("  Sonar × tout GitLab : %d lignes → %s%n", n, file.toAbsolutePath());
   }
 
   /** Le compte par confiance, et les paires sûres hors de la sélection GitLab. */
@@ -45,11 +46,12 @@ final class SonarToGitlabReport {
         if (GitlabInventoryIndex.commits(g) >= 10) outsideActive++;
       }
     }
-    byConf.forEach((c, k) -> out.printf("    %-10s %d%n", c, k));
-    out.printf(
-        "  Appariés à un dépôt hors de la sélection GitLab : %d, dont %d actifs "
-            + "(10 commits ou plus)%n",
-        outside, outsideActive);
+    byConf.forEach((c, k) -> out.out().printf("    %-10s %d%n", c, k));
+    out.out()
+        .printf(
+            "  Appariés à un dépôt hors de la sélection GitLab : %d, dont %d actifs "
+                + "(10 commits ou plus)%n",
+            outside, outsideActive);
   }
 
   private void reasons(Result r) {
@@ -65,16 +67,17 @@ final class SonarToGitlabReport {
     }
     if (!reasons.isEmpty()) {
       out.println("  Sans dépôt GitLab, par raison :");
-      reasons.forEach((why, k) -> out.printf("    %-36s %d%n", why, k));
+      reasons.forEach((why, k) -> out.out().printf("    %-36s %d%n", why, k));
     }
   }
 
   private void checks(Result r) {
     if (r.checks().isEmpty()) return;
     long ok = r.checks().stream().filter(Check::agrees).count();
-    out.printf(
-        "  Méthodes dérivées rejouées sur les paires exactes : %d sur %d d'accord%n",
-        ok, r.checks().size());
+    out.out()
+        .printf(
+            "  Méthodes dérivées rejouées sur les paires exactes : %d sur %d d'accord%n",
+            ok, r.checks().size());
     Map<String, int[]> perMethod = new TreeMap<>();
     for (Check c : r.checks()) {
       int[] a = perMethod.computeIfAbsent(c.method(), x -> new int[2]);
@@ -82,7 +85,6 @@ final class SonarToGitlabReport {
     }
     perMethod.forEach(
         (m, a) ->
-            out.println(
-                ConsoleOut.color("    %s : %d d'accord, %d non".formatted(m, a[0], a[1]), DIM)));
+            out.println(out.color("    %s : %d d'accord, %d non".formatted(m, a[0], a[1]), DIM)));
   }
 }

@@ -2,11 +2,11 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 /** Le verdict d'une sonde du préambule, avec sa couleur. */
 enum Verdict {
-  OK(Console.GREEN, "OK"),
-  DENIED(Console.RED, "REFUSÉ"),
-  MISSING(Console.YELLOW, "ABSENT"),
-  EMPTY(Console.YELLOW, "VIDE"),
-  ERROR(Console.RED, "ERREUR");
+  OK(Screen.GREEN, "OK"),
+  DENIED(Screen.RED, "REFUSÉ"),
+  MISSING(Screen.YELLOW, "ABSENT"),
+  EMPTY(Screen.YELLOW, "VIDE"),
+  ERROR(Screen.RED, "ERREUR");
   final String color;
   final String tag;
 

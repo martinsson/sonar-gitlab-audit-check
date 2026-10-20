@@ -3,18 +3,13 @@ package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
-import java.io.ByteArrayOutputStream;
+import ch.ge.edg.sonar.gitlab.audit.testing.Printed;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Locale;
 import org.jspecify.annotations.Nullable;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -25,18 +20,6 @@ class CrossAuditHelpersTest {
   private static final String SQ_HEADER = SQ + ",pad";
 
   @TempDir Path dir;
-
-  private boolean savedColors;
-
-  @BeforeEach
-  void save() {
-    savedColors = ConsoleOut.colors();
-  }
-
-  @AfterEach
-  void restore() {
-    ConsoleOut.colorMode(savedColors ? "always" : "never");
-  }
 
   private Csv.Row gl(String row) throws IOException {
     return CrossAuditFixtures.table(dir, "gl.csv", GL, row).rows().get(0);
@@ -134,29 +117,17 @@ class CrossAuditHelpersTest {
   }
 
   @Test
-  void c_and_title_follow_the_color_switch() {
-    ConsoleOut.colorMode("always");
-    assertThat(CrossReport.c("x", CrossReport.YELLOW)).isEqualTo("\033[33mx\033[0m");
+  void title_follows_the_color_switch() {
     assertThat(CrossReport.BOLD + CrossReport.DIM + CrossReport.GREEN)
         .isEqualTo("\033[1m\033[2m\033[32m");
-    ConsoleOut.colorMode("never");
-    assertThat(CrossReport.c("x", CrossReport.YELLOW)).isEqualTo("x");
-    assertThat(title("Abc")).isEqualTo("\nAbc\n---\n");
-    assertThat(title("x".repeat(80)))
+    assertThat(title(Printed.plain(), "Abc")).isEqualTo("\nAbc\n---\n");
+    assertThat(title(Printed.plain(), "x".repeat(80)))
         .isEqualTo("\n" + "x".repeat(80) + "\n" + "-".repeat(72) + "\n");
-    ConsoleOut.colorMode("always");
-    assertThat(title("Ab")).isEqualTo("\n\033[1mAb\033[0m\n\033[2m--\033[0m\n");
+    assertThat(title(Printed.colored(), "Ab")).isEqualTo("\n\033[1mAb\033[0m\n\033[2m--\033[0m\n");
   }
 
-  private static String title(String text) {
-    PrintStream old = System.out;
-    ByteArrayOutputStream buf = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(buf, true, StandardCharsets.UTF_8));
-    try {
-      CrossReport.title(System.out, text);
-    } finally {
-      System.setOut(old);
-    }
-    return buf.toString(StandardCharsets.UTF_8).replace(System.lineSeparator(), "\n");
+  private static String title(Printed printed, String text) {
+    CrossReport.title(printed.console(), text);
+    return printed.text();
   }
 }

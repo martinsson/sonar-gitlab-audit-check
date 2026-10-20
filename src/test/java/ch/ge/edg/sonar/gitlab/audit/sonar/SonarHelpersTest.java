@@ -16,7 +16,10 @@ import org.junit.jupiter.api.Test;
 class SonarHelpersTest {
 
   private static Sonar sonar() throws Exception {
-    return new Sonar(new SonarConnection("http://127.0.0.1:1", "t", null, 1, false));
+    return new Sonar(
+        new SonarConnection("http://127.0.0.1:1", "t", null, 1, false),
+        Captures.none(),
+        pause -> {});
   }
 
   @Test

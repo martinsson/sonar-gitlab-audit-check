@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import java.io.IOException;
 import java.io.StringReader;
+import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.jspecify.annotations.Nullable;
@@ -9,6 +10,7 @@ import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
+import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * Ce que le pom.xml racine dit de la clé Sonar : groupId:artifactId, la clé que sonar-maven-plugin
@@ -43,9 +45,11 @@ record Pom(@Nullable String key, String rawKey, @Nullable String name) {
       f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
       f.setExpandEntityReferences(false);
       f.setXIncludeAware(false);
-      return f.newDocumentBuilder()
-          .parse(new InputSource(new StringReader(xml)))
-          .getDocumentElement();
+      DocumentBuilder builder = f.newDocumentBuilder();
+      // Sans gestionnaire, le parseur du JDK écrit « [Fatal Error] … » sur System.err avant de
+      // lever : un pom illisible se dit par null, pas sur la console.
+      builder.setErrorHandler(new DefaultHandler());
+      return builder.parse(new InputSource(new StringReader(xml))).getDocumentElement();
     } catch (ParserConfigurationException | SAXException | IOException e) {
       return null;
     }

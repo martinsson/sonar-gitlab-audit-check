@@ -3,12 +3,11 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.GREEN;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ScmResponse;
-import java.io.PrintStream;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -19,7 +18,7 @@ import java.util.stream.Collectors;
 final class Blame {
 
   private final Session session;
-  private final PrintStream out;
+  private final Console out;
 
   Blame(Session session) {
     this.session = session;
@@ -39,7 +38,7 @@ final class Blame {
     if (fileKey == null || rows.isEmpty()) {
       out.println();
       out.println(
-          c(
+          out.color(
               "  Blame SCM inaccessible : il manque 'See Source Code' au token.\n"
                   + "  Sans lui, ni le churn ni l'âge du code ne sont calculables ici.",
               YELLOW));
@@ -61,7 +60,7 @@ final class Blame {
     if (authors.isEmpty()) {
       out.println();
       out.println(
-          c(
+          out.color(
               // Le délimiteur fermant, deux colonnes à gauche, garde le retrait du texte.
               """
                   Blame SCM vide : le scanner tourne sans métadonnées SCM
@@ -76,9 +75,9 @@ final class Blame {
     accessible(fileKey, rows.size(), authors.size(), dates(rows));
   }
 
-  private static List<LocalDateTime> dates(List<List<String>> rows) {
+  private List<LocalDateTime> dates(List<List<String>> rows) {
     return rows.stream()
-        .map(row -> row.size() > 2 ? parseDate(row.get(2)) : null)
+        .map(row -> row.size() > 2 ? parseDate(row.get(2), session.zone()) : null)
         .filter(Objects::nonNull)
         .sorted()
         .toList();
@@ -86,14 +85,16 @@ final class Blame {
 
   private void accessible(String fileKey, int changesets, int authors, List<LocalDateTime> dates) {
     out.println();
-    out.println(c("  Blame SCM accessible via l'API :", GREEN));
-    out.printf("    Fichier témoin                : %s%n", Values.shortName(fileKey));
-    out.printf("    Auteurs distincts (%d changesets): %d%n", changesets, authors);
+    out.println(out.color("  Blame SCM accessible via l'API :", GREEN));
+    out.out().printf("    Fichier témoin                : %s%n", Values.shortName(fileKey));
+    out.out().printf("    Auteurs distincts (%d changesets): %d%n", changesets, authors);
     if (!dates.isEmpty()) {
-      out.printf(
-          "    Dernière modification         : %s%n", dates.get(dates.size() - 1).toLocalDate());
-      out.printf("    Plus ancienne ligne           : %s%n", dates.get(0).toLocalDate());
+      out.out()
+          .printf(
+              "    Dernière modification         : %s%n",
+              dates.get(dates.size() - 1).toLocalDate());
+      out.out().printf("    Plus ancienne ligne           : %s%n", dates.get(0).toLocalDate());
     }
-    out.println(c("    → churn et âge du code calculables sans accès Git", DIM));
+    out.println(out.color("    → churn et âge du code calculables sans accès Git", DIM));
   }
 }

@@ -2,11 +2,13 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.testing.Printed;
 import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -35,7 +37,6 @@ class ProjectReportUnitTest {
   void restore() {
     Locale.setDefault(locale);
     TimeZone.setDefault(zone);
-    ConsoleOut.colorMode("never");
   }
 
   @Test
@@ -96,22 +97,21 @@ class ProjectReportUnitTest {
     OffsetDateTime offset = Dates.parseOffset("2024-03-04T10:00:00+02:00");
     assertThat(Objects.requireNonNull(offset).getHour()).isEqualTo(10);
     assertThat(Dates.parseOffset(null)).isNull();
-    assertThat(Dates.parseLocal("2024-03-04T10:00:00Z"))
+    Dates zurich = new Dates(Clock.system(ZoneId.of("Europe/Zurich")));
+    assertThat(zurich.parseLocal("2024-03-04T10:00:00Z"))
         .isEqualTo(LocalDateTime.of(2024, 3, 4, 11, 0));
-    assertThat(Dates.parseLocal("nope")).isNull();
-    assertThat(Dates.dateOnly("2024-03-04T23:30:00Z")).isEqualTo("2024-03-05");
-    assertThat(Dates.dateOnly("")).isEqualTo("n/a");
+    assertThat(zurich.parseLocal("nope")).isNull();
+    assertThat(zurich.dateOnly("2024-03-04T23:30:00Z")).isEqualTo("2024-03-05");
+    assertThat(zurich.dateOnly("")).isEqualTo("n/a");
   }
 
   @Test
   @SuspectedBug("the day of a commit should not depend on the time zone of the machine")
   void the_same_instant_falls_on_another_day_in_another_system_zone() {
     String lateEvening = "2024-03-04T23:30:00Z";
-    TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
-    String inUtc = Dates.dateOnly(lateEvening);
-    TimeZone.setDefault(TimeZone.getTimeZone("Europe/Zurich"));
-    assertThat(List.of(inUtc, Dates.dateOnly(lateEvening)))
-        .containsExactly("2024-03-04", "2024-03-05");
+    String inUtc = new Dates(Clock.systemUTC()).dateOnly(lateEvening);
+    String inZurich = new Dates(Clock.system(ZoneId.of("Europe/Zurich"))).dateOnly(lateEvening);
+    assertThat(List.of(inUtc, inZurich)).containsExactly("2024-03-04", "2024-03-05");
   }
 
   @Test
@@ -189,7 +189,7 @@ class ProjectReportUnitTest {
     assertThat(Verdict.EMPTY.tag).isEqualTo("VIDE    ");
     assertThat(Verdict.DENIED.color).isEqualTo(Report.RED);
     assertThat(Report.RESET).isEqualTo("\033[0m");
-    ConsoleOut.colorMode("always");
-    assertThat(Report.c("x", Report.GREEN)).isEqualTo("\033[32mx\033[0m");
+    assertThat(new Report(Printed.colored().console()).c("x", Report.GREEN))
+        .isEqualTo("\033[32mx\033[0m");
   }
 }

@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.RED;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.c;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.line;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
@@ -12,15 +11,15 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.CurrentUser;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SystemStatus;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Validation;
+import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
-import java.io.PrintStream;
 import java.util.List;
 
 /** 1. L'API répond-elle, le jeton est-il valide, et qui est-il ? */
 final class Connectivity {
 
   private final Session session;
-  private final PrintStream out;
+  private final Console out;
 
   Connectivity(Session session) {
     this.session = session;
@@ -41,7 +40,8 @@ final class Connectivity {
       line(out, "api/system/status", Verdict.ERROR, status.errorMessage());
       out.println();
       out.println(
-          c("  Impossible de joindre l'instance. " + "Vérifie l'URL, le proxy, le TLS.", RED));
+          out.color(
+              "  Impossible de joindre l'instance. " + "Vérifie l'URL, le proxy, le TLS.", RED));
       return false;
     }
     SystemStatus st = status.as(SystemStatus.class);
@@ -67,8 +67,8 @@ final class Connectivity {
         valid ? "token valide" : "token invalide ou expiré");
     if (!valid) {
       out.println();
-      out.println(c("  Le token n'est pas accepté. Vérifie qu'il s'agit bien d'un", RED));
-      out.println(c("  token de type 'User' (squ_...) et non d'un token d'analyse.", RED));
+      out.println(out.color("  Le token n'est pas accepté. Vérifie qu'il s'agit bien d'un", RED));
+      out.println(out.color("  token de type 'User' (squ_...) et non d'un token d'analyse.", RED));
     }
     return valid;
   }
@@ -85,20 +85,23 @@ final class Connectivity {
     out.println();
     out.println(
         "  Permissions globales : "
-            + c(perms.isEmpty() ? "aucune" : String.join(", ", perms), DIM));
+            + out.color(perms.isEmpty() ? "aucune" : String.join(", ", perms), DIM));
     List<String> groups = orEmptyList(me.groups());
     if (!groups.isEmpty()) {
       out.println(
           "  Groupes              : "
-              + c(String.join(", ", groups.subList(0, Math.min(8, groups.size()))), DIM));
+              + out.color(String.join(", ", groups.subList(0, Math.min(8, groups.size()))), DIM));
     }
     if (perms.contains("admin")) adminNote();
   }
 
   private void adminNote() {
     out.println();
-    out.println(c("  Note : ce token a 'Administer System'. Il verra tout, donc ce", YELLOW));
-    out.println(c("  diagnostic ne reflétera pas le périmètre d'un compte d'audit", YELLOW));
-    out.println(c("  restreint. Pour un audit récurrent, préfère un compte dédié.", YELLOW));
+    out.println(
+        out.color("  Note : ce token a 'Administer System'. Il verra tout, donc ce", YELLOW));
+    out.println(
+        out.color("  diagnostic ne reflétera pas le périmètre d'un compte d'audit", YELLOW));
+    out.println(
+        out.color("  restreint. Pour un audit récurrent, préfère un compte dédié.", YELLOW));
   }
 }

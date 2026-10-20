@@ -6,6 +6,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.HistoryPoint;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
@@ -42,10 +43,10 @@ record Trend(
     return violationsPerMonth == null ? null : violationsPerMonth / 30;
   }
 
-  static Trend of(SearchHistory h) {
-    SortedMap<LocalDateTime, Double> violations = series(h.pointsFor("violations"));
-    SortedMap<LocalDateTime, Double> ncloc = series(h.pointsFor("ncloc"));
-    SortedMap<LocalDateTime, Double> ratio = series(h.pointsFor("sqale_debt_ratio"));
+  static Trend of(SearchHistory h, ZoneId zone) {
+    SortedMap<LocalDateTime, Double> violations = series(h.pointsFor("violations"), zone);
+    SortedMap<LocalDateTime, Double> ncloc = series(h.pointsFor("ncloc"), zone);
+    SortedMap<LocalDateTime, Double> ratio = series(h.pointsFor("sqale_debt_ratio"), zone);
 
     // Densité : seulement aux dates où les deux mesures existent.
     SortedMap<LocalDateTime, Double> density = new TreeMap<>();
@@ -69,10 +70,10 @@ record Trend(
         relativePerMonth(ratio));
   }
 
-  private static SortedMap<LocalDateTime, Double> series(List<HistoryPoint> points) {
+  private static SortedMap<LocalDateTime, Double> series(List<HistoryPoint> points, ZoneId zone) {
     SortedMap<LocalDateTime, Double> out = new TreeMap<>();
     for (HistoryPoint p : points) {
-      LocalDateTime d = parseDate(p.date());
+      LocalDateTime d = parseDate(p.date(), zone);
       Double v = numeric(p.value());
       if (d != null && v != null) out.put(d, v);
     }

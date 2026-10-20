@@ -4,6 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
 import java.io.PrintStream;
 import org.jspecify.annotations.Nullable;
@@ -23,15 +24,21 @@ final class Gocd {
    * Une URL donnée avec ou sans « /go » final : les chemins d'API le remettent.
    *
    * @param err où dire qu'une capture n'a pas pu s'écrire
+   * @param sleeper l'attente avant un nouvel essai
    */
   public static Gocd connect(
-      @Nullable String url, @Nullable String token, boolean insecure, PrintStream err)
+      @Nullable String url,
+      @Nullable String token,
+      boolean insecure,
+      PrintStream err,
+      Sleeper sleeper)
       throws Stop, IOException {
     String base = Stop.require(url, "GOCD_URL").replaceAll("/+$", "").replaceFirst("/go$", "");
     String pat = Stop.require(token, "GOCD_TOKEN");
     return new Gocd(
         new GocdApi(
-            new RestClient(RestClient.Settings.of(base, AuthHeaders.bearer(pat), insecure), err)));
+            new RestClient(
+                RestClient.Settings.of(base, AuthHeaders.bearer(pat), insecure), err, sleeper)));
   }
 
   GocdApi api() {

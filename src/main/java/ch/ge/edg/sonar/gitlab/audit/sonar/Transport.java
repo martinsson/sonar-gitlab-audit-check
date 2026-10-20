@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.sonar;
 
+import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -28,13 +29,16 @@ final class Transport {
   // perdrait des incréments, et le total d'appels est ce sur quoi on juge le
   // coût de l'outil. Il doit être juste, pas approximativement juste.
   private final AtomicInteger calls;
+  private final Sleeper sleeper;
   private final AtomicInteger throttled = new AtomicInteger();
   private final AtomicInteger retried = new AtomicInteger();
 
-  Transport(SonarConnection connection, AtomicInteger calls) throws GeneralSecurityException {
+  Transport(SonarConnection connection, AtomicInteger calls, Sleeper sleeper)
+      throws GeneralSecurityException {
     this.token = connection.token();
     this.timeout = Duration.ofSeconds(connection.timeoutSeconds());
     this.calls = calls;
+    this.sleeper = sleeper;
     HttpClient.Builder b =
         HttpClient.newBuilder()
             .connectTimeout(this.timeout)
@@ -68,7 +72,7 @@ final class Transport {
             client.send(request(uri), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
         OptionalLong pause = retryPause(res, attempt);
         if (pause.isEmpty()) return new Sonar.Response(res.statusCode(), res.body());
-        Thread.sleep(pause.getAsLong());
+        sleeper.sleep(Duration.ofMillis(pause.getAsLong()));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         return new Sonar.Response(0, "interrompu");

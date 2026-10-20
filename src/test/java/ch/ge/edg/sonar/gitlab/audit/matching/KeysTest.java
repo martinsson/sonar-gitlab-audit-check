@@ -75,14 +75,15 @@ class KeysTest {
 
   @Test
   void mapped_gitlab_paths_give_up_to_three_variants() {
-    assertThat(Keys.mappedGitlabPaths(null)).isEmpty();
-    assertThat(Keys.mappedGitlabPaths("")).isEmpty();
-    assertThat(Keys.mappedGitlabPaths("Alpha")).containsExactly("alpha");
-    assertThat(Keys.mappedGitlabPaths("Team-A/123-alpha")).containsExactly("team-a-alpha", "alpha");
-    assertThat(Keys.mappedGitlabPaths("team-a/sub/9-beta"))
+    assertThat(NamespaceMapping.empty().mappedGitlabPaths(null)).isEmpty();
+    assertThat(NamespaceMapping.empty().mappedGitlabPaths("")).isEmpty();
+    assertThat(NamespaceMapping.empty().mappedGitlabPaths("Alpha")).containsExactly("alpha");
+    assertThat(NamespaceMapping.empty().mappedGitlabPaths("Team-A/123-alpha"))
+        .containsExactly("team-a-alpha", "alpha");
+    assertThat(NamespaceMapping.empty().mappedGitlabPaths("team-a/sub/9-beta"))
         .containsExactly("team-a-sub-beta", "team-a-beta", "sub-beta");
-    assertThat(Keys.mappedGitlabPaths("team-a/12-")).containsExactly("team-a");
-    assertThat(Keys.mappedGitlabPaths("/x")).containsExactly("x", "x");
+    assertThat(NamespaceMapping.empty().mappedGitlabPaths("team-a/12-")).containsExactly("team-a");
+    assertThat(NamespaceMapping.empty().mappedGitlabPaths("/x")).containsExactly("x", "x");
   }
 
   @Test

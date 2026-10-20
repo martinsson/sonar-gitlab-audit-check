@@ -19,12 +19,14 @@ final class SonarProbe {
   private static final List<String> WATCHED =
       List.of(".gitlab-ci.yml", "README.md", "CODEOWNERS", "Dockerfile", "renovate.json");
 
-  private final AuditContext ctx;
+  private final Gitlab gl;
+  private final Counters counters;
   private final SonarCache cache;
   private final CiConfig ci;
 
-  SonarProbe(AuditContext ctx, SonarCache cache, CiConfig ci) {
-    this.ctx = ctx;
+  SonarProbe(Gitlab gl, Counters counters, SonarCache cache, CiConfig ci) {
+    this.gl = gl;
+    this.counters = counters;
     this.cache = cache;
     this.ci = ci;
   }
@@ -44,7 +46,7 @@ final class SonarProbe {
   private Set<String> rootEntries(Proj p) {
     Set<String> names = new TreeSet<>();
     for (JsonNode e :
-        ctx.gl().paged("projects/" + p.id + "/repository/tree", params("ref", p.defaultBranch))) {
+        gl.paged("projects/" + p.id + "/repository/tree", params("ref", p.defaultBranch))) {
       names.add(text(e, "name"));
     }
     return names;
@@ -63,7 +65,7 @@ final class SonarProbe {
     CiFacts hit = cache.get(key);
     if (hit != null) {
       hit.applyTo(r);
-      ctx.counters().ciFromCacheN.incrementAndGet();
+      counters.ciFromCacheN.incrementAndGet();
       return;
     }
     CiFacts f = new CiFacts();
@@ -114,10 +116,9 @@ final class SonarProbe {
   /** Le contenu d'un fichier de la branche par défaut, ou null s'il ne se lit pas. */
   private @Nullable String raw(Proj p, String file) {
     Gitlab.Response r =
-        ctx.gl()
-            .get(
-                "projects/" + p.id + "/repository/files/" + enc(file) + "/raw",
-                Map.of("ref", p.defaultBranch));
+        gl.get(
+            "projects/" + p.id + "/repository/files/" + enc(file) + "/raw",
+            Map.of("ref", p.defaultBranch));
     return r.status() == 200 ? r.body() : null;
   }
 }
