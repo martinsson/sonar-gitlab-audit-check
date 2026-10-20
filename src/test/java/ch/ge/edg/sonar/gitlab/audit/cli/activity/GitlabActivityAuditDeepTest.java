@@ -1,11 +1,11 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitlabAuditFake.FUTURE;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitlabAuditFake.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitlabAuditFake.daily;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitlabAuditFake.merge;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitlabAuditFake.project;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitlabAuditFake.stats;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.FUTURE;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.daily;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.merge;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.stats;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 

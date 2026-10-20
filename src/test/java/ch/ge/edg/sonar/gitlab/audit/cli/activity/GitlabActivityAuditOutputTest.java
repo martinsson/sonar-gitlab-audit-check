@@ -1,7 +1,7 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitlabAuditFake.daily;
-import static ch.ge.edg.sonar.gitlab.audit.cli.GitlabAuditFake.project;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.daily;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 

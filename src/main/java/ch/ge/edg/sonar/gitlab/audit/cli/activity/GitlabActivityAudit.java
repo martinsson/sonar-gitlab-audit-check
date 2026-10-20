@@ -1,10 +1,5 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityAudit;
-import ch.ge.edg.sonar.gitlab.audit.cli.activity.FunnelOptions;
-import ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabOptions;
-import ch.ge.edg.sonar.gitlab.audit.cli.activity.OutputOptions;
-import ch.ge.edg.sonar.gitlab.audit.cli.activity.ScopeOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import java.io.PrintStream;
 import java.util.concurrent.Callable;
