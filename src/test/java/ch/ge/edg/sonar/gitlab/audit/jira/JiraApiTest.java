@@ -21,7 +21,7 @@ class JiraApiTest {
   }
 
   @Test
-  void search_sends_jql_paging_and_extra_params() throws IOException {
+  void searchSendsJqlPagingAndExtraParams() throws IOException {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.json("/rest/api/2/search", "{\"total\":3,\"issues\":[]}");
       JiraApi api = api(jira);
@@ -38,7 +38,7 @@ class JiraApiTest {
   }
 
   @Test
-  void search_falls_back_to_latest_when_v2_is_gone() throws IOException {
+  void searchFallsBackToLatestWhenV2IsGone() throws IOException {
     for (int gone : new int[] {404, 410}) {
       try (FakeHttpServer jira = new FakeHttpServer()) {
         jira.on("/rest/api/2/search", r -> Response.status(gone, "{}"));
@@ -49,8 +49,7 @@ class JiraApiTest {
   }
 
   @Test
-  void count_is_minus_one_when_the_search_fails_and_other_errors_do_not_fall_back()
-      throws IOException {
+  void countIsMinusOneWhenTheSearchFailsAndOtherErrorsDoNotFallBack() throws IOException {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on("/rest/api/2/search", r -> Response.status(400, "{}"));
       assertThat(api(jira).count("bad jql")).isEqualTo(-1);
@@ -59,7 +58,7 @@ class JiraApiTest {
   }
 
   @Test
-  void status_categories_by_id_and_empty_when_unreadable() throws IOException {
+  void statusCategoriesByIdAndEmptyWhenUnreadable() throws IOException {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.json(
           "/rest/api/2/status",
@@ -73,7 +72,7 @@ class JiraApiTest {
   }
 
   @Test
-  void status_categories_parse_a_status_list_already_read() throws IOException {
+  void statusCategoriesParseAStatusListAlreadyRead() throws IOException {
     JsonNode statuses =
         new ObjectMapper()
             .readTree(
@@ -84,7 +83,7 @@ class JiraApiTest {
   }
 
   @Test
-  void the_other_endpoints_hit_the_documented_paths() throws IOException {
+  void theOtherEndpointsHitTheDocumentedPaths() throws IOException {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.onPrefix("/rest/api/2/", r -> Response.json("{}"));
       JiraApi api = api(jira);

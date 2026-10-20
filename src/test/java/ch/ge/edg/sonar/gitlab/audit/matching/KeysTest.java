@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class KeysTest {
 
   @Test
-  void normalise_lowercases_and_folds_every_separator_into_one_dash() {
+  void normaliseLowercasesAndFoldsEverySeparatorIntoOneDash() {
     assertThat(Keys.normalise("Team-A/Alpha_Service")).isEqualTo("team-a-alpha-service");
     assertThat(Keys.normalise("grp.alpha:svc")).isEqualTo("grp-alpha-svc");
     assertThat(Keys.normalise("--x__y--")).isEqualTo("x-y");
@@ -18,7 +18,7 @@ class KeysTest {
   }
 
   @Test
-  void linked_paths_read_https_ssh_and_tree_urls_ignoring_the_host() {
+  void linkedPathsReadHttpsSshAndTreeUrlsIgnoringTheHost() {
     String links =
         "gitlab https://git.example.test/team-a/alpha.git"
             + " | github git@git.example.test:Team-B/Beta"
@@ -27,7 +27,7 @@ class KeysTest {
   }
 
   @Test
-  void linked_paths_strip_query_fragment_trailing_slash_and_dot_git() {
+  void linkedPathsStripQueryFragmentTrailingSlashAndDotGit() {
     assertThat(Keys.linkedPaths("https://h/a/b?x=1#y")).containsExactly("a/b");
     assertThat(Keys.linkedPaths("https://h/A/B/")).containsExactly("a/b");
     assertThat(Keys.linkedPaths("x https://h/a/b.git/")).containsExactly("a/b");
@@ -35,7 +35,7 @@ class KeysTest {
   }
 
   @Test
-  void linked_paths_drop_what_is_not_a_group_path() {
+  void linkedPathsDropWhatIsNotAGroupPath() {
     assertThat(Keys.linkedPaths(null)).isEmpty();
     assertThat(Keys.linkedPaths("  ")).isEmpty();
     assertThat(Keys.linkedPaths("site https://h/alpha")).isEmpty();
@@ -44,13 +44,13 @@ class KeysTest {
   }
 
   @Test
-  void linked_paths_split_only_on_spaced_pipes() {
+  void linkedPathsSplitOnlyOnSpacedPipes() {
     assertThat(Keys.linkedPaths("https://h/a/b|https://h/c/d")).isEmpty();
     assertThat(Keys.linkedPaths("https://h/a/b | https://h/c/d")).containsExactly("a/b", "c/d");
   }
 
   @Test
-  void strip_ticket_number_removes_a_leading_number_and_dash() {
+  void stripTicketNumberRemovesALeadingNumberAndDash() {
     assertThat(Keys.stripTicketNumber(" 12-ab ")).isEqualTo("ab");
     assertThat(Keys.stripTicketNumber("12-ab-34")).isEqualTo("ab-34");
     assertThat(Keys.stripTicketNumber("12-")).isEmpty();
@@ -60,7 +60,7 @@ class KeysTest {
   }
 
   @Test
-  void map_path_to_sonar_key_drops_the_namespace_and_ticket_numbers() {
+  void mapPathToSonarKeyDropsTheNamespaceAndTicketNumbers() {
     assertThat(Keys.mapPathToSonarKey(null)).isEmpty();
     assertThat(Keys.mapPathToSonarKey(" ")).isEmpty();
     assertThat(Keys.mapPathToSonarKey("Alpha_X")).isEqualTo("alpha-x");
@@ -73,7 +73,7 @@ class KeysTest {
   }
 
   @Test
-  void mapped_gitlab_paths_give_up_to_three_variants() {
+  void mappedGitlabPathsGiveUpToThreeVariants() {
     assertThat(NamespaceMapping.empty().mappedGitlabPaths(null)).isEmpty();
     assertThat(NamespaceMapping.empty().mappedGitlabPaths("")).isEmpty();
     assertThat(NamespaceMapping.empty().mappedGitlabPaths("Alpha")).containsExactly("alpha");
@@ -86,7 +86,7 @@ class KeysTest {
   }
 
   @Test
-  void mapped_sonar_key_adds_the_short_name_when_it_differs() {
+  void mappedSonarKeyAddsTheShortNameWhenItDiffers() {
     assertThat(Keys.mappedSonarKey("grp.alpha:Alpha_Svc"))
         .containsExactly("grp-alpha-alpha-svc", "alpha-svc");
     assertThat(Keys.mappedSonarKey("123-beta")).containsExactly("123-beta", "beta");
@@ -98,12 +98,12 @@ class KeysTest {
   }
 
   @Test
-  void mapped_sonar_key_of_null_is_empty() {
+  void mappedSonarKeyOfNullIsEmpty() {
     assertThat(Keys.mappedSonarKey(null)).isEmpty();
   }
 
   @Test
-  void extract_short_name_takes_what_follows_the_colon_or_the_last_separator() {
+  void extractShortNameTakesWhatFollowsTheColonOrTheLastSeparator() {
     assertThat(Keys.extractShortName("a:b:c")).isEqualTo("b:c");
     assertThat(Keys.extractShortName("a: 9-c ")).isEqualTo("c");
     assertThat(Keys.extractShortName("a_b-c")).isEqualTo("c");
@@ -114,7 +114,7 @@ class KeysTest {
   }
 
   @Test
-  void prefix_is_the_part_before_the_last_colon_or_the_first_separator() {
+  void prefixIsThePartBeforeTheLastColonOrTheFirstSeparator() {
     assertThat(Keys.prefix("grp.alpha:svc")).isEqualTo("grp.alpha:");
     assertThat(Keys.prefix("a:b:c")).isEqualTo("a:b:");
     assertThat(Keys.prefix("dsi_paie_front")).isEqualTo("dsi_");
@@ -127,7 +127,7 @@ class KeysTest {
   }
 
   @Test
-  void formatting_helpers() {
+  void formattingHelpers() {
     assertThat(Text.decimal(0.5)).isEqualTo("0.50");
     assertThat(Text.decimal(0.125)).isEqualTo("0.13");
     assertThat(Text.pct(1, 3)).isEqualTo("33 %");

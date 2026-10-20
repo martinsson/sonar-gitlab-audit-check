@@ -60,7 +60,7 @@ class ProjectMapperReuseCliTest {
   }
 
   @Test
-  void an_edited_mapping_wins_where_it_decided_and_is_kept_in_a_bak() throws Exception {
+  void anEditedMappingWinsWhereItDecidedAndIsKeptInABak() throws Exception {
     write(dir, "correspondances.csv", EDITED);
     Path report = dir.resolve("rapport.json");
 
@@ -74,7 +74,7 @@ class ProjectMapperReuseCliTest {
   }
 
   @Test
-  void reapparier_recomputes_exact_and_derived_but_not_manual_or_rejected() throws Exception {
+  void reapparierRecomputesExactAndDerivedButNotManualOrRejected() throws Exception {
     write(dir, "correspondances.csv", EDITED);
 
     Cli.Result r = map("--reapparier", "--comma");
@@ -85,7 +85,7 @@ class ProjectMapperReuseCliTest {
   }
 
   @Test
-  void a_second_run_on_its_own_output_changes_nothing() throws Exception {
+  void aSecondRunOnItsOwnOutputChangesNothing() throws Exception {
     assertThat(map().exitCode()).isZero();
     String first = Files.readString(out);
 
@@ -98,7 +98,7 @@ class ProjectMapperReuseCliTest {
   }
 
   @Test
-  void an_existing_file_that_is_not_a_mapping_is_refused() throws Exception {
+  void anExistingFileThatIsNotAMappingIsRefused() throws Exception {
     write(dir, "correspondances.csv", "gauche_path,droite_key\na,b\n");
 
     Cli.Result r = map();
@@ -112,7 +112,7 @@ class ProjectMapperReuseCliTest {
   }
 
   @Test
-  void an_empty_existing_file_is_refused_too() throws Exception {
+  void anEmptyExistingFileIsRefusedToo() throws Exception {
     write(dir, "correspondances.csv", "");
 
     Cli.Result r = map();
@@ -122,7 +122,7 @@ class ProjectMapperReuseCliTest {
   }
 
   @Test
-  void more_than_ten_stale_pairs_print_only_the_first_ten() throws Exception {
+  void moreThanTenStalePairsPrintOnlyTheFirstTen() throws Exception {
     StringBuilder l = new StringBuilder("nom\n");
     StringBuilder prev = new StringBuilder("gauche_nom,droite_code,methode,confiance\n");
     for (int i = 0; i < 12; i++) {

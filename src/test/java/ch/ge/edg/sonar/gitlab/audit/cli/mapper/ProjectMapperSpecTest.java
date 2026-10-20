@@ -20,7 +20,7 @@ class ProjectMapperSpecTest {
   }
 
   @Test
-  void key_method_parse_refuses_what_it_cannot_read() {
+  void keyMethodParseRefusesWhatItCannotRead() {
     for (String bad : List.of("bad", "x:a", "id :a=b", "x:a=b?col", "x:a=b=c", ":a=b", "x y:a=b")) {
       assertThatThrownBy(() -> mapper().method(bad, Kind.EXACT))
           .isInstanceOf(CommandLine.ParameterException.class)
@@ -30,7 +30,7 @@ class ProjectMapperSpecTest {
   }
 
   @Test
-  void name_spec_parse_refuses_what_it_cannot_read() {
+  void nameSpecParseRefusesWhatItCannotRead() {
     for (String bad : List.of("=libelle", "nolabel")) {
       assertThatThrownBy(() -> mapper().nameSpec(bad, true))
           .isInstanceOf(CommandLine.ParameterException.class)

@@ -62,14 +62,14 @@ class SonarToGitlabOutputTest {
   }
 
   @Test
-  void write_gives_one_row_per_sonar_project_with_its_repository_counts() throws IOException {
+  void writeGivesOneRowPerSonarProjectWithItsRepositoryCounts() throws IOException {
     Path file = dir.resolve("deep").resolve("sg.csv");
     SonarToGitlabCsv.write(result(), file, true);
     expectSelfie(read(file)).toMatchDisk();
   }
 
   @Test
-  void write_in_excel_format_by_default() throws IOException {
+  void writeInExcelFormatByDefault() throws IOException {
     Path file = dir.resolve("sg.csv");
     SonarToGitlab.Result r = new SonarToGitlab.Result(List.of(result().pairs().get(5)), List.of());
     SonarToGitlabCsv.write(r, file, false);
@@ -80,7 +80,7 @@ class SonarToGitlabOutputTest {
   }
 
   @Test
-  void print_sums_up_by_confidence_outside_selection_reasons_and_checks() throws IOException {
+  void printSumsUpByConfidenceOutsideSelectionReasonsAndChecks() throws IOException {
     SonarToGitlab.Result r = result();
     Path file = dir.resolve("sg.csv");
     String out = captured(c -> new SonarToGitlabReport(c).print(r, file));
@@ -88,14 +88,14 @@ class SonarToGitlabOutputTest {
   }
 
   @Test
-  void print_of_nothing() {
+  void printOfNothing() {
     SonarToGitlab.Result r = new SonarToGitlab.Result(List.of(), List.of());
     String out = captured(c -> new SonarToGitlabReport(c).print(r, dir.resolve("sg.csv")));
     expectSelfie(CrossAuditFixtures.scrub(out, dir)).toMatchDisk();
   }
 
   @Test
-  void a_pair_is_joined_only_with_a_repository_and_a_sure_confidence() throws IOException {
+  void aPairIsJoinedOnlyWithARepositoryAndASureConfidence() throws IOException {
     Csv.Row s = sonar(dir, "k,K,,,,").rows().get(0);
     Csv.Row g = inventory(dir, "a/b,b,1,true,1,,false,false,").rows().get(0);
     for (Confidence c : Confidence.values()) {

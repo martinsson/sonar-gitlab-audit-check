@@ -46,13 +46,13 @@ class FieldSelectionTest {
         "Détecté par",
         "Detection"
       })
-  void custom_fields_named_like_platform_or_severity_are_taken(String name) {
+  void customFieldsNamedLikePlatformOrSeverityAreTaken(String name) {
     FieldSelection s = of(List.of(), field("cf_1", name, true, "x:select"));
     assertThat(s.headers()).containsExactly(name + " [cf_1]");
   }
 
   @Test
-  void system_fields_and_other_names_are_not_taken() {
+  void systemFieldsAndOtherNamesAreNotTaken() {
     FieldSelection s =
         of(
             List.of(),
@@ -64,7 +64,7 @@ class FieldSelectionTest {
   }
 
   @Test
-  void wanted_fields_by_id_or_by_name_whatever_the_case_unknown_ones_are_ignored() {
+  void wantedFieldsByIdOrByNameWhateverTheCaseUnknownOnesAreIgnored() {
     FieldSelection s =
         of(
             List.of("sprint", "cf_3", "nope", "cf_1"),
@@ -80,14 +80,14 @@ class FieldSelectionTest {
   }
 
   @Test
-  void an_id_wins_over_a_name() {
+  void anIdWinsOverAName() {
     FieldSelection s =
         of(List.of("cf_9"), field("cf_1", "cf_9", true, ""), field("cf_9", "Autre", true, ""));
     assertThat(s.headers()).containsExactly("Autre [cf_9]");
   }
 
   @Test
-  void cells_render_the_selected_fields_in_header_order() {
+  void cellsRenderTheSelectedFieldsInHeaderOrder() {
     FieldSelection s =
         of(List.of("cf_2"), field("cf_1", "Sévérité", true, ""), field("cf_2", "Points", true, ""));
     assertThat(s.cells(json("{\"cf_2\":5,\"cf_1\":{\"value\":\"Haute\"}}")))
@@ -96,7 +96,7 @@ class FieldSelectionTest {
   }
 
   @Test
-  void the_epic_link_is_found_by_its_schema_whatever_its_id() {
+  void theEpicLinkIsFoundByItsSchemaWhateverItsId() {
     FieldSelection s =
         of(
             List.of(),
@@ -107,7 +107,7 @@ class FieldSelectionTest {
   }
 
   @Test
-  void no_epic_link_field_means_an_empty_epic() {
+  void noEpicLinkFieldMeansAnEmptyEpic() {
     FieldSelection s = of(List.of(), field("cf_8", "Epic Name", true, "x:gh-epic-label"));
     assertThat(s.epic(json("{\"cf_8\":\"Nom\"}"))).isEmpty();
   }

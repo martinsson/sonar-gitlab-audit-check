@@ -1,4 +1,4 @@
-╔═ an_abandoned_project_trips_the_process_findings ═╗
+╔═ anAbandonedProjectTripsTheProcessFindings ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -60,7 +60,7 @@
 
   4 appels API.
 
-╔═ rubber_stamp_reviews_trip_the_review_findings ═╗
+╔═ rubberStampReviewsTripTheReviewFindings ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service

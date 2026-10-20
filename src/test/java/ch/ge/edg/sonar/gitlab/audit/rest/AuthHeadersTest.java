@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 class AuthHeadersTest {
 
   @Test
-  void bearer_basic_and_cookie() {
+  void bearerBasicAndCookie() {
     assertThat(AuthHeaders.bearer(" abc\n")).containsEntry("Authorization", "Bearer abc");
     assertThat(AuthHeaders.basic("jdoe", "pw"))
         .containsEntry("Authorization", "Basic amRvZTpwdw==");

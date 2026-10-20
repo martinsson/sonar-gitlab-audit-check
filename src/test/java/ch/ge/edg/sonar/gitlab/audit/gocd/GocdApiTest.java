@@ -25,8 +25,7 @@ class GocdApiTest {
   }
 
   @Test
-  void accept_falls_back_to_named_versions_on_404_or_406_and_remembers_what_worked()
-      throws IOException {
+  void acceptFallsBackToNamedVersionsOn404Or406AndRemembersWhatWorked() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       gocd.on(
           "/go/api/dashboard",
@@ -44,8 +43,7 @@ class GocdApiTest {
   }
 
   @Test
-  void an_api_that_fails_everywhere_is_not_remembered_and_403_stops_the_fallback()
-      throws IOException {
+  void anApiThatFailsEverywhereIsNotRememberedAnd403StopsTheFallback() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       gocd.on("/go/api/admin/templates", r -> Response.status(403, "{}"));
       GocdApi api = api(gocd);
@@ -57,7 +55,7 @@ class GocdApiTest {
   }
 
   @Test
-  void api_names_group_admin_endpoints_and_drop_ids_and_queries() {
+  void apiNamesGroupAdminEndpointsAndDropIdsAndQueries() {
     assertThat(GocdApi.apiName("/go/api/admin/pipelines/p")).isEqualTo("admin/pipelines");
     assertThat(GocdApi.apiName("/go/api/admin")).isEqualTo("admin");
     assertThat(GocdApi.apiName("/go/api/pipelines/p/history?after=3")).isEqualTo("pipelines");
@@ -65,7 +63,7 @@ class GocdApiTest {
   }
 
   @Test
-  void history_follows_next_links_and_stops_at_the_first_refused_run() throws IOException {
+  void historyFollowsNextLinksAndStopsAtTheFirstRefusedRun() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       String next = gocd.url() + "/go/api/pipelines/a%20b/history?after=2";
       gocd.on(
@@ -90,7 +88,7 @@ class GocdApiTest {
   }
 
   @Test
-  void history_is_complete_when_gocd_gives_no_next_link_or_an_empty_page() throws IOException {
+  void historyIsCompleteWhenGocdGivesNoNextLinkOrAnEmptyPage() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       gocd.json("/go/api/pipelines/p/history", "{\"pipelines\":[%s]}".formatted(run(1, 1)));
       gocd.json(
@@ -107,7 +105,7 @@ class GocdApiTest {
   }
 
   @Test
-  void history_stops_at_max_pages_and_reports_the_first_failure() throws IOException {
+  void historyStopsAtMaxPagesAndReportsTheFirstFailure() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       gocd.json(
           "/go/api/pipelines/p/history",
@@ -126,7 +124,7 @@ class GocdApiTest {
   }
 
   @Test
-  void instances_are_read_once_including_the_missing_ones() throws IOException {
+  void instancesAreReadOnceIncludingTheMissingOnes() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       gocd.json("/go/api/pipelines/build/12", run(12, 1));
       GocdApi api = api(gocd);
@@ -142,7 +140,7 @@ class GocdApiTest {
   }
 
   @Test
-  void enc_escapes_spaces_as_percent_20() {
+  void encEscapesSpacesAsPercent20() {
     assertThat(GocdApi.enc("a b/c")).isEqualTo("a%20b%2Fc");
     RestResponse ignored = RestResponse.unreachable("x");
     assertThat(ignored.ok()).isFalse();

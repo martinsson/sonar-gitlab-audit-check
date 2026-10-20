@@ -1,4 +1,4 @@
-╔═ a_full_ranking_on_all_four_signals_has_no_partial_note/stdout ═╗
+╔═ aFullRankingOnAllFourSignalsHasNoPartialNote/stdout ═╗
 
 1. Gouvernance (constats qui ne demandent aucun score)
 ----------------------------------------------------------
@@ -31,7 +31,7 @@
   Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start <dir>/classement.csv`.
   Pour un autre outil : relancer avec --comma.
 
-╔═ active_projects_all_excluded_are_listed_as_such/stdout ═╗
+╔═ activeProjectsAllExcludedAreListedAsSuch/stdout ═╗
 
 1. Gouvernance (constats qui ne demandent aucun score)
 ----------------------------------------------------------
@@ -69,10 +69,10 @@
   Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start <dir>/classement.csv`.
   Pour un autre outil : relancer avec --comma.
 
-╔═ an_inventory_without_active_projects_has_nothing_to_rank/csv ═╗
+╔═ anInventoryWithoutActiveProjectsHasNothingToRank/csv ═╗
 ﻿"liste";"rang";"retenu";"key";"name";"strate";"score";"signaux_presents";"exclusion";"pct_issues_neuves_par_kloc";"pct_couverture_code_neuf";"pct_duplication_code_neuf";"pct_ratio_dette";"ncloc";"new_lines";"new_violations";"new_coverage";"coverage";"new_duplicated_lines_density";"sqale_debt_ratio";"sqale_rating";"reliability_rating";"security_rating";"alert_status";"analysisDate";"days_since_analysis"
 
-╔═ an_inventory_without_active_projects_has_nothing_to_rank/stdout ═╗
+╔═ anInventoryWithoutActiveProjectsHasNothingToRank/stdout ═╗
 
 1. Gouvernance (constats qui ne demandent aucun score)
 ----------------------------------------------------------
@@ -101,7 +101,7 @@
   Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start <dir>/classement.csv`.
   Pour un autre outil : relancer avec --comma.
 
-╔═ every_threshold_option_changes_the_ranking/csv ═╗
+╔═ everyThresholdOptionChangesTheRanking/csv ═╗
 "liste","rang","retenu","key","name","strate","score","signaux_presents","exclusion","pct_issues_neuves_par_kloc","pct_couverture_code_neuf","pct_duplication_code_neuf","pct_ratio_dette","ncloc","new_lines","new_violations","new_coverage","coverage","new_duplicated_lines_density","sqale_debt_ratio","sqale_rating","reliability_rating","security_rating","alert_status","analysisDate","days_since_analysis"
 "VELOCITE","1","O","few","Few Signals","S","83.3","1","","","83","","","3000","100","","40","","","","","","","","2026-06-01","10"
 "VELOCITE","2","O","s-three","S Three","S","67.9","4","","75","50","75","75","8000","200","4","60","","3","5","A","B","A","ERROR","2026-06-01","12.7"
@@ -120,7 +120,7 @@
 "DETTE_PORTEE","2","O","carry-a","Carry A","S","4.0","","","","","","","3000","0","","","60","","4","","","","","2026-06-01","10"
 "ABANDON_RECENT","1","O","stale-mid","Stale Mid","S","7.0","","","","","","","5000","","","","","","7.0","B","A","A","OK","2026-01-01","200"
 
-╔═ every_threshold_option_changes_the_ranking/stdout ═╗
+╔═ everyThresholdOptionChangesTheRanking/stdout ═╗
 
 1. Gouvernance (constats qui ne demandent aucun score)
 ----------------------------------------------------------
@@ -167,7 +167,7 @@
   Classement écrit : <dir>/classement.csv
   Filtrer la colonne 'liste', puis 'retenu' = O pour la shortlist.
 
-╔═ ranks_the_full_inventory_with_default_thresholds/csv ═╗
+╔═ ranksTheFullInventoryWithDefaultThresholds/csv ═╗
 ﻿"liste";"rang";"retenu";"key";"name";"strate";"score";"signaux_presents";"exclusion";"pct_issues_neuves_par_kloc";"pct_couverture_code_neuf";"pct_duplication_code_neuf";"pct_ratio_dette";"ncloc";"new_lines";"new_violations";"new_coverage";"coverage";"new_duplicated_lines_density";"sqale_debt_ratio";"sqale_rating";"reliability_rating";"security_rating";"alert_status";"analysisDate";"days_since_analysis"
 "VELOCITE";"1";"O";"s-one";"S One";"S";"78.6";"4";"";"67";"83";"83";"83";"2000";"1000";"20";"30";"50";"5";"10";"A";"A";"A";"OK";"2026-06-01";"3"
 "VELOCITE";"2";"N";"s-three";"S Three";"S";"54.8";"4";"";"67";"50";"50";"50";"8000";"200";"4";"60";"";"3";"5";"A";"B";"A";"ERROR";"2026-06-01";"12.7"
@@ -185,7 +185,7 @@
 "ABANDON_RECENT";"1";"O";"stale-worse";"Stale Worse";"S";"12.5";"";"";"";"";"";"";"2000";"";"";"";"";"";"12.5";"C";"A";"A";"ERROR";"2026-01-01";"300"
 "ABANDON_RECENT";"2";"O";"stale-mid";"Stale Mid";"S";"7.0";"";"";"";"";"";"";"5000";"";"";"";"";"";"7.0";"B";"A";"A";"OK";"2026-01-01";"200"
 
-╔═ ranks_the_full_inventory_with_default_thresholds/stdout ═╗
+╔═ ranksTheFullInventoryWithDefaultThresholds/stdout ═╗
 
 1. Gouvernance (constats qui ne demandent aucun score)
 ----------------------------------------------------------
@@ -235,7 +235,7 @@
   Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start <dir>/classement.csv`.
   Pour un autre outil : relancer avec --comma.
 
-╔═ side_lists_keep_thirty_projects_on_the_shortlist/stdout ═╗
+╔═ sideListsKeepThirtyProjectsOnTheShortlist/stdout ═╗
 
 1. Gouvernance (constats qui ne demandent aucun score)
 ----------------------------------------------------------

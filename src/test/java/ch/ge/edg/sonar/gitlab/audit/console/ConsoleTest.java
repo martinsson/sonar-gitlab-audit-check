@@ -21,14 +21,14 @@ class ConsoleTest {
   }
 
   @Test
-  void the_option_has_the_last_word_whatever_its_case() {
+  void theOptionHasTheLastWordWhateverItsCase() {
     assertThat(Console.colors("never", true)).isFalse();
     assertThat(Console.colors("ALWAYS", false)).isTrue();
     assertThat(Console.colors("Never", true)).isFalse();
   }
 
   @Test
-  void auto_absent_or_unknown_falls_back_on_what_the_terminal_can_do() {
+  void autoAbsentOrUnknownFallsBackOnWhatTheTerminalCanDo() {
     for (boolean auto : new boolean[] {true, false}) {
       assertThat(Console.colors(null, auto)).isEqualTo(auto);
       assertThat(Console.colors("auto", auto)).isEqualTo(auto);
@@ -37,14 +37,14 @@ class ConsoleTest {
   }
 
   @Test
-  void color_wraps_only_when_colours_are_on() {
+  void colorWrapsOnlyWhenColoursAreOn() {
     assertThat(console(true).color("x", "\033[1m")).isEqualTo("\033[1mx\033[0m");
     assertThat(console(false).color("x", "\033[1m")).isEqualTo("x");
     assertThat(console(true).colors()).isTrue();
   }
 
   @Test
-  void lines_go_to_the_output_and_err_to_the_error() {
+  void linesGoToTheOutputAndErrToTheError() {
     Console c = console(false);
     c.println("a");
     c.print("b");

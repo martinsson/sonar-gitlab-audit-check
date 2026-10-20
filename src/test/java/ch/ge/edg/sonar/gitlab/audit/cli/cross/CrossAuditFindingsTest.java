@@ -86,7 +86,7 @@ class CrossAuditFindingsTest {
   }
 
   @Test
-  void each_finding_keeps_exactly_the_projects_past_its_thresholds_in_order() throws IOException {
+  void eachFindingKeepsExactlyTheProjectsPastItsThresholdsInOrder() throws IOException {
     Path out = dir.resolve("croisement.csv");
     Cli.Result r =
         run(

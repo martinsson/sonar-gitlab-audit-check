@@ -52,7 +52,7 @@ class ProjectMapperReuseSuspectedBugsTest {
 
   @Test
   @SuspectedBug("A manual row whose key vanished is counted in no total; it should count somewhere")
-  void a_stale_manual_row_is_left_out_of_the_reuse_totals() throws Exception {
+  void aStaleManualRowIsLeftOutOfTheReuseTotals() throws Exception {
     Cli.Result r = map("nom\np0\np1\np2\n", "code\np0\np1\n", "p0,gone,,manuel\np1,p1,ref,exact\n");
 
     assertThat(r.exitCode()).isZero();
@@ -63,7 +63,7 @@ class ProjectMapperReuseSuspectedBugsTest {
 
   @Test
   // Intended (Replay.manual): a vanished key cannot be held; it is reported, not silently kept.
-  void a_stale_manual_row_is_reported_and_rewritten_with_the_fresh_match() throws Exception {
+  void aStaleManualRowIsReportedAndRewrittenWithTheFreshMatch() throws Exception {
     Cli.Result r = map("nom\np0\n", "code\np0\n", "p0,gone,,manuel\n");
 
     assertThat(r.exitCode()).isZero();
@@ -72,7 +72,7 @@ class ProjectMapperReuseSuspectedBugsTest {
 
   @Test
   @SuspectedBug("A manual pair should withdraw the suggestion of its right row to another left row")
-  void a_manual_pair_leaves_a_suggestion_of_the_same_right_row_in_place() throws Exception {
+  void aManualPairLeavesASuggestionOfTheSameRightRowInPlace() throws Exception {
     Cli.Result r =
         map("nom\nzeta\nomega servic\n", "code\nomega service\n", "zeta,omega service,,manuel\n");
 
@@ -84,7 +84,7 @@ class ProjectMapperReuseSuspectedBugsTest {
   }
 
   @Test
-  void a_stale_manual_row_without_a_key_prints_one_space_before_manuel() throws Exception {
+  void aStaleManualRowWithoutAKeyPrintsOneSpaceBeforeManuel() throws Exception {
     Cli.Result r = map("nom\np0\n", "code\np0\n", "p0,,,manuel\n");
 
     assertThat(r.out()).contains("p0 → (manuel)");

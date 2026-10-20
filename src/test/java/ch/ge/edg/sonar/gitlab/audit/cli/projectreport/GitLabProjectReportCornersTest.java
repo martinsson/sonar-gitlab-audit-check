@@ -17,7 +17,7 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
   static final String MON = "2024-03-04T10:00:00+02:00";
 
   @Test
-  void commits_without_committed_dates_have_no_gaps_and_no_last_commit() {
+  void commitsWithoutCommittedDatesHaveNoGapsAndNoLastCommit() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(
@@ -39,7 +39,7 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void no_merge_request_explains_itself_on_two_equally_indented_lines() {
+  void noMergeRequestExplainsItselfOnTwoEquallyIndentedLines() {
     project(fx.project(ID, PATH, "main", false));
     commits(List.of(commit("Alice", "alice@example.com", MON, fx.ago(2, 0), new int[] {1, 1})));
     contributors(0);
@@ -57,7 +57,7 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void a_branch_idle_for_half_a_year_on_a_quiet_project_is_only_dormant() {
+  void aBranchIdleForHalfAYearOnAQuietProjectIsOnlyDormant() {
     Map<String, Object> p = fx.project(ID, PATH, "main", false);
     p.put("last_activity_at", fx.ago(100, 0));
     project(p);
@@ -73,7 +73,7 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void a_branch_idle_for_exactly_180_days_does_not_live_elsewhere() {
+  void aBranchIdleForExactly180DaysDoesNotLiveElsewhere() {
     project(fx.project(ID, PATH, "main", false));
     commits(List.of(commit("Alice", "alice@example.com", MON, fx.ago(180, 1), new int[] {1, 1})));
     contributors(0);
@@ -85,7 +85,7 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void big_commits_above_a_tenth_are_a_finding() {
+  void bigCommitsAboveATenthAreAFinding() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(
@@ -103,7 +103,7 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void refused_contributors_and_nameless_bots_are_left_out() {
+  void refusedContributorsAndNamelessBotsAreLeftOut() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(
@@ -121,7 +121,7 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void merge_requests_without_dates_are_left_out_of_delays() {
+  void mergeRequestsWithoutDatesAreLeftOutOfDelays() {
     project(fx.project(ID, PATH, "main", false));
     commits(List.of(commit("Alice", "alice@example.com", MON, fx.ago(1, 0), new int[] {1, 1})));
     contributors(0);
@@ -144,7 +144,7 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void commits_are_read_page_by_page_up_to_the_cap() {
+  void commitsAreReadPageByPageUpToTheCap() {
     project(fx.project(ID, PATH, "main", false));
     List<Map<String, Object>> items =
         List.of(

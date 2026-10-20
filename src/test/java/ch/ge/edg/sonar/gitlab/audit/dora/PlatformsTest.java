@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 class PlatformsTest {
 
   @Test
-  void words_in_names_suggest_platforms_in_order() {
+  void wordsInNamesSuggestPlatformsInOrder() {
     assertThat(Platforms.guess("appli-deploy-PRD", "stage_rec")).isEqualTo("prod|recette");
     assertThat(Platforms.guess("x-preprod", "uat")).isEqualTo("preprod|recette");
     assertThat(Platforms.guess("prod-production")).isEqualTo("prod");
@@ -16,7 +16,7 @@ class PlatformsTest {
   }
 
   @Test
-  void words_keeps_the_spelling_used() {
+  void wordsKeepsTheSpellingUsed() {
     assertThat(Platforms.words("deploy-int-dev-Int")).containsExactly("int", "dev");
     assertThat(Platforms.words("build")).isEmpty();
   }

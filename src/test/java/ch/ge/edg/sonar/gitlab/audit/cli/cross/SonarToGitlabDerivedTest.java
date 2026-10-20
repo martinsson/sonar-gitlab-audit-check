@@ -37,7 +37,7 @@ class SonarToGitlabDerivedTest {
   }
 
   @Test
-  void each_derived_method_in_turn() throws IOException {
+  void eachDerivedMethodInTurn() throws IOException {
     Csv.Table sonar =
         sonar(
             dir,
@@ -69,7 +69,7 @@ other-key -> dept/sub7/full | nom Sonar = dernier segment / nom GitLab | derived
   }
 
   @Test
-  void an_import_key_needs_a_twenty_character_id_or_a_uuid() throws IOException {
+  void anImportKeyNeedsATwentyCharacterIdOrAUuid() throws IOException {
     Csv.Table sonar =
         sonar(
             dir,
@@ -83,7 +83,7 @@ team-h/import-me_0123abcd-0123-4567-89ab-0123456789aZ ->  | aucune | none | - | 
   }
 
   @Test
-  void a_rejected_pair_is_proposed_by_no_method() throws IOException {
+  void aRejectedPairIsProposedByNoMethod() throws IOException {
     Csv.Table sonar = sonar(dir, "team-h:plain,plain,,,,");
     SonarToGitlab.Result r =
         SonarToGitlab.map(
@@ -98,7 +98,7 @@ team-h/import-me_0123abcd-0123-4567-89ab-0123456789aZ ->  | aucune | none | - | 
   }
 
   @Test
-  void blank_ids_names_and_keys_index_nothing() throws IOException {
+  void blankIdsNamesAndKeysIndexNothing() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -113,7 +113,7 @@ no-id -> team-h/no-id | nom court de la clé = dernier segment / nom GitLab | de
   }
 
   @Test
-  void the_joined_paths_are_those_of_sure_pairs_only() throws IOException {
+  void theJoinedPathsAreThoseOfSurePairsOnly() throws IOException {
     Csv.Table sonar = sonar(dir, "team-h:plain,P,,,,", "nothing-alike,Zzz,,,,");
     SonarToGitlab.Result r = map(sonar, inv(), List.of());
     assertThat(r.joinedPaths()).isEqualTo(Set.of("team-h/plain"));

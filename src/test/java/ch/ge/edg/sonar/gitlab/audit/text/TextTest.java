@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 class TextTest {
 
   @Test
-  void blank_and_absent_text() {
+  void blankAndAbsentText() {
     assertThat(Text.isBlank(null)).isTrue();
     assertThat(Text.isBlank(" ")).isTrue();
     assertThat(Text.isBlank("x")).isFalse();
@@ -18,7 +18,7 @@ class TextTest {
   }
 
   @Test
-  void cutting_with_and_without_a_mark() {
+  void cuttingWithAndWithoutAMark() {
     assertThat(Text.truncate("abcde", 4)).isEqualTo("abcd");
     assertThat(Text.truncate("abcd", 4)).isEqualTo("abcd");
     assertThat(Text.ellipsize("abcd", 4)).isEqualTo("abcd");

@@ -24,26 +24,26 @@ class VuesSignalsTest {
   }
 
   @Test
-  void an_empty_row_raises_no_signal() {
+  void anEmptyRowRaisesNoSignal() {
     assertThat(Vues.signals(row())).isEmpty();
   }
 
   @Test
-  void density_slope_counts_strictly_above_two() {
+  void densitySlopeCountsStrictlyAboveTwo() {
     assertThat(Vues.signals(row("sq_violations_kloc_pente_pct_mois", "2"))).isEmpty();
     assertThat(Vues.signals(row("sq_violations_kloc_pente_pct_mois", "2.01")))
         .containsExactly("densité en hausse");
   }
 
   @Test
-  void issues_per_modified_kloc_counts_strictly_above_zero() {
+  void issuesPerModifiedKlocCountsStrictlyAboveZero() {
     assertThat(Vues.signals(row("issues_par_kloc_modifie", "0"))).isEmpty();
     assertThat(Vues.signals(row("issues_par_kloc_modifie", "0.1")))
         .containsExactly("modifs ajoutent des issues");
   }
 
   @Test
-  void new_code_density_needs_200_lines_and_more_than_10_per_kloc() {
+  void newCodeDensityNeeds200LinesAndMoreThan10PerKloc() {
     assertThat(Vues.signals(row("sq_new_lines", "200", "sq_new_violations", "2"))).isEmpty();
     assertThat(Vues.signals(row("sq_new_lines", "200", "sq_new_violations", "3")))
         .containsExactly("code neuf > 10 issues/kLOC");
@@ -53,14 +53,14 @@ class VuesSignalsTest {
   }
 
   @Test
-  void new_coverage_counts_strictly_below_fifty() {
+  void newCoverageCountsStrictlyBelowFifty() {
     assertThat(Vues.signals(row("sq_new_coverage", "50"))).isEmpty();
     assertThat(Vues.signals(row("sq_new_coverage", "49.9")))
         .containsExactly("code neuf < 50 % couvert");
   }
 
   @Test
-  void no_review_needs_twenty_commits_and_no_merged_mr() {
+  void noReviewNeedsTwentyCommitsAndNoMergedMr() {
     assertThat(Vues.signals(row("gl_commits_window", "20", "gl_mr_fusionnees", "0")))
         .containsExactly("aucune revue");
     assertThat(Vues.signals(row("gl_commits_window", "19", "gl_mr_fusionnees", "0"))).isEmpty();
@@ -69,7 +69,7 @@ class VuesSignalsTest {
   }
 
   @Test
-  void auto_merge_needs_five_merged_and_more_than_half() {
+  void autoMergeNeedsFiveMergedAndMoreThanHalf() {
     assertThat(Vues.signals(row("gl_mr_fusionnees", "5", "gl_auto_merge", "3")))
         .containsExactly("auto-merge > 50 %");
     assertThat(Vues.signals(row("gl_mr_fusionnees", "4", "gl_auto_merge", "4"))).isEmpty();
@@ -78,7 +78,7 @@ class VuesSignalsTest {
   }
 
   @Test
-  void no_review_wins_over_auto_merge() {
+  void noReviewWinsOverAutoMerge() {
     assertThat(
             Vues.signals(
                 row("gl_commits_window", "30", "gl_mr_fusionnees", "0", "gl_auto_merge", "9")))
@@ -86,21 +86,21 @@ class VuesSignalsTest {
   }
 
   @Test
-  void appsec_is_only_reported_when_read_as_false() {
+  void appsecIsOnlyReportedWhenReadAsFalse() {
     assertThat(Vues.signals(row("gl_ci_securite", "FALSE"))).containsExactly("sans appsec");
     assertThat(Vues.signals(row("gl_ci_securite", "true"))).isEmpty();
     assertThat(Vues.signals(row("gl_ci_securite", ""))).isEmpty();
   }
 
   @Test
-  void quality_gate_is_red_only_on_exact_error() {
+  void qualityGateIsRedOnlyOnExactError() {
     assertThat(Vues.signals(row("sq_alert_status", "ERROR"))).containsExactly("quality gate rouge");
     assertThat(Vues.signals(row("sq_alert_status", "error"))).isEmpty();
     assertThat(Vues.signals(row("sq_alert_status", "OK"))).isEmpty();
   }
 
   @Test
-  void stale_analysis_needs_twenty_commits_and_more_than_thirty_days() {
+  void staleAnalysisNeedsTwentyCommitsAndMoreThanThirtyDays() {
     assertThat(
             Vues.signals(
                 row(
@@ -127,7 +127,7 @@ class VuesSignalsTest {
   }
 
   @Test
-  void every_signal_at_once_comes_in_a_fixed_order() {
+  void everySignalAtOnceComesInAFixedOrder() {
     Csv.Row r =
         row(
             "sq_violations_kloc_pente_pct_mois", "5",
@@ -153,7 +153,7 @@ class VuesSignalsTest {
   }
 
   @Test
-  void sibling_inserts_the_suffix_before_the_extension() {
+  void siblingInsertsTheSuffixBeforeTheExtension() {
     Path dir = Path.of("some", "dir");
     assertThat(Vues.sibling(dir.resolve("croisement.csv"), "derive"))
         .isEqualTo(dir.resolve("croisement-derive.csv"));
@@ -163,7 +163,7 @@ class VuesSignalsTest {
   }
 
   @Test
-  void small_utilities() {
+  void smallUtilities() {
     assertThat(Vues.concat(List.of(1, 2), List.of(2, 3))).containsExactly(1, 2, 2, 3);
     assertThat(Vues.nz(row("a", "4.5"), "a")).isEqualTo(4.5);
     assertThat(Vues.nz(row("a", ""), "a")).isZero();

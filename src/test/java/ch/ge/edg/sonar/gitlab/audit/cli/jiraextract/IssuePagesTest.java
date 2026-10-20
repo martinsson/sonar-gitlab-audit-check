@@ -31,13 +31,13 @@ class IssuePagesTest {
   }
 
   @Test
-  void the_default_query_quotes_each_project() {
+  void theDefaultQueryQuotesEachProject() {
     assertThat(IssuePages.defaultJql(List.of("ABC", "X Y"), 7))
         .isEqualTo("project in (\"ABC\",\"X Y\") AND updated >= -7d ORDER BY key ASC");
   }
 
   @Test
-  void an_issue_whose_changelog_is_whole_or_absent_is_not_fetched_again() throws Exception {
+  void anIssueWhoseChangelogIsWholeOrAbsentIsNotFetchedAgain() throws Exception {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       IssuePages pages = new IssuePages(source(jira), QUIET);
       for (String issue :
@@ -53,7 +53,7 @@ class IssuePagesTest {
   }
 
   @Test
-  void a_truncated_changelog_is_read_again_from_the_issue_alone() throws Exception {
+  void aTruncatedChangelogIsReadAgainFromTheIssueAlone() throws Exception {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.json("/rest/api/2/issue/A-1", "{\"key\":\"A-1\",\"full\":true}");
       IssuePages pages = new IssuePages(source(jira), QUIET);
@@ -63,7 +63,7 @@ class IssuePagesTest {
   }
 
   @Test
-  void pages_follow_start_at_until_the_total_and_report_progress() throws Exception {
+  void pagesFollowStartAtUntilTheTotalAndReportProgress() throws Exception {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on(
           "/rest/api/2/search",
@@ -84,7 +84,7 @@ class IssuePagesTest {
   }
 
   @Test
-  void a_search_without_total_reads_one_page() throws Exception {
+  void aSearchWithoutTotalReadsOnePage() throws Exception {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.json("/rest/api/2/search", "{\"issues\":[{\"key\":\"A-1\"}]}");
       List<String> keys = new ArrayList<>();
@@ -95,7 +95,7 @@ class IssuePagesTest {
   }
 
   @Test
-  void a_search_error_with_an_empty_body_has_no_trailing_space() throws Exception {
+  void aSearchErrorWithAnEmptyBodyHasNoTrailingSpace() throws Exception {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on("/rest/api/2/search", r -> FakeHttpServer.Response.status(500, ""));
       assertThatThrownBy(() -> source(jira).search("q", 0))
@@ -105,7 +105,7 @@ class IssuePagesTest {
   }
 
   @Test
-  void the_error_excerpt_is_flattened_then_cut_at_300() {
+  void theErrorExcerptIsFlattenedThenCutAt300() {
     assertThat(JiraSource.excerpt("a\n\n  b\tc")).isEqualTo("a b c");
     String body = "x ".repeat(200) + "\n".repeat(400);
     assertThat(JiraSource.excerpt(body)).hasSize(300).isEqualTo("x ".repeat(150));
@@ -113,14 +113,14 @@ class IssuePagesTest {
   }
 
   @Test
-  void a_required_value_is_trimmed() throws ExtractionStop {
+  void aRequiredValueIsTrimmed() throws ExtractionStop {
     assertThat(JiraSource.require("  http://jira  ", "JIRA_URL")).isEqualTo("http://jira");
     assertThatThrownBy(() -> JiraSource.require(null, "JIRA_TOKEN"))
         .hasMessage("JIRA_TOKEN manquant");
   }
 
   @Test
-  void a_cell_keeps_to_one_line() {
+  void aCellKeepsToOneLine() {
     assertThat(CountedCsv.flat(List.of("a\r\nb", "c\nd", "e"))).containsExactly("a  b", "c d", "e");
   }
 }

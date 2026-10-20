@@ -40,7 +40,7 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  void hours_pick_their_unit() {
+  void hoursPickTheirUnit() {
     assertThat(ReportFormat.hours(0)).isEqualTo("< 1 min");
     assertThat(ReportFormat.hours(0.016)).isEqualTo("< 1 min");
     assertThat(ReportFormat.hours(0.02)).isEqualTo("1 min");
@@ -53,7 +53,7 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  void bytes_are_human() {
+  void bytesAreHuman() {
     assertThat(ReportFormat.humanBytes(null)).isEqualTo("n/a");
     assertThat(ReportFormat.humanBytes(0L)).isEqualTo("0.0 o");
     assertThat(ReportFormat.humanBytes(1023L)).isEqualTo("1023.0 o");
@@ -64,7 +64,7 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  void percentile_interpolates_on_a_sorted_list() {
+  void percentileInterpolatesOnASortedList() {
     assertThat(ReportFormat.percentile(List.of(), 50)).isZero();
     assertThat(ReportFormat.percentile(List.of(7L), 90)).isEqualTo(7.0);
     assertThat(ReportFormat.percentile(List.of(1L, 3L), 50)).isEqualTo(2.0);
@@ -74,7 +74,7 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  void bars_are_bounded() {
+  void barsAreBounded() {
     assertThat(ReportFormat.bar(0)).isEmpty();
     assertThat(ReportFormat.bar(2.4)).isEmpty();
     assertThat(ReportFormat.bar(2.5)).isEqualTo("#");
@@ -85,7 +85,7 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  void the_week_bar_scales_to_the_busiest_day() {
+  void theWeekBarScalesToTheBusiestDay() {
     assertThat(ReportFormat.dowBar(new int[] {0, 0, 0, 0, 0, 0, 0}))
         .isEqualTo("L:▁ M:▁ M:▁ J:▁ V:▁ S:▁ D:▁");
     assertThat(ReportFormat.dowBar(new int[] {10, 1, 2, 3, 5, 7, 9}))
@@ -93,7 +93,7 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  void dates_keep_their_offset_or_move_to_local_time() {
+  void datesKeepTheirOffsetOrMoveToLocalTime() {
     OffsetDateTime offset = Dates.parseOffset("2024-03-04T10:00:00+02:00");
     assertThat(Objects.requireNonNull(offset).getHour()).isEqualTo(10);
     assertThat(Dates.parseOffset(null)).isNull();
@@ -107,7 +107,7 @@ class ProjectReportUnitTest {
 
   @Test
   // Intended: a commit's day is the day in the run's clock zone (Geneva), the reader's calendar.
-  void a_commit_day_is_the_day_in_the_zone_of_the_run_clock() {
+  void aCommitDayIsTheDayInTheZoneOfTheRunClock() {
     String lateEvening = "2024-03-04T23:30:00Z";
     String inUtc = new Dates(Clock.systemUTC()).dateOnly(lateEvening);
     String inZurich = new Dates(Clock.system(ZoneId.of("Europe/Zurich"))).dateOnly(lateEvening);
@@ -115,13 +115,13 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  void hours_keep_a_decimal_point_under_a_french_default_locale() {
+  void hoursKeepADecimalPointUnderAFrenchDefaultLocale() {
     Locale.setDefault(Locale.FRANCE);
     assertThat(ReportFormat.hours(1.5)).isEqualTo("1.5 h");
   }
 
   @Test
-  void small_utilities() {
+  void smallUtilities() {
     assertThat(ProjectApi.params("a", "1", "b", "2", "odd"))
         .containsExactly(Map.entry("a", "1"), Map.entry("b", "2"));
     assertThat(ProjectApi.params()).isEmpty();
@@ -144,7 +144,7 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  void merge_requests_read_the_merger_from_either_field() {
+  void mergeRequestsReadTheMergerFromEitherField() {
     User alice = new User(1L, "alice", "Alice");
     User bob = new User(2L, "bob", "Bob");
     User nameless = new User(3L, null, null);
@@ -165,7 +165,7 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  void merge_requests_are_read_in_two_parts_from_one_flat_object() throws Exception {
+  void mergeRequestsAreReadInTwoPartsFromOneFlatObject() throws Exception {
     MergeRequest m =
         Gitlab.MAPPER.readValue(
             """
@@ -182,7 +182,7 @@ class ProjectReportUnitTest {
   }
 
   @Test
-  void verdict_tags_and_line_layout() {
+  void verdictTagsAndLineLayout() {
     assertThat(EndpointVerdict.OK.tag).isEqualTo("OK      ");
     assertThat(EndpointVerdict.MISSING.tag).isEqualTo("ABSENT  ");
     assertThat(EndpointVerdict.EMPTY.tag).isEqualTo("VIDE    ");

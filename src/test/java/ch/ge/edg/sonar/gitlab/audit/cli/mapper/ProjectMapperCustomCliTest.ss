@@ -1,4 +1,4 @@
-╔═ custom_methods_with_plain_names_comma_output_and_tuned_thresholds/mapping ═╗
+╔═ customMethodsWithPlainNamesCommaOutputAndTunedThresholds/mapping ═╗
 "gauche_nom","droite_code","methode","confiance","candidat_nom","score_nom","second_nom","rejet_nom","m_ref","m_nd","m_url","url_concorde","m_noms_libre"
 "Alpha Billing","alpha-billing","ref","exact","","","","","alpha-billing","alpha-billing","","","alpha-billing (1.00)"
 "beta-reports","beta-legacy","ref","exact","","","","","beta-legacy","","beta-legacy","oui","beta (0.95)"
@@ -8,7 +8,7 @@
 "Zeta Portal V2","zeta2","noms ressemblants (TF-IDF)","suggestion","zeta2","0.95","","","","","","","zeta2 (0.95)"
 "theta","theta","nd","derived","","","","","","theta","","","theta (1.00)"
 
-╔═ custom_methods_with_plain_names_comma_output_and_tuned_thresholds/report ═╗
+╔═ customMethodsWithPlainNamesCommaOutputAndTunedThresholds/report ═╗
 {
   "summary" : {
     "left" : 7,
@@ -212,7 +212,7 @@
     } ]
   }
 }
-╔═ custom_methods_with_plain_names_comma_output_and_tuned_thresholds/stdout ═╗
+╔═ customMethodsWithPlainNamesCommaOutputAndTunedThresholds/stdout ═╗
 
 Appariement
   Gauche : 7 lignes (<tmp>/a.csv)
@@ -282,7 +282,7 @@ Ressemblance de noms, jugée sur 5 paires sûres
   Format machine (virgule, sans BOM).
   Rapport     : <tmp>/rep.json
 
-╔═ empty_inputs_give_an_empty_report/report ═╗
+╔═ emptyInputsGiveAnEmptyReport/report ═╗
 {
   "summary" : {
     "left" : 0,
@@ -423,7 +423,7 @@ Ressemblance de noms, jugée sur 5 paires sûres
     "unmatchedRightPrefixes" : [ ]
   }
 }
-╔═ empty_inputs_give_an_empty_report/stdout ═╗
+╔═ emptyInputsGiveAnEmptyReport/stdout ═╗
 
 Appariement
   Gauche : 0 lignes (<tmp>/a.csv)
@@ -466,7 +466,7 @@ Ressemblance de noms, jugée sur 0 paires sûres
     0.9  proposées    0  justes    0  précision    —  rappel   0 %
   Rapport     : <tmp>/r.json
 
-╔═ many_disagreements_print_five_and_count_the_rest ═╗
+╔═ manyDisagreementsPrintFiveAndCountTheRest ═╗
 
 Appariement
   Gauche : 7 lignes (<tmp>/a.csv)
@@ -500,7 +500,7 @@ Accords entre méthodes
       item-4 — ref → other-4 ; nd → item-4
       … 1 de plus dans le rapport JSON.
 
-╔═ methods_and_names_on_missing_columns_are_reported_unavailable ═╗
+╔═ methodsAndNamesOnMissingColumnsAreReportedUnavailable ═╗
 
 Appariement
   Gauche : 1 lignes (<tmp>/a.csv)
@@ -523,20 +523,20 @@ Chaque méthode, seule
                    propose   ambiguë   retenue     seule
   nd                     1         0         1         1
 
-╔═ names_as_paths_score_the_last_segment_double ═╗
+╔═ namesAsPathsScoreTheLastSegmentDouble ═╗
 "gauche_nom","droite_code","methode","confiance","candidat_nom","score_nom","second_nom","rejet_nom","m_noms_libre"
 "grp/alpha-billing","x1","noms ressemblants (TF-IDF)","suggestion","x1","0.88","x2 (0.27)","","x1 (0.88)"
 "billing/other","x2","noms ressemblants (TF-IDF)","suggestion","x2","0.97","x1 (0.17)","","x2 (0.97)"
 
-╔═ only_a_right_key_override_keeps_the_preset_left_key ═╗
+╔═ onlyARightKeyOverrideKeepsThePresetLeftKey ═╗
 "gauche_path","droite_code","methode","confiance","candidat_nom","score_nom","second_nom","rejet_nom","m_ns_map","m_chemin","m_noms_libre"
 "team-a/alpha","","aucune","none","","","","aucun candidat","","",""
 
-╔═ the_preset_keys_can_be_overridden/mapping ═╗
+╔═ thePresetKeysCanBeOverridden/mapping ═╗
 "gauche_cle_sonar","droite_key","methode","confiance","candidat_nom","score_nom","second_nom","rejet_nom","m_cle_ci","m_ns_map","m_chemin","m_noms_libre"
 "Alpha","k1","noms ressemblants (TF-IDF)","suggestion","k1","0.82","","","","","","k1 (0.82)"
 
-╔═ the_preset_keys_can_be_overridden/stdout ═╗
+╔═ thePresetKeysCanBeOverridden/stdout ═╗
 
 Appariement
   Gauche : 1 lignes (<tmp>/a.csv)

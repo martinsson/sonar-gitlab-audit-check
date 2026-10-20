@@ -27,7 +27,7 @@ class GitLabProjectReportOptionsTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void raw_answers_are_dumped_one_file_per_call() throws IOException {
+  void rawAnswersAreDumpedOneFilePerCall() throws IOException {
     smallProject();
     Path dumps = dir.resolve("dumps");
 
@@ -45,7 +45,7 @@ class GitLabProjectReportOptionsTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void a_blank_bot_pattern_keeps_the_default_one() {
+  void aBlankBotPatternKeepsTheDefaultOne() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(
@@ -60,7 +60,7 @@ class GitLabProjectReportOptionsTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void insecure_and_timeout_still_read_a_plain_http_instance() {
+  void insecureAndTimeoutStillReadAPlainHttpInstance() {
     smallProject();
     String before = System.getProperty(NO_HOSTNAME_CHECK);
     try {

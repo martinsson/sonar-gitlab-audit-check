@@ -138,8 +138,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void a_project_gets_its_jira_project_its_pipelines_and_the_commands_to_extract_them()
-      throws IOException {
+  void aProjectGetsItsJiraProjectItsPipelinesAndTheCommandsToExtractThem() throws IOException {
     Cli.Result r = locate(jira, gocd);
     assertThat(r.exitCode()).isZero();
     assertThat(r.out().lines())
@@ -183,7 +182,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void the_index_keeps_each_pipeline_with_its_materials_and_last_run() throws IOException {
+  void theIndexKeepsEachPipelineWithItsMaterialsAndLastRun() throws IOException {
     assertThat(locate(null, gocd).exitCode()).isZero();
     JsonNode saved = new ObjectMapper().readTree(index.toFile());
     assertThat(saved.path("built_at").asText()).isEqualTo("2026-10-21 02:00:00");
@@ -198,7 +197,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void an_index_younger_than_a_day_is_reused_an_older_one_rebuilt() throws IOException {
+  void anIndexYoungerThanADayIsReusedAnOlderOneRebuilt() throws IOException {
     assertThat(locate(null, gocd).exitCode()).isZero();
     int built = gocd.requests().size();
 
@@ -217,8 +216,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void an_unreadable_index_is_rebuilt_and_an_unwritable_one_does_not_stop_the_search()
-      throws IOException {
+  void anUnreadableIndexIsRebuiltAndAnUnwritableOneDoesNotStopTheSearch() throws IOException {
     Files.createDirectories(index.getParent());
     Files.writeString(index, "{ pas du json");
     Files.setLastModifiedTime(index, FileTime.from(NOW.instant().minus(Duration.ofHours(1))));
@@ -236,7 +234,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void without_jira_nor_gocd_only_the_project_is_shown() {
+  void withoutJiraNorGocdOnlyTheProjectIsShown() {
     Cli.Result r = locate(null, null);
     assertThat(r.exitCode()).isZero();
     assertThat(r.out().lines())
@@ -251,7 +249,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void the_gitlab_jira_integration_when_readable() {
+  void theGitlabJiraIntegrationWhenReadable() {
     integration =
         Response.json(
             "{\"active\":true,\"properties\":{\"project_keys\":[\"ABC\"],\"project_key\":\"ABC\"}}");
@@ -262,7 +260,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void an_inactive_integration_says_so() {
+  void anInactiveIntegrationSaysSo() {
     FakeHttpServer other = new FakeHttpServer();
     try (other) {
       other.json(P, PROJECT);
@@ -297,7 +295,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void a_prefix_cited_in_less_than_5_percent_of_commits_gets_no_command_and_15_are_shown() {
+  void aPrefixCitedInLessThan5PercentOfCommitsGetsNoCommandAnd15AreShown() {
     List<String> c = new ArrayList<>();
     for (int i = 0; i < 17; i++) c.add("{\"message\":\"K%c-1\"}".formatted((char) ('A' + i)));
     c.add("{\"message\":\"ABC-1 ABC-2 XYZ-1\"}");
@@ -316,7 +314,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void the_first_prefix_at_5_percent_gets_the_only_jira_command() {
+  void theFirstPrefixAt5PercentGetsTheOnlyJiraCommand() {
     List<String> c = new ArrayList<>();
     c.add("{\"message\":\"ABC-1\"}");
     c.add("{\"message\":\"XYZ-1\"}");
@@ -331,7 +329,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void keys_cited_only_in_merge_requests_give_no_share_and_no_command() {
+  void keysCitedOnlyInMergeRequestsGiveNoShareAndNoCommand() {
     commits = "[]";
     Cli.Result r = locate(jira, null);
     assertThat(r.out())
@@ -341,14 +339,14 @@ class DoraLocateTest {
   }
 
   @Test
-  void commits_are_read_up_to_max_commits() {
+  void commitsAreReadUpToMaxCommits() {
     Cli.Result r = locate(jira, null, "--max-commits", "5");
     assertThat(r.out())
         .contains("  Lus : 5 commits, 1 MR, 2 branches", row("ABC", "Projet ABC", 5, 1, 1, 2));
   }
 
   @Test
-  void jira_errors_are_shown_and_a_refused_token_stops() {
+  void jiraErrorsAreShownAndARefusedTokenStops() {
     jiraProject = r -> Response.status(500, "{}");
     assertThat(locate(jira, null).out()).contains(row("ABC", "HTTP 500", 10, 1, 1, 2));
     FakeHttpServer refusing = new FakeHttpServer();
@@ -361,7 +359,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void an_unknown_project_or_a_refused_gitlab_token_stops() {
+  void anUnknownProjectOrARefusedGitlabTokenStops() {
     Cli.Result r = locate(null, null, "--gitlab-project", "https://h/nope/x.git");
     assertThat(r.exitCode()).isEqualTo(2);
     assertThat(r.err()).contains("Arrêt : /api/v4/projects/nope%2Fx : HTTP 404");
@@ -377,7 +375,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void a_repository_no_pipeline_builds_is_said_so() {
+  void aRepositoryNoPipelineBuildsIsSaidSo() {
     gitlab.json(
         "/api/v4/projects/octocat%2FSpoon",
         "{\"id\":8,\"path\":\"Spoon\",\"path_with_namespace\":\"octocat/Spoon\"}");
@@ -388,7 +386,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void pipelines_in_several_groups_and_pipelines_that_never_ran() {
+  void pipelinesInSeveralGroupsAndPipelinesThatNeverRan() {
     FakeHttpServer other = new FakeHttpServer();
     try (other) {
       other.json(
@@ -414,7 +412,7 @@ class DoraLocateTest {
   }
 
   @Test
-  void a_large_gocd_shows_progress_and_a_broken_one_stops() {
+  void aLargeGocdShowsProgressAndABrokenOneStops() {
     FakeHttpServer big = new FakeHttpServer();
     try (big) {
       List<String> names = new ArrayList<>();

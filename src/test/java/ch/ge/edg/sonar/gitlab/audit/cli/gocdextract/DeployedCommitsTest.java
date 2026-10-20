@@ -35,8 +35,7 @@ class DeployedCommitsTest {
   }
 
   @Test
-  void a_deploy_embarks_every_upstream_run_since_the_previous_deploy_down_to_git()
-      throws IOException {
+  void aDeployEmbarksEveryUpstreamRunSinceThePreviousDeployDownToGit() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       GocdFixtures.chain(gocd);
       GocdApi api = GocdFixtures.api(gocd);
@@ -58,8 +57,7 @@ class DeployedCommitsTest {
   }
 
   @Test
-  void the_budget_bounds_the_upstream_calls_of_one_run_and_cached_runs_are_free()
-      throws IOException {
+  void theBudgetBoundsTheUpstreamCallsOfOneRunAndCachedRunsAreFree() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       GocdFixtures.chain(gocd);
       GocdApi api = GocdFixtures.api(gocd);
@@ -76,7 +74,7 @@ class DeployedCommitsTest {
   }
 
   @Test
-  void a_budget_of_zero_reads_nothing_upstream() throws IOException {
+  void aBudgetOfZeroReadsNothingUpstream() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       GocdFixtures.chain(gocd);
       GocdApi api = GocdFixtures.api(gocd);
@@ -86,7 +84,7 @@ class DeployedCommitsTest {
   }
 
   @Test
-  void a_missing_upstream_run_embarks_nothing() throws IOException {
+  void aMissingUpstreamRunEmbarksNothing() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       GocdApi api = GocdFixtures.api(gocd);
       JsonNode run = GocdFixtures.node(run("prod", 1, 1, upstream(true, "recette", 99)));
@@ -96,8 +94,7 @@ class DeployedCommitsTest {
   }
 
   @Test
-  void a_forced_rebuild_without_new_commit_and_unknown_materials_embark_nothing()
-      throws IOException {
+  void aForcedRebuildWithoutNewCommitAndUnknownMaterialsEmbarkNothing() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       GocdApi api = GocdFixtures.api(gocd);
       String svn =
@@ -114,7 +111,7 @@ class DeployedCommitsTest {
   }
 
   @Test
-  void the_walk_stops_six_levels_up() throws IOException {
+  void theWalkStopsSixLevelsUp() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       for (int i = 1; i <= 7; i++) {
         String next = upstream(true, "p" + (i + 1), 1);
@@ -138,8 +135,7 @@ class DeployedCommitsTest {
   }
 
   @Test
-  void the_range_starts_after_the_previous_upstream_run_and_is_bounded_by_the_budget()
-      throws IOException {
+  void theRangeStartsAfterThePreviousUpstreamRunAndIsBoundedByTheBudget() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       DeployedCommits thirty = new DeployedCommits(GocdFixtures.api(gocd), 30);
       assertThat(thirty.firstCounter(3, 5)).isEqualTo(4);
@@ -156,7 +152,7 @@ class DeployedCommitsTest {
   }
 
   @Test
-  void the_upstream_counter_of_a_run_is_the_first_valid_revision_of_that_pipeline() {
+  void theUpstreamCounterOfARunIsTheFirstValidRevisionOfThatPipeline() {
     JsonNode run =
         GocdFixtures.node(
             run(
@@ -173,7 +169,7 @@ class DeployedCommitsTest {
   }
 
   @Test
-  void a_commit_row_writes_its_date_in_the_given_zone_and_its_keys_joined() {
+  void aCommitRowWritesItsDateInTheGivenZoneAndItsKeysJoined() {
     Commit c = new Commit("build/7", URL, "c7", Instant.parse("2026-01-02T03:04:05Z"), Set.of());
     assertThat(c.cells("prod", 2, java.time.ZoneId.of("Europe/Zurich")))
         .containsExactly("prod", "2", "build/7", URL, "c7", "2026-01-02 04:04:05", "");

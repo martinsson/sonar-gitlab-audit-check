@@ -25,7 +25,7 @@ class RestClientRetryTest {
   }
 
   @Test
-  void a_429_waits_retry_after_then_tries_again() throws IOException {
+  void a429WaitsRetryAfterThenTriesAgain() throws IOException {
     AtomicInteger seen = new AtomicInteger();
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on(
@@ -41,7 +41,7 @@ class RestClientRetryTest {
   }
 
   @Test
-  void the_wait_is_capped_and_a_bad_retry_after_means_five_seconds() {
+  void theWaitIsCappedAndABadRetryAfterMeansFiveSeconds() {
     RestResponse huge = new RestResponse(429, "", Map.of("retry-after", "3600"), "");
     RestResponse junk = new RestResponse(429, "", Map.of("retry-after", "soon"), "");
     RestResponse negative = new RestResponse(429, "", Map.of("retry-after", "-3"), "");
@@ -51,7 +51,7 @@ class RestClientRetryTest {
   }
 
   @Test
-  void a_429_that_never_ends_stops_after_three_tries() throws IOException {
+  void a429ThatNeverEndsStopsAfterThreeTries() throws IOException {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on("/x", r -> Response.status(429, "{}").withHeader("Retry-After", "100"));
       RestClient c = client(jira.url(), Map.of());
@@ -62,7 +62,7 @@ class RestClientRetryTest {
   }
 
   @Test
-  void an_error_status_is_returned_without_retry() throws IOException {
+  void anErrorStatusIsReturnedWithoutRetry() throws IOException {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on("/x", r -> Response.status(403, "{}"));
       RestClient c = client(jira.url(), Map.of());
@@ -72,7 +72,7 @@ class RestClientRetryTest {
   }
 
   @Test
-  void an_unreachable_host_is_retried_then_reported_with_the_exception_name() throws IOException {
+  void anUnreachableHostIsRetriedThenReportedWithTheExceptionName() throws IOException {
     int port;
     try (ServerSocket s = new ServerSocket(0)) {
       port = s.getLocalPort();

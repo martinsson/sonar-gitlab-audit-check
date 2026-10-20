@@ -21,7 +21,7 @@ class ProjectMapperPresetCliTest {
   @TempDir Path dir;
 
   @Test
-  void preset_maps_with_every_method_and_writes_mapping_and_report() throws Exception {
+  void presetMapsWithEveryMethodAndWritesMappingAndReport() throws Exception {
     Path left = write(dir, "pratiques.csv", PRESET_LEFT);
     Path right = write(dir, "inventaire.csv", PRESET_RIGHT);
     Path out = dir.resolve("sub/correspondances.csv");
@@ -43,7 +43,7 @@ class ProjectMapperPresetCliTest {
   }
 
   @Test
-  void preset_without_outputs_only_prints() throws Exception {
+  void presetWithoutOutputsOnlyPrints() throws Exception {
     Path left = write(dir, "pratiques.csv", PRESET_LEFT);
     Path right = write(dir, "inventaire.csv", PRESET_RIGHT);
 
@@ -57,7 +57,7 @@ class ProjectMapperPresetCliTest {
   }
 
   @Test
-  void zero_examples_lists_no_example_anywhere() throws Exception {
+  void zeroExamplesListsNoExampleAnywhere() throws Exception {
     Path left = write(dir, "pratiques.csv", PRESET_LEFT);
     Path right = write(dir, "inventaire.csv", PRESET_RIGHT);
     Path report = dir.resolve("r.json");

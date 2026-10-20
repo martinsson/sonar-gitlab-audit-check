@@ -14,7 +14,7 @@ class JsonlTest {
   @TempDir Path dir;
 
   @Test
-  void one_compact_json_object_per_line() throws IOException {
+  void oneCompactJsonObjectPerLine() throws IOException {
     ObjectMapper m = new ObjectMapper();
     Path f = dir.resolve("runs.jsonl");
     try (Jsonl out = new Jsonl(f)) {

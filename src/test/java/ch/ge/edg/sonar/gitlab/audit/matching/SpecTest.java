@@ -16,7 +16,7 @@ class SpecTest {
   }
 
   @Test
-  void confidence_parse_accepts_french_and_english_spellings_with_accents() {
+  void confidenceParseAcceptsFrenchAndEnglishSpellingsWithAccents() {
     assertThat(Confidence.parse(" Exact ")).isEqualTo(Confidence.EXACT);
     assertThat(Confidence.parse("derived")).isEqualTo(Confidence.DERIVED);
     assertThat(Confidence.parse("Dérivé")).isEqualTo(Confidence.DERIVED);
@@ -32,13 +32,13 @@ class SpecTest {
   }
 
   @Test
-  void confidence_codes_are_lowercase_names() {
+  void confidenceCodesAreLowercaseNames() {
     assertThat(Confidence.REJETE.code()).isEqualTo("rejete");
     assertThat(Confidence.SUGGESTION.code()).isEqualTo("suggestion");
   }
 
   @Test
-  void key_method_parse_reads_id_columns_and_optional_filter() {
+  void keyMethodParseReadsIdColumnsAndOptionalFilter() {
     KeyMethod m = KeyMethod.parse("  ref-1: left col = right col ", Kind.EXACT);
     assertThat(m)
         .isEqualTo(
@@ -46,13 +46,13 @@ class SpecTest {
   }
 
   @Test
-  void a_spaced_filter_value_matches_the_trimmed_cell() {
+  void aSpacedFilterValueMatchesTheTrimmedCell() {
     KeyMethod m = KeyMethod.parse("x:a=b? kind = v", Kind.LINK);
     assertThat(m.accepts(row("kind", "v"))).isTrue();
   }
 
   @Test
-  void key_method_parse_filter_value_is_trimmed_and_keeps_equal_signs() {
+  void keyMethodParseFilterValueIsTrimmedAndKeepsEqualSigns() {
     KeyMethod m = KeyMethod.parse("x:a=b? kind = v=w", Kind.LINK);
     assertThat(m.whereColumn()).isEqualTo("kind");
     assertThat(m.whereValue()).isEqualTo("v=w");
@@ -65,7 +65,7 @@ class SpecTest {
   }
 
   @Test
-  void key_method_confidence_and_joins_follow_the_kind() {
+  void keyMethodConfidenceAndJoinsFollowTheKind() {
     assertThat(method(Kind.EXACT).confidence()).isEqualTo(Confidence.EXACT);
     assertThat(method(Kind.DERIVED).confidence()).isEqualTo(Confidence.DERIVED);
     assertThat(method(Kind.MAPPED).confidence()).isEqualTo(Confidence.DERIVED);
@@ -80,14 +80,14 @@ class SpecTest {
   }
 
   @Test
-  void name_spec_parse_splits_right_columns_on_commas() {
+  void nameSpecParseSplitsRightColumnsOnCommas() {
     assertThat(NameSpec.parse(" nom = libelle , code ", true))
         .isEqualTo(new NameSpec("nom", List.of("libelle", "code"), true));
     assertThat(NameSpec.parse("nom=", false)).isEqualTo(new NameSpec("nom", List.of(""), false));
   }
 
   @Test
-  void the_sonar_gitlab_preset() {
+  void theSonarGitlabPreset() {
     Spec s = Spec.sonarGitlab(0.4, 0.2);
     assertThat(s.leftKey()).isEqualTo("path");
     assertThat(s.rightKey()).isEqualTo("key");
@@ -111,14 +111,14 @@ class SpecTest {
   }
 
   @Test
-  void a_name_guess_is_accepted_when_it_has_a_candidate_and_no_rejection() {
+  void aNameGuessIsAcceptedWhenItHasACandidateAndNoRejection() {
     assertThat(new NameGuess("k", 0.9, "", 0, null).accepted()).isTrue();
     assertThat(new NameGuess("", 0.9, "", 0, null).accepted()).isFalse();
     assertThat(new NameGuess("k", 0.9, "", 0, "ambigu").accepted()).isFalse();
   }
 
   @Test
-  void a_match_is_joined_only_when_sure_and_paired() {
+  void aMatchIsJoinedOnlyWhenSureAndPaired() {
     Csv.Row r = row("key", "k");
     assertThat(match(r, Confidence.EXACT).joined()).isTrue();
     assertThat(match(r, Confidence.DERIVED).joined()).isTrue();

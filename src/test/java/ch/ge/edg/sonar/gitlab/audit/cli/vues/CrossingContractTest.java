@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 class CrossingContractTest {
 
   @Test
-  void every_crossed_column_a_view_names_is_written_by_the_crossing() {
+  void everyCrossedColumnAViewNamesIsWrittenByTheCrossing() {
     List<String> views = new ArrayList<>();
     views.addAll(Vues.ESSENTIAL_FIRST);
     views.addAll(Vues.DRIFT);

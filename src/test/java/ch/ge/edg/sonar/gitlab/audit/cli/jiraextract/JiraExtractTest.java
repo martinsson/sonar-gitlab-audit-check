@@ -59,7 +59,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void the_console_tells_each_step_and_stdout_stays_empty() {
+  void theConsoleTellsEachStepAndStdoutStaysEmpty() {
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       Cli.Result r = extractAll(jira);
       Path out = dir.resolve("out");
@@ -79,7 +79,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void one_ticket_row_per_issue_with_dates_delays_and_the_extra_fields() throws IOException {
+  void oneTicketRowPerIssueWithDatesDelaysAndTheExtraFields() throws IOException {
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       extractAll(jira);
       assertThat(file("jira-tickets.csv"))
@@ -104,7 +104,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void every_status_change_with_the_target_category() throws IOException {
+  void everyStatusChangeWithTheTargetCategory() throws IOException {
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       extractAll(jira);
       assertThat(file("jira-transitions.csv"))
@@ -123,7 +123,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void the_versions_and_the_raw_issues_as_jira_returned_them() throws IOException {
+  void theVersionsAndTheRawIssuesAsJiraReturnedThem() throws IOException {
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       extractAll(jira);
       assertThat(file("jira-versions.csv"))
@@ -141,7 +141,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void asks_jira_for_every_field_and_the_changelog_with_the_pat_as_bearer() {
+  void asksJiraForEveryFieldAndTheChangelogWithThePatAsBearer() {
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       run(jira, "--project", "ABC");
       List<Request> searches = jira.requests("/rest/api/2/search");
@@ -168,7 +168,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void comma_writes_for_a_tool_and_no_raw_skips_the_jsonl() throws IOException {
+  void commaWritesForAToolAndNoRawSkipsTheJsonl() throws IOException {
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       Cli.Result r = run(jira, "--project", "ABC", "--comma", "--no-raw");
       assertThat(r.exitCode()).isZero();
@@ -182,7 +182,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void dates_follow_the_given_zone() throws IOException {
+  void datesFollowTheGivenZone() throws IOException {
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       List<String> args =
           List.of(
@@ -202,7 +202,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void jql_replaces_the_query_and_versions_use_the_upper_case_key() throws IOException {
+  void jqlReplacesTheQueryAndVersionsUseTheUpperCaseKey() throws IOException {
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       Cli.Result r = run(jira, "--project", "abc", "--jql", "key = ABC-3");
       assertThat(r.exitCode()).isZero();
@@ -213,7 +213,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void search_falls_back_to_latest_when_v2_is_gone() throws IOException {
+  void searchFallsBackToLatestWhenV2IsGone() throws IOException {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on("/rest/api/2/search", q -> Response.status(410, "{}"));
       jira.on("/rest/api/latest/search", q -> Response.json(JiraFixtures.read("search-2.json")));
@@ -225,7 +225,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void an_empty_page_ends_the_extraction_whatever_the_total_says() {
+  void anEmptyPageEndsTheExtractionWhateverTheTotalSays() {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.json("/rest/api/2/field", "[]");
       jira.json("/rest/api/2/status", "[]");
@@ -240,7 +240,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void a_refused_token_stops_with_exit_2_wherever_it_happens() {
+  void aRefusedTokenStopsWithExit2WhereverItHappens() {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on("/rest/api/2/field", q -> Response.status(401, "{}"));
       Cli.Result r = run(jira, "--project", "ABC");
@@ -262,7 +262,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void a_failed_search_stops_and_shows_what_jira_said() {
+  void aFailedSearchStopsAndShowsWhatJiraSaid() {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on(
           "/rest/api/2/search",
@@ -278,7 +278,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void fields_statuses_and_a_full_issue_are_required() {
+  void fieldsStatusesAndAFullIssueAreRequired() {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on("/rest/api/2/field", q -> Response.status(500, "boom"));
       JiraFixtures.serve(jira);
@@ -303,7 +303,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void a_missing_url_or_token_stops_before_any_call() {
+  void aMissingUrlOrTokenStopsBeforeAnyCall() {
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       Cli.Result noUrl =
           Cli.run(
@@ -332,7 +332,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void an_output_directory_that_cannot_be_created_stops_with_exit_2() throws IOException {
+  void anOutputDirectoryThatCannotBeCreatedStopsWithExit2() throws IOException {
     Files.writeString(dir.resolve("out"), "a file, not a directory");
     try (FakeHttpServer jira = JiraFixtures.jira()) {
       Cli.Result r = run(jira, "--project", "ABC");
@@ -342,7 +342,7 @@ class JiraExtractTest {
   }
 
   @Test
-  void the_project_is_required() {
+  void theProjectIsRequired() {
     Cli.Result r = Cli.run(JiraExtract::new, "--url", "http://x", "--token", "t");
     assertThat(r.exitCode()).isEqualTo(2);
     assertThat(r.err()).contains("--project");

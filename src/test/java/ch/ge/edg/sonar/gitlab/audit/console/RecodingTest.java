@@ -38,41 +38,40 @@ class RecodingTest {
   }
 
   @Test
-  void accents_the_code_page_knows_are_encoded_in_it() throws IOException {
+  void accentsTheCodePageKnowsAreEncodedInIt() throws IOException {
     assertThat(recode("été à çà", CP850)).isEqualTo("été à çà".getBytes(CP850));
     assertThat(recode("été", CP850)).containsExactly(0x82, 0x74, 0x82);
   }
 
   @Test
-  void typographic_characters_become_their_ascii_equivalent() throws IOException {
+  void typographicCharactersBecomeTheirAsciiEquivalent() throws IOException {
     String in = "—|–|…|≥|≤|→|«|»|’|“|”|·|" + "×|§|•| | ";
     assertThat(new String(recode(in, StandardCharsets.US_ASCII), StandardCharsets.US_ASCII))
         .isEqualTo("-|-|...|>=|<=|->|\"|\"|'|\"|\"|-|x|S|*| | ");
   }
 
   @Test
-  void characters_the_code_page_has_are_kept_even_if_the_ascii_table_knows_them()
-      throws IOException {
+  void charactersTheCodePageHasAreKeptEvenIfTheAsciiTableKnowsThem() throws IOException {
     // cp850 has « » · × § and the non-breaking space: they are not transliterated.
     String in = "«»·×§ ";
     assertThat(recode(in, CP850)).isEqualTo(in.getBytes(CP850));
   }
 
   @Test
-  void unknown_accented_letters_lose_their_accent() throws IOException {
+  void unknownAccentedLettersLoseTheirAccent() throws IOException {
     assertThat(new String(recode("ŝŵő", StandardCharsets.US_ASCII), StandardCharsets.US_ASCII))
         .isEqualTo("swo");
   }
 
   @Test
-  void what_cannot_be_stripped_becomes_a_question_mark() throws IOException {
+  void whatCannotBeStrippedBecomesAQuestionMark() throws IOException {
     // A lone combining accent strips to nothing; a CJK character strips to itself, which the
     // code page still cannot encode.
     assertThat(new String(recode("áb中c", CP850), CP850)).isEqualTo("a?b?c");
   }
 
   @Test
-  void a_character_split_across_writes_is_decoded_once_whole() throws IOException {
+  void aCharacterSplitAcrossWritesIsDecodedOnceWhole() throws IOException {
     Sink sink = new Sink();
     byte[] e = "é".getBytes(StandardCharsets.UTF_8);
     Recoding r = new Recoding(sink, CP850);
@@ -87,7 +86,7 @@ class RecodingTest {
   }
 
   @Test
-  void write_honours_offset_and_length() throws IOException {
+  void writeHonoursOffsetAndLength() throws IOException {
     Sink sink = new Sink();
     Recoding r = new Recoding(sink, CP850);
     r.write("abcdef".getBytes(StandardCharsets.UTF_8), 2, 3);
@@ -95,7 +94,7 @@ class RecodingTest {
   }
 
   @Test
-  void an_invalid_utf8_byte_is_replaced_and_the_rest_still_written() throws IOException {
+  void anInvalidUtf8ByteIsReplacedAndTheRestStillWritten() throws IOException {
     Sink sink = new Sink();
     Recoding r = new Recoding(sink, CP850);
     r.write(new byte[] {'a', (byte) 0xFF, 'b'}, 0, 3);
@@ -104,7 +103,7 @@ class RecodingTest {
   }
 
   @Test
-  void flush_and_close_reach_the_target() throws IOException {
+  void flushAndCloseReachTheTarget() throws IOException {
     Sink sink = new Sink();
     Recoding r = new Recoding(sink, CP850);
     r.flush();
@@ -116,7 +115,7 @@ class RecodingTest {
   }
 
   @Test
-  void through_a_utf8_print_stream_as_install_wires_it() {
+  void throughAUtf8PrintStreamAsInstallWiresIt() {
     Sink sink = new Sink();
     PrintStream ps = new PrintStream(new Recoding(sink, CP850), true, StandardCharsets.UTF_8);
     ps.print("Croisement SonarQube × GitLab — ≥ 20 %");

@@ -25,7 +25,7 @@ class GocdIndexTest {
   }
 
   @Test
-  void the_index_file_round_trips_and_omits_an_unknown_last_run() {
+  void theIndexFileRoundTripsAndOmitsAnUnknownLastRun() {
     Map<String, GocdIndex.Pipeline> pipes = new LinkedHashMap<>();
     pipes.put("b", new GocdIndex.Pipeline("g", List.of("git@h:o/r.git"), List.of(), "2026-01-01"));
     pipes.put("a", p(List.of(), List.of("b")));
@@ -45,7 +45,7 @@ class GocdIndexTest {
   }
 
   @Test
-  void a_pipeline_without_material_is_unknown() {
+  void aPipelineWithoutMaterialIsUnknown() {
     assertThat(p(List.of(), List.of()).unknown()).isTrue();
     assertThat(p(List.of("u"), List.of()).unknown()).isFalse();
     assertThat(p(List.of(), List.of("u")).unknown()).isFalse();
@@ -53,7 +53,7 @@ class GocdIndexTest {
   }
 
   @Test
-  void downstream_pipelines_are_found_level_by_level_even_through_a_cycle() {
+  void downstreamPipelinesAreFoundLevelByLevelEvenThroughACycle() {
     Map<String, GocdIndex.Pipeline> pipes = new LinkedHashMap<>();
     pipes.put("prod", p(List.of(), List.of("rec")));
     pipes.put("rec", p(List.of(), List.of("build", "prod")));

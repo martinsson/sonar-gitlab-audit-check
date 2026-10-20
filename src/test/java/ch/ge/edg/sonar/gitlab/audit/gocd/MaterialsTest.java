@@ -16,7 +16,7 @@ class MaterialsTest {
   }
 
   @Test
-  void git_material_url_comes_from_its_description() throws Exception {
+  void gitMaterialUrlComesFromItsDescription() throws Exception {
     JsonNode git = material("Git", "m", "URL: https://h/g/p.git, Branch: main");
     assertThat(Materials.isGit(git)).isTrue();
     assertThat(Materials.isPipeline(git)).isFalse();
@@ -29,7 +29,7 @@ class MaterialsTest {
   }
 
   @Test
-  void pipeline_material_names_its_upstream() throws Exception {
+  void pipelineMaterialNamesItsUpstream() throws Exception {
     JsonNode dep = material("Pipeline", "alias", "build [ compile ]");
     assertThat(Materials.isPipeline(dep)).isTrue();
     assertThat(Materials.upstreamName(dep)).isEqualTo("build");

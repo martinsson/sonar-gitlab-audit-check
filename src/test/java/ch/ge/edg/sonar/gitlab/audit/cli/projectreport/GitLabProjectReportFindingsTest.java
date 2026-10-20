@@ -45,7 +45,7 @@ class GitLabProjectReportFindingsTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void an_abandoned_project_trips_the_process_findings() {
+  void anAbandonedProjectTripsTheProcessFindings() {
     abandonedProject();
 
     Cli.Result r = run("--days", "365");
@@ -55,7 +55,7 @@ class GitLabProjectReportFindingsTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void findings_are_colored_when_asked() {
+  void findingsAreColoredWhenAsked() {
     abandonedProject();
 
     Cli.Result r = run("--days", "365", "--color", "always");
@@ -82,7 +82,7 @@ class GitLabProjectReportFindingsTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void rubber_stamp_reviews_trip_the_review_findings() {
+  void rubberStampReviewsTripTheReviewFindings() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(
@@ -98,7 +98,7 @@ class GitLabProjectReportFindingsTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void the_dormant_finding_needs_more_than_ninety_days_of_silence() {
+  void theDormantFindingNeedsMoreThanNinetyDaysOfSilence() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(
@@ -118,7 +118,7 @@ class GitLabProjectReportFindingsTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void ninety_days_of_silence_is_not_yet_dormant() {
+  void ninetyDaysOfSilenceIsNotYetDormant() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(

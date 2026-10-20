@@ -32,7 +32,7 @@ class SonarToGitlabCrossAndNamesTest {
   }
 
   @Test
-  void sure_pairs_of_the_cross_are_taken_over_and_others_ignored() throws IOException {
+  void surePairsOfTheCrossAreTakenOverAndOthersIgnored() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -76,7 +76,7 @@ delta -> team-b/delta | croisement : nom du pom = nom Sonar | derived | - |  |\s
   }
 
   @Test
-  void the_devops_link_counts_only_for_gitlab_known_ids_and_unrejected_pairs() throws IOException {
+  void theDevopsLinkCountsOnlyForGitlabKnownIdsAndUnrejectedPairs() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -106,7 +106,7 @@ k-ok -> team-a/one-repo | liaison DevOps Sonar → GitLab | exact | - |  |\s""")
   }
 
   @Test
-  void the_name_pass_refuses_below_threshold_ambiguous_and_already_claimed() throws IOException {
+  void theNamePassRefusesBelowThresholdAmbiguousAndAlreadyClaimed() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -138,7 +138,7 @@ qqq ->  | aucune | none | - |  | aucun candidat""");
   }
 
   @Test
-  void rejected_paths_and_pairs_are_kept_out_of_the_name_pass() throws IOException {
+  void rejectedPathsAndPairsAreKeptOutOfTheNamePass() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -161,7 +161,7 @@ rep-a ->  | aucune | none | - |  | aucun candidat""");
   }
 
   @Test
-  void threshold_and_margin_are_parameters() throws IOException {
+  void thresholdAndMarginAreParameters() throws IOException {
     Csv.Table inv =
         inventory(
             dir,

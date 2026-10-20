@@ -29,7 +29,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void moved_words_score_as_identical() {
+  void movedWordsScoreAsIdentical() {
     NameMatcher m = matcher(List.of("api-billing"), TARGETS);
     List<NameMatcher.Scored> ranked = m.rank(0);
     assertThat(indexes(ranked)).containsExactly(0, 6);
@@ -39,7 +39,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void a_typo_on_a_long_word_still_finds_its_candidate() {
+  void aTypoOnALongWordStillFindsItsCandidate() {
     NameMatcher m = matcher(List.of("paiment-core"), TARGETS);
     List<NameMatcher.Scored> ranked = m.rank(0);
     assertThat(indexes(ranked)).containsExactly(4);
@@ -47,7 +47,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void a_shared_prefix_without_resemblance_scores_zero_and_is_dropped() {
+  void aSharedPrefixWithoutResemblanceScoresZeroAndIsDropped() {
     NameMatcher m = matcher(List.of("alpha"), TARGETS);
     assertThat(m.rank(0)).isEmpty();
     assertThat(m.hasNumberVeto(0)).isFalse();
@@ -55,7 +55,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void different_numbers_veto_a_candidate_but_score_ignores_the_veto() {
+  void differentNumbersVetoACandidateButScoreIgnoresTheVeto() {
     NameMatcher m = matcher(List.of("app1", "app3", "app"), TARGETS);
     assertThat(indexes(m.rank(0))).containsExactly(2);
     assertThat(m.hasNumberVeto(0)).isTrue();
@@ -67,7 +67,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void numbers_without_a_conflicting_candidate_are_no_veto() {
+  void numbersWithoutAConflictingCandidateAreNoVeto() {
     NameMatcher m = matcher(List.of("payments2", "zzzz9"), TARGETS);
     assertThat(indexes(m.rank(0))).containsExactly(1);
     assertThat(m.hasNumberVeto(0)).isFalse();
@@ -75,7 +75,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void the_allowed_filter_hides_targets() {
+  void theAllowedFilterHidesTargets() {
     NameMatcher m = matcher(List.of("billing"), TARGETS);
     assertThat(indexes(m.rank(0))).containsExactlyInAnyOrder(0, 6);
     assertThat(indexes(m.rank(0, i -> i != 0))).containsExactly(6);
@@ -83,7 +83,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void ranks_are_sorted_best_first() {
+  void ranksAreSortedBestFirst() {
     NameMatcher m = matcher(List.of("billing-front-web"), TARGETS);
     List<NameMatcher.Scored> ranked = m.rank(0);
     assertThat(indexes(ranked)).containsExactly(6, 0);
@@ -91,7 +91,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void a_word_carried_by_too_many_targets_proposes_no_candidate() {
+  void aWordCarriedByTooManyTargetsProposesNoCandidate() {
     List<String> targets = List.of("common-aa", "common-bb", "common-cc", "common-dd", "solo");
     NameMatcher m = matcher(List.of("common", "solo"), targets);
     assertThat(m.rank(0)).isEmpty();
@@ -100,14 +100,14 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void a_word_carried_by_up_to_three_targets_still_proposes() {
+  void aWordCarriedByUpToThreeTargetsStillProposes() {
     List<String> targets = List.of("common-aa", "common-bb", "common-cc", "solo");
     NameMatcher m = matcher(List.of("common"), targets);
     assertThat(indexes(m.rank(0))).containsExactlyInAnyOrder(0, 1, 2);
   }
 
   @Test
-  void the_blocking_limit_grows_with_a_fifth_of_the_corpus() {
+  void theBlockingLimitGrowsWithAFifthOfTheCorpus() {
     // 20 targets: limit = ceil(20 * 0.2) = 4, so a word in 4 targets proposes, in 5 does not.
     List<String> targets = new ArrayList<>();
     for (int i = 0; i < 4; i++) targets.add("four-x" + (char) ('a' + i) + "y");
@@ -119,7 +119,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void rare_words_weigh_more_than_common_ones() {
+  void rareWordsWeighMoreThanCommonOnes() {
     List<String> targets = List.of("shared-alpha", "shared-beta", "gamma");
     NameMatcher m = matcher(List.of("shared-alpha-extra", "shared-beta"), targets);
     assertThat(indexes(m.rank(0))).containsExactly(0, 1);
@@ -127,7 +127,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void rank_sources_looks_the_other_way_with_the_same_score() {
+  void rankSourcesLooksTheOtherWayWithTheSameScore() {
     List<String> sources = List.of("team-a/billing-api", "team-b/payments", "team-c/app2");
     NameMatcher m = matcher(sources, TARGETS);
     List<NameMatcher.Scored> back = m.rankSources(0, i -> true);
@@ -140,7 +140,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void rank_sources_blocks_on_the_source_side_frequencies() {
+  void rankSourcesBlocksOnTheSourceSideFrequencies() {
     List<String> sources = List.of("core-aa", "core-bb", "core-cc", "core-dd", "zeta");
     NameMatcher m = matcher(sources, List.of("core", "zeta"));
     assertThat(m.rankSources(0, i -> true)).isEmpty();
@@ -150,14 +150,14 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void a_four_letter_target_is_found_by_its_first_three_letters() {
+  void aFourLetterTargetIsFoundByItsFirstThreeLetters() {
     NameMatcher m = matcher(List.of("cores"), List.of("core", "other"));
     assertThat(indexes(m.rank(0))).containsExactly(0);
     assertThat(indexes(m.rankSources(0, i -> true))).containsExactly(0);
   }
 
   @Test
-  void weights_are_tf_idf_over_both_sides_normalised() {
+  void weightsAreTfIdfOverBothSidesNormalised() {
     // n = 4 documents; alpha in 2 of them (the source and t0), beta in 3.
     NameMatcher m = matcher(List.of("alpha-beta"), List.of("alpha", "beta", "beta-gamma"));
     double a = Math.log(5.0 / 3.0) + 1;
@@ -167,7 +167,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void a_name_whose_words_all_weigh_zero_scores_zero() {
+  void aNameWhoseWordsAllWeighZeroScoresZero() {
     Map<String, Double> zero = new HashMap<>();
     NameMatcher.addTokens(zero, "alpha", 0.0);
     NameMatcher m =
@@ -177,7 +177,7 @@ class NameMatcherRankTest {
   }
 
   @Test
-  void a_source_without_words_has_no_candidate() {
+  void aSourceWithoutWordsHasNoCandidate() {
     NameMatcher m = matcher(List.of("42"), TARGETS);
     assertThat(m.rank(0)).isEmpty();
     assertThat(m.hasNumberVeto(0)).isFalse();

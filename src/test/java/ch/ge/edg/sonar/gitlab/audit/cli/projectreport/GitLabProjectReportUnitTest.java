@@ -11,7 +11,7 @@ import picocli.CommandLine;
 class GitLabProjectReportUnitTest {
 
   @Test
-  void paths_are_taken_in_any_of_the_forms_a_user_pastes() {
+  void pathsAreTakenInAnyOfTheFormsAUserPastes() {
     assertThat(ProjectPath.normalize("team-a/alpha")).isEqualTo("team-a/alpha");
     assertThat(ProjectPath.normalize("  /team-a/alpha/  ")).isEqualTo("team-a/alpha");
     assertThat(ProjectPath.normalize("https://gitlab.example/team-a/sub/alpha.git"))
@@ -26,7 +26,7 @@ class GitLabProjectReportUnitTest {
   }
 
   @Test
-  void defaults_are_those_documented() {
+  void defaultsAreThoseDocumented() {
     GitLabProjectReport cmd = new GitLabProjectReport(Cli.host());
     new CommandLine(cmd).parseArgs("--path", "a/b");
     assertThat(cmd.days).isEqualTo(180);
@@ -41,7 +41,7 @@ class GitLabProjectReportUnitTest {
   }
 
   @Test
-  void the_path_is_required() {
+  void thePathIsRequired() {
     Cli.Result r = Cli.run(GitLabProjectReport::new, "--url", "http://127.0.0.1:9");
 
     assertThat(r.exitCode()).isEqualTo(2);

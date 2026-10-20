@@ -22,7 +22,7 @@ class ExclusionsTest {
   }
 
   @Test
-  void entries_are_trimmed_and_comments_and_blank_lines_dropped() throws IOException {
+  void entriesAreTrimmedAndCommentsAndBlankLinesDropped() throws IOException {
     Exclusions e =
         load(
             """
@@ -40,7 +40,7 @@ class ExclusionsTest {
   }
 
   @Test
-  void match_returns_the_entry_that_excludes_the_first_one_wins() throws IOException {
+  void matchReturnsTheEntryThatExcludesTheFirstOneWins() throws IOException {
     Exclusions e = load("team-a/*\nteam-a/sandbox\n**/legacy\n");
     assertThat(e.match("team-a/sandbox")).isEqualTo("team-a/*");
     assertThat(e.match("team-b/x/legacy")).isEqualTo("**/legacy");
@@ -49,7 +49,7 @@ class ExclusionsTest {
   }
 
   @Test
-  void a_file_of_comments_only_is_empty_and_matches_nothing() throws IOException {
+  void aFileOfCommentsOnlyIsEmptyAndMatchesNothing() throws IOException {
     Exclusions e = load("# nothing yet\n\n");
     assertThat(e.isEmpty()).isTrue();
     assertThat(e.entries()).isEmpty();
@@ -58,7 +58,7 @@ class ExclusionsTest {
   }
 
   @Test
-  void none_is_empty_without_a_file() {
+  void noneIsEmptyWithoutAFile() {
     Exclusions e = Exclusions.none();
     assertThat(e.file()).isNull();
     assertThat(e.entries()).isEmpty();
@@ -67,7 +67,7 @@ class ExclusionsTest {
   }
 
   @Test
-  void without_an_explicit_file_and_no_default_file_nothing_is_excluded() throws IOException {
+  void withoutAnExplicitFileAndNoDefaultFileNothingIsExcluded() throws IOException {
     assertThat(Exclusions.DEFAULT_FILE).isEqualTo("exclusions.txt");
     assertThat(Exclusions.file(null, dir)).isNull();
     Exclusions e = Exclusions.load(null);
@@ -76,7 +76,7 @@ class ExclusionsTest {
   }
 
   @Test
-  void without_an_explicit_file_exclusions_txt_of_the_working_dir_is_read() throws IOException {
+  void withoutAnExplicitFileExclusionsTxtOfTheWorkingDirIsRead() throws IOException {
     Path dflt = dir.resolve("exclusions.txt");
     Files.writeString(dflt, "team-a/sandbox # synthetic\n", StandardCharsets.UTF_8);
     Exclusions e = Exclusions.load(Exclusions.file(null, dir));
@@ -85,14 +85,14 @@ class ExclusionsTest {
   }
 
   @Test
-  void an_explicit_file_is_resolved_against_the_working_dir_even_when_absent() {
+  void anExplicitFileIsResolvedAgainstTheWorkingDirEvenWhenAbsent() {
     assertThat(Exclusions.file(Path.of("mine.txt"), dir)).isEqualTo(dir.resolve("mine.txt"));
     assertThat(Exclusions.file(dir.resolve("abs.txt"), Path.of("elsewhere")))
         .isEqualTo(dir.resolve("abs.txt"));
   }
 
   @Test
-  void an_explicit_file_that_does_not_exist_fails() {
+  void anExplicitFileThatDoesNotExistFails() {
     assertThatThrownBy(() -> Exclusions.load(dir.resolve("absent.txt")))
         .isInstanceOf(NoSuchFileException.class);
   }
@@ -100,7 +100,7 @@ class ExclusionsTest {
   // ---------------------------------------------------------------- glob
 
   @Test
-  void single_star_covers_one_segment_only() {
+  void singleStarCoversOneSegmentOnly() {
     assertThat(Exclusions.glob("team-a/*").matcher("team-a/alpha").matches()).isTrue();
     assertThat(Exclusions.glob("team-a/*").matcher("team-a/").matches()).isTrue();
     assertThat(Exclusions.glob("team-a/*").matcher("team-a/x/alpha").matches()).isFalse();
@@ -109,7 +109,7 @@ class ExclusionsTest {
   }
 
   @Test
-  void double_star_covers_everything_including_slashes() {
+  void doubleStarCoversEverythingIncludingSlashes() {
     assertThat(Exclusions.glob("training/**").matcher("training/a/b/c").matches()).isTrue();
     assertThat(Exclusions.glob("training/**").matcher("training/").matches()).isTrue();
     assertThat(Exclusions.glob("training/**").matcher("training").matches()).isFalse();
@@ -118,13 +118,13 @@ class ExclusionsTest {
   }
 
   @Test
-  void a_trailing_single_star_is_one_segment() {
+  void aTrailingSingleStarIsOneSegment() {
     assertThat(Exclusions.glob("a*").pattern()).isEqualTo("\\Qa\\E[^/]*");
     assertThat(Exclusions.glob("**x").pattern()).isEqualTo(".*\\Qx\\E");
   }
 
   @Test
-  void question_mark_is_exactly_one_non_slash_character() {
+  void questionMarkIsExactlyOneNonSlashCharacter() {
     assertThat(Exclusions.glob("app?").matcher("app1").matches()).isTrue();
     assertThat(Exclusions.glob("app?").matcher("app").matches()).isFalse();
     assertThat(Exclusions.glob("app?").matcher("app12").matches()).isFalse();
@@ -132,20 +132,20 @@ class ExclusionsTest {
   }
 
   @Test
-  void regex_metacharacters_are_literal() {
+  void regexMetacharactersAreLiteral() {
     assertThat(Exclusions.glob("a.b+(c)").matcher("a.b+(c)").matches()).isTrue();
     assertThat(Exclusions.glob("a.b").matcher("axb").matches()).isFalse();
     assertThat(Exclusions.glob("[x]").matcher("x").matches()).isFalse();
   }
 
   @Test
-  void matching_ignores_case_including_accents() {
+  void matchingIgnoresCaseIncludingAccents() {
     assertThat(Exclusions.glob("Team-A/Équipe").matcher("team-a/équipe").matches()).isTrue();
     assertThat(Exclusions.glob("équipe").matcher("ÉQUIPE").matches()).isTrue();
   }
 
   @Test
-  void the_whole_identifier_must_match_not_a_part() {
+  void theWholeIdentifierMustMatchNotAPart() {
     assertThat(Exclusions.glob("alpha").matcher("alpha-service").matches()).isFalse();
     assertThat(Exclusions.glob("alpha").matcher("x/alpha").matches()).isFalse();
   }

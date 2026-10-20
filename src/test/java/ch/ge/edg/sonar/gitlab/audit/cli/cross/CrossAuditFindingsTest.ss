@@ -1,4 +1,4 @@
-╔═ each_finding_keeps_exactly_the_projects_past_its_thresholds_in_order/croisement ═╗
+╔═ eachFindingKeepsExactlyTheProjectsPastItsThresholdsInOrder/croisement ═╗
 ﻿"projet";"methode_jointure";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_cle_ci";"m_cle_pom";"m_liaison";"m_ns_map";"m_chemin";"m_nom_pom";"m_liens";"liens_concorde";"m_noms_libre";"gl_path";"gl_bucket";"gl_commits_window";"gl_authors_window";"gl_mr_fusionnees";"gl_auto_merge";"gl_part_approuvee";"gl_branche_protegee";"gl_taux_succes";"gl_rouge_non_resolu";"gl_ci_sonar";"gl_ci_securite";"gl_cle_sonar";"gl_source_cle_sonar";"gl_cle_pom";"gl_nom_pom";"gl_id";"gl_fenetre_j";"gl_lignes_modifiees";"gl_commits_lignes";"gl_lignes_tronquees";"sq_key";"sq_name";"sq_analysisDate";"sq_days_since_analysis";"sq_ncloc";"sq_coverage";"sq_new_coverage";"sq_tests";"sq_test_failures";"sq_lines_to_cover";"sq_uncovered_lines";"sq_sqale_index";"sq_sqale_debt_ratio";"sq_bugs";"sq_vulnerabilities";"sq_code_smells";"sq_violations";"sq_new_lines";"sq_new_violations";"sq_alert_status";"sq_duplicated_lines_density";"sq_new_duplicated_lines_density";"sq_alm";"sq_alm_repository";"sq_liens";"sq_tendance_analyses";"sq_tendance_jours";"sq_violations_pente_mois";"sq_violations_kloc_pente_pct_mois";"sq_dette_ratio_pente_pct_mois";"issues_par_kloc_modifie";"issues_par_commit"
 "grp/g01";"clé lue dans la CI";"exact";"";"";"";"";"k01";"";"";"";"";"";"";"";"";"grp/g01";"";"20";"";"0";"";"";"";"";"";"false";"";"k01";"";"";"";"1";"";"";"";"";"k01";"K01";"2026-01-01";"";"100";"19.9";"";"0";"";"";"";"0";"";"";"";"";"";"";"1";"";"";"";"";"";"";"";"";"";"";"";"";""
 "grp/g02";"clé lue dans la CI";"exact";"";"";"";"";"k02";"";"";"";"";"";"";"";"";"grp/g02";"";"19";"";"0";"";"";"";"";"";"false";"";"k02";"";"";"";"2";"";"";"";"";"k02";"K02";"2026-01-01";"";"100";"5";"";"0";"";"";"";"0";"";"";"";"";"";"";"9";"";"";"";"";"";"";"";"";"";"";"";"";""
@@ -29,7 +29,7 @@
 "other/u7";"aucune";"none";"";"";"";"aucun candidat";"";"";"";"";"";"";"";"";"";"other/u7";"";"23";"";"0";"";"";"";"";"";"false";"";"";"";"";"";"37";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
 "other/u8";"aucune";"none";"";"";"";"aucun candidat";"";"";"";"";"";"";"";"";"";"other/u8";"";"24";"";"0";"";"";"";"";"";"false";"";"";"";"";"";"38";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
 
-╔═ each_finding_keeps_exactly_the_projects_past_its_thresholds_in_order/stdout ═╗
+╔═ eachFindingKeepsExactlyTheProjectsPastItsThresholdsInOrder/stdout ═╗
 
 Croisement SonarQube × GitLab
   Côté Sonar   : 21 projets (<tmp>/projets.csv)

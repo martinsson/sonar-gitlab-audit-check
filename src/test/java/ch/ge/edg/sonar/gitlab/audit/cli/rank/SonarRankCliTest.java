@@ -86,7 +86,7 @@ class SonarRankCliTest {
   }
 
   @Test
-  void ranks_the_full_inventory_with_default_thresholds() throws IOException {
+  void ranksTheFullInventoryWithDefaultThresholds() throws IOException {
     Cli.Result r = rank(INVENTORY);
 
     assertThat(r.exitCode()).isZero();
@@ -98,7 +98,7 @@ class SonarRankCliTest {
   }
 
   @Test
-  void every_threshold_option_changes_the_ranking() throws IOException {
+  void everyThresholdOptionChangesTheRanking() throws IOException {
     Cli.Result r =
         rank(
             INVENTORY,
@@ -122,7 +122,7 @@ class SonarRankCliTest {
   }
 
   @Test
-  void side_lists_keep_thirty_projects_on_the_shortlist() throws IOException {
+  void sideListsKeepThirtyProjectsOnTheShortlist() throws IOException {
     List<String> rows =
         java.util.stream.IntStream.rangeClosed(1, 32)
             .mapToObj(
@@ -143,7 +143,7 @@ class SonarRankCliTest {
   }
 
   @Test
-  void an_inventory_without_active_projects_has_nothing_to_rank() throws IOException {
+  void anInventoryWithoutActiveProjectsHasNothingToRank() throws IOException {
     Cli.Result r = rank(List.of("never-a,Never A,2000,,,,,,,,,,,,"));
 
     assertThat(r.exitCode()).isZero();
@@ -152,7 +152,7 @@ class SonarRankCliTest {
   }
 
   @Test
-  void active_projects_all_excluded_are_listed_as_such() throws IOException {
+  void activeProjectsAllExcludedAreListedAsSuch() throws IOException {
     Cli.Result r =
         rank(
             List.of(
@@ -164,7 +164,7 @@ class SonarRankCliTest {
   }
 
   @Test
-  void a_full_ranking_on_all_four_signals_has_no_partial_note() throws IOException {
+  void aFullRankingOnAllFourSignalsHasNoPartialNote() throws IOException {
     Cli.Result r =
         rank(
             List.of(
@@ -177,7 +177,7 @@ class SonarRankCliTest {
   }
 
   @Test
-  void colors_are_used_when_asked() throws IOException {
+  void colorsAreUsedWhenAsked() throws IOException {
     Cli.Result r = rank(INVENTORY, "--color", "always");
 
     assertThat(r.out())

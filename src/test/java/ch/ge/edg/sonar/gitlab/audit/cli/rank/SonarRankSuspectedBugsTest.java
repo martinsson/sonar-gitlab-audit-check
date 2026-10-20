@@ -62,15 +62,14 @@ class SonarRankSuspectedBugsTest {
   }
 
   @Test
-  void ellipsize_returns_at_most_max_characters() {
+  void ellipsizeReturnsAtMostMaxCharacters() {
     String cut = Text.ellipsize("abcdefghij", 6);
 
     assertThat(cut).isEqualTo("abc...").hasSize(6);
   }
 
   @Test
-  void a_project_with_too_few_signals_leaves_the_percentiles_of_its_stratum_alone()
-      throws IOException {
+  void aProjectWithTooFewSignalsLeavesThePercentilesOfItsStratumAlone() throws IOException {
     rank(
         List.of(
             "full,Full,2000,2026-06-01,3,1000,20,30,50,5,10,A,A,A,OK",
@@ -82,7 +81,7 @@ class SonarRankSuspectedBugsTest {
   }
 
   @Test
-  void a_project_with_too_few_signals_does_not_count_in_the_shortlist_quota() throws IOException {
+  void aProjectWithTooFewSignalsDoesNotCountInTheShortlistQuota() throws IOException {
     rank(
         List.of(
             "one,One,2000,2026-06-01,3,1000,20,30,50,5,10,A,A,A,OK",
@@ -97,8 +96,7 @@ class SonarRankSuspectedBugsTest {
   }
 
   @Test
-  void a_project_analysed_exactly_stale_days_ago_counts_as_active_as_its_label_says()
-      throws IOException {
+  void aProjectAnalysedExactlyStaleDaysAgoCountsAsActiveAsItsLabelSays() throws IOException {
     Cli.Result r = rank(List.of("ninety,Ninety,3000,2026-06-01,90,100,1,80,70,0,1,A,A,A,OK"));
 
     assertThat(r.out()).contains("Actifs (≤ 90 j)                 : 1 (100%)");

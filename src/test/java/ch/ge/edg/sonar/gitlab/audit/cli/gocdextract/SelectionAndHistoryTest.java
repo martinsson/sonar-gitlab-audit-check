@@ -40,7 +40,7 @@ class SelectionAndHistoryTest {
   }
 
   @Test
-  void named_pipelines_come_first_then_every_pipeline_of_the_named_groups() throws Exception {
+  void namedPipelinesComeFirstThenEveryPipelineOfTheNamedGroups() throws Exception {
     try (FakeHttpServer server = GocdFixtures.serve(new FakeHttpServer())) {
       Selection s =
           Selection.resolve(
@@ -58,7 +58,7 @@ class SelectionAndHistoryTest {
   }
 
   @Test
-  void an_unreadable_dashboard_stops_and_a_refused_token_says_so() throws IOException {
+  void anUnreadableDashboardStopsAndARefusedTokenSaysSo() throws IOException {
     try (FakeHttpServer server = new FakeHttpServer()) {
       server.on("/go/api/dashboard", r -> Response.status(500, "{}"));
       assertThatThrownBy(() -> Selection.resolve(gocd(server), List.of("a"), List.of(), err))
@@ -74,7 +74,7 @@ class SelectionAndHistoryTest {
   }
 
   @Test
-  void history_stops_at_the_first_run_older_than_the_window_without_a_word() throws Exception {
+  void historyStopsAtTheFirstRunOlderThanTheWindowWithoutAWord() throws Exception {
     try (FakeHttpServer server = new FakeHttpServer()) {
       server.json(
           "/go/api/pipelines/p/history",
@@ -89,7 +89,7 @@ class SelectionAndHistoryTest {
   }
 
   @Test
-  void a_run_without_date_is_kept() throws Exception {
+  void aRunWithoutDateIsKept() throws Exception {
     try (FakeHttpServer server = new FakeHttpServer()) {
       server.json("/go/api/pipelines/p/history", "{\"pipelines\":[{\"counter\":1}]}");
       assertThat(RunHistory.since(gocd(server), "p", Instant.ofEpochMilli(5), err)).hasSize(1);
@@ -97,7 +97,7 @@ class SelectionAndHistoryTest {
   }
 
   @Test
-  void an_unreadable_history_is_reported_and_extraction_goes_on() throws Exception {
+  void anUnreadableHistoryIsReportedAndExtractionGoesOn() throws Exception {
     try (FakeHttpServer server = new FakeHttpServer()) {
       server.on("/go/api/pipelines/p/history", r -> Response.status(403, "{}"));
       assertThat(RunHistory.since(gocd(server), "p", Instant.EPOCH, err)).isEmpty();
@@ -106,7 +106,7 @@ class SelectionAndHistoryTest {
   }
 
   @Test
-  void a_history_cut_after_some_pages_is_reported() throws Exception {
+  void aHistoryCutAfterSomePagesIsReported() throws Exception {
     try (FakeHttpServer server = new FakeHttpServer()) {
       String next = server.url() + "/go/api/pipelines/p/history?after=1";
       server.on(
@@ -123,7 +123,7 @@ class SelectionAndHistoryTest {
   }
 
   @Test
-  void a_refused_token_on_a_history_stops() throws IOException {
+  void aRefusedTokenOnAHistoryStops() throws IOException {
     try (FakeHttpServer server = new FakeHttpServer()) {
       server.on("/go/api/pipelines/p/history", r -> Response.status(401, "{}"));
       assertThatThrownBy(() -> RunHistory.since(gocd(server), "p", Instant.EPOCH, err))
@@ -132,7 +132,7 @@ class SelectionAndHistoryTest {
   }
 
   @Test
-  void a_missing_url_or_token_stops_before_any_call() {
+  void aMissingUrlOrTokenStopsBeforeAnyCall() {
     assertThatThrownBy(() -> Gocd.connect(null, "t", false, pause -> {}))
         .isInstanceOf(Stop.class)
         .hasMessage("GOCD_URL manquant");
@@ -142,7 +142,7 @@ class SelectionAndHistoryTest {
   }
 
   @Test
-  void the_url_may_end_with_go_and_the_token_goes_as_bearer() throws Exception {
+  void theUrlMayEndWithGoAndTheTokenGoesAsBearer() throws Exception {
     try (FakeHttpServer server = GocdFixtures.serve(new FakeHttpServer())) {
       Gocd gocd = Gocd.connect(" " + server.url() + "/go// ", " pat ", false, pause -> {});
       Selection.resolve(gocd, List.of(), List.of("hello"), err);

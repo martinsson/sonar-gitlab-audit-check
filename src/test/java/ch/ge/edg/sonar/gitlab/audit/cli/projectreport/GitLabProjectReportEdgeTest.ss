@@ -1,4 +1,4 @@
-╔═ a_bare_project_seen_anonymously ═╗
+╔═ aBareProjectSeenAnonymously ═╗
   Aucun jeton : lecture anonyme, projets publics seulement.
 
 === 1. Le projet ======================================================
@@ -26,14 +26,14 @@
 
   2 appels API.
 
-╔═ an_unknown_project_is_a_404_with_an_explanation ═╗
+╔═ anUnknownProjectIsA404WithAnExplanation ═╗
 Projet introuvable : team-a/alpha-service
   HTTP 404 — 404 Project Not Found
 404 ne distingue pas « n'existe pas » de « pas de droit de lecture » :
 GitLab masque les projets privés. Vérifier le chemin, puis la portée
 du jeton (read_api) et l'accès au projet.
 
-╔═ bots_only ═╗
+╔═ botsOnly ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -65,7 +65,7 @@ du jeton (read_api) et l'accès au projet.
 
   3 appels API.
 
-╔═ caps_are_reported_and_the_window_shrinks_to_what_was_read ═╗
+╔═ capsAreReportedAndTheWindowShrinksToWhatWasRead ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -121,7 +121,7 @@ du jeton (read_api) et l'accès au projet.
 
   4 appels API.
 
-╔═ commits_without_stats_or_dates ═╗
+╔═ commitsWithoutStatsOrDates ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -162,7 +162,7 @@ du jeton (read_api) et l'accès au projet.
 
   4 appels API.
 
-╔═ merge_commits_only ═╗
+╔═ mergeCommitsOnly ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -189,7 +189,7 @@ du jeton (read_api) et l'accès au projet.
 
   3 appels API.
 
-╔═ merged_requests_without_merger_cannot_say_who_merged ═╗
+╔═ mergedRequestsWithoutMergerCannotSayWhoMerged ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -244,7 +244,7 @@ du jeton (read_api) et l'accès au projet.
 
   6 appels API.
 
-╔═ one_person_with_several_addresses_and_names ═╗
+╔═ onePersonWithSeveralAddressesAndNames ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -299,7 +299,7 @@ du jeton (read_api) et l'accès au projet.
 
   4 appels API.
 
-╔═ refused_commits_and_merge_requests_are_said ═╗
+╔═ refusedCommitsAndMergeRequestsAreSaid ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -324,7 +324,7 @@ du jeton (read_api) et l'accès au projet.
 
   3 appels API.
 
-╔═ refused_notes_stop_the_sample_at_the_first_refusal ═╗
+╔═ refusedNotesStopTheSampleAtTheFirstRefusal ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
