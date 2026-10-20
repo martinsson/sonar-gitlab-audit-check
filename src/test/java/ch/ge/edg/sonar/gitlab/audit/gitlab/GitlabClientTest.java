@@ -265,7 +265,7 @@ class GitlabClientTest {
   }
 
   @Test
-  void dumpFileNamesAreCutAt120Characters() throws Exception {
+  void dumpFileNamesAreCutAt120CharactersThenGetTheirExtension() throws Exception {
     String path = "projects/" + "a".repeat(200);
     server.json("/api/v4/" + path, "{}");
     Gitlab gl = new Gitlab(server.url(), "t", 5, false, tmp);
@@ -273,7 +273,7 @@ class GitlabClientTest {
     try (var files = Files.list(tmp)) {
       List<String> names = files.map(p -> p.getFileName().toString()).toList();
       assertThat(names)
-          .containsExactly(("0001-api_v4_projects_" + "a".repeat(200)).substring(0, 120));
+          .containsExactly(("0001-api_v4_projects_" + "a".repeat(200)).substring(0, 120) + ".json");
     }
   }
 
