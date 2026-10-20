@@ -7,9 +7,9 @@
 //DEPS org.jspecify:jspecify:1.0.0
 //SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/**/*.java
 
-// Entry point for `jbang SonarRank.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/SonarRank.java.
+// Entry point for `jbang SonarRank.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/rank/SonarRank.java.
 public class SonarRank {
     public static void main(String[] args) {
-        ch.ge.edg.sonar.gitlab.audit.cli.SonarRank.main(args);
+        ch.ge.edg.sonar.gitlab.audit.cli.rank.SonarRank.main(args);
     }
 }

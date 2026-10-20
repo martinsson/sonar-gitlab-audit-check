@@ -1,13 +1,8 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.rank.Bucket;
-import ch.ge.edg.sonar.gitlab.audit.cli.rank.InventoryRow;
-import ch.ge.edg.sonar.gitlab.audit.cli.rank.RankReport;
-import ch.ge.edg.sonar.gitlab.audit.cli.rank.Signal;
-import ch.ge.edg.sonar.gitlab.audit.cli.rank.VelocityRanking;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;

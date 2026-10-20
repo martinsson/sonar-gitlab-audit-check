@@ -1,8 +1,5 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.rank.InventoryRow;
-import ch.ge.edg.sonar.gitlab.audit.cli.rank.RankSettings;
-import ch.ge.edg.sonar.gitlab.audit.cli.rank.Ranking;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import java.io.IOException;
 import java.io.PrintStream;

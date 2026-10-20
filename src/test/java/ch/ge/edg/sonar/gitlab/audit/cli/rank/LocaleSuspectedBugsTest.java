@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
