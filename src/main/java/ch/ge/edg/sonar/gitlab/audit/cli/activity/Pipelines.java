@@ -13,6 +13,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 
 /** Les pipelines de la branche par défaut : volume, taux de succès, temps de retour au vert. */
 final class Pipelines {
@@ -25,25 +26,23 @@ final class Pipelines {
     this.funnel = funnel;
   }
 
-  void measure(Proj p, Prat r) {
+  Practices.Builds measure(GitlabProject p) {
     Gitlab.Response pl =
         gl.get(
-            "projects/" + p.id + "/pipelines",
+            "projects/" + p.id() + "/pipelines",
             params(
                 "ref",
-                p.defaultBranch,
+                p.defaultBranch(),
                 "updated_after",
                 iso(funnel.windowStart()),
                 "per_page",
                 "100"));
     JsonNode arr = pl.json();
-    if (pl.status() != 200 || !arr.isArray()) return;
+    if (pl.status() != 200 || !arr.isArray()) return Practices.Builds.none();
     int n = arr.size();
     int ok = 0;
     for (JsonNode x : arr) if ("success".equals(text(x, "status"))) ok++;
-    r.pipelines = n;
-    r.pipelineSuccess = n == 0 ? null : (double) ok / n;
-    recovery(arr, r);
+    return new Practices.Builds(n, n == 0 ? null : (double) ok / n, recovery(arr));
   }
 
   private record Run(OffsetDateTime at, boolean red, boolean green) {}
@@ -61,9 +60,9 @@ final class Pipelines {
    * cherche à voir. Les états ni verts ni rouges — annulé, ignoré, en cours, manuel — ne cassent ni
    * ne réparent : ils sont sautés plutôt que lus comme une fin de panne.
    */
-  static void recovery(JsonNode arr, Prat r) {
+  static Practices.@Nullable Recovery recovery(JsonNode arr) {
     List<Run> runs = runs(arr);
-    if (runs.isEmpty()) return;
+    if (runs.isEmpty()) return null;
 
     List<Double> hours = new ArrayList<>();
     int incidents = 0;
@@ -77,11 +76,9 @@ final class Pipelines {
         brokenSince = null;
       }
     }
-    r.redIncidents = incidents;
     // Toujours rouge à la fin de la fenêtre : l'incident est réel, sa durée
     // ne l'est pas encore. On le compte sans lui inventer un retour au vert.
-    r.unresolvedRed = brokenSince != null ? 1 : 0;
-    r.recoveryMedianHours = median(hours);
+    return new Practices.Recovery(incidents, brokenSince != null ? 1 : 0, median(hours));
   }
 
   /** Les seuls pipelines verts ou rouges, datés, dans l'ordre chronologique. */

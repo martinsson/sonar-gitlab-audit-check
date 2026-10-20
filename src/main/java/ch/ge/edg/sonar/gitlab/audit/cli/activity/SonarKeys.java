@@ -50,7 +50,7 @@ final class SonarKeys {
    * prédéfinies de GitLab se calculent ici, sans un appel de plus, et la clé résolue est celle que
    * le scanner a réellement envoyée.
    */
-  static void ciKey(CiConfig.Ci ci, Proj p, CiFacts f) {
+  static void ciKey(CiConfig.Ci ci, GitlabProject p, CiFacts f) {
     String firstUnresolved = null;
     for (Pattern pat : SONAR_KEY_CI) {
       Matcher m = pat.matcher(ci.yaml());
@@ -81,8 +81,8 @@ final class SonarKeys {
    * dur — se lirait « clé inconnue » sur tout le parc, alors que c'est précisément le cas où elle
    * est calculable.
    */
-  static String expandPredefined(String raw, Proj p) {
-    String path = orEmpty(p.path);
+  static String expandPredefined(String raw, GitlabProject p) {
+    String path = orEmpty(p.path());
     String out = raw;
     // CI_PROJECT_NAME est le répertoire du dépôt — le dernier segment du
     // chemin —, pas le nom affiché : celui-là est CI_PROJECT_TITLE.
@@ -93,12 +93,12 @@ final class SonarKeys {
     // Un Map.of, sans ordre, remplaçait parfois le court en premier.
     for (var e :
         List.of(
-            Map.entry("CI_PROJECT_PATH_SLUG", slug(p.path)),
-            Map.entry("CI_PROJECT_NAMESPACE", orEmpty(p.namespace)),
-            Map.entry("CI_PROJECT_TITLE", orEmpty(p.name)),
+            Map.entry("CI_PROJECT_PATH_SLUG", slug(p.path())),
+            Map.entry("CI_PROJECT_NAMESPACE", orEmpty(p.namespace())),
+            Map.entry("CI_PROJECT_TITLE", orEmpty(p.name())),
             Map.entry("CI_PROJECT_NAME", path.substring(path.lastIndexOf('/') + 1)),
             Map.entry("CI_PROJECT_PATH", path),
-            Map.entry("CI_PROJECT_ID", String.valueOf(p.id)))) {
+            Map.entry("CI_PROJECT_ID", String.valueOf(p.id())))) {
       out =
           out.replace("${" + e.getKey() + "}", e.getValue())
               .replace("$" + e.getKey(), e.getValue());

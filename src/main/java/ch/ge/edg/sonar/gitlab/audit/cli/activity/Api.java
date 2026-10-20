@@ -36,10 +36,11 @@ final class Api {
   }
 
   /** Les commits de la branche par défaut depuis le début de la fenêtre, une page de cent. */
-  static Map<String, String> commitPage(Proj p, OffsetDateTime since, int page, boolean stats) {
+  static Map<String, String> commitPage(
+      GitlabProject p, OffsetDateTime since, int page, boolean stats) {
     return params(
         "ref_name",
-        p.defaultBranch,
+        p.defaultBranch(),
         "since",
         Fmt.iso(since),
         "with_stats",

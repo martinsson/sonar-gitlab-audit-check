@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.OffsetDateTime;
 import java.util.Locale;
 import java.util.Objects;
 import org.junit.jupiter.api.AfterEach;
@@ -29,73 +28,8 @@ class GitlabActivityAuditModelTest {
     Locale.setDefault(saved);
   }
 
-  private static Proj proj(String json) throws Exception {
-    return Proj.of(Gitlab.MAPPER.readTree(json));
-  }
-
-  @Test
-  void projReadsEveryField() throws Exception {
-    Proj p =
-        proj(
-            "{\"id\":7,\"path_with_namespace\":\"team-a/alpha\",\"name\":\"Alpha\","
-                + "\"namespace\":{\"full_path\":\"team-a\"},\"default_branch\":\"main\","
-                + "\"visibility\":\"internal\",\"created_at\":\"2020-01-01T00:00:00Z\","
-                + "\"last_activity_at\":\"2099-01-01T00:00:00Z\",\"archived\":true,"
-                + "\"empty_repo\":true,\"mirror\":true,"
-                + "\"forked_from_project\":{\"path_with_namespace\":\"up/alpha\"},"
-                + "\"statistics\":{\"commit_count\":12,\"repository_size\":3400}}");
-    assertThat(p.id).isEqualTo(7);
-    assertThat(p.path).isEqualTo("team-a/alpha");
-    assertThat(p.name).isEqualTo("Alpha");
-    assertThat(p.namespace).isEqualTo("team-a");
-    assertThat(p.defaultBranch).isEqualTo("main");
-    assertThat(p.visibility).isEqualTo("internal");
-    assertThat(p.created).isEqualTo(OffsetDateTime.parse("2020-01-01T00:00:00Z"));
-    assertThat(p.lastActivity).isEqualTo(OffsetDateTime.parse("2099-01-01T00:00:00Z"));
-    assertThat(p.archived).isTrue();
-    assertThat(p.emptyRepo).isTrue();
-    assertThat(p.mirror).isTrue();
-    assertThat(p.forkedFrom).isEqualTo("up/alpha");
-    assertThat(p.totalCommits).isEqualTo(12L);
-    assertThat(p.repoSize).isEqualTo(3400L);
-  }
-
-  @Test
-  void projToleratesMissingFields() throws Exception {
-    Proj p = proj("{\"forked_from_project\":null,\"statistics\":{\"commit_count\":null}}");
-    assertThat(p.id).isZero();
-    assertThat(p.path).isEmpty();
-    assertThat(p.namespace).isEmpty();
-    assertThat(p.defaultBranch).isEmpty();
-    assertThat(p.created).isNull();
-    assertThat(p.archived).isFalse();
-    assertThat(p.forkedFrom).isNull();
-    assertThat(p.totalCommits).isNull();
-    assertThat(p.repoSize).isNull();
-    assertThat(proj("{\"forked_from_project\":{}}").forkedFrom).isNull();
-  }
-
-  @Test
-  void perWeekNeedsCommitsAndAWindow() throws Exception {
-    Proj p = proj("{}");
-    assertThat(p.perWeek(7)).isZero();
-    p.commits = 14;
-    assertThat(p.perWeek(7)).isEqualTo(14.0);
-    assertThat(p.perWeek(28)).isEqualTo(3.5);
-    assertThat(p.perWeek(0)).isZero();
-    assertThat(p.perWeek(-1)).isZero();
-  }
-
-  @Test
-  void anEmptyProjRowKeepsUnknownsBlank() throws Exception {
-    assertThat(String.join("|", proj("{}").row(90)))
-        .isEqualTo("0||||||||false|false|false||||||||||||false||false|false|");
-  }
-
-  @Test
-  void anEmptyPratRowKeepsUnknownsBlank() throws Exception {
-    assertThat(String.join("|", proj("{}").pratRow(30)))
-        .isEqualTo("|||||false|false|0||0||||0|0|||||||false|false|false||||0|30|||false||");
+  private static AuditedProject audited(String json) throws Exception {
+    return AuditedProject.entering(GitlabProject.of(Gitlab.MAPPER.readTree(json)));
   }
 
   @Test
@@ -159,37 +93,21 @@ class GitlabActivityAuditModelTest {
   @Test
   void ciFactsPreferTheUnresolvedKeyAsSource() {
     CiFacts f = new CiFacts();
-    f.ciSonar = true;
-    f.ciSecurity = true;
-    f.sonarKey = "k";
     f.keySource = "ci/lint";
-    f.pomKey = "g:a";
-    f.pomName = "A";
-    f.pomUnresolved = "${x}:a";
-    Prat r = new Prat();
-    f.applyTo(r);
-    assertThat(r.ciSonar).isTrue();
-    assertThat(r.ciSecurity).isTrue();
-    assertThat(r.sonarKey).isEqualTo("k");
-    assertThat(r.sonarKeySource).isEqualTo("ci/lint");
-    assertThat(r.pomKey).isEqualTo("g:a");
-    assertThat(r.pomName).isEqualTo("A");
-    assertThat(r.pomUnresolved).isEqualTo("${x}:a");
+    assertThat(f.shownKeySource()).isEqualTo("ci/lint");
     f.unresolvedKey = "$K";
-    f.applyTo(r);
-    assertThat(r.sonarKeySource).isEqualTo("variable non résolue : $K");
+    assertThat(f.shownKeySource()).isEqualTo("variable non résolue : $K");
   }
 
   @Test
   void cacheKeyIsTheHeadOrTheLastActivity() throws Exception {
     SonarCache c = new SonarCache(tmp.resolve("c.json"), true, System.err);
-    Proj p = proj("{\"id\":3,\"last_activity_at\":\"2099-01-01T00:00:00Z\"}");
+    AuditedProject p = audited("{\"id\":3,\"last_activity_at\":\"2099-01-01T00:00:00Z\"}");
     assertThat(c.keyFor(p)).isEqualTo("3@act:2099-01-01T00:00Z");
-    p.headSha = " ";
-    assertThat(c.keyFor(p)).isEqualTo("3@act:2099-01-01T00:00Z");
-    p.headSha = "abc";
-    assertThat(c.keyFor(p)).isEqualTo("3@abc");
-    assertThat(c.keyFor(proj("{\"id\":4}"))).isEqualTo("4@act:");
+    assertThat(c.keyFor(p.with(new CommitMeasure.Head(null, " "))))
+        .isEqualTo("3@act:2099-01-01T00:00Z");
+    assertThat(c.keyFor(p.with(new CommitMeasure.Head(null, "abc")))).isEqualTo("3@abc");
+    assertThat(c.keyFor(audited("{\"id\":4}"))).isEqualTo("4@act:");
   }
 
   @Test

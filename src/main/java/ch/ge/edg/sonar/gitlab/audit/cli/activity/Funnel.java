@@ -6,8 +6,8 @@ import java.util.regex.Pattern;
 
 /**
  * Les réglages de l'entonnoir pour cette course : les options, maintenant, le début de la fenêtre
- * et le motif des robots. Rien ici ne change en cours de route ; les effectifs vont dans {@link
- * Counters}, l'instance et l'écran sont passés à part.
+ * et le motif des robots. Rien ici ne change en cours de route ; les effectifs se comptent sur
+ * {@link FunnelResult}, l'instance et l'écran sont passés à part.
  *
  * @param now l'instant de la course, dans le fuseau de l'horloge
  * @param windowStart {@code now} moins --since jours

@@ -35,6 +35,7 @@ final class CommitTally {
   private int merges;
   private int reverts;
   private @Nullable OffsetDateTime newest;
+  private @Nullable String first;
 
   CommitTally(OffsetDateTime windowStart, Pattern bots) {
     this.windowStart = windowStart;
@@ -42,6 +43,9 @@ final class CommitTally {
   }
 
   void add(JsonNode c) {
+    // Les commits arrivent du plus récent au plus ancien : le premier est la
+    // tête de la branche par défaut, repli d'index de cache sans GraphQL.
+    if (first == null) first = text(c, "id");
     String email = text(c, "author_email");
     String name = text(c, "author_name");
     if (Gitlab.isBot(bots, email, name)) {
@@ -59,14 +63,16 @@ final class CommitTally {
     }
   }
 
-  void applyTo(Proj p, boolean truncated) {
-    p.commits = human;
-    p.commitsBots = bot;
-    p.reverts = reverts;
-    p.authors = authors.size();
-    p.mergeCommits = merges;
-    p.activeDays = days.size();
-    p.truncated = truncated;
-    if (p.lastCommit == null) p.lastCommit = newest;
+  /** Le compte, la tête de GraphQL complétée par ce que la pagination a vu. */
+  CommitMeasure.Counted result(CommitMeasure.Head dated, boolean truncated) {
+    OffsetDateTime last = dated.lastCommit();
+    String sha = dated.sha();
+    CommitMeasure.Head head =
+        new CommitMeasure.Head(
+            last != null ? last : newest, Fmt.isBlank(sha) && first != null ? first : sha);
+    return new CommitMeasure.Counted(
+        head,
+        new CommitMeasure.Volume(human, bot, authors.size(), merges, days.size(), reverts),
+        truncated);
   }
 }

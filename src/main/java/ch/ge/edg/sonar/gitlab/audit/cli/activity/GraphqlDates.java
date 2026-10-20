@@ -1,10 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.parse;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 
@@ -22,41 +23,54 @@ final class GraphqlDates {
   private static final int BATCH = 50;
 
   private final Gitlab gl;
-  private final Screen con;
-  private final Counters counters;
 
-  GraphqlDates(Gitlab gl, Screen con, Counters counters) {
+  GraphqlDates(Gitlab gl) {
     this.gl = gl;
-    this.con = con;
-    this.counters = counters;
   }
 
-  /** Le nombre de projets datés, ou -1 quand GraphQL est indisponible dès le premier lot. */
-  int date(List<Proj> fresh) {
-    int done = 0;
+  /**
+   * Ce que GraphQL a daté.
+   *
+   * @param heads une tête par projet demandé, dans l'ordre, inconnue quand il ne l'a pas datée
+   * @param calls les requêtes GraphQL envoyées
+   * @param available faux quand GraphQL est indisponible dès le premier lot
+   */
+  record Dating(List<CommitMeasure.Head> heads, int calls, boolean available) {
+
+    /** Les projets datés. */
+    long dated() {
+      return heads.stream().filter(h -> h.lastCommit() != null).count();
+    }
+  }
+
+  Dating date(List<AuditedProject> fresh) {
+    List<CommitMeasure.Head> heads = new ArrayList<>();
+    int calls = 0;
     for (int i = 0; i < fresh.size(); i += BATCH) {
-      List<Proj> batch = fresh.subList(i, Math.min(i + BATCH, fresh.size()));
-      counters.graphqlCalls++;
+      List<AuditedProject> batch = fresh.subList(i, Math.min(i + BATCH, fresh.size()));
+      calls++;
       JsonNode data = data(gl.graphql(query(batch)));
       if (data == null) {
-        if (i == 0) {
-          con.say("  GraphQL indisponible sur cette instance — repli REST.", DIM);
-          return -1;
-        }
+        if (i == 0) return new Dating(unknown(fresh.size()), calls, false);
         break; // partiel : les projets non datés passeront par REST
       }
-      done += apply(batch, data);
+      heads.addAll(heads(batch.size(), data));
     }
-    return done;
+    heads.addAll(unknown(fresh.size() - heads.size()));
+    return new Dating(heads, calls, true);
   }
 
-  private static String query(List<Proj> batch) {
+  private static List<CommitMeasure.Head> unknown(int n) {
+    return Collections.nCopies(n, CommitMeasure.Head.unknown());
+  }
+
+  private static String query(List<AuditedProject> batch) {
     StringBuilder q = new StringBuilder("{");
     for (int j = 0; j < batch.size(); j++) {
       q.append("p")
           .append(j)
           .append(":project(fullPath:\"")
-          .append(batch.get(j).path.replace("\"", "\\\""))
+          .append(batch.get(j).project().path().replace("\"", "\\\""))
           .append("\"){repository{rootRef tree{lastCommit{sha committedDate}}}} ");
     }
     return q.append("}").toString();
@@ -70,20 +84,21 @@ final class GraphqlDates {
     return data.isMissingNode() || json.has("errors") ? null : data;
   }
 
-  private static int apply(List<Proj> batch, JsonNode data) {
-    int done = 0;
-    for (int j = 0; j < batch.size(); j++) {
+  private static List<CommitMeasure.Head> heads(int size, JsonNode data) {
+    List<CommitMeasure.Head> heads = new ArrayList<>();
+    for (int j = 0; j < size; j++) {
       JsonNode last = data.path("p" + j).path("repository").path("tree").path("lastCommit");
       JsonNode n = last.path("committedDate");
       if (n.isTextual()) {
-        batch.get(j).lastCommit = parse(n.asText());
         // Le SHA de tête indexe le cache des clés Sonar : il ne coûte
         // rien de plus ici, et c'est le seul index qui n'invalide
         // jamais dans le mauvais sens.
-        if (last.path("sha").isTextual()) batch.get(j).headSha = last.path("sha").asText();
-        done++;
+        JsonNode sha = last.path("sha");
+        heads.add(new CommitMeasure.Head(parse(n.asText()), sha.isTextual() ? sha.asText() : null));
+      } else {
+        heads.add(CommitMeasure.Head.unknown());
       }
     }
-    return done;
+    return heads;
   }
 }

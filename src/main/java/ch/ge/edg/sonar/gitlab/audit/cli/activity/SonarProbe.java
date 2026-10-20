@@ -20,13 +20,11 @@ final class SonarProbe {
       List.of(".gitlab-ci.yml", "README.md", "CODEOWNERS", "Dockerfile", "renovate.json");
 
   private final Gitlab gl;
-  private final Counters counters;
   private final SonarCache cache;
   private final CiConfig ci;
 
-  SonarProbe(Gitlab gl, Counters counters, SonarCache cache, CiConfig ci) {
+  SonarProbe(Gitlab gl, SonarCache cache, CiConfig ci) {
     this.gl = gl;
-    this.counters = counters;
     this.cache = cache;
     this.ci = ci;
   }
@@ -36,17 +34,19 @@ final class SonarProbe {
    * Cinq sondes HEAD par projet — une par fichier — répondaient à la même question pour cinq fois
    * le prix.
    */
-  void measure(Proj p, Prat r) {
-    Set<String> root = rootEntries(p);
-    for (String f : WATCHED) if (root.contains(f)) r.files.add(f);
-    sonar(p, r, root);
+  Practices.Sonar measure(AuditedProject a) {
+    Set<String> root = rootEntries(a.project());
+    List<String> files = WATCHED.stream().filter(root::contains).toList();
+    CiFacts hit = cache.get(cache.keyFor(a));
+    if (hit != null) return new Practices.Sonar(files, hit, true);
+    return new Practices.Sonar(files, sonar(a, root), false);
   }
 
   /** Noms des entrées à la racine de la branche par défaut, en un appel. */
-  private Set<String> rootEntries(Proj p) {
+  private Set<String> rootEntries(GitlabProject p) {
     Set<String> names = new TreeSet<>();
     for (JsonNode e :
-        gl.paged("projects/" + p.id + "/repository/tree", params("ref", p.defaultBranch))) {
+        gl.paged("projects/" + p.id() + "/repository/tree", params("ref", p.defaultBranch()))) {
       names.add(text(e, "name"));
     }
     return names;
@@ -60,14 +60,8 @@ final class SonarProbe {
    * GitLab ne peut que redonner la même réponse. C'est la seule partie de l'audit dont la réponse
    * est stable entre deux exécutions — le reste est fenêtré, donc périmé par construction.
    */
-  private void sonar(Proj p, Prat r, Set<String> root) {
-    String key = cache.keyFor(p);
-    CiFacts hit = cache.get(key);
-    if (hit != null) {
-      hit.applyTo(r);
-      counters.ciFromCacheN.incrementAndGet();
-      return;
-    }
+  private CiFacts sonar(AuditedProject a, Set<String> root) {
+    GitlabProject p = a.project();
     CiFacts f = new CiFacts();
     // sonar-project.properties porte la clé littérale quand il existe :
     // c'est la source la moins ambiguë, et elle coûte un appel.
@@ -79,11 +73,11 @@ final class SonarProbe {
     // Lu même quand la CI donne une clé : c'est une seconde méthode de
     // jointure, notée à part, et le <name> du pom est le nom affiché.
     if (root.contains("pom.xml")) pom(p, f);
-    cache.put(key, f);
-    f.applyTo(r);
+    cache.put(cache.keyFor(a), f);
+    return f;
   }
 
-  private void properties(Proj p, CiFacts f) {
+  private void properties(GitlabProject p, CiFacts f) {
     String body = raw(p, "sonar-project.properties");
     if (body == null) return;
     f.sonarKey = SonarKeys.firstMatch(SonarKeys.SONAR_KEY_PROP, body);
@@ -91,7 +85,7 @@ final class SonarProbe {
     f.ciSonar = true;
   }
 
-  private void pipeline(Proj p, CiFacts f) {
+  private void pipeline(GitlabProject p, CiFacts f) {
     CiConfig.Ci yaml = ci.read(p);
     if (yaml == null) return;
     f.ciRoute = yaml.route();
@@ -104,7 +98,7 @@ final class SonarProbe {
     if (f.sonarKey == null) SonarKeys.ciKey(yaml, p, f);
   }
 
-  private void pom(Proj p, CiFacts f) {
+  private void pom(GitlabProject p, CiFacts f) {
     String body = raw(p, "pom.xml");
     Pom read = body == null ? null : Pom.parse(body);
     if (read == null) return;
@@ -114,11 +108,11 @@ final class SonarProbe {
   }
 
   /** Le contenu d'un fichier de la branche par défaut, ou null s'il ne se lit pas. */
-  private @Nullable String raw(Proj p, String file) {
+  private @Nullable String raw(GitlabProject p, String file) {
     Gitlab.Response r =
         gl.get(
-            "projects/" + p.id + "/repository/files/" + enc(file) + "/raw",
-            Map.of("ref", p.defaultBranch));
+            "projects/" + p.id() + "/repository/files/" + enc(file) + "/raw",
+            Map.of("ref", p.defaultBranch()));
     return r.status() == 200 ? r.body() : null;
   }
 }

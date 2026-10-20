@@ -8,20 +8,30 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /** Ce que la passe profonde affiche : les routes de lecture de la CI, et la couverture. */
 final class DeepReport {
 
   private final Screen con;
-  private final Counters counters;
-  private final List<Proj> selected;
+  private final List<Assessed> selected;
 
-  DeepReport(Screen con, Counters counters, List<Proj> selected) {
+  DeepReport(Screen con, List<Assessed> selected) {
     this.con = con;
-    this.counters = counters;
     this.selected = selected;
+  }
+
+  /** Avant la passe : combien de projets elle va sonder. */
+  static void begin(Screen con, int selected) {
+    con.title("6. Signaux de pratique sur les %d sélectionnés".formatted(selected));
+  }
+
+  /** pratiques.csv vient d'être écrit. */
+  void written() {
+    con.out().out().printf("%n  Pratiques : %d lignes.%n", selected.size());
   }
 
   /**
@@ -31,11 +41,15 @@ final class DeepReport {
    * sous-compte. Le taux de repli est donc une réserve sur la mesure, pas une statistique
    * d'exécution.
    */
-  void ciRoutes() {
-    Counters n = counters;
-    int cached = n.ciFromCacheN.get();
-    int lint = n.ciByLintN.get();
-    int back = n.ciByFallbackN.get();
+  void ciRoutes(int lintRefusedStatus) {
+    Map<String, Long> byRoute =
+        selected.stream()
+            .map(a -> a.practices().sonar().ciRoute())
+            .filter(Objects::nonNull)
+            .collect(Collectors.groupingBy(r -> r, Collectors.counting()));
+    long cached = byRoute.getOrDefault(Practices.Sonar.CACHE, 0L);
+    long lint = byRoute.getOrDefault(CiConfig.LINT, 0L);
+    long back = byRoute.getOrDefault(CiConfig.FALLBACK, 0L);
     if (cached + lint + back > 0) {
       con.out()
           .out()
@@ -43,10 +57,10 @@ final class DeepReport {
               "%n  CI lue : %d par ci/lint, %d par repli, %d depuis le cache.%n",
               lint, back, cached);
     }
-    if (back > 0 && n.lintRefusedStatus > 0) {
+    if (back > 0 && lintRefusedStatus > 0) {
       con.say(
           "    ci/lint refusé (HTTP %d) : le jeton n'a pas le droit de "
-              .formatted(n.lintRefusedStatus),
+              .formatted(lintRefusedStatus),
           YELLOW);
       con.say("    déplier la configuration. Le repli ne suit que les includes", YELLOW);
       con.say("    « project: » qu'il sait lire — ci_sonar y sous-compte. D'un", YELLOW);
@@ -60,9 +74,9 @@ final class DeepReport {
    * qui apparie le composant Sonar partagé quand project_key est laissé vide.
    */
   private void mavenKeys() {
-    long pom = count(r -> r.pomKey != null);
-    long pomVar = count(r -> r.pomUnresolved != null);
-    long both = count(r -> r.pomKey != null && r.sonarKey != null);
+    long pom = count(r -> r.sonar().facts().pomKey != null);
+    long pomVar = count(r -> r.sonar().facts().pomUnresolved != null);
+    long both = count(r -> r.sonar().facts().pomKey != null && r.sonar().facts().sonarKey != null);
     con.out()
         .out()
         .printf(
@@ -76,8 +90,8 @@ final class DeepReport {
     }
   }
 
-  private long count(Predicate<Prat> test) {
-    return selected.stream().filter(p -> test.test(p.prat)).count();
+  private long count(Predicate<Practices> test) {
+    return selected.stream().filter(p -> test.test(p.practices())).count();
   }
 
   /**
@@ -86,34 +100,42 @@ final class DeepReport {
    * pratiques.
    */
   void coverage() {
-    List<Proj> core = selected.stream().filter(p -> !isWitness(p)).toList();
-    List<Proj> witness = selected.stream().filter(DeepReport::isWitness).toList();
+    List<Assessed> core = selected.stream().filter(p -> !isWitness(p)).toList();
+    List<Assessed> witness = selected.stream().filter(DeepReport::isWitness).toList();
 
     con.out().out().printf("%n  %-38s %12s %12s%n", "", "sélection", "témoin");
-    row("Branche par défaut protégée", core, witness, r -> r.defaultProtected);
-    row("Au moins une MR fusionnée", core, witness, r -> r.mergedMrs > 0);
-    row("Pipelines sur la branche par défaut", core, witness, r -> r.pipelines > 0);
-    row("CI configurée pour Sonar", core, witness, r -> r.ciSonar);
-    row("Scan de sécurité dans la CI", core, witness, r -> r.ciSecurity);
-    row("CODEOWNERS présent", core, witness, r -> r.files.contains("CODEOWNERS"));
+    row("Branche par défaut protégée", core, witness, r -> r.protection().defaultProtected());
+    row("Au moins une MR fusionnée", core, witness, r -> r.review().mergedMrs() > 0);
+    row("Pipelines sur la branche par défaut", core, witness, r -> r.builds().pipelines() > 0);
+    row("CI configurée pour Sonar", core, witness, r -> r.sonar().facts().ciSonar);
+    row("Scan de sécurité dans la CI", core, witness, r -> r.sonar().facts().ciSecurity);
+    row("CODEOWNERS présent", core, witness, r -> r.sonar().files().contains("CODEOWNERS"));
     row(
         "Aucun environnement déclaré",
         core,
         witness,
-        r -> r.environments != null && r.environments == 0);
+        r -> {
+          Integer environments = r.deployment().environments();
+          return environments != null && environments == 0;
+        });
 
     recovery(core);
     reverts(core);
     unreviewed(core);
   }
 
-  private static boolean isWitness(Proj p) {
-    return p.selectionReason.startsWith("témoin");
+  private static boolean isWitness(Assessed p) {
+    return p.audited().fate() instanceof Fate.Selected s && s.isWitness();
   }
 
-  private void recovery(List<Proj> core) {
+  private void recovery(List<Assessed> core) {
     List<Double> recoveries =
-        core.stream().map(p -> p.prat.recoveryMedianHours).filter(Objects::nonNull).toList();
+        core.stream()
+            .map(p -> p.practices().builds().recovery())
+            .filter(Objects::nonNull)
+            .map(Practices.Recovery::medianHours)
+            .filter(Objects::nonNull)
+            .toList();
     if (recoveries.isEmpty()) return;
     con.out()
         .out()
@@ -126,10 +148,12 @@ final class DeepReport {
     con.say("    n'est datable, et rien ici ne s'y substitue.", DIM);
   }
 
-  private void reverts(List<Proj> core) {
-    long reverting = core.stream().filter(p -> p.reverts != null && p.reverts > 0).count();
+  private void reverts(List<Assessed> core) {
+    List<Integer> counts =
+        core.stream().map(p -> p.audited().commits().reverts()).filter(Objects::nonNull).toList();
+    long reverting = counts.stream().filter(n -> n > 0).count();
     if (reverting == 0) return;
-    int total = core.stream().mapToInt(p -> p.reverts == null ? 0 : p.reverts).sum();
+    int total = counts.stream().mapToInt(Integer::intValue).sum();
     con.out()
         .out()
         .printf(
@@ -138,9 +162,12 @@ final class DeepReport {
     con.say("    Signal de qualité direct, indépendant de Sonar et des " + "environnements.", DIM);
   }
 
-  private void unreviewed(List<Proj> core) {
+  private void unreviewed(List<Assessed> core) {
     long noReview =
-        core.stream().filter(p -> p.prat.mergedMrs == 0 && p.commitsOrZero() >= 20).count();
+        core.stream()
+            .filter(
+                p -> p.practices().review().mergedMrs() == 0 && p.audited().commitsOrZero() >= 20)
+            .count();
     if (noReview == 0) return;
     con.out()
         .out()
@@ -150,7 +177,8 @@ final class DeepReport {
     con.say("    Le changement atteint la branche par défaut sans revue.", YELLOW);
   }
 
-  private void row(String label, List<Proj> core, List<Proj> witness, Predicate<Prat> test) {
+  private void row(
+      String label, List<Assessed> core, List<Assessed> witness, Predicate<Practices> test) {
     con.out()
         .out()
         .printf(
@@ -158,8 +186,8 @@ final class DeepReport {
             label, share(core, test), witness.isEmpty() ? "—" : share(witness, test));
   }
 
-  private static String share(List<Proj> ps, Predicate<Prat> test) {
-    long n = ps.stream().filter(p -> test.test(p.prat)).count();
+  private static String share(List<Assessed> ps, Predicate<Practices> test) {
+    long n = ps.stream().filter(p -> test.test(p.practices())).count();
     return "%d (%s)".formatted(n, pct(n, ps.size()));
   }
 }
