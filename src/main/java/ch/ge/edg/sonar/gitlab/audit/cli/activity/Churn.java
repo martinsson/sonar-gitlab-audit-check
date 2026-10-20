@@ -30,17 +30,15 @@ final class Churn {
     this.funnel = funnel;
   }
 
-  static void measure(Gitlab gl, Funnel funnel, GitlabProject p, Prat r) {
-    new Churn(gl, funnel).run(p, r);
+  static Practices.Lines measure(Gitlab gl, Funnel funnel, GitlabProject p) {
+    return new Churn(gl, funnel).run(p);
   }
 
-  private void run(GitlabProject p, Prat r) {
+  private Practices.Lines run(GitlabProject p) {
     CommitPager.Walk w = new CommitPager(gl, funnel).walk(p, true, CommitPager.each(this::add));
     // Illisible n'est pas « aucune ligne » : la colonne reste vide.
-    if (!w.ok()) return;
-    r.churnTruncated = w.truncated();
-    r.linesChanged = lines;
-    r.churnCommits = counted;
+    if (!w.ok()) return Practices.Lines.none();
+    return new Practices.Lines(lines, counted, w.truncated());
   }
 
   private void add(JsonNode c) {

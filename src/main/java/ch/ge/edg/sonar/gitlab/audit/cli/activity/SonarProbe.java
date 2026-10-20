@@ -20,13 +20,11 @@ final class SonarProbe {
       List.of(".gitlab-ci.yml", "README.md", "CODEOWNERS", "Dockerfile", "renovate.json");
 
   private final Gitlab gl;
-  private final Counters counters;
   private final SonarCache cache;
   private final CiConfig ci;
 
-  SonarProbe(Gitlab gl, Counters counters, SonarCache cache, CiConfig ci) {
+  SonarProbe(Gitlab gl, SonarCache cache, CiConfig ci) {
     this.gl = gl;
-    this.counters = counters;
     this.cache = cache;
     this.ci = ci;
   }
@@ -36,10 +34,12 @@ final class SonarProbe {
    * Cinq sondes HEAD par projet — une par fichier — répondaient à la même question pour cinq fois
    * le prix.
    */
-  void measure(AuditedProject a, Prat r) {
+  Practices.Sonar measure(AuditedProject a) {
     Set<String> root = rootEntries(a.project());
-    for (String f : WATCHED) if (root.contains(f)) r.files.add(f);
-    sonar(a, r, root);
+    List<String> files = WATCHED.stream().filter(root::contains).toList();
+    CiFacts hit = cache.get(cache.keyFor(a));
+    if (hit != null) return new Practices.Sonar(files, hit, true);
+    return new Practices.Sonar(files, sonar(a, root), false);
   }
 
   /** Noms des entrées à la racine de la branche par défaut, en un appel. */
@@ -60,15 +60,8 @@ final class SonarProbe {
    * GitLab ne peut que redonner la même réponse. C'est la seule partie de l'audit dont la réponse
    * est stable entre deux exécutions — le reste est fenêtré, donc périmé par construction.
    */
-  private void sonar(AuditedProject a, Prat r, Set<String> root) {
+  private CiFacts sonar(AuditedProject a, Set<String> root) {
     GitlabProject p = a.project();
-    String key = cache.keyFor(a);
-    CiFacts hit = cache.get(key);
-    if (hit != null) {
-      hit.applyTo(r);
-      counters.ciFromCacheN.incrementAndGet();
-      return;
-    }
     CiFacts f = new CiFacts();
     // sonar-project.properties porte la clé littérale quand il existe :
     // c'est la source la moins ambiguë, et elle coûte un appel.
@@ -80,8 +73,8 @@ final class SonarProbe {
     // Lu même quand la CI donne une clé : c'est une seconde méthode de
     // jointure, notée à part, et le <name> du pom est le nom affiché.
     if (root.contains("pom.xml")) pom(p, f);
-    cache.put(key, f);
-    f.applyTo(r);
+    cache.put(cache.keyFor(a), f);
+    return f;
   }
 
   private void properties(GitlabProject p, CiFacts f) {

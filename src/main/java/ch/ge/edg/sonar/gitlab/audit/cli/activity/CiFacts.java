@@ -3,21 +3,22 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Ce qu'on a appris de la CI d'un projet, et qui ne changera pas tant que son dépôt ne bouge pas.
+ * Ce qu'on a appris de la CI d'un projet, et qui ne changera pas tant que son dépôt ne bouge pas :
+ * l'entrée du cache des clés Sonar, remplie par la sonde, puis seulement lue.
  */
 final class CiFacts {
-  boolean ciSonar, ciSecurity;
-  @Nullable String sonarKey, keySource, ciRoute, unresolvedKey;
-  @Nullable String pomKey, pomName, pomUnresolved;
+  boolean ciSonar;
+  boolean ciSecurity;
+  @Nullable String sonarKey;
+  @Nullable String keySource;
+  @Nullable String ciRoute;
+  @Nullable String unresolvedKey;
+  @Nullable String pomKey;
+  @Nullable String pomName;
+  @Nullable String pomUnresolved;
 
-  void applyTo(Prat r) {
-    r.ciSonar = ciSonar;
-    r.ciSecurity = ciSecurity;
-    r.sonarKey = sonarKey;
-    r.pomKey = pomKey;
-    r.pomName = pomName;
-    r.pomUnresolved = pomUnresolved;
-    r.sonarKeySource =
-        unresolvedKey != null ? "variable non résolue : " + unresolvedKey : keySource;
+  /** La source de la clé telle qu'on la publie : une variable non résolue se dit en clair. */
+  @Nullable String shownKeySource() {
+    return unresolvedKey != null ? "variable non résolue : " + unresolvedKey : keySource;
   }
 }

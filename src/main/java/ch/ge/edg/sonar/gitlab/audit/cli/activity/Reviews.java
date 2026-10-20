@@ -13,6 +13,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * La revue de code, telle que les MR fusionnées la laissent voir.
@@ -28,18 +29,18 @@ final class Reviews {
   private static final int APPROVAL_SAMPLE = 10;
 
   private final Gitlab gl;
-  private final Counters counters;
+  private final boolean enterprise;
   private final Funnel funnel;
 
-  Reviews(Gitlab gl, Counters counters, Funnel funnel) {
+  /** {@code enterprise} : les approbations ne se lisent que sur ce plan. */
+  Reviews(Gitlab gl, boolean enterprise, Funnel funnel) {
     this.gl = gl;
-    this.counters = counters;
+    this.enterprise = enterprise;
     this.funnel = funnel;
   }
 
-  void measure(GitlabProject p, Prat r) {
+  Practices.Review measure(GitlabProject p) {
     List<JsonNode> mrs = mergedMrs(p);
-    r.mergedMrs = mrs.size();
     List<Double> ttm = new ArrayList<>();
     int selfMerged = 0;
     int notes = 0;
@@ -53,14 +54,15 @@ final class Reviews {
       if (author != -1 && author == merger) selfMerged++;
       notes += mr.path("user_notes_count").asInt(0);
     }
-    r.medianTtmDays = median(ttm);
-    r.selfMerged = selfMerged;
-    r.notesPerMr = mrs.isEmpty() ? null : (double) notes / mrs.size();
-
     // Approbations : la mesure réelle, réservée aux plans Enterprise. On
     // échantillonne 10 MR par projet — 1 appel par MR sur 200 projets
     // coûterait plus cher que tout le reste de la passe réuni.
-    if (counters.enterprise && !mrs.isEmpty()) approvals(p, r, mrs);
+    return new Practices.Review(
+        mrs.size(),
+        median(ttm),
+        selfMerged,
+        mrs.isEmpty() ? null : (double) notes / mrs.size(),
+        enterprise && !mrs.isEmpty() ? approvals(p, mrs) : null);
   }
 
   private List<JsonNode> mergedMrs(GitlabProject p) {
@@ -88,7 +90,7 @@ final class Reviews {
     return mrs;
   }
 
-  private void approvals(GitlabProject p, Prat r, List<JsonNode> mrs) {
+  private Practices.@Nullable Approvals approvals(GitlabProject p, List<JsonNode> mrs) {
     int sample = Math.min(APPROVAL_SAMPLE, mrs.size());
     int approved = 0;
     int selfApproved = 0;
@@ -105,11 +107,7 @@ final class Reviews {
       if (by.size() > 0) approved++;
       selfApproved += selfApprovals(by, mr.path("author").path("id").asInt(-1));
     }
-    if (seen > 0) {
-      r.approvalSample = seen;
-      r.approvedShare = (double) approved / seen;
-      r.selfApproved = selfApproved;
-    }
+    return seen > 0 ? new Practices.Approvals(seen, (double) approved / seen, selfApproved) : null;
   }
 
   private static int selfApprovals(JsonNode approvedBy, int author) {

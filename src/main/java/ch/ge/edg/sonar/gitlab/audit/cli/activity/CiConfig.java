@@ -37,6 +37,12 @@ final class CiConfig {
   /** Le YAML de CI effectivement exécuté, et par quelle route on l'a obtenu. */
   record Ci(String yaml, String route) {}
 
+  /** La route de lecture qui voit tout l'arbre d'inclusion. */
+  static final String LINT = "ci/lint";
+
+  /** Le repli, qui ne voit que les includes qu'il sait suivre. */
+  static final String FALLBACK = "includes suivis";
+
   /** Un include ne dépasse pas trois niveaux chez nous ; la borne évite les cycles. */
   private static final int MAX_INCLUDE_DEPTH = 3;
 
@@ -55,7 +61,6 @@ final class CiConfig {
           "(?:file:\\s*|^\\s*-\\s*)(['\"]?[\\w./-]+\\.ya?ml['\"]?)\\s*$", Pattern.MULTILINE);
 
   private final Gitlab gl;
-  private final Counters counters;
 
   /** Cache de résolution project_path -> ID, rempli au fur et à mesure. */
   private final Map<String, String> projPathToId = new ConcurrentHashMap<>();
@@ -64,19 +69,23 @@ final class CiConfig {
   private final Map<String, String> includeCache = new ConcurrentHashMap<>();
 
   /** ci/lint refusé une fois l'est pour tout le parc : le droit est sur le jeton. */
-  private volatile boolean lintRefused;
+  private volatile int lintRefusedStatus;
 
-  CiConfig(Gitlab gl, Counters counters, List<GitlabProject> all) {
+  CiConfig(Gitlab gl, List<GitlabProject> all) {
     this.gl = gl;
-    this.counters = counters;
     for (GitlabProject p : all) {
       if (!p.path().isEmpty()) projPathToId.put(p.path(), String.valueOf(p.id()));
     }
   }
 
+  /** Le statut qui a refusé ci/lint au jeton, 0 tant qu'il ne l'a pas été. */
+  int lintRefusedStatus() {
+    return lintRefusedStatus;
+  }
+
   /** Le YAML de CI du projet, ou null quand ni ci/lint ni le fichier brut ne le donnent. */
   @Nullable Ci read(GitlabProject p) {
-    if (!lintRefused) {
+    if (lintRefusedStatus == 0) {
       Ci merged = lint(p);
       if (merged != null) return merged;
     }
@@ -86,10 +95,9 @@ final class CiConfig {
             Map.of("ref", p.defaultBranch()));
     String body = raw.body();
     if (raw.status() != 200 || body == null) return null;
-    counters.ciByFallbackN.incrementAndGet();
     StringBuilder all = new StringBuilder(body);
     chaseIncludes(body, new Chase(all, new HashSet<>()), 0);
-    return new Ci(all.toString(), "includes suivis");
+    return new Ci(all.toString(), FALLBACK);
   }
 
   private @Nullable Ci lint(GitlabProject p) {
@@ -106,8 +114,7 @@ final class CiConfig {
       String merged = j.path("merged_yaml").asText(null);
       if (isBlank(merged)) merged = j.path("content").path("merged_yaml").asText(null);
       if (merged != null && !merged.isBlank()) {
-        counters.ciByLintN.incrementAndGet();
-        return new Ci(merged, "ci/lint");
+        return new Ci(merged, LINT);
       }
       // 200 sans merged_yaml : configuration invalide, ou version
       // de GitLab qui ne le renvoie pas. Les deux se replient.
@@ -115,8 +122,7 @@ final class CiConfig {
       // Refusé une fois, refusé partout : le droit se donne au
       // jeton, pas au projet. Insister coûterait un appel perdu
       // par projet du parc.
-      lintRefused = true;
-      counters.lintRefusedStatus = status;
+      lintRefusedStatus = status;
     }
     return null;
   }

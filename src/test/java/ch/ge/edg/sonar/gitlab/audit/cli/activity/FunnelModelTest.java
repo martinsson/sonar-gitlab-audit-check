@@ -101,10 +101,4 @@ class FunnelModelTest {
     assertThat(row(CsvFiles.inventory(90), audited("{}")))
         .isEqualTo("0||||||||false|false|false||||||||||||false||false|false|");
   }
-
-  @Test
-  void anEmptyPratRowKeepsUnknownsBlank() throws Exception {
-    assertThat(row(CsvFiles.practices(30), new Assessed(audited("{}"), new Prat())))
-        .isEqualTo("|||||false|false|0||0||||0|0|||||||false|false|false||||0|30|||false||");
-  }
 }

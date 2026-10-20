@@ -13,14 +13,13 @@ final class DeepPass {
 
   private final Gitlab gl;
   private final Screen con;
-  private final Counters counters;
+  private final Preflight.Instance instance;
   private final Funnel funnel;
 
   DeepPass(Gitlab gl, Screen con, Preflight.Instance instance, Funnel funnel) {
     this.gl = gl;
     this.con = con;
-    this.counters = new Counters();
-    counters.enterprise = instance.enterprise();
+    this.instance = instance;
     this.funnel = funnel;
   }
 
@@ -34,7 +33,7 @@ final class DeepPass {
     List<GitlabProject> all =
         funnelResult.projects().stream().map(AuditedProject::project).toList();
     measureAll(
-        outputs, funnelResult.selected(), new PracticeProbes(gl, counters, funnel, cache, all));
+        outputs, funnelResult.selected(), new PracticeProbes(gl, instance, funnel, cache, all));
     cache.save();
   }
 
@@ -46,13 +45,13 @@ final class DeepPass {
     // Une dizaine d'appels par projet, sans lien d'un projet à l'autre :
     // la seule raison de les faire l'un après l'autre était qu'on ne
     // s'était pas posé la question. C'est le facteur qui compte.
-    List<Prat> measured = gl.map(selected, funnel.concurrency(), probes::measure);
+    List<Practices> measured = gl.map(selected, funnel.concurrency(), probes::measure);
     List<Assessed> assessed = new ArrayList<>();
     for (int i = 0; i < selected.size(); i++) {
       assessed.add(new Assessed(selected.get(i), measured.get(i)));
     }
-    DeepReport report = new DeepReport(con, counters, assessed);
-    report.ciRoutes();
+    DeepReport report = new DeepReport(con, assessed);
+    report.ciRoutes(probes.lintRefusedStatus());
     report.coverage();
     Path pratiques = outputs.pratiques();
     if (pratiques != null) {

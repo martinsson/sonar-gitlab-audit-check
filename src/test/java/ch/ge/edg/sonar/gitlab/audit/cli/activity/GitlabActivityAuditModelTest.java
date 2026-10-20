@@ -93,25 +93,10 @@ class GitlabActivityAuditModelTest {
   @Test
   void ciFactsPreferTheUnresolvedKeyAsSource() {
     CiFacts f = new CiFacts();
-    f.ciSonar = true;
-    f.ciSecurity = true;
-    f.sonarKey = "k";
     f.keySource = "ci/lint";
-    f.pomKey = "g:a";
-    f.pomName = "A";
-    f.pomUnresolved = "${x}:a";
-    Prat r = new Prat();
-    f.applyTo(r);
-    assertThat(r.ciSonar).isTrue();
-    assertThat(r.ciSecurity).isTrue();
-    assertThat(r.sonarKey).isEqualTo("k");
-    assertThat(r.sonarKeySource).isEqualTo("ci/lint");
-    assertThat(r.pomKey).isEqualTo("g:a");
-    assertThat(r.pomName).isEqualTo("A");
-    assertThat(r.pomUnresolved).isEqualTo("${x}:a");
+    assertThat(f.shownKeySource()).isEqualTo("ci/lint");
     f.unresolvedKey = "$K";
-    f.applyTo(r);
-    assertThat(r.sonarKeySource).isEqualTo("variable non résolue : $K");
+    assertThat(f.shownKeySource()).isEqualTo("variable non résolue : $K");
   }
 
   @Test
