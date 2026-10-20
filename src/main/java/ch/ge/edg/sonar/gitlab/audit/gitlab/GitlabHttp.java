@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.Response;
+import ch.ge.edg.sonar.gitlab.audit.rest.InsecureTls;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.net.URI;

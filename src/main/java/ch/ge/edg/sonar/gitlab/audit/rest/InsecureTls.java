@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.gitlab;
+package ch.ge.edg.sonar.gitlab.audit.rest;
 
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
@@ -7,12 +7,15 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-/** --insecure : un contexte TLS qui accepte tout certificat, pour une instance auto-signée. */
-final class InsecureTls {
+/**
+ * --insecure : un contexte TLS, partagé par tous les clients HTTP, qui accepte tout certificat,
+ * pour une instance auto-signée.
+ */
+public final class InsecureTls {
 
   private InsecureTls() {}
 
-  static SSLContext trustEverything() throws GeneralSecurityException {
+  public static SSLContext trustEverything() throws GeneralSecurityException {
     SSLContext ctx = SSLContext.getInstance("TLS");
     ctx.init(null, new TrustManager[] {new TrustAll()}, new SecureRandom());
     return ctx;
