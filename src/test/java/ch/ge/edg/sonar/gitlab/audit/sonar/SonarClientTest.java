@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.sonar;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
@@ -32,7 +33,7 @@ class SonarClientTest {
   private Sonar client(@Nullable String organization) throws Exception {
     return new Sonar(
         new SonarConnection(server.url() + "//", "tok-1", organization, 5, false),
-        Captures.none(),
+        Capture.none(),
         pauses::add);
   }
 
@@ -56,7 +57,7 @@ class SonarClientTest {
   @Test
   void baseIsEmptyWhenUrlIsNull() throws Exception {
     assertThat(
-            new Sonar(new SonarConnection(null, "t", null, 1, false), Captures.none(), pause -> {})
+            new Sonar(new SonarConnection(null, "t", null, 1, false), Capture.none(), pause -> {})
                 .base)
         .isEmpty();
   }
@@ -198,7 +199,7 @@ class SonarClientTest {
     Sonar sq =
         new Sonar(
             new SonarConnection("http://127.0.0.1:" + port, "t", null, 2, false),
-            Captures.none(),
+            Capture.none(),
             pause -> {});
     Sonar.Response r = sq.get("api/system/status", Map.of());
     assertThat(r.unreachable()).isTrue();
@@ -211,7 +212,7 @@ class SonarClientTest {
   void malformedUrlIsReportedAsUnreachable() throws Exception {
     Sonar sq =
         new Sonar(
-            new SonarConnection("not a url", "t", null, 2, false), Captures.none(), pause -> {});
+            new SonarConnection("not a url", "t", null, 2, false), Capture.none(), pause -> {});
     Sonar.Response r = sq.get("api/x", Map.of());
     assertThat(r.status()).isZero();
     assertThat(r.body()).startsWith("IllegalArgumentException: ");
@@ -219,8 +220,7 @@ class SonarClientTest {
 
   @Test
   void urlWithoutSchemeIsReportedWithTheExceptionMessage() throws Exception {
-    Sonar sq =
-        new Sonar(new SonarConnection("", "t", null, 2, false), Captures.none(), pause -> {});
+    Sonar sq = new Sonar(new SonarConnection("", "t", null, 2, false), Capture.none(), pause -> {});
     assertThat(sq.get("api/x", Map.of()))
         .isEqualTo(new Sonar.Response(0, "IllegalArgumentException: URI with undefined scheme"));
   }
@@ -243,11 +243,11 @@ class SonarClientTest {
   void insecureClientStillTalksPlainHttp() throws Exception {
     server.json("/api/x", "{\"v\":1}");
     System.clearProperty("jdk.internal.httpclient.disableHostnameVerification");
-    new Sonar(new SonarConnection(server.url(), "t", null, 5, false), Captures.none(), pause -> {});
+    new Sonar(new SonarConnection(server.url(), "t", null, 5, false), Capture.none(), pause -> {});
     assertThat(System.getProperty("jdk.internal.httpclient.disableHostnameVerification")).isNull();
     Sonar sq =
         new Sonar(
-            new SonarConnection(server.url(), "t", null, 5, true), Captures.none(), pause -> {});
+            new SonarConnection(server.url(), "t", null, 5, true), Capture.none(), pause -> {});
     assertThat(sq.get("api/x", Map.of()).body()).isEqualTo("{\"v\":1}");
     assertThat(System.getProperty("jdk.internal.httpclient.disableHostnameVerification"))
         .isEqualTo("true");

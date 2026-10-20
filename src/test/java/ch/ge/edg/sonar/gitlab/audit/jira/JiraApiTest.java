@@ -2,25 +2,22 @@ package ch.ge.edg.sonar.gitlab.audit.jira;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class JiraApiTest {
 
-  private static final PrintStream QUIET =
-      new PrintStream(new ByteArrayOutputStream(), true, java.nio.charset.StandardCharsets.UTF_8);
-
   private static JiraApi api(FakeHttpServer jira) throws IOException {
     return new JiraApi(
-        new RestClient(RestClient.Settings.of(jira.url(), Map.of(), false), QUIET, pause -> {}));
+        new RestClient(
+            RestClient.Settings.of(jira.url(), Map.of(), false), Capture.none(), pause -> {}));
   }
 
   @Test

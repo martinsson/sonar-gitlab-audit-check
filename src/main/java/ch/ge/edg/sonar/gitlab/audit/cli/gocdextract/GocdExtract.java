@@ -92,7 +92,7 @@ public class GocdExtract implements Callable<Integer> {
     PrintStream err = host.err();
     Clock clock = host.clock();
     try {
-      Gocd gocd = Gocd.connect(url, token, insecure, err, host.sleeper());
+      Gocd gocd = Gocd.connect(url, token, insecure, host.sleeper());
       Selection selection = Selection.resolve(gocd, pipelines, groups, err);
       if (selection.pipelines().isEmpty()) {
         throw new Stop("aucun pipeline : donner --pipeline ou --group");

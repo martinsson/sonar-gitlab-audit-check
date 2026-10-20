@@ -1,6 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.sonar;
 
 import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Retries;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -8,13 +13,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.GeneralSecurityException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -30,10 +32,10 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>Trois choses vivent ici, et rien de ce que l'audit conclut :
  *
- * <p>parler à l'API — un GET, un jeton, l'organisation quand il le faut ({@link Transport}) ; tenir
- * la cadence — appels concurrents bornés, 429 et 5xx retentés ; rejouer une capture — {@code
+ * <p>parler à l'API — un GET, un jeton, l'organisation quand il le faut ; tenir la cadence — appels
+ * concurrents bornés, 429 et 5xx retentés ({@link RestClient}) ; rejouer une capture — {@code
  * --dump-dir} enregistre, {@code --replay-dir} relit, et l'outil tourne alors sans instance ({@link
- * Captures}).
+ * Capture}).
  */
 public final class Sonar {
 
@@ -121,48 +123,60 @@ public final class Sonar {
   // Client
   // ----------------------------------------------------------------------
 
+  /**
+   * SonarQube ne limite pas le débit lui-même, mais ce qu'on a devant lui le fait souvent — et un
+   * 502 isolé d'un reverse proxy, au milieu d'une passe concurrente, ne ressemble à rien d'autre
+   * qu'à un projet sans mesures. Une panne de transport doit coûter une seconde, pas une ligne
+   * fausse.
+   */
+  private static final Retries RETRIES = new Retries(3, 2, 0);
+
   public final String base;
   private final @Nullable String organization;
-  private final Captures captures;
-  private final Transport transport;
-  private final AtomicInteger callCount = new AtomicInteger();
+  private final RestClient client;
 
   /**
    * Un client.
    *
-   * @param captures où écrire chaque réponse, ou d'où la rejouer
+   * @param capture où écrire chaque réponse, ou d'où la rejouer
    * @param sleeper l'attente avant un nouvel essai
    */
-  public Sonar(SonarConnection connection, Captures captures, Sleeper sleeper)
-      throws IOException, GeneralSecurityException {
+  public Sonar(SonarConnection connection, Capture capture, Sleeper sleeper) throws IOException {
     String url = connection.url();
     this.base = url == null ? "" : url.replaceAll("/+$", "");
     String org = connection.organization();
     this.organization = org == null || org.isBlank() ? null : org;
-    this.captures = captures;
-    captures.prepare();
-    this.transport = new Transport(connection, callCount, sleeper);
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put("Accept", "application/json");
+    String token = connection.token();
+    if (token != null) headers.put("Authorization", "Bearer " + token);
+    this.client =
+        new RestClient(
+            new Settings(
+                base, headers, connection.timeoutSeconds(), connection.insecure(), true, RETRIES),
+            capture,
+            sleeper);
   }
 
   public int calls() {
-    return callCount.get();
+    return client.calls();
   }
 
   public int throttled() {
-    return transport.throttled();
+    return client.throttled();
   }
 
   public int retried() {
-    return transport.retried();
+    return client.retried();
   }
 
   /** Captures réclamées et absentes : en rejeu, c'est la seule panne possible. */
   public int missingCaptures() {
-    return captures.missing();
+    return client.missingCaptures();
   }
 
   public boolean replaying() {
-    return captures.replaying();
+    return client.replaying();
   }
 
   public Response get(String path, Map<String, String> params) {
@@ -171,15 +185,8 @@ public final class Sonar {
     if (organization != null && needsOrganization(cleanPath)) {
       all.putIfAbsent("organization", organization);
     }
-    String capture = Captures.name(cleanPath, all);
-    Optional<Response> replayed = captures.replay(capture, cleanPath, all);
-    if (replayed.isPresent()) {
-      callCount.incrementAndGet();
-      return replayed.get();
-    }
-    Response r = transport.send(base + "/" + cleanPath + queryString(all));
-    captures.dump(capture, cleanPath + queryString(all), r.body());
-    return r;
+    RestResponse r = client.get("/" + cleanPath + queryString(all));
+    return new Response(r.status(), r.status() == 0 ? r.error() : r.body());
   }
 
   // ----------------------------------------------------------------------

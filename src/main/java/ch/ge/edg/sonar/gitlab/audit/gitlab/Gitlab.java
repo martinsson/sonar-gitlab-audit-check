@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.security.GeneralSecurityException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -137,7 +136,7 @@ public final class Gitlab {
   private final GitlabListener listener;
 
   public int calls() {
-    return http.callCount.get();
+    return http.calls();
   }
 
   public int forbidden() {
@@ -145,7 +144,7 @@ public final class Gitlab {
   }
 
   public int throttled() {
-    return http.throttledCount.get();
+    return http.throttled();
   }
 
   /**
@@ -154,8 +153,7 @@ public final class Gitlab {
    * @param listener reçoit une pagination interrompue et une capture qui n'a pas pu s'écrire
    * @param sleeper l'attente que demande un 429
    */
-  public Gitlab(Connection c, GitlabListener listener, Sleeper sleeper)
-      throws IOException, GeneralSecurityException {
+  public Gitlab(Connection c, GitlabListener listener, Sleeper sleeper) throws IOException {
     this.base = c.url().replaceAll("/+$", "");
     this.listener = listener;
     this.http = new GitlabHttp(c, listener, sleeper);

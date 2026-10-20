@@ -25,7 +25,9 @@ class RestClientTest {
 
   private RestClient client(String base, Map<String, String> headers) throws IOException {
     return new RestClient(
-        RestClient.Settings.of(base, headers, false), err, pause -> waits.add(pause.toSeconds()));
+        RestClient.Settings.of(base, headers, false),
+        Capture.none(),
+        pause -> waits.add(pause.toSeconds()));
   }
 
   @Test
@@ -62,21 +64,22 @@ class RestClientTest {
   }
 
   @Test
-  void dump_dir_keeps_each_raw_answer_named_after_the_request() throws IOException {
+  void dump_dir_keeps_each_raw_answer_under_a_name_stable_across_runs() throws IOException {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.json("/rest/api/2/serverInfo", "{\"version\":\"11.3.10\"}");
       Path dumps = dir.resolve("dumps");
       RestClient c =
           new RestClient(
-              new RestClient.Settings(jira.url(), Map.of(), 5, false, dumps),
-              err,
+              new RestClient.Settings(
+                  jira.url(), Map.of(), 5, false, false, RestClient.Retries.DEFAULT),
+              new Capture(
+                  dumps, null, reason -> err.println("  (capture non écrite : " + reason + ")")),
               pause -> waits.add(pause.toSeconds()));
       c.get("/rest/api/2/serverInfo");
-      try (var files = Files.list(dumps)) {
-        Path only = files.toList().get(0);
-        assertThat(only.getFileName().toString()).isEqualTo("0001-200-rest_api_2_serverInfo.txt");
-        assertThat(Files.readString(only)).contains("11.3.10");
-      }
+      String name = Capture.name("rest/api/2/serverInfo");
+      assertThat(name).startsWith("rest_api_2_serverInfo-").endsWith(".json");
+      assertThat(Files.readString(dumps.resolve(name))).contains("11.3.10");
+      assertThat(dumps.resolve("index.txt")).hasContent(name + "  rest/api/2/serverInfo");
     }
   }
 
@@ -87,8 +90,10 @@ class RestClientTest {
       Path dumps = dir.resolve("gone");
       RestClient c =
           new RestClient(
-              new RestClient.Settings(jira.url(), Map.of(), 5, false, dumps),
-              err,
+              new RestClient.Settings(
+                  jira.url(), Map.of(), 5, false, false, RestClient.Retries.DEFAULT),
+              new Capture(
+                  dumps, null, reason -> err.println("  (capture non écrite : " + reason + ")")),
               pause -> waits.add(pause.toSeconds()));
       Files.delete(dumps);
       assertThat(c.get("/x").ok()).isTrue();
@@ -101,7 +106,7 @@ class RestClientTest {
     RestClient c =
         new RestClient(
             RestClient.Settings.of("https://self-signed.invalid", Map.of(), true),
-            err,
+            Capture.none(),
             pause -> {});
     assertThat(c.base()).isEqualTo("https://self-signed.invalid");
   }

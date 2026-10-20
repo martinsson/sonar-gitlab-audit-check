@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,7 +27,7 @@ class IssuePagesTest {
     return new JiraSource(
         new JiraApi(
             new RestClient(
-                RestClient.Settings.of(jira.url(), Map.of(), false), QUIET, pause -> {})));
+                RestClient.Settings.of(jira.url(), Map.of(), false), Capture.none(), pause -> {})));
   }
 
   @Test

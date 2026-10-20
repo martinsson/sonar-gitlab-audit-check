@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.sonar;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -18,7 +19,7 @@ class SonarHelpersTest {
   private static Sonar sonar() throws Exception {
     return new Sonar(
         new SonarConnection("http://127.0.0.1:1", "t", null, 1, false),
-        Captures.none(),
+        Capture.none(),
         pause -> {});
   }
 
