@@ -3,8 +3,9 @@ package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Choice;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
-import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
+import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import ch.ge.edg.sonar.gitlab.audit.matching.Match;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -39,7 +40,7 @@ final class SonarToGitlabFixtures {
         inventory,
         cross,
         new SonarToGitlab.Rejections(Set.of(), Set.of()),
-        new SonarToGitlab.NameThresholds(0.5, 0.1));
+        new Guards(0.5, 0.1));
   }
 
   /** key → path | method | confidence | score | candidates | reason, one line per pair. */
@@ -52,7 +53,7 @@ final class SonarToGitlabFixtures {
                     p.key() + " -> " + p.path(),
                     p.method(),
                     p.confidence().code(),
-                    p.score() == null ? "-" : Fmt.score(p.score()),
+                    p.score() == null ? "-" : Text.decimal(p.score()),
                     p.candidates(),
                     p.reason()))
         .collect(Collectors.joining("\n"));

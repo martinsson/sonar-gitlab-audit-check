@@ -25,12 +25,12 @@ final class Findings {
     this.dates = dates;
   }
 
-  void print(Project p, Commits commits, Cadence cadence, People people, Reviews reviews) {
+  void print(Measured m) {
     report.title("5. Constats");
-    activity(p, cadence);
-    review(cadence, reviews);
-    team(people);
-    habits(commits, cadence, reviews);
+    activity(m.project(), m.cadence());
+    review(m.cadence(), m.reviews());
+    team(m.people());
+    habits(m.commits(), m.cadence(), m.reviews());
 
     if (found.isEmpty()) {
       report.println("  Rien de saillant sur les seuils retenus.", GREEN);

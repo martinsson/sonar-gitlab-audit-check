@@ -5,6 +5,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Check;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
 import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Rejections;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
 import java.util.ArrayList;
@@ -52,7 +53,7 @@ final class DerivedMethods {
       Csv.Row r = fates.sonar(s);
       for (Step step : inventory.steps(r)) {
         Set<Integer> cands = new LinkedHashSet<>(step.candidates());
-        cands.removeIf(g -> rejected.pair(r.str("key"), inventory.path(g)));
+        cands.removeIf(g -> rejected.pair(r.str(SonarInventory.KEY), inventory.path(g)));
         if (cands.isEmpty()) continue;
         if (known != null) check(s, step, cands, known);
         else apply(s, step, cands);

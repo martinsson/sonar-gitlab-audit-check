@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.matching;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.Mapping;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -54,9 +55,9 @@ public record MappingFile(Path path, boolean comma, boolean recomputeAll) {
       prev.require(
           path,
           "un appariement déjà écrit",
-          "gauche_" + spec.leftKey(),
-          "droite_" + spec.rightKey(),
-          "confiance");
+          Mapping.left(spec.leftKey()),
+          Mapping.right(spec.rightKey()),
+          Mapping.CONFIDENCE);
       Replay.Outcome replayed = Replay.run(fresh, prev, recomputeAll);
       r = replayed.result();
       stats = replayed.stats();
@@ -75,7 +76,11 @@ public record MappingFile(Path path, boolean comma, boolean recomputeAll) {
     Spec s = r.spec();
     List<String> header =
         new ArrayList<>(
-            List.of("gauche_" + s.leftKey(), "droite_" + s.rightKey(), "methode", "confiance"));
+            List.of(
+                Mapping.left(s.leftKey()),
+                Mapping.right(s.rightKey()),
+                Mapping.METHOD,
+                Mapping.CONFIDENCE));
     header.addAll(DetailColumns.header(r));
     try (CSVWriter w = Csv.writer(path, comma)) {
       w.writeNext(header.toArray(String[]::new));

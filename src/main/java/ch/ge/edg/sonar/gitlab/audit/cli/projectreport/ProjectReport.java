@@ -41,11 +41,8 @@ final class ProjectReport {
     Project project = found.get();
 
     new IdentitySection(report, dates).print(project);
-    Commits commits = api.commits(project, since);
-    Cadence cadence = new CadenceSection(report, settings, dates).measure(commits);
-    People people = new PeopleSection(report, api, settings, dates).measure(project, commits);
-    Reviews reviews = new ReviewSection(report, api, settings, dates).measure(project, since);
-    new Findings(report, dates).print(project, commits, cadence, people, reviews);
+    new Findings(report, dates)
+        .print(new Sections(report, api, settings, dates).measure(project, since));
 
     report.println();
     report.println(report.c("  %d appels API.".formatted(api.calls()), DIM));

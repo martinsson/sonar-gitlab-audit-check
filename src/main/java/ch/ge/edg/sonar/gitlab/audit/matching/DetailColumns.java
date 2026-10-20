@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.matching;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.ArrayList;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
@@ -37,10 +38,10 @@ public final class DetailColumns {
     String rejection = g.rejection();
     return List.of(
         g.candidate(),
-        g.candidate().isEmpty() ? "" : Fmt.score(g.score()),
+        g.candidate().isEmpty() ? "" : Text.decimal(g.score()),
         g.runnerUp().isEmpty()
             ? ""
-            : "%s (%s)".formatted(g.runnerUp(), Fmt.score(g.runnerUpScore())),
+            : "%s (%s)".formatted(g.runnerUp(), Text.decimal(g.runnerUpScore())),
         rejection == null ? "" : rejection);
   }
 
@@ -56,6 +57,7 @@ public final class DetailColumns {
     if (f == null || f.candidate().isEmpty()) return "";
     String rejection = f.rejection();
     return "%s (%s%s)"
-        .formatted(f.candidate(), Fmt.score(f.score()), rejection == null ? "" : ", " + rejection);
+        .formatted(
+            f.candidate(), Text.decimal(f.score()), rejection == null ? "" : ", " + rejection);
   }
 }

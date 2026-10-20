@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report;
 import ch.ge.edg.sonar.gitlab.audit.matching.report.ReportPrinter;
 import java.nio.file.Path;
@@ -26,10 +27,6 @@ final class CrossReport {
     out.println();
     out.println(out.color(text, BOLD));
     out.println(out.color("-".repeat(Math.min(text.length(), 72)), DIM));
-  }
-
-  static String pct(long n, long total) {
-    return total == 0 ? "—" : "%.0f %%".formatted(100.0 * n / total);
   }
 
   // ----------------------------------------------------------------------
@@ -83,7 +80,11 @@ final class CrossReport {
 
     long sonarUnmatched =
         sonar.rows().size()
-            - pairs.stream().filter(CrossPair::joined).map(p -> p.sqStr("key")).distinct().count();
+            - pairs.stream()
+                .filter(CrossPair::joined)
+                .map(p -> p.sqStr(SonarInventory.KEY))
+                .distinct()
+                .count();
     out.out().printf("%n  Projets Sonar sans dépôt GitLab apparié : %d%n", sonarUnmatched);
     if (wide) {
       out.println(

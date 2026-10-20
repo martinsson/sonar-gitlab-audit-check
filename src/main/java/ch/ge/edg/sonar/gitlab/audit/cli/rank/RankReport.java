@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.rank;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.List;
@@ -115,7 +116,7 @@ final class RankReport {
           .printf(
               "  %-4d %-44s %-7s %8.0f %7.1f %6s%n",
               ++rank,
-              truncate(s.row.label(), 44),
+              Text.ellipsize(s.row.label(), 44),
               s.bucket.name(),
               s.row.ncloc(),
               s.score,
@@ -200,9 +201,5 @@ final class RankReport {
   String pct(int n, int total, String color) {
     String s = total == 0 ? String.valueOf(n) : "%d (%.0f%%)".formatted(n, 100.0 * n / total);
     return c(s, color);
-  }
-
-  public static String truncate(String s, int max) {
-    return s.length() <= max ? s : s.substring(0, max - 1) + "...";
   }
 }

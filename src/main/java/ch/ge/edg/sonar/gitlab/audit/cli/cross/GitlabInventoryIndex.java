@@ -1,8 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
-import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
+import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabInventory;
+import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Keys;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -43,9 +46,9 @@ final class GitlabInventoryIndex {
   }
 
   private void index(int i, Csv.Row g) {
-    String path = g.str("path");
+    String path = g.str(GitlabInventory.PATH);
     byPath.putIfAbsent(path, i);
-    if (!g.str("id").isEmpty()) byId.putIfAbsent(g.str("id"), i);
+    if (!g.str(GitlabInventory.ID).isEmpty()) byId.putIfAbsent(g.str(GitlabInventory.ID), i);
     String[] segs = path.split("/");
     put(idxPath, Keys.normalise(path), i);
     // Deux segments ou plus, sans le namespace de tête : la clé reprend
@@ -63,8 +66,8 @@ final class GitlabInventoryIndex {
         List.of(
             last,
             Keys.stripTicketNumber(last),
-            g.str("name"),
-            Keys.stripTicketNumber(g.str("name")))) {
+            g.str(GitlabInventory.NAME),
+            Keys.stripTicketNumber(g.str(GitlabInventory.NAME)))) {
       put(idxLast, Keys.normalise(v), i);
     }
   }
@@ -82,12 +85,12 @@ final class GitlabInventoryIndex {
   }
 
   String path(int g) {
-    return rows.get(g).str("path");
+    return rows.get(g).str(GitlabInventory.PATH);
   }
 
   /** « chemin (score) » : un candidat tel que le CSV le montre. */
   String described(int g, double score) {
-    return "%s (%s)".formatted(path(g), Fmt.score(score));
+    return "%s (%s)".formatted(path(g), Text.decimal(score));
   }
 
   @Nullable Integer byPath(String path) {
@@ -100,7 +103,7 @@ final class GitlabInventoryIndex {
 
   /** Les méthodes dérivées, dans l'ordre : chacune avec les dépôts qu'elle désigne. */
   List<Step> steps(Csv.Row r) {
-    String key = r.str("key"), name = r.str("name");
+    String key = r.str(SonarInventory.KEY), name = r.str(SonarInventory.NAME);
     String nk = Keys.normalise(key);
     List<Step> steps = new ArrayList<>();
     Matcher m = IMPORT_KEY.matcher(key);
@@ -147,7 +150,7 @@ final class GitlabInventoryIndex {
   }
 
   static long commits(Csv.Row g) {
-    Double d = g.num("commits_window");
+    Double d = g.num(GitlabPractices.COMMITS_WINDOW);
     return d == null ? 0 : d.longValue();
   }
 
@@ -155,6 +158,6 @@ final class GitlabInventoryIndex {
   Comparator<Integer> activityOrder() {
     return Comparator.comparing((Integer g) -> original(rows.get(g)))
         .thenComparingLong(g -> commits(rows.get(g)))
-        .thenComparing(g -> rows.get(g).str("last_activity_at"));
+        .thenComparing(g -> rows.get(g).str(GitlabInventory.LAST_ACTIVITY_AT));
   }
 }

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Paging;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
 import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -56,11 +57,11 @@ class HelpersTest {
 
   @Test
   void decIsTwoDecimalsWithAPoint() {
-    assertThat(Values.dec(null)).isEmpty();
-    assertThat(Values.dec(1.234)).isEqualTo("1.23");
-    assertThat(Values.dec(1.236)).isEqualTo("1.24");
-    assertThat(Values.dec(-11.4449)).isEqualTo("-11.44");
-    assertThat(Values.dec(2.0)).isEqualTo("2.00");
+    assertThat(Text.decimal(null)).isEmpty();
+    assertThat(Text.decimal(1.234)).isEqualTo("1.23");
+    assertThat(Text.decimal(1.236)).isEqualTo("1.24");
+    assertThat(Text.decimal(-11.4449)).isEqualTo("-11.44");
+    assertThat(Text.decimal(2.0)).isEqualTo("2.00");
   }
 
   @Test
@@ -89,18 +90,18 @@ class HelpersTest {
     assertThat(Values.total(new Paging(1, 1, 7))).isEqualTo("7");
     assertThat(Values.size(null)).isZero();
     assertThat(Values.size(List.of(1, 2))).isEqualTo(2);
-    assertThat(Values.isBlank(" ")).isTrue();
-    assertThat(Values.isBlank("a")).isFalse();
+    assertThat(Text.isBlank(" ")).isTrue();
+    assertThat(Text.isBlank("a")).isFalse();
     assertThat(Values.notEmpty(null)).isFalse();
     assertThat(Values.notEmpty(List.of())).isFalse();
     assertThat(Values.notEmpty(List.of(1))).isTrue();
     assertThat(Values.orEmptyList(null)).isEmpty();
-    assertThat(Values.orEmpty(null)).isEmpty();
-    assertThat(Values.orNa(" ")).isEqualTo("n/a");
-    assertThat(Values.orNa(null)).isEqualTo("n/a");
-    assertThat(Values.orNa("v")).isEqualTo("v");
-    assertThat(Values.truncate("abcd", 4)).isEqualTo("abcd");
-    assertThat(Values.truncate("abcde", 4)).isEqualTo("abcd");
+    assertThat(Text.orEmpty(null)).isEmpty();
+    assertThat(Text.orNa(" ")).isEqualTo("n/a");
+    assertThat(Text.orNa(null)).isEqualTo("n/a");
+    assertThat(Text.orNa("v")).isEqualTo("v");
+    assertThat(Text.truncate("abcd", 4)).isEqualTo("abcd");
+    assertThat(Text.truncate("abcde", 4)).isEqualTo("abcd");
   }
 
   @Test

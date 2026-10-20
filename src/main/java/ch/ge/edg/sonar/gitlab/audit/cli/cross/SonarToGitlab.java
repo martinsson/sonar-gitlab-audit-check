@@ -1,7 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
+import ch.ge.edg.sonar.gitlab.audit.exchange.Mapping;
+import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import ch.ge.edg.sonar.gitlab.audit.matching.Match;
 import ch.ge.edg.sonar.gitlab.audit.matching.NameSpec;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
@@ -62,11 +66,11 @@ final class SonarToGitlab {
     }
 
     String key() {
-      return sonar.str("key");
+      return sonar.str(SonarInventory.KEY);
     }
 
     String path() {
-      return gitlab == null ? "" : gitlab.str("path");
+      return gitlab == null ? "" : gitlab.str(GitlabPractices.PATH);
     }
   }
 
@@ -94,11 +98,12 @@ final class SonarToGitlab {
     /** Les lignes « rejete » d'un appariement, s'il existe déjà. */
     static Rejections read(Path file) throws IOException {
       Set<String> rejected = new HashSet<>(), rejectedPaths = new HashSet<>();
+      String left = Mapping.left(GitlabPractices.PATH), right = Mapping.right(SonarInventory.KEY);
       if (Files.exists(file)) {
         for (Csv.Row r : Csv.read(file).rows()) {
-          if (Confidence.parse(r.str("confiance")) != Confidence.REJETE) continue;
-          if (r.str("droite_key").isEmpty()) rejectedPaths.add(r.str("gauche_path"));
-          else rejected.add(r.str("droite_key") + "\n" + r.str("gauche_path"));
+          if (Confidence.parse(r.str(Mapping.CONFIDENCE)) != Confidence.REJETE) continue;
+          if (r.str(right).isEmpty()) rejectedPaths.add(r.str(left));
+          else rejected.add(r.str(right) + "\n" + r.str(left));
         }
       }
       return new Rejections(rejected, rejectedPaths);
@@ -108,14 +113,6 @@ final class SonarToGitlab {
       return pairs.contains(key + "\n" + path);
     }
   }
-
-  /**
-   * La ressemblance de noms exigée d'une suggestion.
-   *
-   * @param threshold score minimal du meilleur candidat
-   * @param margin écart minimal entre le meilleur candidat et le suivant
-   */
-  record NameThresholds(double threshold, double margin) {}
 
   private SonarToGitlab() {}
 
@@ -128,10 +125,11 @@ final class SonarToGitlab {
       Csv.Table inventory,
       List<Match> fromCross,
       Rejections rejected,
-      NameThresholds thresholds) {
+      Guards thresholds) {
     GitlabInventoryIndex index = new GitlabInventoryIndex(inventory.rows());
     NameMatcher matcher =
-        new NameSpec("path", List.of("key", "name"), true).matcher(inventory, sonar);
+        new NameSpec(GitlabPractices.PATH, List.of(SonarInventory.KEY, SonarInventory.NAME), true)
+            .matcher(inventory, sonar);
     SonarFates fates = new SonarFates(sonar.rows());
     fromCross(fates, index, fromCross);
     devopsLink(fates, index, rejected);
@@ -151,9 +149,9 @@ final class SonarToGitlab {
       Csv.Row right = m.right();
       if (!m.joined() || right == null) continue;
       byKey
-          .computeIfAbsent(right.str("key"), k -> new CrossPaths(m, new ArrayList<>()))
+          .computeIfAbsent(right.str(SonarInventory.KEY), k -> new CrossPaths(m, new ArrayList<>()))
           .paths()
-          .add(m.left().str("path"));
+          .add(m.left().str(GitlabPractices.PATH));
     }
     for (Map.Entry<String, CrossPaths> e : byKey.entrySet()) {
       Integer s = fates.indexOf(e.getKey());
@@ -179,9 +177,9 @@ final class SonarToGitlab {
       SonarFates fates, GitlabInventoryIndex index, Rejections rejected) {
     for (int s = 0; s < fates.size(); s++) {
       Csv.Row r = fates.sonar(s);
-      if (fates.get(s) != null || !"gitlab".equals(r.str("alm"))) continue;
-      Integer g = index.byId(r.str("alm_repository"));
-      if (g != null && !rejected.pair(r.str("key"), index.path(g))) {
+      if (fates.get(s) != null || !"gitlab".equals(r.str(SonarInventory.ALM))) continue;
+      Integer g = index.byId(r.str(SonarInventory.ALM_REPOSITORY));
+      if (g != null && !rejected.pair(r.str(SonarInventory.KEY), index.path(g))) {
         fates.set(
             s,
             new Pair(

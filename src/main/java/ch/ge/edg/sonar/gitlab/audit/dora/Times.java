@@ -28,14 +28,16 @@ public final class Times {
 
   public static @Nullable Instant parse(@Nullable String s) {
     if (s == null || s.isBlank()) return null;
+    Instant iso = parseWith(s, null);
+    return iso != null ? iso : parseWith(s, JIRA);
+  }
+
+  private static @Nullable Instant parseWith(String s, @Nullable DateTimeFormatter format) {
     try {
-      return OffsetDateTime.parse(s).toInstant();
+      return (format == null ? OffsetDateTime.parse(s) : OffsetDateTime.parse(s, format))
+          .toInstant();
     } catch (DateTimeParseException e) {
-      try {
-        return OffsetDateTime.parse(s, JIRA).toInstant();
-      } catch (DateTimeParseException e2) {
-        return null;
-      }
+      return null;
     }
   }
 
@@ -46,19 +48,22 @@ public final class Times {
 
   /** Durée en heures, une décimale, virgule décimale ; vide si inconnue ou négative. */
   public static String hours(@Nullable Instant from, @Nullable Instant to) {
-    return decimal(from, to, 60.0, true);
+    Duration d = elapsed(from, to);
+    return d == null ? "" : tenths(d.toMinutes() / 60.0);
   }
 
   /** Durée en jours, une décimale, virgule décimale ; vide si inconnue ou négative. */
   public static String days(@Nullable Instant from, @Nullable Instant to) {
-    return decimal(from, to, 24.0, false);
+    Duration d = elapsed(from, to);
+    return d == null ? "" : tenths(d.toHours() / 24.0);
   }
 
-  private static String decimal(
-      @Nullable Instant from, @Nullable Instant to, double per, boolean minutes) {
-    if (from == null || to == null || to.isBefore(from)) return "";
-    Duration d = Duration.between(from, to);
-    double value = (minutes ? d.toMinutes() : d.toHours()) / per;
+  private static @Nullable Duration elapsed(@Nullable Instant from, @Nullable Instant to) {
+    if (from == null || to == null) return null;
+    return to.isBefore(from) ? null : Duration.between(from, to);
+  }
+
+  private static String tenths(double value) {
     return String.format(Locale.ROOT, "%.1f", value).replace('.', ',');
   }
 }

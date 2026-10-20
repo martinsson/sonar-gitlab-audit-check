@@ -1,9 +1,9 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.isBlank;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.size;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.isBlank;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
