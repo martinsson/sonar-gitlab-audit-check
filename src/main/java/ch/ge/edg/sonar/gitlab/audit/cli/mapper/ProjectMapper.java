@@ -38,11 +38,13 @@ import picocli.CommandLine.Option;
  * côté. C'est ce qui dit quoi améliorer ensuite. Le JSON (--report) est fait pour être relu, par un
  * humain ou par un assistant.
  *
- * <p>Usage : jbang ProjectMapper.java --left pratiques.csv --right inventaire.csv \ --out
- * correspondances.csv --report rapport-appariement.json
+ * <p>Usage :
  *
- * <p>jbang ProjectMapper.java --left a.csv --right b.csv \ --left-key nom --right-key code \
- * --exact id:ref=ref_externe --derived nom:nom=code \ --names nom=libelle,code --plain-names
+ * <pre>
+ * jbang ProjectMapper.java --left pratiques.csv --right inventaire.csv  *     --out correspondances.csv --report rapport-appariement.json
+ *
+ * jbang ProjectMapper.java --left a.csv --right b.csv  *     --left-key nom --right-key code  *     --exact id:ref=ref_externe --derived nom:nom=code  *     --names nom=libelle,code --plain-names
+ * </pre>
  */
 @Command(
     name = "ProjectMapper",

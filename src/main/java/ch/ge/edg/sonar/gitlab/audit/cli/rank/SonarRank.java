@@ -17,13 +17,20 @@ import picocli.CommandLine.Option;
  *
  * <p>La démarche est décrite dans ANALYSIS.md. En résumé :
  *
- * <p>1. Séparer les cohortes. Jamais analysé et obsolète ne se classent pas : ce sont des constats
- * de gouvernance, pas des mesures de qualité. 2. Classer les seuls projets actifs, par percentile
- * *à taille comparable*, sur quatre signaux orientés vélocité plutôt que niveau de dette. 3. Une
- * métrique absente est retirée de la moyenne, jamais remplacée par 0.
+ * <ol>
+ *   <li>Séparer les cohortes. Jamais analysé et obsolète ne se classent pas : ce sont des constats
+ *       de gouvernance, pas des mesures de qualité.
+ *   <li>Classer les seuls projets actifs, par percentile *à taille comparable*, sur quatre signaux
+ *       orientés vélocité plutôt que niveau de dette.
+ *   <li>Une métrique absente est retirée de la moyenne, jamais remplacée par 0.
+ * </ol>
  *
- * <p>Usage : jbang SonarAuditCheck.java --csv projets.csv # produit l'inventaire jbang
- * SonarRank.java --in projets.csv # produit le classement
+ * <p>Usage :
+ *
+ * <pre>
+ * jbang SonarAuditCheck.java --csv projets.csv   # produit l'inventaire
+ * jbang SonarRank.java --in projets.csv          # produit le classement
+ * </pre>
  */
 @Command(
     name = "SonarRank",

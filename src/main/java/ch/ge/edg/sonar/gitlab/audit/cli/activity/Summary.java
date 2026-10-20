@@ -101,8 +101,7 @@ final class Summary {
       out.printf("    pratiques  : %s%n", pratiques.toAbsolutePath());
       screen.say("    Les deux se lisent ensemble : pratiques.csv ne contient " + "que les", DIM);
       screen.say(
-          "    sélectionnés, l'inventaire porte le parc dont ils sortent. "
-              + "Colonnes : COLUMNS.md.",
+          "    sélectionnés, l'inventaire porte le parc dont ils sortent. Colonnes : COLUMNS.md.",
           DIM);
     } else if (pratiques != null) {
       screen.say("    pratiques  : non écrit — aucun projet sélectionné.", YELLOW);

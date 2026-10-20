@@ -10,9 +10,15 @@ import picocli.CommandLine.Mixin;
  * Diagnostic préalable à un audit de parc SonarQube — la ligne de commande ; le diagnostic lui-même
  * est dans {@link SonarAudit}.
  *
- * <p>Usage : export SONAR_URL=https://sonar.example.com export SONAR_TOKEN=squ_xxxxxxxx jbang
- * SonarAuditCheck.java --csv projets.csv jbang SonarAuditCheck.java --organization my-org #
- * SonarQube Cloud jbang SonarAuditCheck.java --dump-dir ./captures # captures brutes
+ * <p>Usage :
+ *
+ * <pre>
+ * export SONAR_URL=https://sonar.example.com
+ * export SONAR_TOKEN=squ_xxxxxxxx
+ * jbang SonarAuditCheck.java --csv projets.csv
+ * jbang SonarAuditCheck.java --organization my-org   # SonarQube Cloud
+ * jbang SonarAuditCheck.java --dump-dir ./captures   # captures brutes
+ * </pre>
  */
 @Command(
     name = "SonarAuditCheck",

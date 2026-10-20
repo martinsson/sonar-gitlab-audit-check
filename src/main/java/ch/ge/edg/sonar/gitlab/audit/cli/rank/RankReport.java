@@ -172,10 +172,7 @@ final class RankReport {
     if (!comma) {
       out.println(
           paint(
-              "  Format Excel (point-virgule + BOM UTF-8) : "
-                  + "double-clic, ou `start "
-                  + file
-                  + "`.",
+              "  Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start " + file + "`.",
               DIM));
       out.println(paint("  Pour un autre outil : relancer avec --comma.", DIM));
     }

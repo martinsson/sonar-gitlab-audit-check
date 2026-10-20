@@ -34,7 +34,11 @@ import picocli.CommandLine.Option;
  * présentes : des raisons nommées plutôt qu'un score, parce qu'un score cache laquelle des raisons
  * pèse, et c'est elle qui dit quoi faire.
  *
- * <p>Usage : jbang Vues.java --in ./audit/croisement.csv
+ * <p>Usage :
+ *
+ * <pre>
+ * jbang Vues.java --in ./audit/croisement.csv
+ * </pre>
  */
 @Command(
     name = "Vues",

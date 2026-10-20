@@ -6,27 +6,11 @@ import ch.ge.edg.sonar.gitlab.audit.csv.Column;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.stream.Collectors;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /** Un projet de l'inventaire, ce que l'entonnoir en apprend, et ses lignes de CSV. */
 class FunnelModelTest {
-
-  private Locale saved;
-
-  @BeforeEach
-  void fixLocale() {
-    saved = Locale.getDefault();
-    Locale.setDefault(Locale.ROOT);
-  }
-
-  @AfterEach
-  void restoreLocale() {
-    Locale.setDefault(saved);
-  }
 
   private static GitlabProject project(String json) throws Exception {
     return GitlabProject.of(Gitlab.MAPPER.readTree(json));

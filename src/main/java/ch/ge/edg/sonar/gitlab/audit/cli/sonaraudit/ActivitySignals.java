@@ -173,8 +173,7 @@ final class ActivitySignals {
     if (v == null) {
       out.println(
           out.color(
-              "  Vélocité de dette indisponible : moins de deux analyses "
-                  + "chiffrées sur la fenêtre.",
+              "  Vélocité de dette indisponible : moins de deux analyses chiffrées sur la fenêtre.",
               DIM));
       return;
     }

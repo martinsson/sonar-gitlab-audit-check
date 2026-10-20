@@ -5,28 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.Objects;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class GitlabActivityAuditModelTest {
 
   @TempDir Path tmp;
-  private Locale saved;
-
-  @BeforeEach
-  void fixLocale() {
-    saved = Locale.getDefault();
-    Locale.setDefault(Locale.ROOT);
-  }
-
-  @AfterEach
-  void restoreLocale() {
-    Locale.setDefault(saved);
-  }
 
   private static AuditedProject audited(String json) throws Exception {
     return AuditedProject.entering(GitlabProject.of(Gitlab.MAPPER.readTree(json)));

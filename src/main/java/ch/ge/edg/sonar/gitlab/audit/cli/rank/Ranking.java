@@ -8,9 +8,12 @@ import java.util.List;
 /**
  * Le classement de bout en bout : cohortes, vélocité, listes annexes, rapport et CSV.
  *
- * <p>1. Séparer les cohortes. 2. Classer les seuls projets actifs, par percentile *à taille
- * comparable*, sur quatre signaux orientés vélocité plutôt que niveau de dette. 3. Une métrique
- * absente est retirée de la moyenne, jamais remplacée par 0.
+ * <ol>
+ *   <li>Séparer les cohortes.
+ *   <li>Classer les seuls projets actifs, par percentile *à taille comparable*, sur quatre signaux
+ *       orientés vélocité plutôt que niveau de dette.
+ *   <li>Une métrique absente est retirée de la moyenne, jamais remplacée par 0.
+ * </ol>
  */
 final class Ranking {
 

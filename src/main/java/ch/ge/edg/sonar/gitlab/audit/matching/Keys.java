@@ -66,13 +66,22 @@ public final class Keys {
    * Mapping namespace GitLab → préfixe Sonar, puis extraction du nom court (dernier segment, sans
    * numéro de ticket) pour construire une clé Sonar approximative.
    *
-   * <p>Méthode en deux niveaux : 1. leftValue() retourne le nom court seul (sans namespace) pour
-   * matcher contre la partie après le ":" dans les clés Sonar. 2. rightValues() retourne la clé
-   * normalisée + variantes avec namespace GitLab reconstruit.
+   * <p>Méthode en deux niveaux :
    *
-   * <p>Exemples : DEVELOPPEUR-LOGEMENT/6496-sidlo/sidlo → sidlo
-   * DEVELOPPEUR-AFC/afc.refonte/AFC_rtaxpm → afc-rtaxpm DEVELOPPEUR-PHP/9949-fao → fao
-   * INFRA/terraform-module-openshift-x → terraform-module-openshift-x
+   * <ol>
+   *   <li>leftValue() retourne le nom court seul (sans namespace) pour matcher contre la partie
+   *       après le ":" dans les clés Sonar.
+   *   <li>rightValues() retourne la clé normalisée + variantes avec namespace GitLab reconstruit.
+   * </ol>
+   *
+   * <p>Exemples :
+   *
+   * <ul>
+   *   <li>DEVELOPPEUR-LOGEMENT/6496-sidlo/sidlo → sidlo
+   *   <li>DEVELOPPEUR-AFC/afc.refonte/AFC_rtaxpm → afc-rtaxpm
+   *   <li>DEVELOPPEUR-PHP/9949-fao → fao
+   *   <li>INFRA/terraform-module-openshift-x → terraform-module-openshift-x
+   * </ul>
    */
   public static String mapPathToSonarKey(@Nullable String gitlabPath) {
     if (gitlabPath == null || gitlabPath.isBlank()) return "";
@@ -98,9 +107,13 @@ public final class Keys {
    * Version "droite" : pour les clés Sonar, on retourne la clé normalisée + le nom court extrait
    * (sans namespace) pour matcher avec le chemin GitLab correspondant.
    *
-   * <p>Exemples : ch.ge.logement.sidlo:sidlo → [ch-ge-logement-sidlo-sidlo, sidlo]
-   * ch.ge.afc.refonte.rtaxpm:AFC_rtaxpm → [ch-ge-afc-refonte-rtaxpm-afc-rtaxpm, afc-rtaxpm]
-   * 9949-fao → [9949-fao, fao]
+   * <p>Exemples :
+   *
+   * <ul>
+   *   <li>ch.ge.logement.sidlo:sidlo → [ch-ge-logement-sidlo-sidlo, sidlo]
+   *   <li>ch.ge.afc.refonte.rtaxpm:AFC_rtaxpm → [ch-ge-afc-refonte-rtaxpm-afc-rtaxpm, afc-rtaxpm]
+   *   <li>9949-fao → [9949-fao, fao]
+   * </ul>
    *
    * <p>Une clé null lève NullPointerException avant le test qui la prévoit : c'est le comportement
    * d'origine, que les tests figent.

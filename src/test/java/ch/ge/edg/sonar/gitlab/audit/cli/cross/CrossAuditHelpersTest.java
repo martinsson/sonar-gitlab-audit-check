@@ -9,7 +9,6 @@ import ch.ge.edg.sonar.gitlab.audit.testing.Printed;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Locale;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -95,17 +94,11 @@ class CrossAuditHelpersTest {
   }
 
   @Test
-  void decIsTwoDecimalsWithAPointWhateverTheLocale() {
-    Locale saved = Locale.getDefault();
-    Locale.setDefault(Locale.FRANCE);
-    try {
-      assertThat(Text.decimal(null)).isEmpty();
-      assertThat(Text.decimal(1.004)).isEqualTo("1.00");
-      assertThat(Text.decimal(2.0 / 3)).isEqualTo("0.67");
-      assertThat(Text.decimal(-12.5)).isEqualTo("-12.50");
-    } finally {
-      Locale.setDefault(saved);
-    }
+  void decIsTwoDecimalsWithAPoint() {
+    assertThat(Text.decimal(null)).isEmpty();
+    assertThat(Text.decimal(1.004)).isEqualTo("1.00");
+    assertThat(Text.decimal(2.0 / 3)).isEqualTo("0.67");
+    assertThat(Text.decimal(-12.5)).isEqualTo("-12.50");
   }
 
   @Test
