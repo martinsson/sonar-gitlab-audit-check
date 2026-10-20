@@ -18,6 +18,8 @@ import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /** The pure helpers of {@link ProjectReport}. */
 class ProjectReportUnitTest {
@@ -120,6 +122,34 @@ class ProjectReportUnitTest {
     assertThat(ReportFormat.hours(1.5)).isEqualTo("1.5 h");
   }
 
+  @ParameterizedTest
+  @CsvSource(
+      nullValues = "null",
+      value = {"' ',true", "null,true", "x,false"})
+  void blankTextIsDetected(String raw, boolean blank) {
+    assertThat(Text.isBlank(raw)).isEqualTo(blank);
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+      nullValues = "null",
+      value = {"null,''", "x,x"})
+  void orEmptyTurnsNullIntoEmpty(String raw, String expected) {
+    assertThat(Text.orEmpty(raw)).isEqualTo(expected);
+  }
+
+  @ParameterizedTest
+  @CsvSource({"abcdef,abc", "abc,abc"})
+  void truncateKeepsAtMostTheLimit(String raw, String expected) {
+    assertThat(Text.truncate(raw, 3)).isEqualTo(expected);
+  }
+
+  @ParameterizedTest
+  @CsvSource({"' ',n/a", "x,x"})
+  void orNaSaysNotAvailableForBlank(String raw, String expected) {
+    assertThat(Text.orNa(raw)).isEqualTo(expected);
+  }
+
   @Test
   void smallUtilities() {
     assertThat(ProjectApi.params("a", "1", "b", "2", "odd"))
@@ -130,15 +160,6 @@ class ProjectReportUnitTest {
     assertThat(ReportFormat.orZero(4)).isEqualTo(4);
     assertThat(ReportFormat.str(null)).isNull();
     assertThat(ReportFormat.str(12L)).isEqualTo("12");
-    assertThat(Text.isBlank(" ")).isTrue();
-    assertThat(Text.isBlank(null)).isTrue();
-    assertThat(Text.isBlank("x")).isFalse();
-    assertThat(Text.orEmpty(null)).isEmpty();
-    assertThat(Text.orEmpty("x")).isEqualTo("x");
-    assertThat(Text.orNa(" ")).isEqualTo("n/a");
-    assertThat(Text.orNa("x")).isEqualTo("x");
-    assertThat(Text.truncate("abcdef", 3)).isEqualTo("abc");
-    assertThat(Text.truncate("abc", 3)).isEqualTo("abc");
     assertThat(ReportFormat.label(Map.of("id1", "Name"), "id1")).isEqualTo("Name");
     assertThat(ReportFormat.label(Map.of(), "x".repeat(40))).isEqualTo("x".repeat(32));
   }

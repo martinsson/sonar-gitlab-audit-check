@@ -18,6 +18,8 @@ import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class GitlabActivityAuditHelpersTest {
 
@@ -116,23 +118,31 @@ class GitlabActivityAuditHelpersTest {
     assertThat(Api.enc("a/b c")).isEqualTo("a%2Fb+c");
   }
 
-  @Test
-  void revertIsAnchoredAtTheStartOfTheTitle() {
-    assertThat(CommitTally.REVERT.matcher("Revert \"x\"").find()).isTrue();
-    assertThat(CommitTally.REVERT.matcher("  revert: y").find()).isTrue();
-    assertThat(CommitTally.REVERT.matcher("REVERT").find()).isTrue();
-    assertThat(CommitTally.REVERT.matcher("fix revert").find()).isFalse();
-    assertThat(CommitTally.REVERT.matcher("reverted").find()).isFalse();
-    assertThat(ActivityFloor.MIN_FLOOR).isEqualTo(5);
+  @ParameterizedTest
+  @CsvSource({
+    "'Revert \"x\"',true",
+    "'  revert: y',true",
+    "REVERT,true",
+    "fix revert,false",
+    "reverted,false"
+  })
+  void revertIsAnchoredAtTheStartOfTheTitle(String title, boolean reverts) {
+    assertThat(CommitTally.REVERT.matcher(title).find()).isEqualTo(reverts);
   }
 
   @Test
-  void verdictsCarryTheirTagAndColour() {
-    assertThat(ProbeVerdict.OK.tag).isEqualTo("OK");
-    assertThat(ProbeVerdict.DENIED.tag).isEqualTo("REFUSÉ");
-    assertThat(ProbeVerdict.MISSING.tag).isEqualTo("ABSENT");
-    assertThat(ProbeVerdict.EMPTY.tag).isEqualTo("VIDE");
-    assertThat(ProbeVerdict.ERROR.tag).isEqualTo("ERREUR");
+  void theActivityFloorHasAMinimum() {
+    assertThat(ActivityFloor.MIN_FLOOR).isEqualTo(5);
+  }
+
+  @ParameterizedTest
+  @CsvSource({"OK,OK", "DENIED,REFUSÉ", "MISSING,ABSENT", "EMPTY,VIDE", "ERROR,ERREUR"})
+  void verdictsCarryTheirTag(ProbeVerdict verdict, String tag) {
+    assertThat(verdict.tag).isEqualTo(tag);
+  }
+
+  @Test
+  void verdictsCarryTheirColour() {
     assertThat(ProbeVerdict.OK.color).isEqualTo(Screen.GREEN);
     assertThat(ProbeVerdict.DENIED.color).isEqualTo(Screen.RED);
     assertThat(ProbeVerdict.MISSING.color).isEqualTo(Screen.YELLOW);

@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /** What a mapping is asked for: methods, name spec, confidence codes, the preset. */
 class SpecTest {
@@ -15,20 +17,24 @@ class SpecTest {
     return new Csv.Row(Map.of(column, 0), new String[] {value});
   }
 
-  @Test
-  void confidenceParseAcceptsFrenchAndEnglishSpellingsWithAccents() {
-    assertThat(Confidence.parse(" Exact ")).isEqualTo(Confidence.EXACT);
-    assertThat(Confidence.parse("derived")).isEqualTo(Confidence.DERIVED);
-    assertThat(Confidence.parse("Dérivé")).isEqualTo(Confidence.DERIVED);
-    assertThat(Confidence.parse("SUGGESTION")).isEqualTo(Confidence.SUGGESTION);
-    assertThat(Confidence.parse("manuel")).isEqualTo(Confidence.MANUEL);
-    assertThat(Confidence.parse("manual")).isEqualTo(Confidence.MANUEL);
-    assertThat(Confidence.parse("Confirmé")).isEqualTo(Confidence.MANUEL);
-    assertThat(Confidence.parse("Rejeté")).isEqualTo(Confidence.REJETE);
-    assertThat(Confidence.parse("rejected")).isEqualTo(Confidence.REJETE);
-    assertThat(Confidence.parse("")).isEqualTo(Confidence.NONE);
-    assertThat(Confidence.parse("none")).isEqualTo(Confidence.NONE);
-    assertThat(Confidence.parse("whatever")).isEqualTo(Confidence.NONE);
+  @ParameterizedTest
+  @CsvSource({
+    "' Exact ',EXACT",
+    "derived,DERIVED",
+    "Dérivé,DERIVED",
+    "SUGGESTION,SUGGESTION",
+    "manuel,MANUEL",
+    "manual,MANUEL",
+    "Confirmé,MANUEL",
+    "Rejeté,REJETE",
+    "rejected,REJETE",
+    "'',NONE",
+    "none,NONE",
+    "whatever,NONE"
+  })
+  void confidenceParseAcceptsFrenchAndEnglishSpellingsWithAccents(
+      String spelling, Confidence expected) {
+    assertThat(Confidence.parse(spelling)).isEqualTo(expected);
   }
 
   @Test

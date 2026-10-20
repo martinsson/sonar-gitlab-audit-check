@@ -4,17 +4,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /** Key normalisation, repository links and the namespace-mapping key helpers. */
 class KeysTest {
 
-  @Test
-  void normaliseLowercasesAndFoldsEverySeparatorIntoOneDash() {
-    assertThat(Keys.normalise("Team-A/Alpha_Service")).isEqualTo("team-a-alpha-service");
-    assertThat(Keys.normalise("grp.alpha:svc")).isEqualTo("grp-alpha-svc");
-    assertThat(Keys.normalise("--x__y--")).isEqualTo("x-y");
-    assertThat(Keys.normalise("Élan")).isEqualTo("lan");
-    assertThat(Keys.normalise("")).isEmpty();
+  @ParameterizedTest
+  @CsvSource({
+    "Team-A/Alpha_Service,team-a-alpha-service",
+    "grp.alpha:svc,grp-alpha-svc",
+    "--x__y--,x-y",
+    "Élan,lan",
+    "'',''"
+  })
+  void normaliseLowercasesAndFoldsEverySeparatorIntoOneDash(String raw, String expected) {
+    assertThat(Keys.normalise(raw)).isEqualTo(expected);
   }
 
   @Test
@@ -26,21 +31,23 @@ class KeysTest {
     assertThat(Keys.linkedPaths(links)).containsExactly("team-a/alpha", "team-b/beta");
   }
 
-  @Test
-  void linkedPathsStripQueryFragmentTrailingSlashAndDotGit() {
-    assertThat(Keys.linkedPaths("https://h/a/b?x=1#y")).containsExactly("a/b");
-    assertThat(Keys.linkedPaths("https://h/A/B/")).containsExactly("a/b");
-    assertThat(Keys.linkedPaths("x https://h/a/b.git/")).containsExactly("a/b");
-    assertThat(Keys.linkedPaths("ftp://h/g/sub/p")).containsExactly("g/sub/p");
+  @ParameterizedTest
+  @CsvSource({
+    "https://h/a/b?x=1#y,a/b",
+    "https://h/A/B/,a/b",
+    "x https://h/a/b.git/,a/b",
+    "ftp://h/g/sub/p,g/sub/p"
+  })
+  void linkedPathsStripQueryFragmentTrailingSlashAndDotGit(String links, String expected) {
+    assertThat(Keys.linkedPaths(links)).containsExactly(expected);
   }
 
-  @Test
-  void linkedPathsDropWhatIsNotAGroupPath() {
-    assertThat(Keys.linkedPaths(null)).isEmpty();
-    assertThat(Keys.linkedPaths("  ")).isEmpty();
-    assertThat(Keys.linkedPaths("site https://h/alpha")).isEmpty();
-    assertThat(Keys.linkedPaths("x y://z")).isEmpty();
-    assertThat(Keys.linkedPaths("https://h")).isEmpty();
+  @ParameterizedTest
+  @CsvSource(
+      nullValues = "null",
+      value = {"null", "'  '", "site https://h/alpha", "x y://z", "https://h"})
+  void linkedPathsDropWhatIsNotAGroupPath(String links) {
+    assertThat(Keys.linkedPaths(links)).isEmpty();
   }
 
   @Test
@@ -49,27 +56,28 @@ class KeysTest {
     assertThat(Keys.linkedPaths("https://h/a/b | https://h/c/d")).containsExactly("a/b", "c/d");
   }
 
-  @Test
-  void stripTicketNumberRemovesALeadingNumberAndDash() {
-    assertThat(Keys.stripTicketNumber(" 12-ab ")).isEqualTo("ab");
-    assertThat(Keys.stripTicketNumber("12-ab-34")).isEqualTo("ab-34");
-    assertThat(Keys.stripTicketNumber("12-")).isEmpty();
-    assertThat(Keys.stripTicketNumber("-ab")).isEqualTo("-ab");
-    assertThat(Keys.stripTicketNumber("a1-b")).isEqualTo("a1-b");
-    assertThat(Keys.stripTicketNumber("12")).isEqualTo("12");
+  @ParameterizedTest
+  @CsvSource({"' 12-ab ',ab", "12-ab-34,ab-34", "'12-',''", "-ab,-ab", "a1-b,a1-b", "12,12"})
+  void stripTicketNumberRemovesALeadingNumberAndDash(String raw, String expected) {
+    assertThat(Keys.stripTicketNumber(raw)).isEqualTo(expected);
   }
 
-  @Test
-  void mapPathToSonarKeyDropsTheNamespaceAndTicketNumbers() {
-    assertThat(Keys.mapPathToSonarKey(null)).isEmpty();
-    assertThat(Keys.mapPathToSonarKey(" ")).isEmpty();
-    assertThat(Keys.mapPathToSonarKey("Alpha_X")).isEqualTo("alpha-x");
-    assertThat(Keys.mapPathToSonarKey("Team-A/123-Alpha")).isEqualTo("alpha");
-    assertThat(Keys.mapPathToSonarKey("team-a/sub/456-beta_svc")).isEqualTo("sub-beta-svc");
-    assertThat(Keys.mapPathToSonarKey("team-a/12-/x")).isEqualTo("x");
-    assertThat(Keys.mapPathToSonarKey("team-a/12-/34-")).isEmpty();
-    assertThat(Keys.mapPathToSonarKey("team-a/12-")).isEmpty();
-    assertThat(Keys.mapPathToSonarKey("team-a/-x-/y")).isEqualTo("x-y");
+  @ParameterizedTest
+  @CsvSource(
+      nullValues = "null",
+      value = {
+        "null,''",
+        "' ',''",
+        "Alpha_X,alpha-x",
+        "Team-A/123-Alpha,alpha",
+        "team-a/sub/456-beta_svc,sub-beta-svc",
+        "team-a/12-/x,x",
+        "team-a/12-/34-,''",
+        "team-a/12-,''",
+        "team-a/-x-/y,x-y"
+      })
+  void mapPathToSonarKeyDropsTheNamespaceAndTicketNumbers(String path, String expected) {
+    assertThat(Keys.mapPathToSonarKey(path)).isEqualTo(expected);
   }
 
   @Test
