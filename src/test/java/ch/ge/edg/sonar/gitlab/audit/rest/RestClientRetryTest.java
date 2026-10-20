@@ -4,11 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.net.ServerSocket;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -19,12 +16,12 @@ import org.junit.jupiter.api.Test;
 class RestClientRetryTest {
 
   private final List<Long> waits = new ArrayList<>();
-  private final PrintStream err =
-      new PrintStream(new ByteArrayOutputStream(), true, StandardCharsets.UTF_8);
 
   private RestClient client(String base, Map<String, String> headers) throws IOException {
     return new RestClient(
-        RestClient.Settings.of(base, headers, false), err, pause -> waits.add(pause.toSeconds()));
+        RestClient.Settings.of(base, headers, false),
+        Capture.none(),
+        pause -> waits.add(pause.toSeconds()));
   }
 
   @Test

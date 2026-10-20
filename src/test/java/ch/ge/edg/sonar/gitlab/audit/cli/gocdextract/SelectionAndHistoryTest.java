@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
@@ -33,7 +34,9 @@ class SelectionAndHistoryTest {
     return new Gocd(
         new GocdApi(
             new RestClient(
-                RestClient.Settings.of(server.url(), Map.of(), false), err, pause -> {})));
+                RestClient.Settings.of(server.url(), Map.of(), false),
+                Capture.none(),
+                pause -> {})));
   }
 
   @Test
@@ -130,10 +133,10 @@ class SelectionAndHistoryTest {
 
   @Test
   void a_missing_url_or_token_stops_before_any_call() {
-    assertThatThrownBy(() -> Gocd.connect(null, "t", false, err, pause -> {}))
+    assertThatThrownBy(() -> Gocd.connect(null, "t", false, pause -> {}))
         .isInstanceOf(Stop.class)
         .hasMessage("GOCD_URL manquant");
-    assertThatThrownBy(() -> Gocd.connect("http://h", " ", false, err, pause -> {}))
+    assertThatThrownBy(() -> Gocd.connect("http://h", " ", false, pause -> {}))
         .isInstanceOf(Stop.class)
         .hasMessage("GOCD_TOKEN manquant");
   }
@@ -141,7 +144,7 @@ class SelectionAndHistoryTest {
   @Test
   void the_url_may_end_with_go_and_the_token_goes_as_bearer() throws Exception {
     try (FakeHttpServer server = GocdFixtures.serve(new FakeHttpServer())) {
-      Gocd gocd = Gocd.connect(" " + server.url() + "/go// ", " pat ", false, err, pause -> {});
+      Gocd gocd = Gocd.connect(" " + server.url() + "/go// ", " pat ", false, pause -> {});
       Selection.resolve(gocd, List.of(), List.of("hello"), err);
       assertThat(server.requests().get(0).target()).isEqualTo("/go/api/dashboard");
       assertThat(server.requests().get(0).header("Authorization")).isEqualTo("Bearer pat");

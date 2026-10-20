@@ -5,6 +5,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -114,24 +115,17 @@ class GitlabActivityAuditOutputTest extends GitlabActivityAuditTestBase {
     Path dump = tmp.resolve("dump");
     Cli.Result r = run("--dump-dir", dump.toString(), "--concurrency", "1");
     assertOk(r);
-    // The commits query carries "since" (today minus 90 days) and comes from a Map.of, whose
-    // iteration order changes from one JVM to the next: only its prefix is stable.
+    // Named after the request, its parameters sorted: the commits query (whose "since" moves
+    // with the day) and the paged group listing are only checked by their readable prefix.
+    String user = Capture.name("api/v4/user");
     try (Stream<Path> files = Files.list(dump)) {
       assertThat(files.map(p -> p.getFileName().toString()).sorted().toList())
-          .hasSize(4)
-          .startsWith(
-              "0001-api_v4_user.json",
-              "0002-api_v4_metadata.json",
-              "0003-api_v4_groups_team_a_projects_include_subgroups_true_with_shared_false"
-                  + "_statistics_true_archived_false_per_page_100_.json")
-          .last()
-          .asString()
-          .startsWith("0004-api_v4_projects_1_repository_commits_")
-          .contains("ref_name_main")
-          .endsWith(".json");
+          .hasSize(5)
+          .contains("index.txt", user, Capture.name("api/v4/metadata"))
+          .anyMatch(n -> n.startsWith("v4_groups_team_a_projects-"))
+          .anyMatch(n -> n.startsWith("v4_projects_1_repository_commits-"));
     }
-    assertThat(dump.resolve("0001-api_v4_user.json"))
-        .hasContent("{\"username\":\"alice\",\"name\":\"Alice A\"}");
+    assertThat(dump.resolve(user)).hasContent("{\"username\":\"alice\",\"name\":\"Alice A\"}");
   }
 
   @Test

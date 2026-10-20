@@ -2,25 +2,22 @@ package ch.ge.edg.sonar.gitlab.audit.gocd;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class GocdApiTest {
 
-  private static final PrintStream QUIET =
-      new PrintStream(new ByteArrayOutputStream(), true, java.nio.charset.StandardCharsets.UTF_8);
-
   private static GocdApi api(FakeHttpServer gocd) throws IOException {
     return new GocdApi(
-        new RestClient(RestClient.Settings.of(gocd.url(), Map.of(), false), QUIET, pause -> {}));
+        new RestClient(
+            RestClient.Settings.of(gocd.url(), Map.of(), false), Capture.none(), pause -> {}));
   }
 
   private static String run(int counter, long scheduled) {

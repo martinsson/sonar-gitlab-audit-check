@@ -148,6 +148,7 @@ Instance : rejeu de <TMP>/captures
      dans tout tri par couverture, et souvent les plus à risque)
 
   Liés à une plateforme DevOps   : 2 / 4  {github=1, gitlab=1}
+    dont 1 liaison(s) illisible(s) : lecture refusée, pas absente
   Avec au moins un lien saisi    : 1 / 4
 
   Tendance des issues/kLOC sur 90 j (2 projets mesurables) :

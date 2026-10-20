@@ -99,7 +99,7 @@ public class JiraExtract implements Callable<Integer> {
   }
 
   private void extract(PrintStream err) throws ExtractionStop, IOException {
-    JiraSource jira = JiraSource.connect(url, token, insecure, err, host.sleeper());
+    JiraSource jira = JiraSource.connect(url, token, insecure, host.sleeper());
     FieldSelection fields = FieldSelection.of(jira.fields(), extraFields, err);
     Map<String, String> categories = jira.statusCategories();
     fields.announce(err);
