@@ -62,14 +62,17 @@ final class Inventory {
               "  Liste d'exclusion               : %s (%d entrées)%n",
               exclusions.file(), exclusions.entries().size());
     }
-    for (Proj p : all) p.excluded = exclusionReason(p, exclusions);
+    for (Proj p : all) {
+      String reason = exclusionReason(p, exclusions);
+      if (reason != null) p.fate = new Fate.Excluded(Fate.Stage.INVENTORY, reason);
+    }
     Map<String, Long> byReason = new TreeMap<>();
     for (Proj p : all) {
-      if (p.excluded != null) byReason.merge(p.excluded, 1L, Long::sum);
+      if (p.fate instanceof Fate.Excluded e) byReason.merge(e.reason(), 1L, Long::sum);
     }
     byReason.forEach((r, n) -> out.out().printf("    exclu — %-22s : %d%n", r, n));
 
-    long kept = all.stream().filter(p -> p.excluded == null).count();
+    long kept = all.stream().filter(p -> p.fate.inPlay()).count();
     counters.inScope = all.size();
     counters.kept = (int) kept;
     out.out()

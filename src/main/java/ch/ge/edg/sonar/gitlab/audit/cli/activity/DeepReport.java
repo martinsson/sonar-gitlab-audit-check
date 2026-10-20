@@ -108,7 +108,7 @@ final class DeepReport {
   }
 
   private static boolean isWitness(Proj p) {
-    return p.selectionReason.startsWith("témoin");
+    return p.fate instanceof Fate.Selected s && s.isWitness();
   }
 
   private void recovery(List<Proj> core) {

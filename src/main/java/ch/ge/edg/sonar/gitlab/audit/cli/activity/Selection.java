@@ -49,13 +49,12 @@ final class Selection {
 
     List<Proj> eligible =
         fresh.stream()
-            .filter(p -> p.excluded == null)
+            .filter(p -> p.fate instanceof Fate.Eligible)
             .collect(Collectors.toCollection(ArrayList::new));
     if (eligible.isEmpty()) {
       con.say("  Aucun projet au-dessus du plancher.", YELLOW);
       return;
     }
-    for (Proj p : eligible) p.bucket = bucketOf(p);
 
     strataHeads(eligible, Math.max(1, top * 70 / 100));
     singleAuthors(eligible, Math.max(1, top * 10 / 100));
@@ -74,7 +73,8 @@ final class Selection {
     Map<String, List<Proj>> byBucket =
         eligible.stream()
             .sorted(byWeeklyCommits())
-            .collect(Collectors.groupingBy(p -> p.bucket, TreeMap::new, Collectors.toList()));
+            .collect(
+                Collectors.groupingBy(p -> p.fate.bucket(), TreeMap::new, Collectors.toList()));
     // Un curseur par strate : ce qu'il a dépassé — pris, ou namespace plein — ne revient pas.
     List<Iterator<Proj>> strata = byBucket.values().stream().map(List::iterator).toList();
     boolean progressed = true;
@@ -84,7 +84,7 @@ final class Selection {
         if (selected.size() >= coreQuota) break;
         Proj next = nextCandidate(stratum);
         if (next != null) {
-          take(next, "tête de strate " + next.bucket);
+          take(next, "tête de strate " + next.fate.bucket());
           progressed = true;
         }
       }
@@ -94,7 +94,7 @@ final class Selection {
   private @Nullable Proj nextCandidate(Iterator<Proj> stratum) {
     while (stratum.hasNext()) {
       Proj p = stratum.next();
-      if (!p.selected && !namespaceFull(p)) return p;
+      if (!p.fate.isSelected() && !namespaceFull(p)) return p;
     }
     return null;
   }
@@ -105,7 +105,7 @@ final class Selection {
    */
   private void singleAuthors(List<Proj> eligible, int busQuota) {
     eligible.stream()
-        .filter(p -> !p.selected && p.authors != null && p.authors <= 1)
+        .filter(p -> !p.fate.isSelected() && p.authors != null && p.authors <= 1)
         .sorted(Comparator.comparingInt(Proj::commitsOrZero).reversed())
         .limit(busQuota)
         .forEach(p -> take(p, "mono-auteur, forte activité"));
@@ -118,7 +118,9 @@ final class Selection {
    */
   private void witness(List<Proj> eligible, int controlQuota) {
     List<Proj> rest =
-        eligible.stream().filter(p -> !p.selected).collect(Collectors.toCollection(ArrayList::new));
+        eligible.stream()
+            .filter(p -> !p.fate.isSelected())
+            .collect(Collectors.toCollection(ArrayList::new));
     Collections.shuffle(rest, new Random(funnel.options().seed));
     rest.stream().limit(controlQuota).forEach(p -> take(p, "témoin aléatoire"));
   }
@@ -131,7 +133,7 @@ final class Selection {
     if (selected.size() >= top) return;
     for (Proj p : eligible.stream().sorted(byWeeklyCommits()).toList()) {
       if (selected.size() >= top) break;
-      if (p.selected || namespaceFull(p)) continue;
+      if (p.fate.isSelected() || namespaceFull(p)) continue;
       take(p, "reliquat de budget");
     }
   }
@@ -146,8 +148,7 @@ final class Selection {
   }
 
   private void take(Proj p, String reason) {
-    p.selected = true;
-    p.selectionReason = reason;
+    p.fate = new Fate.Selected(p.fate.bucket(), reason);
     selected.add(p);
     perNamespace.merge(p.namespace, 1, Integer::sum);
   }
@@ -159,7 +160,10 @@ final class Selection {
     selected.stream()
         .collect(
             Collectors.groupingBy(
-                p -> p.selectionReason.startsWith("tête") ? "tête de strate" : p.selectionReason,
+                p -> {
+                  String reason = p.fate.selectionReason();
+                  return reason.startsWith("tête") ? "tête de strate" : reason;
+                },
                 TreeMap::new,
                 Collectors.counting()))
         .forEach((r, n) -> out.out().printf("    %-32s : %d%n", r, n));

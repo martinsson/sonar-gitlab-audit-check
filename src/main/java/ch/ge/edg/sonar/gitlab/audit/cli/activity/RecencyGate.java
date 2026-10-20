@@ -37,14 +37,15 @@ final class RecencyGate {
   List<Proj> run(List<Proj> all) {
     con.title("2. Filtre de fraîcheur (étape 1) — 0 appel");
 
-    List<Proj> kept = all.stream().filter(p -> p.excluded == null).toList();
+    List<Proj> kept = all.stream().filter(p -> p.fate.inPlay()).toList();
     for (Proj p : kept) {
       OffsetDateTime last = p.lastActivity;
       if (last == null || last.isBefore(funnel.windowStart())) {
-        p.excluded = "inactif > %dj".formatted(funnel.sinceDays());
+        p.fate =
+            new Fate.Excluded(Fate.Stage.RECENCY, "inactif > %dj".formatted(funnel.sinceDays()));
       }
     }
-    List<Proj> fresh = kept.stream().filter(p -> p.excluded == null).toList();
+    List<Proj> fresh = kept.stream().filter(p -> p.fate.inPlay()).toList();
     counters.fresh = fresh.size();
     con.out()
         .out()
@@ -66,7 +67,7 @@ final class RecencyGate {
     if (wanted <= 0) return;
     List<Proj> below =
         all.stream()
-            .filter(p -> p.excluded != null && p.excluded.startsWith("inactif"))
+            .filter(p -> p.fate.excludedAt(Fate.Stage.RECENCY))
             .collect(Collectors.toCollection(ArrayList::new));
     if (below.isEmpty()) return;
 

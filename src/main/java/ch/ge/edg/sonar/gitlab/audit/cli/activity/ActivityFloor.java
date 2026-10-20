@@ -40,7 +40,7 @@ final class ActivityFloor {
     // La distribution ne porte que sur les projets effectivement comptés :
     // y verser un zéro pour chaque projet volontairement non compté
     // déplacerait les déciles, donc le plancher déduit, donc la sélection.
-    List<Proj> counted = fresh.stream().filter(p -> p.excluded == null).toList();
+    List<Proj> counted = fresh.stream().filter(p -> p.fate.inPlay()).toList();
     List<Integer> volumes =
         counted.stream().map(Proj::commitsOrZero).sorted(Comparator.reverseOrder()).toList();
     printDeciles(volumes);
@@ -51,14 +51,19 @@ final class ActivityFloor {
     for (Proj p : counted) {
       Integer commits = p.commits;
       if (commits == null) {
-        p.excluded = "activité non mesurable (" + orEmpty(p.unmeasurable) + ")";
+        p.fate =
+            new Fate.Excluded(
+                Fate.Stage.FLOOR, "activité non mesurable (" + orEmpty(p.unmeasurable) + ")");
         unmeasurable++;
       } else if (commits < chosen) {
-        p.excluded =
-            CommitActivity.botOnly(p)
-                ? "activité robotique seule (%d commits de bots)".formatted(p.commitsBots)
-                : "sous le plancher (%d commits)".formatted(commits);
+        p.fate =
+            new Fate.Excluded(
+                Fate.Stage.FLOOR,
+                CommitActivity.botOnly(p)
+                    ? "activité robotique seule (%d commits de bots)".formatted(p.commitsBots)
+                    : "sous le plancher (%d commits)".formatted(commits));
       } else {
+        p.fate = new Fate.Eligible(Selection.bucketOf(p));
         eligible++;
       }
     }

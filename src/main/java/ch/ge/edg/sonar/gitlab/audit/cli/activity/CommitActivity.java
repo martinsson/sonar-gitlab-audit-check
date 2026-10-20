@@ -90,9 +90,12 @@ final class CommitActivity {
     int activeWithin = funnel.options().activeWithinDays;
     OffsetDateTime seen = p.lastCommit != null ? p.lastCommit : p.lastActivity;
     if (activeWithin <= 0 || seen == null || !seen.isBefore(cut)) return false;
-    p.excluded =
-        "hors coupe d'activité (%s > %dj)"
-            .formatted(p.lastCommit != null ? "dernier commit" : "dernière activité", activeWithin);
+    p.fate =
+        new Fate.Excluded(
+            Fate.Stage.ACTIVITY_CUT,
+            "hors coupe d'activité (%s > %dj)"
+                .formatted(
+                    p.lastCommit != null ? "dernier commit" : "dernière activité", activeWithin));
     return true;
   }
 

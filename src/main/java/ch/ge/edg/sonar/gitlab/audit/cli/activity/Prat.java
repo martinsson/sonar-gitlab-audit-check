@@ -29,8 +29,8 @@ final class Prat {
   String[] row(Proj p, int windowDays) {
     return new String[] {
       orEmpty(p.path),
-      orEmpty(p.selectionReason),
-      p.bucket,
+      p.fate.selectionReason(),
+      p.fate.bucket(),
       num(p.commits),
       num(p.authors),
       String.valueOf(defaultProtected),

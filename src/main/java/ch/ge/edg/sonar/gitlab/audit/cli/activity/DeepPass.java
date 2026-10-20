@@ -32,7 +32,7 @@ final class DeepPass {
   void run(Outputs outputs, List<Proj> all) throws IOException {
     SonarCache cache = new SonarCache(outputs.cache(), outputs.useCache(), con.out().err());
     cache.load();
-    List<Proj> selected = all.stream().filter(p -> p.selected).toList();
+    List<Proj> selected = all.stream().filter(p -> p.fate.isSelected()).toList();
     measureAll(
         outputs, selected, new SonarProbe(gl, counters, cache, new CiConfig(gl, counters, all)));
     cache.save();

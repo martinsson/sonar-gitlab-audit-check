@@ -43,11 +43,8 @@ final class Proj {
   @Nullable Integer reverts;
   boolean truncated;
   boolean leaked;
-  boolean selected;
   @Nullable String unmeasurable;
-  String bucket = "";
-  @Nullable String excluded;
-  String selectionReason = "";
+  Fate fate = new Fate.InPlay();
 
   /** Les pratiques, mesurées par la passe profonde sur les seuls sélectionnés. */
   final Prat prat = new Prat();
@@ -105,7 +102,7 @@ final class Proj {
       String.valueOf(mirror),
       num(totalCommits),
       num(repoSize),
-      bucket,
+      fate.bucket(),
       iso(lastCommit),
       num(commits),
       num(commitsBots),
@@ -115,10 +112,10 @@ final class Proj {
       num(activeDays),
       commits == null ? "" : "%.2f".formatted(perWeek(windowDays)),
       String.valueOf(truncated),
-      orEmpty(excluded),
+      fate.exclusion(),
       String.valueOf(leaked),
-      String.valueOf(selected),
-      orEmpty(selectionReason)
+      String.valueOf(fate.isSelected()),
+      fate.selectionReason()
     };
   }
 
