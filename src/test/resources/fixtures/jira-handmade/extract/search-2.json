@@ -1,0 +1,27 @@
+{
+  "startAt": 2,
+  "maxResults": 100,
+  "total": 3,
+  "issues": [
+    {
+      "id": "20003",
+      "key": "ABC-3",
+      "fields": {
+        "summary": "Nouvelle demande",
+        "project": {"id": "10000", "key": "ABC"},
+        "issuetype": {"id": "3", "name": "Task", "subtask": false},
+        "status": {"id": "1", "name": "Open", "statusCategory": {"id": 2, "key": "new"}},
+        "priority": null,
+        "resolution": null,
+        "created": "2026-03-20T16:45:00.000+0100",
+        "updated": "2026-03-20T16:45:00.000+0100",
+        "resolutiondate": null,
+        "components": [],
+        "fixVersions": [],
+        "versions": [],
+        "labels": [],
+        "customfield_10201": {"id": "401", "value": "Mineure; à \"revoir\"\nplus tard"}
+      }
+    }
+  ]
+}

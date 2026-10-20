@@ -1,0 +1,83 @@
+{
+  "expand": "schema,names",
+  "startAt": 0,
+  "maxResults": 100,
+  "total": 3,
+  "issues": [
+    {
+      "expand": "operations,editmeta,changelog,transitions,renderedFields",
+      "id": "20001",
+      "self": "https://jira.example.test/rest/api/2/issue/20001",
+      "key": "ABC-1",
+      "fields": {
+        "summary": "Erreur au paiement",
+        "project": {"id": "10000", "key": "ABC", "name": "Projet ABC"},
+        "issuetype": {"id": "1", "name": "Bug", "subtask": false},
+        "status": {"id": "6", "name": "Closed", "statusCategory": {"id": 3, "key": "done", "name": "Done"}},
+        "priority": {"id": "2", "name": "High"},
+        "resolution": {"id": "1", "name": "Fixed"},
+        "created": "2026-03-02T09:00:00.000+0100",
+        "updated": "2026-03-07T12:30:00.000+0100",
+        "resolutiondate": "2026-03-07T12:00:00.000+0100",
+        "components": [{"id": "1", "name": "api"}, {"id": "2", "name": "web"}],
+        "fixVersions": [{"id": "100", "name": "1.2.0", "released": true}],
+        "versions": [],
+        "labels": ["prod", "hotfix"],
+        "customfield_10100": "ABC-100",
+        "customfield_10200": {"id": "300", "value": "Production", "child": {"id": "301", "value": "Site A"}},
+        "customfield_10201": {"id": "400", "value": "Majeure"},
+        "customfield_10300": ["com.atlassian.greenhopper.service.sprint.Sprint@1a2b3c[id=7,rapidViewId=3,state=CLOSED,name=Sprint 7,startDate=2026-02-23T09:00:00.000+01:00,endDate=2026-03-06T17:00:00.000+01:00]"],
+        "customfield_10400": 3.0
+      },
+      "changelog": {
+        "startAt": 0,
+        "maxResults": 5,
+        "total": 5,
+        "histories": [
+          {"id": "5", "author": {"name": "dev1"}, "created": "2026-03-07T12:00:00.000+0100",
+           "items": [{"field": "status", "fieldtype": "jira", "from": "3", "fromString": "In Progress", "to": "6", "toString": "Closed"},
+                     {"field": "resolution", "fieldtype": "jira", "from": null, "fromString": null, "to": "1", "toString": "Fixed"}]},
+          {"id": "1", "author": {"name": "dev1"}, "created": "2026-03-03T10:00:00.000+0100",
+           "items": [{"field": "assignee", "fieldtype": "jira", "from": null, "fromString": null, "to": "dev1", "toString": "Dev Un"},
+                     {"field": "status", "fieldtype": "jira", "from": "1", "fromString": "Open", "to": "3", "toString": "In Progress"}]},
+          {"id": "3", "author": {"name": "qa1"}, "created": "2026-03-05T08:00:00.000+0100",
+           "items": [{"field": "status", "fieldtype": "jira", "from": "6", "fromString": "Closed", "to": "4", "toString": "Reopened"}]},
+          {"id": "2", "author": {"name": "dev1"}, "created": "2026-03-04T10:15:30.000+0100",
+           "items": [{"field": "status", "fieldtype": "jira", "from": "3", "fromString": "In Progress", "to": "6", "toString": "Closed"}]},
+          {"id": "4", "author": {"name": "dev1"}, "created": "2026-03-06T09:00:00.000+0100",
+           "items": [{"field": "status", "fieldtype": "jira", "from": "4", "fromString": "Reopened", "to": "3", "toString": "In Progress"}]}
+        ]
+      }
+    },
+    {
+      "id": "20002",
+      "key": "ABC-2",
+      "fields": {
+        "summary": "Sous-tâche du paiement",
+        "project": {"id": "10000", "key": "ABC"},
+        "issuetype": {"id": "5", "name": "Sub-task", "subtask": true},
+        "parent": {"id": "20001", "key": "ABC-1"},
+        "status": {"id": "999", "name": "Archived", "statusCategory": {"id": 3, "key": "done"}},
+        "priority": {"id": "3", "name": "Medium"},
+        "resolution": null,
+        "created": "2026-03-09T09:00:00.000+0100",
+        "updated": "2026-03-12T09:00:00.000+0100",
+        "resolutiondate": null,
+        "components": [],
+        "fixVersions": [],
+        "versions": [{"id": "100", "name": "1.2.0"}],
+        "labels": [],
+        "customfield_10100": null
+      },
+      "changelog": {
+        "startAt": 0,
+        "maxResults": 1,
+        "total": 3,
+        "histories": [
+          {"id": "10", "created": "2026-03-10T09:00:00.000+0100",
+           "items": [{"field": "status", "from": "1", "fromString": "Open", "to": "3", "toString": "In Progress"}]}
+        ]
+      }
+    }
+  ]
+}
