@@ -78,11 +78,8 @@ final class RecencyGate {
     List<Integer> counts = gl.map(sample, funnel.concurrency(), pager::count);
     for (int i = 0; i < sample.size(); i++) {
       int n = counts.get(i);
-      if (n > 0) {
-        leaks++;
-        sample.get(i).leaked = true;
-        sample.get(i).commits = n;
-      }
+      sample.get(i).commits = new CommitMeasure.Sampled(n);
+      if (n > 0) leaks++;
     }
     counters.sampleSize = sample.size();
     counters.sampleLeaks = leaks;

@@ -33,17 +33,10 @@ final class Proj {
   final @Nullable Long totalCommits;
   final @Nullable Long repoSize;
 
-  @Nullable OffsetDateTime lastCommit;
-  @Nullable String headSha;
-  @Nullable Integer commits;
-  @Nullable Integer commitsBots;
-  @Nullable Integer authors;
-  @Nullable Integer mergeCommits;
-  @Nullable Integer activeDays;
-  @Nullable Integer reverts;
-  boolean truncated;
-  boolean leaked;
-  @Nullable String unmeasurable;
+  /** La tête de la branche par défaut telle que GraphQL l'a datée. */
+  CommitMeasure.Head head = CommitMeasure.Head.unknown();
+
+  CommitMeasure commits = new CommitMeasure.NotCounted();
   Fate fate = new Fate.InPlay();
 
   /** Les pratiques, mesurées par la passe profonde sur les seuls sélectionnés. */
@@ -74,16 +67,25 @@ final class Proj {
     return new Proj(n);
   }
 
+  /** Le dernier commit : celui de la pagination quand elle a eu lieu, sinon celui de GraphQL. */
+  @Nullable OffsetDateTime lastCommit() {
+    return commits instanceof CommitMeasure.Counted c ? c.head().lastCommit() : head.lastCommit();
+  }
+
+  /** Le SHA de tête, qui indexe le cache des clés Sonar. */
+  @Nullable String headSha() {
+    return commits instanceof CommitMeasure.Counted c ? c.head().sha() : head.sha();
+  }
+
   double perWeek(int windowDays) {
-    Integer n = commits;
+    Integer n = commits.human();
     if (n == null || windowDays <= 0) return 0;
     return n * 7.0 / windowDays;
   }
 
   /** Commits humains comptés, zéro quand ils ne l'ont pas été — pour trier, pas pour publier. */
   int commitsOrZero() {
-    Integer n = commits;
-    return n == null ? 0 : n;
+    return commits.humanOrZero();
   }
 
   /** Une ligne d'inventaire.csv. */
@@ -103,17 +105,17 @@ final class Proj {
       num(totalCommits),
       num(repoSize),
       fate.bucket(),
-      iso(lastCommit),
-      num(commits),
-      num(commitsBots),
-      num(authors),
-      num(mergeCommits),
-      num(reverts),
-      num(activeDays),
-      commits == null ? "" : "%.2f".formatted(perWeek(windowDays)),
-      String.valueOf(truncated),
+      iso(lastCommit()),
+      num(commits.human()),
+      num(commits.bots()),
+      num(commits.authors()),
+      num(commits.merges()),
+      num(commits.reverts()),
+      num(commits.activeDays()),
+      commits.human() == null ? "" : "%.2f".formatted(perWeek(windowDays)),
+      String.valueOf(commits.truncated()),
       fate.exclusion(),
-      String.valueOf(leaked),
+      String.valueOf(commits.leaked()),
       String.valueOf(fate.isSelected()),
       fate.selectionReason()
     };

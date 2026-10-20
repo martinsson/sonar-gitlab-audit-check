@@ -1,6 +1,5 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
 
@@ -49,18 +48,17 @@ final class ActivityFloor {
     int eligible = 0;
     int unmeasurable = 0;
     for (Proj p : counted) {
-      Integer commits = p.commits;
+      Integer commits = p.commits.human();
       if (commits == null) {
-        p.fate =
-            new Fate.Excluded(
-                Fate.Stage.FLOOR, "activité non mesurable (" + orEmpty(p.unmeasurable) + ")");
+        String status = p.commits instanceof CommitMeasure.Unmeasurable u ? u.status() : "";
+        p.fate = new Fate.Excluded(Fate.Stage.FLOOR, "activité non mesurable (" + status + ")");
         unmeasurable++;
       } else if (commits < chosen) {
         p.fate =
             new Fate.Excluded(
                 Fate.Stage.FLOOR,
-                CommitActivity.botOnly(p)
-                    ? "activité robotique seule (%d commits de bots)".formatted(p.commitsBots)
+                p.commits.botOnly()
+                    ? "activité robotique seule (%d commits de bots)".formatted(p.commits.bots())
                     : "sous le plancher (%d commits)".formatted(commits));
       } else {
         p.fate = new Fate.Eligible(Selection.bucketOf(p));

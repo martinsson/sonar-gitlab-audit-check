@@ -45,7 +45,7 @@ final class SonarCache {
   }
 
   String keyFor(Proj p) {
-    String sha = p.headSha;
+    String sha = p.headSha();
     String stamp = sha != null && !sha.isBlank() ? sha : "act:" + Fmt.iso(p.lastActivity);
     return p.id + "@" + stamp;
   }

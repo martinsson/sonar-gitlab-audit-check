@@ -39,9 +39,7 @@ final class CommitActivity {
       // Si GraphQL a daté le dernier commit hors fenêtre, le compte est zéro
       // par construction : inutile de le redemander en REST.
       if (lastCommitBeforeWindow(p)) {
-        p.commits = 0;
-        p.commitsBots = 0;
-        p.authors = 0;
+        p.commits = new CommitMeasure.NoneInWindow();
       } else if (belowCut(p, cut)) {
         tooQuiet++;
       } else {
@@ -73,7 +71,7 @@ final class CommitActivity {
   }
 
   private boolean lastCommitBeforeWindow(Proj p) {
-    OffsetDateTime last = p.lastCommit;
+    OffsetDateTime last = p.head.lastCommit();
     return last != null && last.isBefore(funnel.windowStart());
   }
 
@@ -88,14 +86,14 @@ final class CommitActivity {
    */
   private boolean belowCut(Proj p, OffsetDateTime cut) {
     int activeWithin = funnel.options().activeWithinDays;
-    OffsetDateTime seen = p.lastCommit != null ? p.lastCommit : p.lastActivity;
+    OffsetDateTime dated = p.head.lastCommit();
+    OffsetDateTime seen = dated != null ? dated : p.lastActivity;
     if (activeWithin <= 0 || seen == null || !seen.isBefore(cut)) return false;
     p.fate =
         new Fate.Excluded(
             Fate.Stage.ACTIVITY_CUT,
             "hors coupe d'activité (%s > %dj)"
-                .formatted(
-                    p.lastCommit != null ? "dernier commit" : "dernière activité", activeWithin));
+                .formatted(dated != null ? "dernier commit" : "dernière activité", activeWithin));
     return true;
   }
 
@@ -106,7 +104,7 @@ final class CommitActivity {
             "  Coupe --active-within %-3d       : %d projets écartés sur %d%n",
             activeWithin, tooQuiet, fresh.size());
     con.say("    Écartés sans être comptés : « pas regardé » n'est pas « rien vu ».", DIM);
-    boolean byCommit = fresh.stream().anyMatch(x -> x.lastCommit != null);
+    boolean byCommit = fresh.stream().anyMatch(x -> x.head.lastCommit() != null);
     con.say(
         byCommit
             ? "    Gratuit — la date vient de la passe GraphQL, pas d'un appel de plus."
@@ -117,19 +115,13 @@ final class CommitActivity {
 
   private void reportCounts(List<Proj> fresh, int counted) {
     Console out = con.out();
-    long active = fresh.stream().filter(p -> p.commits != null && p.commits > 0).count();
+    long active = fresh.stream().filter(p -> p.commitsOrZero() > 0).count();
     out.out().printf("  Comptés par pagination REST     : %d projets%n", counted);
     out.out().printf("  Avec au moins un commit humain  : %d%n", active);
-    long botOnly = fresh.stream().filter(CommitActivity::botOnly).count();
+    long botOnly = fresh.stream().filter(p -> p.commits.botOnly()).count();
     if (botOnly > 0) {
       out.out().printf("  Activité exclusivement robotique : %d%n", botOnly);
       con.say("    Renovate seul sur un dépôt est un constat, pas une ligne vide.", DIM);
     }
-  }
-
-  static boolean botOnly(Proj p) {
-    Integer human = p.commits;
-    Integer bots = p.commitsBots;
-    return human != null && human == 0 && bots != null && bots > 0;
   }
 }

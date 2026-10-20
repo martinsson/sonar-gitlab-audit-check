@@ -76,7 +76,7 @@ final class Summary {
               "  Filtre de fraîcheur validé sur %d projets : %d faux négatif%s.%n",
               n.sampleSize, n.sampleLeaks, plural(n.sampleLeaks));
     }
-    long truncated = all.stream().filter(p -> p.truncated).count();
+    long truncated = all.stream().filter(p -> p.commits.truncated()).count();
     if (truncated > 0) {
       con.say(
           "  %d projets tronqués à %d pages de commits : leur volume est"

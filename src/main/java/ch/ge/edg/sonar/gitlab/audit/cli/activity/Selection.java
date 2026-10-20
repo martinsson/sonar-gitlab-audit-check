@@ -105,7 +105,7 @@ final class Selection {
    */
   private void singleAuthors(List<Proj> eligible, int busQuota) {
     eligible.stream()
-        .filter(p -> !p.fate.isSelected() && p.authors != null && p.authors <= 1)
+        .filter(p -> !p.fate.isSelected() && isSingleAuthor(p))
         .sorted(Comparator.comparingInt(Proj::commitsOrZero).reversed())
         .limit(busQuota)
         .forEach(p -> take(p, "mono-auteur, forte activité"));
@@ -136,6 +136,11 @@ final class Selection {
       if (p.fate.isSelected() || namespaceFull(p)) continue;
       take(p, "reliquat de budget");
     }
+  }
+
+  private static boolean isSingleAuthor(Proj p) {
+    Integer authors = p.commits.authors();
+    return authors != null && authors <= 1;
   }
 
   private Comparator<Proj> byWeeklyCommits() {

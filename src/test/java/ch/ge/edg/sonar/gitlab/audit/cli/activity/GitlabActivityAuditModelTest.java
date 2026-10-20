@@ -79,7 +79,9 @@ class GitlabActivityAuditModelTest {
   void perWeekNeedsCommitsAndAWindow() throws Exception {
     Proj p = proj("{}");
     assertThat(p.perWeek(7)).isZero();
-    p.commits = 14;
+    p.commits =
+        new CommitMeasure.Counted(
+            CommitMeasure.Head.unknown(), new CommitMeasure.Volume(14, 0, 0, 0, 0, 0), false);
     assertThat(p.perWeek(7)).isEqualTo(14.0);
     assertThat(p.perWeek(28)).isEqualTo(3.5);
     assertThat(p.perWeek(0)).isZero();
@@ -185,9 +187,9 @@ class GitlabActivityAuditModelTest {
     SonarCache c = new SonarCache(tmp.resolve("c.json"), true, System.err);
     Proj p = proj("{\"id\":3,\"last_activity_at\":\"2099-01-01T00:00:00Z\"}");
     assertThat(c.keyFor(p)).isEqualTo("3@act:2099-01-01T00:00Z");
-    p.headSha = " ";
+    p.head = new CommitMeasure.Head(null, " ");
     assertThat(c.keyFor(p)).isEqualTo("3@act:2099-01-01T00:00Z");
-    p.headSha = "abc";
+    p.head = new CommitMeasure.Head(null, "abc");
     assertThat(c.keyFor(p)).isEqualTo("3@abc");
     assertThat(c.keyFor(proj("{\"id\":4}"))).isEqualTo("4@act:");
   }

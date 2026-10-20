@@ -76,11 +76,12 @@ final class GraphqlDates {
       JsonNode last = data.path("p" + j).path("repository").path("tree").path("lastCommit");
       JsonNode n = last.path("committedDate");
       if (n.isTextual()) {
-        batch.get(j).lastCommit = parse(n.asText());
         // Le SHA de tête indexe le cache des clés Sonar : il ne coûte
         // rien de plus ici, et c'est le seul index qui n'invalide
         // jamais dans le mauvais sens.
-        if (last.path("sha").isTextual()) batch.get(j).headSha = last.path("sha").asText();
+        JsonNode sha = last.path("sha");
+        batch.get(j).head =
+            new CommitMeasure.Head(parse(n.asText()), sha.isTextual() ? sha.asText() : null);
         done++;
       }
     }

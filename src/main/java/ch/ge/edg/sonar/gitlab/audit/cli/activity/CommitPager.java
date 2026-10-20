@@ -1,8 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.isBlank;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.iso;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
@@ -47,24 +45,13 @@ final class CommitPager {
    */
   void measure(Proj p) {
     CommitTally tally = new CommitTally(funnel.windowStart(), funnel.bots());
-    Walk w =
-        walk(
-            p,
-            false,
-            (page, arr) -> {
-              // Repli d'index de cache quand GraphQL n'a pas répondu : les commits
-              // arrivent du plus récent au plus ancien, donc le premier de la
-              // première page est la tête de la branche par défaut.
-              if (page == 1 && isBlank(p.headSha)) p.headSha = text(arr.get(0), "id");
-              arr.forEach(tally::add);
-            });
-    if (!w.ok()) {
-      // Refus de permission ou erreur : on ne sait pas, et « on ne sait
-      // pas » ne doit surtout pas se lire comme « aucune activité ».
-      p.unmeasurable = "HTTP " + w.status();
-      return;
-    }
-    tally.applyTo(p, w.truncated());
+    Walk w = walk(p, false, each(tally::add));
+    // Refus de permission ou erreur : on ne sait pas, et « on ne sait
+    // pas » ne doit surtout pas se lire comme « aucune activité ».
+    p.commits =
+        w.ok()
+            ? tally.result(p.head, w.truncated())
+            : new CommitMeasure.Unmeasurable("HTTP " + w.status());
   }
 
   /** Ce que reçoit chaque page non vide : son numéro et ses commits. */

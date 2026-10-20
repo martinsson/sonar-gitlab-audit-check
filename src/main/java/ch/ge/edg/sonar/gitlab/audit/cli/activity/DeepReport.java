@@ -127,9 +127,11 @@ final class DeepReport {
   }
 
   private void reverts(List<Proj> core) {
-    long reverting = core.stream().filter(p -> p.reverts != null && p.reverts > 0).count();
+    List<Integer> counts =
+        core.stream().map(p -> p.commits.reverts()).filter(Objects::nonNull).toList();
+    long reverting = counts.stream().filter(n -> n > 0).count();
     if (reverting == 0) return;
-    int total = core.stream().mapToInt(p -> p.reverts == null ? 0 : p.reverts).sum();
+    int total = counts.stream().mapToInt(Integer::intValue).sum();
     con.out()
         .out()
         .printf(
