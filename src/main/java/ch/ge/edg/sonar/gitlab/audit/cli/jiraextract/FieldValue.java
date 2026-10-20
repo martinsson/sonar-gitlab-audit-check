@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 
 /** Une valeur de champ Jira en texte de cellule : option, utilisateur, version, liste… */
-public final class FieldValue {
+final class FieldValue {
 
   /** Au-delà, un texte est coupé : une description entière n'a rien à faire dans un tableau. */
   static final int MAX_TEXT = 300;

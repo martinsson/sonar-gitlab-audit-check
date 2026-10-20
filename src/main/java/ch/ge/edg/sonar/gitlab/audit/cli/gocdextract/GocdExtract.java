@@ -1,9 +1,5 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.Extraction;
-import ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.Gocd;
-import ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.Selection;
-import ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.Stop;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import java.io.IOException;
 import java.io.PrintStream;

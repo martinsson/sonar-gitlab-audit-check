@@ -26,7 +26,7 @@ import java.util.Set;
  * @param builtAt heure locale de construction, telle qu'affichée
  * @param pipelines par nom, dans l'ordre du tableau de bord
  */
-public record GocdIndex(String builtAt, Map<String, Pipeline> pipelines) {
+record GocdIndex(String builtAt, Map<String, Pipeline> pipelines) {
 
   static final ObjectMapper JSON = new ObjectMapper();
 
@@ -45,7 +45,7 @@ public record GocdIndex(String builtAt, Map<String, Pipeline> pipelines) {
    *
    * @param lastRun heure locale du dernier run, vide s'il n'a jamais tourné (ou pas lisiblement)
    */
-  public record Pipeline(String group, List<String> git, List<String> upstream, String lastRun) {
+  record Pipeline(String group, List<String> git, List<String> upstream, String lastRun) {
 
     public Pipeline {
       git = List.copyOf(git);

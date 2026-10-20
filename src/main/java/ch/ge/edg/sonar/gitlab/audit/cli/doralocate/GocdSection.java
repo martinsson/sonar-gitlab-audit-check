@@ -14,7 +14,7 @@ import java.util.Set;
  * (formes http et ssh confondues), puis leurs pipelines en aval. Un pipeline qui n'a jamais tourné
  * n'a pas de matériau connu et ne peut pas être rattaché.
  */
-public final class GocdSection {
+final class GocdSection {
 
   private static final String ROW = "  %-40s %-20s %-18s %-12s %s%n";
 

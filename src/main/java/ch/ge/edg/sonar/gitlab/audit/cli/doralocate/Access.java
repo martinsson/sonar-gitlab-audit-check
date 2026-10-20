@@ -19,7 +19,7 @@ import org.jspecify.annotations.Nullable;
  * Les trois serveurs, ouverts d'après les options : GitLab par PRIVATE-TOKEN, Jira et GoCD par un
  * PAT en Bearer. Un jeton refusé (401) arrête l'outil : la suite ne lirait plus rien.
  */
-public final class Access {
+final class Access {
 
   private static final int TIMEOUT_SECONDS = 60;
 

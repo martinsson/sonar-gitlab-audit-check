@@ -25,7 +25,7 @@ import java.util.Optional;
  * Les runs amont qui ne sont pas déjà en cache coûtent un appel : {@code maxUpstream} borne ces
  * appels pour un même run, et la plage lue à chaque niveau.
  */
-public final class DeployedCommits {
+final class DeployedCommits {
 
   /** prod ← preprod ← recette ← intégration ← build ← git, et un peu de marge. */
   static final int MAX_DEPTH = 6;

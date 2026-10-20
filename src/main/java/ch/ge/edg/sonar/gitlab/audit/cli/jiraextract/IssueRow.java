@@ -11,7 +11,7 @@ import java.util.List;
  * Une ligne de jira-tickets.csv : ce que les mesures DORA lisent d'un ticket (type, statut, dates
  * et délais, versions, rattachement), puis les colonnes de {@link FieldSelection}.
  */
-public final class IssueRow {
+final class IssueRow {
 
   static final List<String> HEADER =
       List.of(

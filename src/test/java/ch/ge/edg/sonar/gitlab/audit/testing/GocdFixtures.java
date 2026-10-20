@@ -1,8 +1,7 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
+package ch.ge.edg.sonar.gitlab.audit.testing;
 
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
-import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,10 +36,6 @@ public final class GocdFixtures {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
-  }
-
-  static Gocd gocd(FakeHttpServer server) {
-    return new Gocd(api(server));
   }
 
   public static JsonNode node(String json) {

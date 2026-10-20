@@ -1,12 +1,5 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.jiraextract.ExtractionStop;
-import ch.ge.edg.sonar.gitlab.audit.cli.jiraextract.FieldSelection;
-import ch.ge.edg.sonar.gitlab.audit.cli.jiraextract.IssuePages;
-import ch.ge.edg.sonar.gitlab.audit.cli.jiraextract.JiraSource;
-import ch.ge.edg.sonar.gitlab.audit.cli.jiraextract.Output;
-import ch.ge.edg.sonar.gitlab.audit.cli.jiraextract.TicketFiles;
-import ch.ge.edg.sonar.gitlab.audit.cli.jiraextract.VersionsCsv;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import java.io.IOException;
 import java.io.PrintStream;

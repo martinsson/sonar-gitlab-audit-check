@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdFixtures.history;
-import static ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdFixtures.run;
+import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.history;
+import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.run;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -9,6 +9,7 @@ import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

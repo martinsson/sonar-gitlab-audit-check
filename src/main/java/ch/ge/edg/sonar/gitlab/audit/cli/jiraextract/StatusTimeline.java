@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
  * @param inProgress premier passage dans un statut de catégorie « indeterminate »
  * @param done dernier passage à « done », s'il n'a pas été réouvert depuis
  */
-public record StatusTimeline(
+record StatusTimeline(
     List<Transition> transitions, @Nullable Instant inProgress, @Nullable Instant done) {
 
   static final String IN_PROGRESS = "indeterminate";
@@ -28,7 +28,7 @@ public record StatusTimeline(
    *
    * @param category la catégorie du statut d'arrivée ; vide si le statut est inconnu
    */
-  public record Transition(@Nullable Instant at, String from, String to, String category) {}
+  record Transition(@Nullable Instant at, String from, String to, String category) {}
 
   /**
    * La chronologie d'un ticket.

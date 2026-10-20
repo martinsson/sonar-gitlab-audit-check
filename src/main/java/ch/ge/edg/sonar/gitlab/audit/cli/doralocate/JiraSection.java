@@ -16,7 +16,7 @@ import java.util.Map;
  * préfixe cité dans au moins 5 % des commits, et que Jira connaît, reçoit une commande
  * d'extraction.
  */
-public final class JiraSection {
+final class JiraSection {
 
   /** Préfixes affichés, et donc vérifiés auprès de Jira. */
   static final int SHOWN = 15;

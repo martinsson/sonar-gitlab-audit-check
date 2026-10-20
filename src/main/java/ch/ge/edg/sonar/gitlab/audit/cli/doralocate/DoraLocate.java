@@ -1,12 +1,5 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.doralocate.Access;
-import ch.ge.edg.sonar.gitlab.audit.cli.doralocate.Context;
-import ch.ge.edg.sonar.gitlab.audit.cli.doralocate.GitlabProject;
-import ch.ge.edg.sonar.gitlab.audit.cli.doralocate.GocdSection;
-import ch.ge.edg.sonar.gitlab.audit.cli.doralocate.JiraSection;
-import ch.ge.edg.sonar.gitlab.audit.cli.doralocate.Stop;
-import ch.ge.edg.sonar.gitlab.audit.cli.doralocate.Suggestions;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.io.IOException;

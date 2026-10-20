@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * GoCD tel que l'extraction le lit : un PAT en Bearer, et un 401 qui arrête tout, où qu'il tombe.
  */
-public final class Gocd {
+final class Gocd {
 
   private final GocdApi api;
 

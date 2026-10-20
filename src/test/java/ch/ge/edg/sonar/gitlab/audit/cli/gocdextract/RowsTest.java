@@ -1,8 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdFixtures.fixture;
-import static ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdFixtures.gocd;
-import static ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdFixtures.node;
+import static ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdOnFake.gocd;
+import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.fixture;
+import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.node;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;

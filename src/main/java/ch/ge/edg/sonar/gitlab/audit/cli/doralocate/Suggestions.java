@@ -6,7 +6,7 @@ import java.util.Collection;
 import java.util.List;
 
 /** Les commandes d'extraction proposées à la fin : des suggestions, à vérifier avant de lancer. */
-public final class Suggestions {
+final class Suggestions {
 
   private final List<String> commands = new ArrayList<>();
   private boolean jira;

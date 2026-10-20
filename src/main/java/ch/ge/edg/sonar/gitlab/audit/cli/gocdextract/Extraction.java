@@ -9,7 +9,7 @@ import java.time.ZoneId;
 import java.util.List;
 
 /** Une extraction : pour chaque pipeline choisi, ses runs depuis une date, écrits run par run. */
-public final class Extraction {
+final class Extraction {
 
   /**
    * Ce que l'extraction écrit et jusqu'où elle remonte.
@@ -19,7 +19,7 @@ public final class Extraction {
    * @param maxUpstream appels de runs amont permis pour un seul run
    * @param durations lire chaque stage pour sa fin (un appel de plus par stage)
    */
-  public record Settings(
+  record Settings(
       Path outDir, boolean comma, boolean raw, int maxUpstream, boolean durations, ZoneId zone) {}
 
   private final Gocd gocd;

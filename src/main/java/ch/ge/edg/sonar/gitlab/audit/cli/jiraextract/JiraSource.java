@@ -17,7 +17,7 @@ import org.jspecify.annotations.Nullable;
  * arrive ; les champs, les statuts, la recherche et la relecture d'un ticket sont indispensables ;
  * les versions d'un projet ne le sont pas.
  */
-public final class JiraSource {
+final class JiraSource {
 
   /** Tickets par page de recherche. */
   static final int PAGE = 100;

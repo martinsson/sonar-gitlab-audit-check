@@ -1,6 +1,5 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
+package ch.ge.edg.sonar.gitlab.audit.testing;
 
-import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -10,6 +10,6 @@
 // Entry point for `jbang dora/DoraLocate.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/DoraLocate.java.
 public class DoraLocate {
     public static void main(String[] args) {
-        ch.ge.edg.sonar.gitlab.audit.cli.DoraLocate.main(args);
+        ch.ge.edg.sonar.gitlab.audit.cli.doralocate.DoraLocate.main(args);
     }
 }

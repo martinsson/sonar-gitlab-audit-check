@@ -61,6 +61,10 @@ class SlicesTest {
           .matching(ROOT + "(**)")
           .should()
           .beFreeOfCycles()
+          // The shared test helpers (fakes of the external systems) build real clients and are used
+          // by those clients' tests: that is test wiring, not a dependency between packages.
+          .ignoreDependency(resideInAPackage(ROOT + "testing.."), alwaysTrue())
+          .ignoreDependency(alwaysTrue(), resideInAPackage(ROOT + "testing.."))
           // Iteration 2 moves MappingFile's printing into matching.report and removes this
           // exception: until then MappingFile (matching) prints with matching.report's colours,
           // while matching.report reads matching's results.

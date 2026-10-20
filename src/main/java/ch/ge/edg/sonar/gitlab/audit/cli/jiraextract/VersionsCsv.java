@@ -10,7 +10,7 @@ import java.util.List;
  * jira-versions.csv : les versions des projets et leurs dates de livraison, de quoi recouper les
  * mises en production. Un projet dont les versions sont illisibles est signalé et sauté.
  */
-public final class VersionsCsv {
+final class VersionsCsv {
 
   static final List<String> HEADER =
       List.of("projet", "version", "livree", "archivee", "debut_le", "livree_le", "description");
