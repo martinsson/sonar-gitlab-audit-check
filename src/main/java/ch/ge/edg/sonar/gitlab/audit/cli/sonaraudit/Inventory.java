@@ -62,11 +62,11 @@ final class Inventory {
   private void write(Path csv, InventoryCsv.Park park, Map<String, SearchHistory> histories)
       throws IOException {
     Console out = session.out();
-    InventoryCsv writer = new InventoryCsv(output.comma, session.clock());
+    InventoryCsv writer = new InventoryCsv(output.comma.enabled(), session.clock());
     writer.write(csv, park);
     out.println();
     out.println("  CSV écrit : " + out.color(csv.toString(), BOLD));
-    out.println(out.color(Csv.openingHint(csv, output.comma), DIM));
+    out.println(out.color(Csv.openingHint(csv, output.comma.enabled()), DIM));
     if (!histories.isEmpty()) {
       Path history = InventoryCsv.historyPath(csv);
       writer.writeHistory(history, histories);

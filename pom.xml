@@ -249,7 +249,7 @@
           <compilerArgs>
             <arg>-XDcompilePolicy=simple</arg>
             <arg>--should-stop=ifError=FLOW</arg>
-            <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=ch.ge.edg.sonar.gitlab.audit,ratchet</arg>
+            <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:NullAway:ERROR -XepOpt:NullAway:AnnotatedPackages=ch.ge.edg.sonar.gitlab.audit,ratchet -XepOpt:NullAway:ExcludedFieldAnnotations=picocli.CommandLine.Option,picocli.CommandLine.Parameters,picocli.CommandLine.Mixin,picocli.CommandLine.Spec</arg>
             <arg>-Xlint:all,-processing,-serial</arg>
             <arg>-Werror</arg>
           </compilerArgs>

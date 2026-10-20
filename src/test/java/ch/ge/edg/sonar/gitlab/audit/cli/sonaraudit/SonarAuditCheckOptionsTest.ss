@@ -129,11 +129,6 @@ Diagnostic d'accès Sonar avant audit de parc.
                              SonarQube Cloud
       --project=<project>    projet témoin (sinon : le premier visible)
       --csv=<csv>            chemin du CSV d'inventaire à écrire
-      --exclusions=<exclusionsFile>
-                             fichier de clés à exclure, une par ligne, * et **
-                               permis (sinon : exclusions.txt s'il existe)
-      --comma                CSV séparé par des virgules, sans BOM (pour un
-                               outil, pas Excel)
       --dump-dir=<dumpDir>   répertoire où consigner les réponses brutes
       --replay-dir=<replayDir>
                              rejouer un --dump-dir au lieu d'appeler l'instance
@@ -156,9 +151,14 @@ Diagnostic d'accès Sonar avant audit de parc.
                              fenêtre d'activité (défaut : 90)
       --timeout=<timeout>
       --insecure             ignorer la validation TLS
-      --color=<colorMode>    auto | always | never (défaut : auto)
   -h, --help                 Show this help message and exit.
   -V, --version              Print version information and exit.
+      --exclusions=<file>    fichier de clés ou chemins à exclure, un par
+                               ligne, * et ** permis (sinon : exclusions.txt
+                               s'il existe)
+      --comma                CSV séparé par des virgules, sans BOM (pour un
+                               outil, pas Excel)
+      --color=<mode>         auto | always | never (défaut : auto)
 
 Cas d'usage courants :
 

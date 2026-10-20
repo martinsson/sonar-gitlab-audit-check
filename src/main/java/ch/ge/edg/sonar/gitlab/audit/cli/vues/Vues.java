@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.vues;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.StyleOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
@@ -11,12 +12,12 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 /**
@@ -51,18 +52,9 @@ import picocli.CommandLine.Option;
 public class Vues implements Callable<Integer> {
 
   @Option(names = "--in", required = true, description = "croisement.csv de CrossAudit --out")
-  @Nullable Path in;
+  Path in;
 
-  @Option(
-      names = "--comma",
-      description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
-  boolean comma;
-
-  @Option(
-      names = "--color",
-      defaultValue = "auto",
-      description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
-  String colorMode = "auto";
+  @Mixin StyleOptions style = new StyleOptions();
 
   private final Host host;
 
@@ -160,9 +152,9 @@ public class Vues implements Callable<Integer> {
 
   @Override
   public Integer call() throws IOException {
-    Console out = host.console(colorMode);
+    Console out = host.console(style.colorMode());
     // required = true : picocli refuse la ligne de commande avant d'appeler call().
-    Path input = Objects.requireNonNull(in, "--in");
+    Path input = in;
     Csv.Table t = Csv.read(input);
     t.require(input, "CrossAudit --out", "projet", "confiance");
 
@@ -296,7 +288,7 @@ public class Vues implements Callable<Integer> {
   }
 
   private void write(Path file, List<String> columns, List<Csv.Row> rows) throws IOException {
-    try (CSVWriter w = Csv.writer(file, comma)) {
+    try (CSVWriter w = Csv.writer(file, style.comma())) {
       w.writeNext(columns.toArray(String[]::new));
       for (Csv.Row r : rows) {
         w.writeNext(

@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.CommaOption;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -11,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 /**
@@ -60,10 +62,7 @@ public class JiraExtract implements Callable<Integer> {
   @Option(names = "--no-raw", description = "N'écrit pas les tickets bruts (jsonl)")
   boolean noRaw;
 
-  @Option(
-      names = "--comma",
-      description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
-  boolean comma;
+  @Mixin CommaOption comma = new CommaOption();
 
   @Option(names = "--url", defaultValue = "${env:JIRA_URL}", description = "env JIRA_URL")
   @Nullable String url;
@@ -106,7 +105,7 @@ public class JiraExtract implements Callable<Integer> {
     String query = jql != null ? jql : IssuePages.defaultJql(projects, days);
     err.println("JQL : " + query);
     Files.createDirectories(outDir);
-    Output output = new Output(outDir, !noRaw, comma, host.clock().getZone());
+    Output output = new Output(outDir, !noRaw, comma.enabled(), host.clock().getZone());
     try (TicketFiles files = new TicketFiles(output, fields, categories)) {
       new IssuePages(jira, err).each(query, files::write);
       err.println(files.summary());

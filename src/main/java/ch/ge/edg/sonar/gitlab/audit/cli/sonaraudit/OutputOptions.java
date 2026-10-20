@@ -1,7 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.CommaOption;
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.ExclusionsOption;
 import java.nio.file.Path;
 import org.jspecify.annotations.Nullable;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 /** Ce qui est écrit sur disque : l'inventaire, et les captures brutes. */
@@ -10,17 +13,9 @@ final class OutputOptions {
   @Option(names = "--csv", description = "chemin du CSV d'inventaire à écrire")
   @Nullable Path csv;
 
-  @Option(
-      names = "--exclusions",
-      description =
-          "fichier de clés à exclure, une par ligne, "
-              + "* et ** permis (sinon : exclusions.txt s'il existe)")
-  @Nullable Path exclusionsFile;
+  @Mixin ExclusionsOption exclusions = new ExclusionsOption();
 
-  @Option(
-      names = "--comma",
-      description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
-  boolean comma;
+  @Mixin CommaOption comma = new CommaOption();
 
   @Option(names = "--dump-dir", description = "répertoire où consigner les réponses brutes")
   @Nullable Path dumpDir;

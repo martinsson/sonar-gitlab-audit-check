@@ -73,7 +73,7 @@ final class SonarAudit {
     Metrics metrics = Metrics.negotiate(session);
     new Capabilities(session, metrics).check(sample);
     new Inventory(session, metrics, output, scan)
-        .run(Exclusions.file(output.exclusionsFile, workDir));
+        .run(Exclusions.file(output.exclusions.file(), workDir));
     if (sample != null) new ActivitySignals(session, sample, scan.activityDays).report();
 
     summary(session);

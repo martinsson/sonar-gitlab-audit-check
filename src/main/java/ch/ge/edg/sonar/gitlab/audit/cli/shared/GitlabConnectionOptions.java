@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.activity;
+package ch.ge.edg.sonar.gitlab.audit.cli.shared;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.nio.file.Path;
@@ -7,10 +7,10 @@ import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Option;
 
 /**
- * De quoi joindre l'instance. Les options portent un {@code order} : réparties en plusieurs
- * groupes, elles gardent dans l'aide l'ordre où elles ont toujours été listées.
+ * De quoi joindre une instance GitLab. Les options portent un {@code order} : réparties en
+ * plusieurs groupes, elles gardent dans l'aide l'ordre où elles ont toujours été listées.
  */
-final class GitlabOptions {
+public final class GitlabConnectionOptions {
 
   @Option(
       names = "--url",
@@ -43,10 +43,21 @@ final class GitlabOptions {
   @Nullable Path dumpDir;
 
   /** Vide quand l'URL ou le jeton manque : sans eux, aucun appel n'a de sens. */
-  Optional<Gitlab.Connection> connection() {
+  public Optional<Gitlab.Connection> connection() {
     String u = url;
     String t = token;
     if (u == null || t == null || u.isBlank() || t.isBlank()) return Optional.empty();
     return Optional.of(new Gitlab.Connection(u, t, timeout, insecure, dumpDir));
+  }
+
+  /** Sans jeton : lecture anonyme ; sans URL : {@code fallbackUrl}. */
+  public Gitlab.Connection connectionOrAnonymous(String fallbackUrl) {
+    String u = url == null || url.isBlank() ? fallbackUrl : url;
+    return new Gitlab.Connection(u, token, timeout, insecure, dumpDir);
+  }
+
+  /** Vrai sans jeton utilisable. */
+  public boolean anonymous() {
+    return token == null || token.isBlank();
   }
 }
