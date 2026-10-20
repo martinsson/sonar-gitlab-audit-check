@@ -22,10 +22,10 @@ final class GraphqlDates {
 
   private static final int BATCH = 50;
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
 
-  GraphqlDates(Gitlab gl) {
-    this.gl = gl;
+  GraphqlDates(Gitlab gitlab) {
+    this.gitlab = gitlab;
   }
 
   /**
@@ -49,7 +49,7 @@ final class GraphqlDates {
     for (int i = 0; i < fresh.size(); i += BATCH) {
       List<AuditedProject> batch = fresh.subList(i, Math.min(i + BATCH, fresh.size()));
       calls++;
-      JsonNode data = data(gl.graphql(query(batch)));
+      JsonNode data = data(gitlab.graphql(query(batch)));
       if (data == null) {
         if (i == 0) return new Dating(unknown(fresh.size()), calls, false);
         break; // partiel : les projets non datés passeront par REST

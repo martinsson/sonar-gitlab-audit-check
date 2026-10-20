@@ -9,11 +9,11 @@ import org.jspecify.annotations.Nullable;
 /** Étape 2 : activité réelle, en commits. */
 final class CommitActivity {
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
   private final Funnel funnel;
 
-  CommitActivity(Gitlab gl, Funnel funnel) {
-    this.gl = gl;
+  CommitActivity(Gitlab gitlab, Funnel funnel) {
+    this.gitlab = gitlab;
     this.funnel = funnel;
   }
 
@@ -23,7 +23,7 @@ final class CommitActivity {
   /** La date du dernier commit des projets en lice, à cinquante projets la requête. */
   Dated date(List<AuditedProject> all) {
     List<AuditedProject> fresh = inPlay(all);
-    GraphqlDates.Dating dating = new GraphqlDates(gl).date(fresh);
+    GraphqlDates.Dating dating = new GraphqlDates(gitlab).date(fresh);
     IdentityHashMap<AuditedProject, CommitMeasure.Head> heads = new IdentityHashMap<>();
     for (int i = 0; i < fresh.size(); i++) heads.put(fresh.get(i), dating.heads().get(i));
     List<AuditedProject> dated =
@@ -59,8 +59,8 @@ final class CommitActivity {
    */
   List<AuditedProject> count(List<AuditedProject> all) {
     List<AuditedProject> toCount = toCount(all);
-    CommitPager pager = new CommitPager(gl, funnel);
-    List<CommitMeasure> measures = gl.map(toCount, funnel.concurrency(), pager::measure);
+    CommitPager pager = new CommitPager(gitlab, funnel);
+    List<CommitMeasure> measures = gitlab.map(toCount, funnel.concurrency(), pager::measure);
     IdentityHashMap<AuditedProject, CommitMeasure> measured = new IdentityHashMap<>();
     for (int i = 0; i < toCount.size(); i++) measured.put(toCount.get(i), measures.get(i));
     return all.stream()

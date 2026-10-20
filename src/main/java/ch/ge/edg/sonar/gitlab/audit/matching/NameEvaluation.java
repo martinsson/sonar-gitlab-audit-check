@@ -23,22 +23,22 @@ import java.util.stream.Collectors;
  */
 final class NameEvaluation {
 
-  private final Result r;
-  private final Spec s;
+  private final Result result;
+  private final Spec spec;
   private final NameMatcher matcher;
   private final NameSpec names;
   private final int examples;
-  private final List<Match> ms;
+  private final List<Match> matches;
   private final List<Match> sure;
 
-  NameEvaluation(Result r, NameMatcher matcher, NameSpec names, int examples) {
-    this.r = r;
-    this.s = r.spec();
+  NameEvaluation(Result result, NameMatcher matcher, NameSpec names, int examples) {
+    this.result = result;
+    this.spec = result.spec();
     this.matcher = matcher;
     this.names = names;
     this.examples = examples;
-    this.ms = r.matches();
-    this.sure = ms.stream().filter(Match::joined).toList();
+    this.matches = result.matches();
+    this.sure = matches.stream().filter(Match::joined).toList();
   }
 
   /** Une paire sûre et le score de ressemblance de son vrai homologue. */
@@ -69,18 +69,18 @@ final class NameEvaluation {
         wrongOnSure,
         divergent(),
         nearMisses(),
-        LeftoverWords.of(r, names));
+        LeftoverWords.of(result, names));
   }
 
   /** Une paire sûre : son vrai score, et ce que la ressemblance libre en a pensé. */
   private void tally(Match m) {
-    Integer j = r.rightIndex().get(m.rightKey(s));
+    Integer j = result.rightIndex().get(m.rightKey(spec));
     double ts = j == null ? 0 : matcher.score(m.index(), j);
     if (ts < 0.3) divergentAll.add(new Scored(m, ts));
     NameGuess f = m.free();
     if (f == null || f.candidate().isEmpty()) return;
     int b = Math.min(9, (int) (f.score() * 10));
-    if (f.candidate().equals(m.rightKey(s))) {
+    if (f.candidate().equals(m.rightKey(spec))) {
       correct[b]++;
       return;
     }
@@ -90,12 +90,12 @@ final class NameEvaluation {
 
   private Example wrongExample(Match m, NameGuess f, double ts) {
     return new Example(
-        m.left().str(s.leftKey()),
+        m.left().str(spec.leftKey()),
         "proposé %s (%s), vrai %s (%s, par %s)"
             .formatted(
                 f.candidate(),
                 Text.decimal(f.score()),
-                m.rightKey(s),
+                m.rightKey(spec),
                 Text.decimal(ts),
                 m.method()));
   }
@@ -110,7 +110,7 @@ final class NameEvaluation {
         NameGuess f = m.free();
         if (f == null || !proposedAt(f, th)) continue;
         proposed++;
-        if (f.candidate().equals(m.rightKey(s))) ok++;
+        if (f.candidate().equals(m.rightKey(spec))) ok++;
       }
       points.add(
           new ThresholdPoint(
@@ -126,7 +126,7 @@ final class NameEvaluation {
   /** La suggestion libre aurait-elle été faite à ce seuil, avec la marge actuelle ? */
   private boolean proposedAt(NameGuess f, double th) {
     if (f.candidate().isEmpty() || f.score() < th) return false;
-    return f.runnerUp().isEmpty() || f.score() - f.runnerUpScore() >= s.margin();
+    return f.runnerUp().isEmpty() || f.score() - f.runnerUpScore() >= spec.margin();
   }
 
   private List<Example> divergent() {
@@ -143,7 +143,7 @@ final class NameEvaluation {
               .collect(Collectors.joining(" / "));
       divergent.add(
           new Example(
-              m.left().str(s.leftKey()),
+              m.left().str(spec.leftKey()),
               "%s — score %s, apparié par %s"
                   .formatted(shown, Text.decimal(d.trueScore()), m.method())));
     }
@@ -152,7 +152,7 @@ final class NameEvaluation {
 
   private Map<String, Integer> rejections() {
     Map<String, Integer> rejections = new LinkedHashMap<>();
-    for (Match m : ms) {
+    for (Match m : matches) {
       NameGuess g = m.guess();
       String rejection = g == null ? null : g.rejection();
       if (rejection == null) continue;
@@ -163,11 +163,11 @@ final class NameEvaluation {
   }
 
   private List<Example> nearMisses() {
-    return ms.stream()
+    return matches.stream()
         .filter(m -> m.right() == null)
         .flatMap(m -> guessed(m).stream())
         .filter(n -> !n.g().candidate().isEmpty())
-        .filter(n -> n.g().score() >= s.threshold() - 0.15)
+        .filter(n -> n.g().score() >= spec.threshold() - 0.15)
         .sorted(Comparator.comparingDouble((Near n) -> n.g().score()).reversed())
         .limit(examples)
         .map(n -> nearMiss(n.m(), n.g()))
@@ -183,7 +183,7 @@ final class NameEvaluation {
 
   private Example nearMiss(Match m, NameGuess g) {
     return new Example(
-        m.left().str(s.leftKey()),
+        m.left().str(spec.leftKey()),
         "%s (%s) — %s%s"
             .formatted(
                 g.candidate(),

@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.csv.Column;
 import ch.ge.edg.sonar.gitlab.audit.exchange.Crossing;
 import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabInventory;
 import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
@@ -13,9 +14,17 @@ import org.junit.jupiter.api.Test;
  */
 class ExchangeContractTest {
 
+  private static List<String> inventoryColumns() {
+    return CsvFiles.inventory(30).stream().map(Column::name).toList();
+  }
+
+  private static List<String> practicesColumns() {
+    return CsvFiles.practices(30).stream().map(Column::name).toList();
+  }
+
   @Test
   void inventaire_carries_the_columns_the_crossing_reads() {
-    assertThat(CsvFiles.INVENTORY)
+    assertThat(inventoryColumns())
         .contains(
             GitlabInventory.ID,
             GitlabInventory.PATH,
@@ -28,8 +37,8 @@ class ExchangeContractTest {
   @Test
   void pratiques_carries_the_columns_the_crossing_reads() {
     List<String> required = List.of(GitlabPractices.required());
-    assertThat(CsvFiles.PRATIQUES).containsAll(required).containsAll(GitlabPractices.CROSSED);
-    assertThat(CsvFiles.PRATIQUES)
+    assertThat(practicesColumns()).containsAll(required).containsAll(GitlabPractices.CROSSED);
+    assertThat(practicesColumns())
         .contains(
             GitlabPractices.ID,
             GitlabPractices.LINES_CHANGED,

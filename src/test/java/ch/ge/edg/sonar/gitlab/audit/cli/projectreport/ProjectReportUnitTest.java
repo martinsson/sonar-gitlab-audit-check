@@ -42,54 +42,54 @@ class ProjectReportUnitTest {
 
   @Test
   void hours_pick_their_unit() {
-    assertThat(Format.hours(0)).isEqualTo("< 1 min");
-    assertThat(Format.hours(0.016)).isEqualTo("< 1 min");
-    assertThat(Format.hours(0.02)).isEqualTo("1 min");
-    assertThat(Format.hours(0.5)).isEqualTo("30 min");
-    assertThat(Format.hours(0.999)).isEqualTo("60 min");
-    assertThat(Format.hours(1)).isEqualTo("1.0 h");
-    assertThat(Format.hours(47.9)).isEqualTo("47.9 h");
-    assertThat(Format.hours(48)).isEqualTo("2.0 j");
-    assertThat(Format.hours(60)).isEqualTo("2.5 j");
+    assertThat(ReportFormat.hours(0)).isEqualTo("< 1 min");
+    assertThat(ReportFormat.hours(0.016)).isEqualTo("< 1 min");
+    assertThat(ReportFormat.hours(0.02)).isEqualTo("1 min");
+    assertThat(ReportFormat.hours(0.5)).isEqualTo("30 min");
+    assertThat(ReportFormat.hours(0.999)).isEqualTo("60 min");
+    assertThat(ReportFormat.hours(1)).isEqualTo("1.0 h");
+    assertThat(ReportFormat.hours(47.9)).isEqualTo("47.9 h");
+    assertThat(ReportFormat.hours(48)).isEqualTo("2.0 j");
+    assertThat(ReportFormat.hours(60)).isEqualTo("2.5 j");
   }
 
   @Test
   void bytes_are_human() {
-    assertThat(Format.humanBytes(null)).isEqualTo("n/a");
-    assertThat(Format.humanBytes(0L)).isEqualTo("0.0 o");
-    assertThat(Format.humanBytes(1023L)).isEqualTo("1023.0 o");
-    assertThat(Format.humanBytes(1024L)).isEqualTo("1.0 Ko");
-    assertThat(Format.humanBytes(1536L * 1024)).isEqualTo("1.5 Mo");
-    assertThat(Format.humanBytes(3L * 1024 * 1024 * 1024)).isEqualTo("3.0 Go");
-    assertThat(Format.humanBytes(5000L * 1024 * 1024 * 1024)).isEqualTo("5000.0 Go");
+    assertThat(ReportFormat.humanBytes(null)).isEqualTo("n/a");
+    assertThat(ReportFormat.humanBytes(0L)).isEqualTo("0.0 o");
+    assertThat(ReportFormat.humanBytes(1023L)).isEqualTo("1023.0 o");
+    assertThat(ReportFormat.humanBytes(1024L)).isEqualTo("1.0 Ko");
+    assertThat(ReportFormat.humanBytes(1536L * 1024)).isEqualTo("1.5 Mo");
+    assertThat(ReportFormat.humanBytes(3L * 1024 * 1024 * 1024)).isEqualTo("3.0 Go");
+    assertThat(ReportFormat.humanBytes(5000L * 1024 * 1024 * 1024)).isEqualTo("5000.0 Go");
   }
 
   @Test
   void percentile_interpolates_on_a_sorted_list() {
-    assertThat(Format.percentile(List.of(), 50)).isZero();
-    assertThat(Format.percentile(List.of(7L), 90)).isEqualTo(7.0);
-    assertThat(Format.percentile(List.of(1L, 3L), 50)).isEqualTo(2.0);
-    assertThat(Format.percentile(List.of(0L, 10L, 20L, 30L, 40L), 90)).isEqualTo(36.0);
-    assertThat(Format.percentile(List.of(0L, 10L, 20L), 0)).isZero();
-    assertThat(Format.percentile(List.of(0L, 10L, 20L), 100)).isEqualTo(20.0);
+    assertThat(ReportFormat.percentile(List.of(), 50)).isZero();
+    assertThat(ReportFormat.percentile(List.of(7L), 90)).isEqualTo(7.0);
+    assertThat(ReportFormat.percentile(List.of(1L, 3L), 50)).isEqualTo(2.0);
+    assertThat(ReportFormat.percentile(List.of(0L, 10L, 20L, 30L, 40L), 90)).isEqualTo(36.0);
+    assertThat(ReportFormat.percentile(List.of(0L, 10L, 20L), 0)).isZero();
+    assertThat(ReportFormat.percentile(List.of(0L, 10L, 20L), 100)).isEqualTo(20.0);
   }
 
   @Test
   void bars_are_bounded() {
-    assertThat(Format.bar(0)).isEmpty();
-    assertThat(Format.bar(2.4)).isEmpty();
-    assertThat(Format.bar(2.5)).isEqualTo("#");
-    assertThat(Format.bar(50)).isEqualTo("#".repeat(10));
-    assertThat(Format.bar(100)).isEqualTo("#".repeat(20));
-    assertThat(Format.bar(250)).isEqualTo("#".repeat(20));
-    assertThat(Format.bar(-50)).isEmpty();
+    assertThat(ReportFormat.bar(0)).isEmpty();
+    assertThat(ReportFormat.bar(2.4)).isEmpty();
+    assertThat(ReportFormat.bar(2.5)).isEqualTo("#");
+    assertThat(ReportFormat.bar(50)).isEqualTo("#".repeat(10));
+    assertThat(ReportFormat.bar(100)).isEqualTo("#".repeat(20));
+    assertThat(ReportFormat.bar(250)).isEqualTo("#".repeat(20));
+    assertThat(ReportFormat.bar(-50)).isEmpty();
   }
 
   @Test
   void the_week_bar_scales_to_the_busiest_day() {
-    assertThat(Format.dowBar(new int[] {0, 0, 0, 0, 0, 0, 0}))
+    assertThat(ReportFormat.dowBar(new int[] {0, 0, 0, 0, 0, 0, 0}))
         .isEqualTo("L:▁ M:▁ M:▁ J:▁ V:▁ S:▁ D:▁");
-    assertThat(Format.dowBar(new int[] {10, 1, 2, 3, 5, 7, 9}))
+    assertThat(ReportFormat.dowBar(new int[] {10, 1, 2, 3, 5, 7, 9}))
         .isEqualTo("L:█ M:▂ M:▂ J:▃ V:▅ S:▆ D:█");
   }
 
@@ -119,7 +119,7 @@ class ProjectReportUnitTest {
   @SuspectedBug("decimals should not follow the default locale: a French machine writes 1,5")
   void hours_use_a_decimal_comma_under_a_french_default_locale() {
     Locale.setDefault(Locale.FRANCE);
-    assertThat(Format.hours(1.5)).isEqualTo("1,5 h");
+    assertThat(ReportFormat.hours(1.5)).isEqualTo("1,5 h");
   }
 
   @Test
@@ -128,10 +128,10 @@ class ProjectReportUnitTest {
         .containsExactly(Map.entry("a", "1"), Map.entry("b", "2"));
     assertThat(ProjectApi.params()).isEmpty();
     assertThat(ProjectApi.enc("a/b c")).isEqualTo("a%2Fb+c");
-    assertThat(Format.orZero(null)).isZero();
-    assertThat(Format.orZero(4)).isEqualTo(4);
-    assertThat(Format.str(null)).isNull();
-    assertThat(Format.str(12L)).isEqualTo("12");
+    assertThat(ReportFormat.orZero(null)).isZero();
+    assertThat(ReportFormat.orZero(4)).isEqualTo(4);
+    assertThat(ReportFormat.str(null)).isNull();
+    assertThat(ReportFormat.str(12L)).isEqualTo("12");
     assertThat(Text.isBlank(" ")).isTrue();
     assertThat(Text.isBlank(null)).isTrue();
     assertThat(Text.isBlank("x")).isFalse();
@@ -141,8 +141,8 @@ class ProjectReportUnitTest {
     assertThat(Text.orNa("x")).isEqualTo("x");
     assertThat(Text.truncate("abcdef", 3)).isEqualTo("abc");
     assertThat(Text.truncate("abc", 3)).isEqualTo("abc");
-    assertThat(Format.label(Map.of("id1", "Name"), "id1")).isEqualTo("Name");
-    assertThat(Format.label(Map.of(), "x".repeat(40))).isEqualTo("x".repeat(32));
+    assertThat(ReportFormat.label(Map.of("id1", "Name"), "id1")).isEqualTo("Name");
+    assertThat(ReportFormat.label(Map.of(), "x".repeat(40))).isEqualTo("x".repeat(32));
   }
 
   @Test
@@ -185,12 +185,12 @@ class ProjectReportUnitTest {
 
   @Test
   void verdict_tags_and_line_layout() {
-    assertThat(Verdict.OK.tag).isEqualTo("OK      ");
-    assertThat(Verdict.MISSING.tag).isEqualTo("ABSENT  ");
-    assertThat(Verdict.EMPTY.tag).isEqualTo("VIDE    ");
-    assertThat(Verdict.DENIED.color).isEqualTo(Report.RED);
+    assertThat(EndpointVerdict.OK.tag).isEqualTo("OK      ");
+    assertThat(EndpointVerdict.MISSING.tag).isEqualTo("ABSENT  ");
+    assertThat(EndpointVerdict.EMPTY.tag).isEqualTo("VIDE    ");
+    assertThat(EndpointVerdict.DENIED.color).isEqualTo(Report.RED);
     assertThat(Report.RESET).isEqualTo("\033[0m");
-    assertThat(new Report(Printed.colored().console()).c("x", Report.GREEN))
+    assertThat(new Report(Printed.colored().console()).paint("x", Report.GREEN))
         .isEqualTo("\033[32mx\033[0m");
   }
 }

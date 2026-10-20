@@ -11,12 +11,12 @@ import java.util.Optional;
 /** Préambule : connectivité, identité, licence. */
 final class Preflight {
 
-  private final Gitlab gl;
-  private final Screen con;
+  private final Gitlab gitlab;
+  private final Screen screen;
 
-  Preflight(Gitlab gl, Screen con) {
-    this.gl = gl;
-    this.con = con;
+  Preflight(Gitlab gitlab, Screen screen) {
+    this.gitlab = gitlab;
+    this.screen = screen;
   }
 
   /**
@@ -28,22 +28,23 @@ final class Preflight {
 
   /** Vide quand l'instance est injoignable ou le jeton refusé : rien d'autre n'a de sens. */
   Optional<Instance> run() {
-    con.title("0. Connectivité, identité, licence");
+    screen.title("0. Connectivité, identité, licence");
 
-    Gitlab.Response me = gl.get("user", Map.of());
+    Gitlab.Response me = gitlab.get("user", Map.of());
     if (me.unreachable()) {
-      con.line("api/v4/user", Verdict.ERROR, me.errorMessage());
-      con.say("\n  Instance injoignable. Vérifie l'URL, le proxy, le TLS.", RED);
+      screen.line("api/v4/user", ProbeVerdict.ERROR, me.errorMessage());
+      screen.say("\n  Instance injoignable. Vérifie l'URL, le proxy, le TLS.", RED);
       return Optional.empty();
     }
     if (me.status() != 200) {
-      con.line("api/v4/user", Verdict.DENIED, "HTTP " + me.status() + " — jeton refusé");
-      con.say("\n  Le jeton n'est pas accepté. La portée read_api suffit,", RED);
-      con.say("  mais un jeton expiré ou révoqué donne le même 401.", RED);
+      screen.line("api/v4/user", ProbeVerdict.DENIED, "HTTP " + me.status() + " — jeton refusé");
+      screen.say("\n  Le jeton n'est pas accepté. La portée read_api suffit,", RED);
+      screen.say("  mais un jeton expiré ou révoqué donne le même 401.", RED);
       return Optional.empty();
     }
     JsonNode u = me.json();
-    con.line("api/v4/user", Verdict.OK, "%s (%s)".formatted(text(u, "username"), text(u, "name")));
+    screen.line(
+        "api/v4/user", ProbeVerdict.OK, "%s (%s)".formatted(text(u, "username"), text(u, "name")));
     return Optional.of(new Instance(enterprise()));
   }
 
@@ -52,22 +53,22 @@ final class Preflight {
    * découvrir après coup, c'est réécrire l'analyse.
    */
   private boolean enterprise() {
-    Gitlab.Response meta = gl.get("metadata", Map.of());
+    Gitlab.Response meta = gitlab.get("metadata", Map.of());
     if (meta.status() == 200) {
       JsonNode m = meta.json();
       boolean enterprise = m.path("enterprise").asBoolean(false);
-      con.line(
+      screen.line(
           "api/v4/metadata",
-          enterprise ? Verdict.OK : Verdict.EMPTY,
+          enterprise ? ProbeVerdict.OK : ProbeVerdict.EMPTY,
           "GitLab %s · %s"
               .formatted(
                   text(m, "version"),
                   enterprise ? "Enterprise" : "Community — DORA et approbations indisponibles"));
       return enterprise;
     }
-    con.line(
+    screen.line(
         "api/v4/metadata",
-        Verdict.MISSING,
+        ProbeVerdict.MISSING,
         "HTTP " + meta.status() + " — plan inconnu, on suppose Community");
     return false;
   }

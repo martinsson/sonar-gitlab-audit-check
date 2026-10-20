@@ -43,56 +43,56 @@ class GitlabActivityAuditHelpersTest {
 
   @Test
   void pctRoundsToAWholePercentAndDashesAnEmptyTotal() {
-    assertThat(Fmt.pct(1, 3)).isEqualTo("33 %");
-    assertThat(Fmt.pct(2, 3)).isEqualTo("67 %");
-    assertThat(Fmt.pct(0, 5)).isEqualTo("0 %");
-    assertThat(Fmt.pct(5, 0)).isEqualTo("—");
+    assertThat(CellFormat.pct(1, 3)).isEqualTo("33 %");
+    assertThat(CellFormat.pct(2, 3)).isEqualTo("67 %");
+    assertThat(CellFormat.pct(0, 5)).isEqualTo("0 %");
+    assertThat(CellFormat.pct(5, 0)).isEqualTo("—");
   }
 
   @Test
   void decimalsFollowTheDefaultLocale() {
     Locale.setDefault(Locale.FRANCE);
-    assertThat(Fmt.dec(1.5)).isEqualTo("1,50");
-    assertThat(Fmt.pct(1, 3)).isEqualTo("33 %");
+    assertThat(CellFormat.dec(1.5)).isEqualTo("1,50");
+    assertThat(CellFormat.pct(1, 3)).isEqualTo("33 %");
   }
 
   @Test
   void medianOfOddEvenEmptyAndUnsorted() {
-    assertThat(Fmt.median(List.of(3.0, 1.0, 2.0))).isEqualTo(2.0);
-    assertThat(Fmt.median(List.of(4.0, 1.0, 3.0, 2.0))).isEqualTo(2.5);
-    assertThat(Fmt.median(List.of(7.0))).isEqualTo(7.0);
-    assertThat(Fmt.median(List.of())).isNull();
-    assertThat(Fmt.median(null)).isNull();
+    assertThat(CellFormat.median(List.of(3.0, 1.0, 2.0))).isEqualTo(2.0);
+    assertThat(CellFormat.median(List.of(4.0, 1.0, 3.0, 2.0))).isEqualTo(2.5);
+    assertThat(CellFormat.median(List.of(7.0))).isEqualTo(7.0);
+    assertThat(CellFormat.median(List.of())).isNull();
+    assertThat(CellFormat.median(null)).isNull();
   }
 
   @Test
   void medianDoesNotSortItsInput() {
     List<Double> in = new ArrayList<>(Arrays.asList(3.0, 1.0, 2.0));
-    Fmt.median(in);
+    CellFormat.median(in);
     assertThat(in).containsExactly(3.0, 1.0, 2.0);
   }
 
   @Test
   void formattingHelpers() {
-    assertThat(Fmt.iso(null)).isEmpty();
-    assertThat(Fmt.iso(OffsetDateTime.parse("2099-01-02T03:04:05Z")))
+    assertThat(CellFormat.iso(null)).isEmpty();
+    assertThat(CellFormat.iso(OffsetDateTime.parse("2099-01-02T03:04:05Z")))
         .isEqualTo("2099-01-02T03:04:05Z");
-    assertThat(Fmt.num(null)).isEmpty();
-    assertThat(Fmt.num(42L)).isEqualTo("42");
-    assertThat(Fmt.dec(null)).isEmpty();
-    assertThat(Fmt.dec(2.0 / 3)).isEqualTo("0.67");
-    assertThat(Fmt.orEmpty(null)).isEmpty();
-    assertThat(Fmt.orEmpty("x")).isEqualTo("x");
-    assertThat(Fmt.isBlank(null)).isTrue();
-    assertThat(Fmt.isBlank(" \t")).isTrue();
-    assertThat(Fmt.isBlank(" x ")).isFalse();
+    assertThat(CellFormat.num(null)).isEmpty();
+    assertThat(CellFormat.num(42L)).isEqualTo("42");
+    assertThat(CellFormat.dec(null)).isEmpty();
+    assertThat(CellFormat.dec(2.0 / 3)).isEqualTo("0.67");
+    assertThat(CellFormat.orEmpty(null)).isEmpty();
+    assertThat(CellFormat.orEmpty("x")).isEqualTo("x");
+    assertThat(CellFormat.isBlank(null)).isTrue();
+    assertThat(CellFormat.isBlank(" \t")).isTrue();
+    assertThat(CellFormat.isBlank(" x ")).isFalse();
   }
 
   @Test
   void truncateAddsAnEllipsis() {
-    assertThat(Fmt.truncate(null, 3)).isEmpty();
-    assertThat(Fmt.truncate("abc", 3)).isEqualTo("abc");
-    assertThat(Fmt.truncate("abcd", 3)).isEqualTo("ab…");
+    assertThat(CellFormat.truncate(null, 3)).isEmpty();
+    assertThat(CellFormat.truncate("abc", 3)).isEqualTo("abc");
+    assertThat(CellFormat.truncate("abcd", 3)).isEqualTo("ab…");
   }
 
   @Test
@@ -128,16 +128,16 @@ class GitlabActivityAuditHelpersTest {
 
   @Test
   void verdictsCarryTheirTagAndColour() {
-    assertThat(Verdict.OK.tag).isEqualTo("OK");
-    assertThat(Verdict.DENIED.tag).isEqualTo("REFUSÉ");
-    assertThat(Verdict.MISSING.tag).isEqualTo("ABSENT");
-    assertThat(Verdict.EMPTY.tag).isEqualTo("VIDE");
-    assertThat(Verdict.ERROR.tag).isEqualTo("ERREUR");
-    assertThat(Verdict.OK.color).isEqualTo(Screen.GREEN);
-    assertThat(Verdict.DENIED.color).isEqualTo(Screen.RED);
-    assertThat(Verdict.MISSING.color).isEqualTo(Screen.YELLOW);
-    assertThat(Verdict.EMPTY.color).isEqualTo(Screen.YELLOW);
-    assertThat(Verdict.ERROR.color).isEqualTo(Screen.RED);
+    assertThat(ProbeVerdict.OK.tag).isEqualTo("OK");
+    assertThat(ProbeVerdict.DENIED.tag).isEqualTo("REFUSÉ");
+    assertThat(ProbeVerdict.MISSING.tag).isEqualTo("ABSENT");
+    assertThat(ProbeVerdict.EMPTY.tag).isEqualTo("VIDE");
+    assertThat(ProbeVerdict.ERROR.tag).isEqualTo("ERREUR");
+    assertThat(ProbeVerdict.OK.color).isEqualTo(Screen.GREEN);
+    assertThat(ProbeVerdict.DENIED.color).isEqualTo(Screen.RED);
+    assertThat(ProbeVerdict.MISSING.color).isEqualTo(Screen.YELLOW);
+    assertThat(ProbeVerdict.EMPTY.color).isEqualTo(Screen.YELLOW);
+    assertThat(ProbeVerdict.ERROR.color).isEqualTo(Screen.RED);
   }
 
   @Test
@@ -150,16 +150,16 @@ class GitlabActivityAuditHelpersTest {
 
   @Test
   void lineAlignsLabelVerdictAndDetail() {
-    assertThat(printed(con -> con.line("api", Verdict.OK, "d")))
+    assertThat(printed(con -> con.line("api", ProbeVerdict.OK, "d")))
         .isEqualTo("  api" + " ".repeat(30) + "[OK]  d\n");
-    assertThat(printed(con -> con.line("api", Verdict.OK, null)))
+    assertThat(printed(con -> con.line("api", ProbeVerdict.OK, null)))
         .isEqualTo("  api" + " ".repeat(30) + "[OK]  \n");
   }
 
   @Test
   void colourCodesWhenColoursAreOn() {
     Screen screen = new Screen(Printed.colored().console());
-    assertThat(screen.c("x", Screen.BOLD)).isEqualTo("\033[1mx\033[0m");
+    assertThat(screen.paint("x", Screen.BOLD)).isEqualTo("\033[1mx\033[0m");
     assertThat(Screen.RESET).isEqualTo("\033[0m");
     assertThat(Screen.DIM).isEqualTo("\033[2m");
   }

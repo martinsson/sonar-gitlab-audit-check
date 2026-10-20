@@ -10,9 +10,9 @@ import java.util.Map;
 /** Les sondes de la passe profonde, passées une à une sur un projet sélectionné. */
 final class PracticeProbes {
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
   private final Funnel funnel;
-  private final Reviews reviews;
+  private final CodeReviewProbe reviews;
   private final Delivery delivery;
   private final CiConfig ci;
   private final SonarProbe sonar;
@@ -23,17 +23,17 @@ final class PracticeProbes {
    * @param all tout le périmètre : la CI d'un projet en inclut d'autres par leur chemin
    */
   PracticeProbes(
-      Gitlab gl,
+      Gitlab gitlab,
       Preflight.Instance instance,
       Funnel funnel,
       SonarCache cache,
       List<GitlabProject> all) {
-    this.gl = gl;
+    this.gitlab = gitlab;
     this.funnel = funnel;
-    this.reviews = new Reviews(gl, instance.enterprise(), funnel);
-    this.delivery = new Delivery(gl, instance.enterprise(), funnel);
-    this.ci = new CiConfig(gl, all);
-    this.sonar = new SonarProbe(gl, cache, ci);
+    this.reviews = new CodeReviewProbe(gitlab, instance.enterprise(), funnel);
+    this.delivery = new Delivery(gitlab, instance.enterprise(), funnel);
+    this.ci = new CiConfig(gitlab, all);
+    this.sonar = new SonarProbe(gitlab, cache, ci);
   }
 
   Practices measure(AuditedProject a) {
@@ -41,10 +41,10 @@ final class PracticeProbes {
     return new Practices(
         protection(p),
         reviews.measure(p),
-        new Pipelines(gl, funnel).measure(p),
+        new Pipelines(gitlab, funnel).measure(p),
         delivery.measure(p),
         sonar.measure(a),
-        Churn.measure(gl, funnel, p));
+        Churn.measure(gitlab, funnel, p));
   }
 
   /** Le statut qui a refusé ci/lint au jeton, 0 tant qu'il ne l'a pas été. */
@@ -55,7 +55,7 @@ final class PracticeProbes {
   /** Binaire, non ambigu, et cela explique le nombre de poussées directes. */
   private Practices.Protection protection(GitlabProject p) {
     Gitlab.Response br =
-        gl.get("projects/" + p.id() + "/protected_branches", Map.of("per_page", "100"));
+        gitlab.get("projects/" + p.id() + "/protected_branches", Map.of("per_page", "100"));
     Practices.Protection found = Practices.Protection.none();
     if (br.status() != 200) return found;
     for (JsonNode b : br.json()) {

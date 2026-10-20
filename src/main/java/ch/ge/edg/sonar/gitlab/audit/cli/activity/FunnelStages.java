@@ -13,15 +13,15 @@ final class FunnelStages {
 
   /** Chaque projet exclu, ou sélectionné avec son motif. */
   static FunnelResult run(
-      Gitlab gl, FunnelReport report, Funnel funnel, List<AuditedProject> inventory) {
-    RecencyGate gate = new RecencyGate(gl, funnel);
+      Gitlab gitlab, FunnelReport report, Funnel funnel, List<AuditedProject> inventory) {
+    RecencyGate gate = new RecencyGate(gitlab, funnel);
     List<AuditedProject> all = gate.run(inventory);
     report.recency(all);
     all = gate.validate(all);
     report.validation(all);
 
     report.beginActivity();
-    CommitActivity activity = new CommitActivity(gl, funnel);
+    CommitActivity activity = new CommitActivity(gitlab, funnel);
     int graphqlCalls = 0;
     if (funnel.options().graphql) {
       CommitActivity.Dated dated = activity.date(all);

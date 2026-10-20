@@ -2,7 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.enc;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Fmt.isBlank;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.isBlank;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.SonarKeys.firstMatch;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.SonarKeys.unquote;
 
@@ -60,7 +60,7 @@ final class CiConfig {
       Pattern.compile(
           "(?:file:\\s*|^\\s*-\\s*)(['\"]?[\\w./-]+\\.ya?ml['\"]?)\\s*$", Pattern.MULTILINE);
 
-  private final Gitlab gl;
+  private final Gitlab gitlab;
 
   /** Cache de résolution project_path -> ID, rempli au fur et à mesure. */
   private final Map<String, String> projPathToId = new ConcurrentHashMap<>();
@@ -71,8 +71,8 @@ final class CiConfig {
   /** ci/lint refusé une fois l'est pour tout le parc : le droit est sur le jeton. */
   private volatile int lintRefusedStatus;
 
-  CiConfig(Gitlab gl, List<GitlabProject> all) {
-    this.gl = gl;
+  CiConfig(Gitlab gitlab, List<GitlabProject> all) {
+    this.gitlab = gitlab;
     for (GitlabProject p : all) {
       if (!p.path().isEmpty()) projPathToId.put(p.path(), String.valueOf(p.id()));
     }
@@ -90,7 +90,7 @@ final class CiConfig {
       if (merged != null) return merged;
     }
     Gitlab.Response raw =
-        gl.get(
+        gitlab.get(
             "projects/" + p.id() + "/repository/files/" + enc(".gitlab-ci.yml") + "/raw",
             Map.of("ref", p.defaultBranch()));
     String body = raw.body();
@@ -102,7 +102,7 @@ final class CiConfig {
 
   private @Nullable Ci lint(GitlabProject p) {
     Gitlab.Response lint =
-        gl.get(
+        gitlab.get(
             "projects/" + p.id() + "/ci/lint",
             params(
                 "ref", p.defaultBranch(),
@@ -177,7 +177,7 @@ final class CiConfig {
 
   private String fetchRaw(String projId, String file, String ref) {
     Gitlab.Response fr =
-        gl.get(
+        gitlab.get(
             "projects/" + enc(projId) + "/repository/files/" + enc(file) + "/raw",
             Map.of("ref", ref));
     String body = fr.body();
@@ -195,7 +195,7 @@ final class CiConfig {
       projPathToId.put(projPath, projPath);
       return projPath;
     }
-    Gitlab.Response proj = gl.get("projects/" + enc(projPath), Map.of("per_page", "1"));
+    Gitlab.Response proj = gitlab.get("projects/" + enc(projPath), Map.of("per_page", "1"));
     if (proj.status() == 200 && proj.body() != null) {
       JsonNode node = proj.json();
       if (node.hasNonNull("id")) {
