@@ -1,0 +1,27 @@
+# Every pull request opened from a branch of this repository is set to merge itself as soon as the
+# check the main ruleset requires (verify) is green. No human review: the gates are
+# the review. Pull requests from forks are left alone: on a public repository, auto-merging them
+# would let anyone land code that merely passes the tests.
+name: auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable:
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge when the checks pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: gh pr merge "$PR" --repo "$REPO" --auto --merge --delete-branch

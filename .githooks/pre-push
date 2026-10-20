@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs the fast gates (./verify) before anything leaves the machine. Docker integration tests and
-# mutation testing are for ./verify --full. Skip once with `git push --no-verify`, knowing no CI
-# runs the gates afterwards on this repository.
+# mutation testing are for ./verify --full, which CI runs on every pull request. Skip once with
+# `git push --no-verify`: the pull request checks still run everything.
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
 # Deleting a remote branch pushes nothing to check.
