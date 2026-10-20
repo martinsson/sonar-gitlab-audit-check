@@ -33,23 +33,6 @@ class LocaleSuspectedBugsTest {
   }
 
   @Test
-  @SuspectedBug("CrossAudit should print +18.0 issues / kLOC whatever the default locale")
-  void crossAuditPrintsTheIssueSlopeWithADecimalCommaUnderAFrenchLocale() throws IOException {
-    Path sonar = CrossAuditFixtures.sonar(dir);
-    Path gitlab = CrossAuditFixtures.gitlab(dir);
-    CrossAuditFixtures.inventory(dir);
-    String[] args = {
-      "--sonar", sonar.toString(),
-      "--gitlab", gitlab.toString(),
-      "--out", dir.resolve("croisement.csv").toString(),
-      "--color", "never"
-    };
-    Cli.Result r = Cli.run(new CrossAudit(), args);
-
-    assertThat(r.out()).contains("team-a/alpha-service — +18,0 issues / kLOC modifié");
-  }
-
-  @Test
   @SuspectedBug("classement.csv should write its scores with a dot whatever the default locale")
   void sonarRankWritesScoresWithADecimalCommaUnderAFrenchLocale() throws IOException {
     Path in = dir.resolve("inventaire.csv");

@@ -1,10 +1,10 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossPair.num;
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossPair.nz;
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossPair.orZero;
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossPair.perKlocChanged;
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossReport.c;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.num;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.nz;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.orZero;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.perKlocChanged;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossReport.c;
 
 import java.io.PrintStream;
 import java.util.Comparator;

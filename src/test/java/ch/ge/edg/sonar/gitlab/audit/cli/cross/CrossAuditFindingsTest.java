@@ -1,11 +1,11 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossAuditFixtures.GITLAB_HEADER;
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossAuditFixtures.SONAR_HEADER;
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossAuditFixtures.csv;
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossAuditFixtures.read;
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossAuditFixtures.run;
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossAuditFixtures.scrub;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossAuditFixtures.GITLAB_HEADER;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossAuditFixtures.SONAR_HEADER;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossAuditFixtures.csv;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossAuditFixtures.read;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossAuditFixtures.run;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossAuditFixtures.scrub;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 

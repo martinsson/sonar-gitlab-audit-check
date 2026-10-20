@@ -1,7 +1,7 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Pair;
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Result;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Result;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
 import com.opencsv.CSVWriter;

@@ -1,7 +1,7 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossReport.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossReport.c;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossReport.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossReport.c;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.DetailColumns;

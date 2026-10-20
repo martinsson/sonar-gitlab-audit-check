@@ -1,8 +1,8 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.NameThresholds;
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Pair;
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Rejections;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.NameThresholds;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Rejections;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.matching.Spec;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;

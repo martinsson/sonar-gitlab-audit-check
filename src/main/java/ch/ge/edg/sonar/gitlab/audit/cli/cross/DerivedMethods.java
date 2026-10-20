@@ -1,9 +1,9 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.GitlabInventoryIndex.Step;
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Check;
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Pair;
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Rejections;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.GitlabInventoryIndex.Step;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Check;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Rejections;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;

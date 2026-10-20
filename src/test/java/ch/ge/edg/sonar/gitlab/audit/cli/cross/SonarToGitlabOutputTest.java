@@ -1,13 +1,13 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.CrossAuditFixtures.read;
-import static ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlabFixtures.inventory;
-import static ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlabFixtures.sonar;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossAuditFixtures.read;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlabFixtures.inventory;
+import static ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlabFixtures.sonar;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Check;
-import ch.ge.edg.sonar.gitlab.audit.cli.SonarToGitlab.Pair;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Check;
+import ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlab.Pair;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
