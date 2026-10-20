@@ -9,7 +9,8 @@
 #   ./verify --fix           auto-format with Spotless first, then run the fast gates
 #   ./verify --snapshots     re-record Selfie snapshots after an intentional behaviour change
 #   ./verify --baseline      record today's violations in config/baseline (adopting in a legacy repo)
-#   ./verify --install-hooks pre-commit formats staged files, pre-push runs ./verify
+#   ./verify --install-hooks pre-commit formats staged files, pre-push runs ./verify (any verify
+#                            run outside CI installs them when they are missing)
 #   ./verify --format-staged what the pre-commit hook runs; never blocks a commit
 #
 # Exit code 0 = everything green. Output is deliberately short; full log: target/verify.log
@@ -19,6 +20,18 @@ cd "$(dirname "$0")" || exit 2
 
 MVN=./mvnw
 [ -x "$MVN" ] || MVN=mvn
+
+# Maven must run on the JDK the build targets, or the compiler stops at "release version N not
+# supported" and every push is blocked. When it does not, borrow that JDK from JBang, which every
+# user of this repository has (it may download it once).
+release=$(sed -n 's:.*<maven.compiler.release>\([0-9]*\)</maven.compiler.release>.*:\1:p' pom.xml)
+maven_jdk=$("$MVN" -v 2>/dev/null | sed -n 's/^Java version: \([0-9]*\).*/\1/p')
+if [ -n "$release" ] && [ "${maven_jdk:-0}" -lt "$release" ] && command -v jbang >/dev/null; then
+  jdk=$(jbang jdk home "$release" 2>/dev/null)
+  if [ -x "$jdk/bin/java" ]; then
+    export JAVA_HOME="$jdk"
+  fi
+fi
 
 # The ratchet (tools/ratchet) needs the JDK the build targets. When `java` on the PATH is older,
 # use the one Maven runs on.
@@ -40,7 +53,7 @@ for arg in "$@"; do
     --install-hooks) action=install-hooks ;;
     --format-staged) action=format-staged ;;
     -h | --help)
-      sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -56,7 +69,7 @@ log=target/verify.log
 install_hooks() {
   git config core.hooksPath .githooks
   echo "HOOKS INSTALLED: pre-commit formats staged Java files, pre-push runs ./verify"
-  echo "Skip once with --no-verify; CI runs every gate anyway."
+  echo "Skip once with --no-verify. There is no CI on this repository: a skipped push is unchecked."
 }
 
 # Formats the staged Java files and re-stages them. Lenient on purpose: committing to save work must
@@ -180,8 +193,10 @@ lint_out=$(lint_scripts)
 [ -n "$lint_out" ] && checks_out="${checks_out:+$checks_out
 }$lint_out" && checks_status=1
 
+# A fresh clone has no hooks, and a push that skips ./verify skips every gate. The first verify
+# run installs them, so nobody has to remember to.
 if [ -z "${CI:-}" ] && [ "$(git config core.hooksPath)" != .githooks ]; then
-  echo "TIP: ./verify --install-hooks formats on commit and runs these gates on push"
+  install_hooks
 fi
 
 if [ "$build" -eq 0 ] && [ "$checks_status" -eq 0 ]; then
