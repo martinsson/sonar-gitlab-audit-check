@@ -155,8 +155,8 @@ class SonarRankUnitTest {
     assertThat(cmd.minNcloc).isEqualTo(500);
     assertThat(cmd.topPercent).isEqualTo(10);
     assertThat(cmd.minSignals).isEqualTo(2);
-    assertThat(cmd.comma).isFalse();
-    assertThat(cmd.colorMode).isEqualTo("auto");
+    assertThat(cmd.style.comma()).isFalse();
+    assertThat(cmd.style.colorMode()).isEqualTo("auto");
   }
 
   Cli.Result runOn(String content) throws IOException {

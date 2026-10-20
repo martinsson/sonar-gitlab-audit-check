@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.NamespaceMappingOption;
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.StyleOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Evaluation;
@@ -12,7 +13,6 @@ import ch.ge.edg.sonar.gitlab.audit.matching.report.MappingFilePrinter;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
@@ -87,13 +87,13 @@ public class CrossAudit implements Callable<Integer> {
       names = "--sonar",
       required = true,
       description = "CSV d'inventaire de SonarAuditCheck --csv")
-  @Nullable Path sonarCsv;
+  Path sonarCsv;
 
   @Option(
       names = "--gitlab",
       required = true,
       description = "pratiques.csv de GitlabActivityAudit --deep")
-  @Nullable Path gitlabCsv;
+  Path gitlabCsv;
 
   @Option(names = "--out", description = "CSV du croisement (sinon : rien n'est écrit)")
   @Nullable Path out;
@@ -150,16 +150,7 @@ public class CrossAudit implements Callable<Integer> {
       description = "exemples par rubrique du rapport (défaut : ${DEFAULT-VALUE})")
   int examples;
 
-  @Option(
-      names = "--comma",
-      description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
-  boolean comma;
-
-  @Option(
-      names = "--color",
-      defaultValue = "auto",
-      description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
-  String colorMode = "auto";
+  @Mixin StyleOptions style = new StyleOptions();
 
   @Mixin NamespaceMappingOption namespaceMapping = new NamespaceMappingOption();
 
@@ -176,12 +167,12 @@ public class CrossAudit implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
-    Console stdout = host.console(colorMode);
+    Console stdout = host.console(style.colorMode());
     namespaceMapping.load(host.workDir(), stdout.err());
     CrossReport console = new CrossReport(stdout);
     // required = true : picocli refuse la ligne de commande avant d'appeler call().
-    Path sonarFile = Objects.requireNonNull(sonarCsv, "--sonar");
-    Path gitlabFile = Objects.requireNonNull(gitlabCsv, "--gitlab");
+    Path sonarFile = sonarCsv;
+    Path gitlabFile = gitlabCsv;
 
     Csv.Table sonar = Csv.read(sonarFile);
     sonar.require(sonarFile, "SonarAuditCheck --csv", "key", "ncloc", "analysisDate");
@@ -204,7 +195,7 @@ public class CrossAudit implements Callable<Integer> {
             Spec.sonarGitlab(nameThreshold, nameMargin),
             gitlab,
             sonar,
-            new MappingFile(file, comma, recompute),
+            new MappingFile(file, style.comma(), recompute),
             stdout);
     Report rep = Evaluation.evaluate(mapping, examples);
     List<CrossPair> pairs = mapping.matches().stream().map(CrossPair::new).toList();
@@ -213,7 +204,7 @@ public class CrossAudit implements Callable<Integer> {
     console.matchRate(pairs, sonar, rep, wide != null);
     if (wide != null) widePass.write(wide, gitlabFile, console, stdout);
     new CrossFindings(stdout).print(pairs, wide == null ? Set.of() : wide.joinedPaths());
-    if (out != null) CrossCsv.write(mapping, pairs, out, comma, stdout);
+    if (out != null) CrossCsv.write(mapping, pairs, out, style.comma(), stdout);
     if (report != null) {
       rep.writeTo(report);
       console.mappingReport(report);
@@ -227,7 +218,7 @@ public class CrossAudit implements Callable<Integer> {
         inventoryCsv,
         sonarGitlabCsv,
         out,
-        comma,
+        style.comma(),
         new SonarToGitlab.NameThresholds(nameThreshold, nameMargin));
   }
 }

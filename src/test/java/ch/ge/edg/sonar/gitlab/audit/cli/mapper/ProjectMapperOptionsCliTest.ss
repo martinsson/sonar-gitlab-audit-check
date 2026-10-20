@@ -100,11 +100,10 @@ Appariement<ESC>[0m
 
 ╔═ help_lists_every_option_and_the_footer ═╗
 Usage: ProjectMapper [-hV] [--comma] [--plain-names] [--reapparier]
-                     [--color=<colorMode>] [--examples=<examples>]
-                     --left=<leftCsv> [--left-key=<leftKey>]
-                     [--marge-nom=<margin>] [--names=<names>]
-                     [--namespace-mapping=<yaml>] [--out=<out>]
-                     [--report=<report>] --right=<rightCsv>
+                     [--color=<mode>] [--examples=<examples>] --left=<leftCsv>
+                     [--left-key=<leftKey>] [--marge-nom=<margin>]
+                     [--names=<names>] [--namespace-mapping=<yaml>]
+                     [--out=<out>] [--report=<report>] --right=<rightCsv>
                      [--right-key=<rightKey>] [--seuil-nom=<threshold>]
                      [--derived=<derived>]... [--exact=<exact>]...
                      [--link=<link>]...
@@ -133,11 +132,11 @@ Apparie deux CSV et évalue chaque méthode d'appariement.
                                existant (manuel et rejete restent)
       --report=<report>      rapport JSON d'évaluation des méthodes
       --examples=<examples>  exemples par rubrique du rapport (défaut : 15)
-      --comma                CSV séparé par des virgules, sans BOM (pour un
-                               outil, pas Excel)
-      --color=<colorMode>    auto | always | never (défaut : auto)
   -h, --help                 Show this help message and exit.
   -V, --version              Print version information and exit.
+      --comma                CSV séparé par des virgules, sans BOM (pour un
+                               outil, pas Excel)
+      --color=<mode>         auto | always | never (défaut : auto)
 
 Sans --exact, --derived, --link ni --names : préréglage Sonar × GitLab
 (gauche = pratiques.csv de GitlabActivityAudit --deep, droite =

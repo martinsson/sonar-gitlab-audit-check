@@ -1,25 +1,19 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.NamespaceMappingOption;
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.StyleOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Evaluation;
-import ch.ge.edg.sonar.gitlab.audit.matching.KeyMethod;
-import ch.ge.edg.sonar.gitlab.audit.matching.Kind;
 import ch.ge.edg.sonar.gitlab.audit.matching.MappingFile;
-import ch.ge.edg.sonar.gitlab.audit.matching.NameSpec;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report;
 import ch.ge.edg.sonar.gitlab.audit.matching.Result;
 import ch.ge.edg.sonar.gitlab.audit.matching.Spec;
 import ch.ge.edg.sonar.gitlab.audit.matching.report.MappingFilePrinter;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
-import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
@@ -76,31 +70,12 @@ public class ProjectMapper implements Callable<Integer> {
       names = "--left",
       required = true,
       description = "CSV à apparier (une ligne de sortie par ligne)")
-  @Nullable Path leftCsv;
+  Path leftCsv;
 
   @Option(names = "--right", required = true, description = "CSV où chercher l'homologue")
-  @Nullable Path rightCsv;
+  Path rightCsv;
 
-  @Option(
-      names = "--left-key",
-      description = "colonne qui nomme une ligne à gauche (défaut du préréglage : path)")
-  @Nullable String leftKey;
-
-  @Option(
-      names = "--right-key",
-      description = "colonne qui nomme une ligne à droite (défaut du préréglage : key)")
-  @Nullable String rightKey;
-
-  @Option(names = "--exact", description = "méthode par égalité stricte (répétable)")
-  List<String> exact = new ArrayList<>();
-
-  @Option(names = "--derived", description = "méthode par égalité normalisée (répétable)")
-  List<String> derived = new ArrayList<>();
-
-  @Option(names = "--link", description = "méthode informative par URL de dépôt (répétable)")
-  List<String> link = new ArrayList<>();
-
-  @Mixin NameOptions nameOptions = new NameOptions();
+  @Mixin MethodOptions methods = new MethodOptions();
 
   @Mixin NamespaceMappingOption namespaceMapping = new NamespaceMappingOption();
 
@@ -122,16 +97,7 @@ public class ProjectMapper implements Callable<Integer> {
       description = "exemples par rubrique du rapport (défaut : ${DEFAULT-VALUE})")
   int examples;
 
-  @Option(
-      names = "--comma",
-      description = "CSV séparé par des virgules, sans BOM (pour un outil, pas Excel)")
-  boolean comma;
-
-  @Option(
-      names = "--color",
-      defaultValue = "auto",
-      description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
-  String colorMode = "auto";
+  @Mixin StyleOptions style = new StyleOptions();
 
   private final Host host;
 
@@ -146,14 +112,13 @@ public class ProjectMapper implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
-    Console console = host.console(colorMode);
+    Console console = host.console(style.colorMode());
     // Le mapping namespace-mapping.yaml du répertoire de travail se lit — et prévient s'il
     // manque — avant que la commande n'écrive quoi que ce soit.
     namespaceMapping.load(host.workDir(), console.err());
-    Spec spec = spec();
-    // picocli refuse la ligne de commande sans --left ni --right : jamais null ici.
-    Path leftFile = Objects.requireNonNull(leftCsv);
-    Path rightFile = Objects.requireNonNull(rightCsv);
+    Spec spec = methods.spec();
+    Path leftFile = leftCsv;
+    Path rightFile = rightCsv;
     Csv.Table left = Csv.read(leftFile);
     Csv.Table right = Csv.read(rightFile);
     left.require(leftFile, "--left", spec.leftKey());
@@ -167,60 +132,15 @@ public class ProjectMapper implements Callable<Integer> {
         mapping == null
             ? MappingFile.map(spec, left, right)
             : MappingFilePrinter.mapAndKeep(
-                spec, left, right, new MappingFile(mapping, comma, recompute), console);
+                spec, left, right, new MappingFile(mapping, style.comma(), recompute), console);
     Report rep = Evaluation.evaluate(r, examples);
     screen.evaluation(rep);
-    if (mapping != null) screen.openingHint(mapping, comma);
+    if (mapping != null) screen.openingHint(mapping, style.comma());
     Path json = report;
     if (json != null) {
       rep.writeTo(json);
       screen.reportWritten(json);
     }
     return 0;
-  }
-
-  /** Sans méthode ni noms, le préréglage Sonar × GitLab ; sinon ce que la ligne de commande dit. */
-  private Spec spec() {
-    if (exact.isEmpty() && derived.isEmpty() && link.isEmpty() && nameOptions.names == null) {
-      Spec spec = Spec.sonarGitlab(nameOptions.threshold, nameOptions.margin);
-      if (leftKey == null && rightKey == null) return spec;
-      return spec.withKeys(orElse(leftKey, spec.leftKey()), orElse(rightKey, spec.rightKey()));
-    }
-    List<KeyMethod> methods = new ArrayList<>();
-    exact.forEach(m -> methods.add(method(m, Kind.EXACT)));
-    derived.forEach(m -> methods.add(method(m, Kind.DERIVED)));
-    link.forEach(m -> methods.add(method(m, Kind.LINK)));
-    String nameSpec = nameOptions.names;
-    return new Spec(
-        orElse(leftKey, "path"),
-        orElse(rightKey, "key"),
-        methods,
-        nameSpec == null ? null : nameSpec(nameSpec, !nameOptions.plainNames),
-        nameOptions.threshold,
-        nameOptions.margin);
-  }
-
-  /** Une méthode de la ligne de commande ; illisible, l'erreur de saisie de picocli. */
-  KeyMethod method(String s, Kind kind) {
-    try {
-      return KeyMethod.parse(s, kind);
-    } catch (IllegalArgumentException e) {
-      throw new CommandLine.ParameterException(
-          host.commandLine(new ProjectMapper(host)), e.getMessage(), e);
-    }
-  }
-
-  /** --names ; illisible, l'erreur de saisie de picocli. */
-  NameSpec nameSpec(String s, boolean pathLike) {
-    try {
-      return NameSpec.parse(s, pathLike);
-    } catch (IllegalArgumentException e) {
-      throw new CommandLine.ParameterException(
-          host.commandLine(new ProjectMapper(host)), e.getMessage(), e);
-    }
-  }
-
-  private static String orElse(@Nullable String v, String dflt) {
-    return v == null || v.isBlank() ? dflt : v;
   }
 }

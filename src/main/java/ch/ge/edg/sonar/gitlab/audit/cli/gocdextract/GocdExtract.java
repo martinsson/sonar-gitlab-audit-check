@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.CommaOption;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 /**
@@ -60,10 +62,7 @@ public class GocdExtract implements Callable<Integer> {
   @Option(names = "--no-raw", description = "N'écrit pas les runs bruts (jsonl)")
   boolean noRaw;
 
-  @Option(
-      names = "--comma",
-      description = "CSV séparés par des virgules, sans BOM (pour un outil, pas Excel)")
-  boolean comma;
+  @Mixin CommaOption comma = new CommaOption();
 
   @Option(names = "--url", defaultValue = "${env:GOCD_URL}", description = "env GOCD_URL")
   @Nullable String url;
@@ -99,7 +98,8 @@ public class GocdExtract implements Callable<Integer> {
         throw new Stop("aucun pipeline : donner --pipeline ou --group");
       }
       Extraction.Settings settings =
-          new Extraction.Settings(outDir, comma, !noRaw, maxUpstream, durations, clock.getZone());
+          new Extraction.Settings(
+              outDir, comma.enabled(), !noRaw, maxUpstream, durations, clock.getZone());
       new Extraction(gocd, selection, settings, err)
           .run(clock.instant().minus(Duration.ofDays(days)));
       err.println(gocd.calls() + " requêtes GET.");

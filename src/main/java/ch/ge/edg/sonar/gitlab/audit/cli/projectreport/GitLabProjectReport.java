@@ -1,15 +1,17 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.ColorOption;
+import ch.ge.edg.sonar.gitlab.audit.cli.shared.GitlabConnectionOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 /**
@@ -44,17 +46,7 @@ public class GitLabProjectReport implements Callable<Integer> {
   // Options
   // ----------------------------------------------------------------------
 
-  @Option(
-      names = "--url",
-      defaultValue = "${env:GITLAB_URL}",
-      description = "URL de l'instance (défaut : https://gitlab.com)")
-  @Nullable String url;
-
-  @Option(
-      names = "--token",
-      defaultValue = "${env:GITLAB_TOKEN}",
-      description = "jeton d'accès personnel, portée read_api (facultatif sur un projet public)")
-  @Nullable String token;
+  @Mixin GitlabConnectionOptions gitlab = new GitlabConnectionOptions();
 
   @Option(
       names = "--path",
@@ -94,20 +86,7 @@ public class GitLabProjectReport implements Callable<Integer> {
       description = "expression régulière identifiant les bots (remplace celle par défaut)")
   @Nullable String botPattern;
 
-  @Option(names = "--dump-dir", description = "répertoire où consigner les réponses brutes")
-  @Nullable Path dumpDir;
-
-  @Option(names = "--timeout", defaultValue = "30")
-  int timeout;
-
-  @Option(names = "--insecure", description = "ignorer la validation TLS")
-  boolean insecure;
-
-  @Option(
-      names = "--color",
-      defaultValue = "auto",
-      description = "auto | always | never (défaut : ${DEFAULT-VALUE})")
-  String colorMode = "auto";
+  @Mixin ColorOption color = new ColorOption();
 
   private final Host host;
 
@@ -123,15 +102,14 @@ public class GitLabProjectReport implements Callable<Integer> {
 
   @Override
   public Integer call() throws IOException, GeneralSecurityException {
-    Console out = host.console(colorMode);
-    if (isBlank(token)) {
+    Console out = host.console(color.mode());
+    if (gitlab.anonymous()) {
       // Un projet public de gitlab.com se lit sans jeton. C'est marginal en
       // audit, mais c'est le seul moyen de vérifier l'outil contre une vraie
       // instance sans en posséder une — et le README dit assez pourquoi on
       // ne vérifie pas contre un bouchon.
       out.println(out.color("  Aucun jeton : lecture anonyme, projets publics seulement.", YELLOW));
     }
-    String instance = url == null || url.isBlank() ? "https://gitlab.com" : url;
     String bots = botPattern == null || botPattern.isBlank() ? Gitlab.BOT_PATTERN : botPattern;
     Settings settings =
         new Settings(
@@ -143,15 +121,11 @@ public class GitLabProjectReport implements Callable<Integer> {
             Pattern.compile(bots, Pattern.CASE_INSENSITIVE));
     Gitlab gl =
         new Gitlab(
-            new Gitlab.Connection(instance, token, timeout, insecure, dumpDir),
+            gitlab.connectionOrAnonymous("https://gitlab.com"),
             new GitlabWarnings(out),
             host.sleeper());
 
     return new ProjectReport(gl, settings, out, new Dates(host.clock()))
         .run(ProjectPath.normalize(path));
-  }
-
-  private static boolean isBlank(@Nullable String s) {
-    return s == null || s.isBlank();
   }
 }
