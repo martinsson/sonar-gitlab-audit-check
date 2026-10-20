@@ -10,7 +10,7 @@ import java.util.Map;
  *
  * @param path le dernier segment du chemin, qui nomme les dossiers d'extraction proposés
  */
-public record GitlabProject(String id, String pathWithNamespace, String path) {
+record GitlabProject(String id, String pathWithNamespace, String path) {
 
   /**
    * Le projet désigné par « groupe/projet », son URL web ou git, ou son id numérique. Introuvable,

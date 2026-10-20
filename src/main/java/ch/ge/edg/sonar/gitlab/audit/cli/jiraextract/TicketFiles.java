@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
  * Les trois fichiers qu'alimente chaque ticket : jira-tickets.csv, jira-transitions.csv et, sauf
  * --no-raw, jira-tickets.jsonl, le ticket tel que Jira l'a rendu.
  */
-public final class TicketFiles implements AutoCloseable {
+final class TicketFiles implements AutoCloseable {
 
   static final List<String> TRANSITIONS_HEADER =
       List.of("cle", "le", "de", "vers", "categorie_vers");

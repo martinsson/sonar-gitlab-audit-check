@@ -8,7 +8,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Arrêt propre sur ce qu'on ne sait pas contourner : URL absente, jeton refusé, tableau illisible.
  */
-public final class Stop extends Exception {
+final class Stop extends Exception {
 
   @Serial private static final long serialVersionUID = 1L;
 

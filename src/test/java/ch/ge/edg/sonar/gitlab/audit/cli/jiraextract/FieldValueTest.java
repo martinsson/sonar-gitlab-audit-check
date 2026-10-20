@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.jiraextract.JiraFixtures.json;
+import static ch.ge.edg.sonar.gitlab.audit.testing.JiraFixtures.json;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.fasterxml.jackson.databind.node.MissingNode;

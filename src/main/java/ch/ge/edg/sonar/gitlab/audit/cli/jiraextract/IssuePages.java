@@ -10,11 +10,11 @@ import java.util.stream.Collectors;
  * Tous les tickets d'une requête JQL, page après page, chacun avec son historique complet : la
  * recherche peut tronquer un historique, le ticket est alors relu seul.
  */
-public final class IssuePages {
+final class IssuePages {
 
   /** Ce qu'on fait de chaque ticket. */
   @FunctionalInterface
-  public interface Sink {
+  interface Sink {
     void accept(JsonNode issue) throws IOException;
   }
 

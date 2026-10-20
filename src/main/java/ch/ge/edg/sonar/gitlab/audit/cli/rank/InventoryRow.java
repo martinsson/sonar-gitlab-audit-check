@@ -10,7 +10,7 @@ import org.jspecify.annotations.Nullable;
  * Une ligne d'inventaire : la lecture générique de {@link Csv.Row}, plus ce que ce classement-ci
  * sait de ces colonnes. Les valeurs restent des String là-dessous — vide n'est pas zéro.
  */
-public record InventoryRow(Csv.Row cells) {
+record InventoryRow(Csv.Row cells) {
 
   /**
    * La lecture est celle de {@link Csv} : le séparateur s'y renifle, le BOM s'y retire, et un

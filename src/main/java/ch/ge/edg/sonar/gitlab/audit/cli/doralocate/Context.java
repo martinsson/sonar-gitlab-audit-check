@@ -12,5 +12,5 @@ import java.time.ZoneId;
  * @param err la progression et les avertissements
  * @param zone le fuseau des dates affichées
  */
-public record Context(
+record Context(
     PrintStream out, PrintStream err, Clock clock, ZoneId zone, Suggestions suggestions) {}

@@ -14,8 +14,7 @@ import org.jspecify.annotations.Nullable;
  * @param via « direct » pour un matériau git du run lui-même, sinon le run amont, « build/12 »
  * @param keys les clés Jira citées dans son message, dans l'ordre
  */
-public record Commit(
-    String via, String repo, String revision, @Nullable Instant at, Set<String> keys) {
+record Commit(String via, String repo, String revision, @Nullable Instant at, Set<String> keys) {
 
   public Commit {
     keys = Collections.unmodifiableSet(new LinkedHashSet<>(keys));

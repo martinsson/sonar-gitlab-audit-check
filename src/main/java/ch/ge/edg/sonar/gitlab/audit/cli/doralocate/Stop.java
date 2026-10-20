@@ -4,7 +4,7 @@ import java.io.Serial;
 import org.jspecify.annotations.Nullable;
 
 /** Arrêt propre : URL ou jeton absent, jeton refusé, projet GitLab introuvable. */
-public final class Stop extends Exception {
+final class Stop extends Exception {
 
   @Serial private static final long serialVersionUID = 1L;
 

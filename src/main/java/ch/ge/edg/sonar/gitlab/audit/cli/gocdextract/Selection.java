@@ -15,7 +15,7 @@ import java.util.Set;
  *
  * @param groupOf pipeline → groupe, pour tout ce que le tableau de bord montre
  */
-public record Selection(Set<String> pipelines, Map<String, String> groupOf) {
+record Selection(Set<String> pipelines, Map<String, String> groupOf) {
 
   public Selection {
     pipelines = Collections.unmodifiableSet(new LinkedHashSet<>(pipelines));

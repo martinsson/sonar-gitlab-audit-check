@@ -10,7 +10,7 @@ import picocli.CommandLine.Option;
  * De quoi joindre l'instance. Les options portent un {@code order} : réparties en plusieurs
  * groupes, elles gardent dans l'aide l'ordre où elles ont toujours été listées.
  */
-public final class GitlabOptions {
+final class GitlabOptions {
 
   @Option(
       names = "--url",

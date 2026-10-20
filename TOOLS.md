@@ -15,7 +15,7 @@ Older scripts that break the rule are listed in
 
 ```bash
 mvn -q package dependency:copy-dependencies -DoutputDirectory=target/libs
-java -cp "target/classes:target/libs/*" ch.ge.edg.sonar.gitlab.audit.cli.SonarAuditCheck \
+java -cp "target/classes:target/libs/*" ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarAuditCheck \
     --url "$SONAR_URL" --token "$SONAR_TOKEN"
 ```
 

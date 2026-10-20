@@ -7,9 +7,9 @@
 //DEPS org.jspecify:jspecify:1.0.0
 //SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/**/*.java
 
-// Entry point for `jbang Vues.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/Vues.java.
+// Entry point for `jbang Vues.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/vues/Vues.java.
 public class Vues {
     public static void main(String[] args) {
-        ch.ge.edg.sonar.gitlab.audit.cli.Vues.main(args);
+        ch.ge.edg.sonar.gitlab.audit.cli.vues.Vues.main(args);
     }
 }

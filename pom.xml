@@ -18,7 +18,9 @@
     <junit.version>5.11.4</junit.version>
     <assertj.version>3.27.3</assertj.version>
     <jqwik.version>1.9.2</jqwik.version>
-    <archunit.version>1.4.1</archunit.version>
+    <!-- 1.4.2: the first ArchUnit whose bundled ASM reads Java 26 class files (1.4.1 imports
+         nothing from them, silently). -->
+    <archunit.version>1.4.2</archunit.version>
     <selfie.version>2.4.2</selfie.version>
     <jspecify.version>1.0.0</jspecify.version>
 
@@ -86,7 +88,7 @@
       <version>2.2</version>
     </dependency>
 
-    <!-- Tests. Mockito is deliberately absent and banned (see enforcer + ArchUnit): use fakes. -->
+    <!-- Tests. Mockito is deliberately absent and banned by the enforcer below: use fakes. -->
     <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>

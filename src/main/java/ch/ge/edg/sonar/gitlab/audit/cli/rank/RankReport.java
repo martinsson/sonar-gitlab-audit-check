@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 /** Ce que le classement dit à la console : gouvernance, shortlist, listes annexes, fichier. */
-public final class RankReport {
+final class RankReport {
 
   public static final String ESC = String.valueOf((char) 27);
   public static final String BOLD = ESC + "[1m";

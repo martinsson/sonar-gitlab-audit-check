@@ -9,5 +9,5 @@ package ch.ge.edg.sonar.gitlab.audit.cli.rank;
  * @param topPercent part de chaque strate retenue
  * @param minSignals signaux minimum pour retenir un score
  */
-public record RankSettings(
+record RankSettings(
     int staleDays, int abandonedDays, int minNcloc, int topPercent, int minSignals) {}

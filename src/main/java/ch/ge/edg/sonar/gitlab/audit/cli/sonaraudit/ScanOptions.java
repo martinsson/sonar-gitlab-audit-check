@@ -3,7 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import picocli.CommandLine.Option;
 
 /** Comment le parc est lu : largeur, passes facultatives, fenêtres, transport. */
-public final class ScanOptions {
+final class ScanOptions {
 
   @Option(
       names = "--concurrency",

@@ -10,4 +10,4 @@ import java.time.ZoneId;
  * @param comma CSV pour un outil (virgule, sans BOM) plutôt que pour Excel
  * @param zone le fuseau des dates écrites : celui du poste, sauf en test
  */
-public record Output(Path dir, boolean raw, boolean comma, ZoneId zone) {}
+record Output(Path dir, boolean raw, boolean comma, ZoneId zone) {}

@@ -7,9 +7,9 @@
 //DEPS org.jspecify:jspecify:1.0.0
 //SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/**/*.java
 
-// Entry point for `jbang ProjectMapper.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/ProjectMapper.java.
+// Entry point for `jbang ProjectMapper.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/mapper/ProjectMapper.java.
 public class ProjectMapper {
     public static void main(String[] args) {
-        ch.ge.edg.sonar.gitlab.audit.cli.ProjectMapper.main(args);
+        ch.ge.edg.sonar.gitlab.audit.cli.mapper.ProjectMapper.main(args);
     }
 }

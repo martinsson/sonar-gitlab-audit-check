@@ -7,9 +7,9 @@
 //DEPS org.jspecify:jspecify:1.0.0
 //SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/**/*.java
 
-// Entry point for `jbang GitLabProjectReport.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/GitLabProjectReport.java.
+// Entry point for `jbang GitLabProjectReport.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/projectreport/GitLabProjectReport.java.
 public class GitLabProjectReport {
     public static void main(String[] args) {
-        ch.ge.edg.sonar.gitlab.audit.cli.GitLabProjectReport.main(args);
+        ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReport.main(args);
     }
 }

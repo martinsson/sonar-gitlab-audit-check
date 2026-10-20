@@ -1,13 +1,14 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdFixtures.git;
-import static ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdFixtures.run;
-import static ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdFixtures.upstream;
+import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.git;
+import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.run;
+import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.upstream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.JiraKeys;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
+import ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.time.Instant;

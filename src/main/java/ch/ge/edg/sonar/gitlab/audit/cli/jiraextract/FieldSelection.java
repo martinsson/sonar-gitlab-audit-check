@@ -14,7 +14,7 @@ import org.jspecify.annotations.Nullable;
  * champs personnalisés dont le nom évoque la plateforme ou la gravité, ceux demandés par --field,
  * et le champ « Epic Link » de Jira Software, dont l'id change d'une instance à l'autre.
  */
-public final class FieldSelection {
+final class FieldSelection {
 
   /**
    * Champs personnalisés repris d'office : ceux qui pourraient dire la plateforme ou la gravité.

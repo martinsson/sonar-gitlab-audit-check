@@ -20,10 +20,10 @@ import java.security.GeneralSecurityException;
  * (parmi celles qui comptent) ? 3. Combien de projets je vois, et combien m'échappent ? 4. Quels
  * signaux d'activité sont disponibles sans passer par Git ?
  */
-public final class SonarAudit {
+final class SonarAudit {
 
   /** Les options de la ligne de commande, par groupe. */
-  public record Options(InstanceOptions instance, OutputOptions output, ScanOptions scan) {}
+  record Options(InstanceOptions instance, OutputOptions output, ScanOptions scan) {}
 
   private final Options options;
   private final PrintStream out;
