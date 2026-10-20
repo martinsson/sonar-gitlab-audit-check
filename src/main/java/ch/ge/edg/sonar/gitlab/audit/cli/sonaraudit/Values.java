@@ -7,9 +7,11 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
@@ -17,6 +19,18 @@ import org.jspecify.annotations.Nullable;
  * Petits utilitaires : dates de l'API, paramètres, et valeurs absentes qui ne sont pas des zéros.
  */
 final class Values {
+
+  /** ISO avec ou sans deux-points dans le décalage : « +02:00 » comme le « +0200 » de Sonar. */
+  private static final DateTimeFormatter OFFSET_DATE_TIME =
+      new DateTimeFormatterBuilder()
+          .append(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+          .optionalStart()
+          .appendOffset("+HH:MM", "Z")
+          .optionalEnd()
+          .optionalStart()
+          .appendOffset("+HHMM", "Z")
+          .optionalEnd()
+          .toFormatter(Locale.ROOT);
 
   private Values() {}
 
@@ -29,9 +43,7 @@ final class Values {
   static @Nullable LocalDateTime parseDate(@Nullable String s, ZoneId zone) {
     if (s == null || s.length() < 19) return null;
     try {
-      return OffsetDateTime.parse(s, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
-          .atZoneSameInstant(zone)
-          .toLocalDateTime();
+      return OffsetDateTime.parse(s, OFFSET_DATE_TIME).atZoneSameInstant(zone).toLocalDateTime();
     } catch (DateTimeException ignored) {
       // pas de décalage (ou format inattendu) : on retombe sur l'heure nue
     }

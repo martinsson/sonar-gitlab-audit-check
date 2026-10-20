@@ -8,6 +8,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ScmResponse;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -86,14 +87,15 @@ final class Blame {
   private void accessible(String fileKey, int changesets, int authors, List<LocalDateTime> dates) {
     out.println();
     out.println(out.color("  Blame SCM accessible via l'API :", GREEN));
-    out.out().printf("    Fichier témoin                : %s%n", Values.shortName(fileKey));
-    out.out().printf("    Auteurs distincts (%d changesets): %d%n", changesets, authors);
+    out.print(Text.format("    Fichier témoin                : %s%n", Values.shortName(fileKey)));
+    out.print(Text.format("    Auteurs distincts (%d changesets): %d%n", changesets, authors));
     if (!dates.isEmpty()) {
-      out.out()
-          .printf(
+      out.print(
+          Text.format(
               "    Dernière modification         : %s%n",
-              dates.get(dates.size() - 1).toLocalDate());
-      out.out().printf("    Plus ancienne ligne           : %s%n", dates.get(0).toLocalDate());
+              dates.get(dates.size() - 1).toLocalDate()));
+      out.print(
+          Text.format("    Plus ancienne ligne           : %s%n", dates.get(0).toLocalDate()));
     }
     out.println(out.color("    → churn et âge du code calculables sans accès Git", DIM));
   }

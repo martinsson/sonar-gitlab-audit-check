@@ -6,7 +6,6 @@ import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -258,8 +257,7 @@ class GitlabClientTest {
   }
 
   @Test
-  @SuspectedBug("with only null parameters the URL should not end in '?'")
-  void onlyNullParametersLeaveATrailingQuestionMarkSeenInTheDumpIndex() throws Exception {
+  void onlyNullParametersLeaveNoQuestionMarkInTheDumpIndex() throws Exception {
     server.json("/api/v4/projects", "[]");
     Map<String, String> params = new LinkedHashMap<>();
     params.put("skipped", null);
@@ -267,7 +265,7 @@ class GitlabClientTest {
         .get("projects", params);
     assertThat(tmp.resolve("index.txt"))
         .content()
-        .endsWith("  api/v4/projects?" + System.lineSeparator());
+        .endsWith("  api/v4/projects" + System.lineSeparator());
   }
 
   @Test

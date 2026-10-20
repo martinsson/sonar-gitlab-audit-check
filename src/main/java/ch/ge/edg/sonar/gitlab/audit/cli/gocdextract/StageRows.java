@@ -4,13 +4,13 @@ import ch.ge.edg.sonar.gitlab.audit.dora.Platforms;
 import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -83,12 +83,12 @@ final class StageRows {
 
   private @Nullable Instant end(String pipeline, int counter, JsonNode stage) throws Stop {
     String path =
-        "/go/api/stages/%s/%d/%s/%s"
-            .formatted(
-                GocdApi.enc(pipeline),
-                counter,
-                GocdApi.enc(stage.path("name").asText()),
-                stage.path("counter").asText("1"));
+        Text.format(
+            "/go/api/stages/%s/%d/%s/%s",
+            GocdApi.enc(pipeline),
+            counter,
+            GocdApi.enc(stage.path("name").asText()),
+            stage.path("counter").asText("1"));
     RestResponse r = gocd.checked(gocd.api().api(path));
     return r.ok() ? completed(r.json()) : null;
   }
@@ -110,6 +110,6 @@ final class StageRows {
   static String minutes(@Nullable Instant start, @Nullable Instant end) {
     if (start == null || end == null) return "";
     double m = Duration.between(start, end).toSeconds() / 60.0;
-    return String.format(Locale.ROOT, "%.1f", m).replace('.', ',');
+    return Text.format("%.1f", m).replace('.', ',');
   }
 }

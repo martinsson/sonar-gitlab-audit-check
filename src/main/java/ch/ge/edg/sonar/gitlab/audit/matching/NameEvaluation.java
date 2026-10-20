@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -56,10 +55,7 @@ final class NameEvaluation {
     List<Bucket> buckets = new ArrayList<>();
     for (int b = 0; b < 10; b++) {
       buckets.add(
-          new Bucket(
-              String.format(Locale.ROOT, "%.1f–%.1f", b / 10.0, (b + 1) / 10.0),
-              correct[b],
-              wrong[b]));
+          new Bucket(Text.format("%.1f–%.1f", b / 10.0, (b + 1) / 10.0), correct[b], wrong[b]));
     }
     return new NameStats(
         sure.size(),
@@ -91,13 +87,13 @@ final class NameEvaluation {
   private Example wrongExample(Match m, NameGuess f, double ts) {
     return new Example(
         m.left().str(spec.leftKey()),
-        "proposé %s (%s), vrai %s (%s, par %s)"
-            .formatted(
-                f.candidate(),
-                Text.decimal(f.score()),
-                m.rightKey(spec),
-                Text.decimal(ts),
-                m.method()));
+        Text.format(
+            "proposé %s (%s), vrai %s (%s, par %s)",
+            f.candidate(),
+            Text.decimal(f.score()),
+            m.rightKey(spec),
+            Text.decimal(ts),
+            m.method()));
   }
 
   private List<ThresholdPoint> thresholds() {
@@ -144,8 +140,9 @@ final class NameEvaluation {
       divergent.add(
           new Example(
               m.left().str(spec.leftKey()),
-              "%s — score %s, apparié par %s"
-                  .formatted(shown, Text.decimal(d.trueScore()), m.method())));
+              Text.format(
+                  "%s — score %s, apparié par %s",
+                  shown, Text.decimal(d.trueScore()), m.method())));
     }
     return divergent;
   }
@@ -184,14 +181,13 @@ final class NameEvaluation {
   private Example nearMiss(Match m, NameGuess g) {
     return new Example(
         m.left().str(spec.leftKey()),
-        "%s (%s) — %s%s"
-            .formatted(
-                g.candidate(),
-                Text.decimal(g.score()),
-                g.rejection(),
-                g.runnerUp().isEmpty()
-                    ? ""
-                    : ", suivant %s (%s)"
-                        .formatted(g.runnerUp(), Text.decimal(g.runnerUpScore()))));
+        Text.format(
+            "%s (%s) — %s%s",
+            g.candidate(),
+            Text.decimal(g.score()),
+            g.rejection(),
+            g.runnerUp().isEmpty()
+                ? ""
+                : Text.format(", suivant %s (%s)", g.runnerUp(), Text.decimal(g.runnerUpScore()))));
   }
 }

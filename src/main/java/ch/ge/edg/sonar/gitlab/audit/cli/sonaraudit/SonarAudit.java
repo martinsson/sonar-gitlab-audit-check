@@ -9,6 +9,7 @@ import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
@@ -99,18 +100,18 @@ final class SonarAudit {
     Sonar sq = session.sq();
     int concurrency = session.concurrency();
     Presentation.title(out, "Synthèse");
-    out.out()
-        .printf(
+    out.print(
+        Text.format(
             "  %d appels API effectués%s.%n",
             sq.calls(),
-            concurrency > 1 && !sq.replaying() ? " (%d en vol)".formatted(concurrency) : "");
+            concurrency > 1 && !sq.replaying() ? Text.format(" (%d en vol)", concurrency) : ""));
     // Une reprise silencieuse est une mesure qu'on ne sait pas justifier :
     // si l'instance a refusé puis accepté, le rapport doit le dire.
     if (sq.throttled() > 0 || sq.retried() > 0) {
       out.println(
           out.color(
-              "  dont %d ralenti(s) (429) et %d repris (5xx)."
-                  .formatted(sq.throttled(), sq.retried()),
+              Text.format(
+                  "  dont %d ralenti(s) (429) et %d repris (5xx).", sq.throttled(), sq.retried()),
               DIM));
     }
     // En rejeu, une capture manquante est la seule panne possible — et elle
@@ -118,8 +119,8 @@ final class SonarAudit {
     if (sq.replaying() && sq.missingCaptures() > 0) {
       out.println(
           out.color(
-              "  %d capture(s) manquante(s) : le rejeu est incomplet."
-                  .formatted(sq.missingCaptures()),
+              Text.format(
+                  "  %d capture(s) manquante(s) : le rejeu est incomplet.", sq.missingCaptures()),
               YELLOW));
     }
     out.println(

@@ -39,9 +39,9 @@ final class ReportFormat {
 
   static String hours(double h) {
     if (h * 60 < 1) return "< 1 min";
-    if (h < 1) return "%.0f min".formatted(h * 60);
-    if (h < 48) return "%.1f h".formatted(h);
-    return "%.1f j".formatted(h / 24);
+    if (h < 1) return Text.format("%.0f min", h * 60);
+    if (h < 48) return Text.format("%.1f h", h);
+    return Text.format("%.1f j", h / 24);
   }
 
   static String humanBytes(@Nullable Long bytes) {
@@ -53,15 +53,15 @@ final class ReportFormat {
       v /= 1024;
       i++;
     }
-    return "%.1f %s".formatted(v, units[i]);
+    return Text.format("%.1f %s", v, units[i]);
   }
 
   /** Rapport entre lignes touchées et solde net : au-delà de 3, on refait plus qu'on n'ajoute. */
   static String rework(long added, long deleted) {
     long touched = added + deleted;
     long net = Math.abs(added - deleted);
-    if (net == 0) return "%d touchées, solde nul".formatted(touched);
-    return "%d / %d = %.1f".formatted(touched, net, (double) touched / net);
+    if (net == 0) return Text.format("%d touchées, solde nul", touched);
+    return Text.format("%d / %d = %.1f", touched, net, (double) touched / net);
   }
 
   static String label(Map<String, String> labels, String identity) {

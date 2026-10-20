@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.List;
@@ -63,7 +64,7 @@ final class Preflight {
         new Probe(
             "api/v4/user",
             ProbeVerdict.OK,
-            "%s (%s)".formatted(text(user, "username"), text(user, "name"))));
+            Text.format("%s (%s)", text(user, "username"), text(user, "name"))));
     boolean enterprise = enterprise(probes);
     return new Result(probes, List.of(), Optional.of(new Instance(enterprise)));
   }
@@ -81,12 +82,10 @@ final class Preflight {
           new Probe(
               "api/v4/metadata",
               enterprise ? ProbeVerdict.OK : ProbeVerdict.EMPTY,
-              "GitLab %s · %s"
-                  .formatted(
-                      text(metadata, "version"),
-                      enterprise
-                          ? "Enterprise"
-                          : "Community — DORA et approbations indisponibles")));
+              Text.format(
+                  "GitLab %s · %s",
+                  text(metadata, "version"),
+                  enterprise ? "Enterprise" : "Community — DORA et approbations indisponibles")));
       return enterprise;
     }
     probes.add(

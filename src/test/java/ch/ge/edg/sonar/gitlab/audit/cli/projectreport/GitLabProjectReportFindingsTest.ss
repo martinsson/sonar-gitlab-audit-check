@@ -42,7 +42,7 @@
 === 4. Merge requests et revue ========================================
   Aucune MR créée sur la fenêtre.
     Le travail arrive donc directement sur la branche par défaut.
-  Ce n'est pas une absence de données : c'est l'absence de revue.
+    Ce n'est pas une absence de données : c'est l'absence de revue.
 
 === 5. Constats =======================================================
   → Projet archivé : lecture historique seulement.

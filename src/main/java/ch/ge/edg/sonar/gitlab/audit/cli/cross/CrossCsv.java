@@ -30,7 +30,8 @@ final class CrossCsv {
       w.writeNext(header(mapping).toArray(String[]::new));
       for (CrossPair p : pairs) w.writeNext(row(mapping, p));
     }
-    out.out().printf("%n  Croisement : %d lignes → %s%n", pairs.size(), file.toAbsolutePath());
+    out.print(
+        Text.format("%n  Croisement : %d lignes → %s%n", pairs.size(), file.toAbsolutePath()));
     out.println(out.color(Csv.openingHint(file, comma), DIM));
     out.println(
         out.color(

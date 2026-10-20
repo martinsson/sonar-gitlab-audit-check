@@ -90,7 +90,7 @@ final class GitlabInventoryIndex {
 
   /** « chemin (score) » : un candidat tel que le CSV le montre. */
   String described(int g, double score) {
-    return "%s (%s)".formatted(path(g), Text.decimal(score));
+    return Text.format("%s (%s)", path(g), Text.decimal(score));
   }
 
   @Nullable Integer byPath(String path) {

@@ -28,7 +28,7 @@ Instance : <URL>[0m
   [32mOK      [0m Arbre de composants (components/tree)      [2m57 fichiers[0m
   [32mOK      [0m Total réel des projets (admin uniquement)  [2m6 projets au total[0m
   [32mOK      [0m Liaison DevOps (alm_settings/get_binding)  [2mGITLAB, dépôt 101[0m
-  [32mOK      [0m Liens du projet (project_links/search)     [2m3 lien(s)[0m
+  [32mOK      [0m Liens du projet (project_links/search)     [2m2 lien(s)[0m
   [32mOK      [0m Blame SCM (sources/scm)                    [2m4 changeset(s)[0m
 
 [1m=== 3. Inventaire des projets visibles [0m[1m================================[0m
@@ -71,7 +71,7 @@ Instance : <URL>[0m
 [1m=== 4. Signaux d'activité disponibles sans Git (sur alpha-service) [0m[1m====[0m
   Analyses sur 90 j            : [1m4[0m
   Versions livrées                : 2
-  Cadence moyenne                 : 1 analyse / 10.0 j
+  Cadence moyenne                 : 1 analyse / 15.0 j
 
   Auteurs distincts (90 j)      : [1m2[0m
   Auteur principal                : alice@example.test (80% des issues récentes)
@@ -219,7 +219,7 @@ Instance : <URL>
   OK       Arbre de composants (components/tree)      57 fichiers
   OK       Total réel des projets (admin uniquement)  6 projets au total
   OK       Liaison DevOps (alm_settings/get_binding)  GITLAB, dépôt 101
-  OK       Liens du projet (project_links/search)     3 lien(s)
+  OK       Liens du projet (project_links/search)     2 lien(s)
   OK       Blame SCM (sources/scm)                    4 changeset(s)
 
 === 3. Inventaire des projets visibles ================================
@@ -255,7 +255,7 @@ Instance : <URL>
 === 4. Signaux d'activité disponibles sans Git (sur alpha-service) ====
   Analyses sur 90 j            : 4
   Versions livrées                : 2
-  Cadence moyenne                 : 1 analyse / 10.0 j
+  Cadence moyenne                 : 1 analyse / 15.0 j
 
   Auteurs distincts (90 j)      : 2
   Auteur principal                : alice@example.test (80% des issues récentes)

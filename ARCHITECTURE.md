@@ -57,7 +57,8 @@ Tests build it with fixed values.
 - Default files (`exclusions.txt`, `namespace-mapping.yaml`) are option defaults, resolved
   against the working directory at the edge.
 - Numbers and dates are formatted with an explicit locale, only in `console`, `text` and in the CSV
-  column formatters.
+  column formatters. Elsewhere a line is built with `Text.format` and printed with
+  `Console.printf`, both on `Locale.ROOT` (FormattingTest).
 - Clients don't print. Progress goes through a listener.
 
 ## HTTP and errors

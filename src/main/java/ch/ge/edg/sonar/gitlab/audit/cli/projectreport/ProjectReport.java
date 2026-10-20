@@ -4,6 +4,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.PrintStream;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -45,7 +46,7 @@ final class ProjectReport {
         .print(new Sections(report, api, settings, dates).measure(project, since));
 
     report.println();
-    report.println(report.paint("  %d appels API.".formatted(api.calls()), DIM));
+    report.println(report.paint(Text.format("  %d appels API.", api.calls()), DIM));
     return 0;
   }
 

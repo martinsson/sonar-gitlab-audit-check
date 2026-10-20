@@ -10,6 +10,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ComponentMeasures;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Measure;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.MeasuresSearch;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -80,9 +81,10 @@ final class Measures {
         projects.stream()
             .filter(p -> !measures.getOrDefault(p.key(), Map.of()).containsKey("coverage"))
             .count();
-    out.out()
-        .printf(
-            "  Sans aucune donnée de couverture: %s%n", out.color(String.valueOf(missing), YELLOW));
+    out.print(
+        Text.format(
+            "  Sans aucune donnée de couverture: %s%n",
+            out.color(String.valueOf(missing), YELLOW)));
     if (missing > 0) {
       out.println(
           out.color(

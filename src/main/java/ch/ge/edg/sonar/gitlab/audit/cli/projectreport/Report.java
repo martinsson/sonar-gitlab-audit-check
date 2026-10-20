@@ -30,10 +30,9 @@ final class Report {
   }
 
   void line(String label, EndpointVerdict v, String detail) {
-    out.out()
-        .printf(
-            "  %s %-42s %s%n",
-            paint(v.tag, v.color), label, detail.isBlank() ? "" : paint(detail, DIM));
+    out.printf(
+        "  %s %-42s %s%n",
+        paint(v.tag, v.color), label, detail.isBlank() ? "" : paint(detail, DIM));
   }
 
   void println() {

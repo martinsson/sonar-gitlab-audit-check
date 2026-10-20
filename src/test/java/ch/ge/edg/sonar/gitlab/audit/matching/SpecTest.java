@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.matching;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -47,18 +46,17 @@ class SpecTest {
   }
 
   @Test
-  @SuspectedBug("The ?col=val value is not trimmed, so '? kind = v' never matches a 'v' cell")
-  void a_spaced_filter_value_never_matches_the_cell() {
+  void a_spaced_filter_value_matches_the_trimmed_cell() {
     KeyMethod m = KeyMethod.parse("x:a=b? kind = v", Kind.LINK);
-    assertThat(m.accepts(row("kind", "v"))).isFalse();
+    assertThat(m.accepts(row("kind", "v"))).isTrue();
   }
 
   @Test
-  void key_method_parse_filter_value_keeps_spaces_and_equal_signs() {
+  void key_method_parse_filter_value_is_trimmed_and_keeps_equal_signs() {
     KeyMethod m = KeyMethod.parse("x:a=b? kind = v=w", Kind.LINK);
     assertThat(m.whereColumn()).isEqualTo("kind");
-    assertThat(m.whereValue()).isEqualTo(" v=w");
-    assertThat(m.accepts(row("kind", "v=w"))).isFalse();
+    assertThat(m.whereValue()).isEqualTo("v=w");
+    assertThat(m.accepts(row("kind", "v=w"))).isTrue();
     KeyMethod plain = KeyMethod.parse("x:a=b?kind=main", Kind.LINK);
     assertThat(plain.accepts(row("kind", "main"))).isTrue();
     assertThat(plain.accepts(row("kind", "other"))).isFalse();

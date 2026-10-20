@@ -46,9 +46,24 @@ sealed interface CommitMeasure {
 
   /**
    * Le dernier commit, daté par GraphQL, est antérieur à la fenêtre : zéro par construction, sans
-   * appel REST — mais ni merges, ni jours actifs, ni reverts n'ont été lus.
+   * appel REST — commits, merges, jours actifs et reverts, puisqu'aucun commit n'y tombe.
    */
   record NoneInWindow() implements CommitMeasure {
+    @Override
+    public Integer merges() {
+      return 0;
+    }
+
+    @Override
+    public Integer activeDays() {
+      return 0;
+    }
+
+    @Override
+    public Integer reverts() {
+      return 0;
+    }
+
     @Override
     public Integer human() {
       return 0;

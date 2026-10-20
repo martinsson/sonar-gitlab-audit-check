@@ -19,6 +19,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ScmResponse;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SettingsValues;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 
@@ -140,13 +141,15 @@ final class Capabilities {
             b ->
                 b.alm() == null
                     ? "aucune liaison"
-                    : "%s, dépôt %s".formatted(b.alm(), orEmpty(b.repository())),
+                    : Text.format("%s, dépôt %s", b.alm(), orEmpty(b.repository())),
             params("project", sample)),
         new Probe<>(
             "Liens du projet (project_links/search)",
             "api/project_links/search",
             ProjectLinks.class,
-            l -> size(l.links()) + " lien(s)",
+            l ->
+                Values.orEmptyList(l.links()).stream().filter(k -> !Text.isBlank(k.url())).count()
+                    + " lien(s)",
             params("projectKey", sample)));
   }
 

@@ -23,22 +23,25 @@ final class IdentitySection {
   void print(Project p) {
     report.title("1. Le projet");
     report.println(
-        "  Chemin                          : %s"
-            .formatted(report.paint(Text.orEmpty(p.pathWithNamespace()), BOLD)));
+        Text.format(
+            "  Chemin                          : %s",
+            report.paint(Text.orEmpty(p.pathWithNamespace()), BOLD)));
     report.println(
-        "  Id / branche par défaut         : %s / %s"
-            .formatted(p.id(), Text.orNa(p.defaultBranch())));
+        Text.format(
+            "  Id / branche par défaut         : %s / %s", p.id(), Text.orNa(p.defaultBranch())));
     report.println(
-        "  Visibilité                      : %s%s"
-            .formatted(
-                Text.orNa(p.visibility()),
-                Boolean.TRUE.equals(p.archived()) ? report.paint("   ARCHIVÉ", YELLOW) : ""));
+        Text.format(
+            "  Visibilité                      : %s%s",
+            Text.orNa(p.visibility()),
+            Boolean.TRUE.equals(p.archived()) ? report.paint("   ARCHIVÉ", YELLOW) : ""));
     report.println(
-        "  Créé le                         : %s%s"
-            .formatted(dates.dateOnly(p.createdAt()), ago(p.createdAt())));
+        Text.format(
+            "  Créé le                         : %s%s",
+            dates.dateOnly(p.createdAt()), ago(p.createdAt())));
     report.println(
-        "  Dernière activité               : %s%s"
-            .formatted(dates.dateOnly(p.lastActivityAt()), ago(p.lastActivityAt())));
+        Text.format(
+            "  Dernière activité               : %s%s",
+            dates.dateOnly(p.lastActivityAt()), ago(p.lastActivityAt())));
     statistics(p.statistics());
     if (Text.isBlank(p.defaultBranch())) {
       report.println("  → dépôt sans branche par défaut : vide, ou jamais poussé.", YELLOW);
@@ -49,17 +52,20 @@ final class IdentitySection {
     LocalDateTime d = dates.parseLocal(date);
     return d == null
         ? ""
-        : report.paint("   (il y a %d j)".formatted(ChronoUnit.DAYS.between(d, dates.now())), DIM);
+        : report.paint(
+            Text.format("   (il y a %d j)", ChronoUnit.DAYS.between(d, dates.now())), DIM);
   }
 
   private void statistics(Project.@Nullable Statistics s) {
     if (s != null) {
       report.println(
-          "  Commits (toute l'histoire)      : %s"
-              .formatted(Text.orNa(ReportFormat.str(s.commitCount()))));
+          Text.format(
+              "  Commits (toute l'histoire)      : %s",
+              Text.orNa(ReportFormat.str(s.commitCount()))));
       report.println(
-          "  Taille du dépôt                 : %s"
-              .formatted(ReportFormat.humanBytes(s.repositorySize())));
+          Text.format(
+              "  Taille du dépôt                 : %s",
+              ReportFormat.humanBytes(s.repositorySize())));
     } else {
       // statistics=true est ignoré silencieusement en dessous de Reporter.
       report.println("  Statistiques du dépôt           : indisponibles (rôle < Reporter ?)", DIM);

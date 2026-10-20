@@ -5,6 +5,7 @@ import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.exchange.Crossing;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.opencsv.CSVWriter;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -164,18 +165,19 @@ public class Vues implements Callable<Integer> {
     List<Csv.Row> unpaired = writeUnpaired(t, input);
 
     List<String> missing = DRIFT.stream().filter(c -> !c.equals("signaux") && !t.has(c)).toList();
-    out.out()
-        .printf("  Vue essentiel : %d lignes → %s%n", t.rows().size(), essential.toAbsolutePath());
-    out.out()
-        .printf(
+    out.print(
+        Text.format(
+            "  Vue essentiel : %d lignes → %s%n", t.rows().size(), essential.toAbsolutePath()));
+    out.print(
+        Text.format(
             "  Vue dérive    : %d projets appariés → %s%n",
-            joined.size(), sibling(input, "derive").toAbsolutePath());
+            joined.size(), sibling(input, "derive").toAbsolutePath()));
     out.println(
         out.color("    Triée par nombre de signaux, puis par pente de la densité d'issues.", DIM));
-    out.out()
-        .printf(
+    out.print(
+        Text.format(
             "  Vue non appariés : %d projets actifs sans projet Sonar → %s%n",
-            unpaired.size(), sibling(input, "non-apparies").toAbsolutePath());
+            unpaired.size(), sibling(input, "non-apparies").toAbsolutePath()));
     out.println(
         out.color(
             "    Les plus actifs d'abord. Seulement l'échantillon de pratiques.csv : "
@@ -184,9 +186,10 @@ public class Vues implements Callable<Integer> {
     if (!missing.isEmpty()) {
       out.println(
           out.color(
-              ("  Colonnes absentes du croisement, laissées vides : %s%n"
-                      + "    Un croisement plus ancien : relancer les trois outils les remplit.")
-                  .formatted(String.join(", ", missing)),
+              Text.format(
+                  "  Colonnes absentes du croisement, laissées vides : %s%n"
+                      + "    Un croisement plus ancien : relancer les trois outils les remplit.",
+                  String.join(", ", missing)),
               YELLOW));
     }
     return 0;

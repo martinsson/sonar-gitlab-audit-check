@@ -103,7 +103,7 @@ Ressemblance de noms, jugée sur 7 paires sûres
 "team-a/alpha-service";"team-a:alpha";"clé lue dans la CI";"exact";"";"";"";"";"team-a:alpha";"";"";"";"";"";"team-a:alpha";"oui";"team-a:alpha (0.95)"⏎
 "team-a/beta";"org.example:beta";"clé Maven du pom";"exact";"";"";"";"";"";"org.example:beta";"";"org.example:beta";"";"";"org.example:beta-legacy";"non";"org.example:beta (0.89)"⏎
 "team-b/gamma";"org.example:gamma";"a label nobody knows";"derived";"";"";"";"";"";"";"org.example:gamma";"org.example:gamma";"";"";"";"";"org.example:gamma (0.87)"⏎
-"team-c/101-delta";"";"rejeté à la main";"rejete";"";"";"";"";"";"";"";"grp.delta:delta";"";"";"";"";"grp.delta:delta (0.91)"⏎
+"team-c/101-delta";"grp.delta:delta";"rejeté à la main";"rejete";"";"";"";"";"";"";"";"grp.delta:delta";"";"";"";"";"grp.delta:delta (0.91)"⏎
 "team-e/12-";"TEAM-E_12";"clé normalisée = chemin GitLab";"derived";"";"";"";"";"";"";"";"";"TEAM-E_12";"";"";"";"TEAM-E_12 (1.00)"⏎
 "team-f/zp-web";"org.example:zportal";"nom du pom = nom Sonar";"derived";"";"";"";"";"";"";"";"";"";"org.example:zportal";"";"";"TEAM-E_12 (0.16, sous le seuil)"⏎
 "team-f/common-ui";"org.example:common-b";"saisi à la main";"manuel";"org.example:common-a";"0.57";"org.example:common-b (0.57)";"ambigu";"";"";"";"";"";"org.example:common-a org.example:common-b";"";"";"org.example:common-a (0.57, ambigu)"⏎
@@ -460,7 +460,7 @@ Appariement
     3 paires vers une clé qui n'existe plus, recalculées :
       team-a/beta → org.example:gone
       team-g/inventory-tracker → org.example:vanished (manuel)
-      team-j/report-engine →  (manuel)
+      team-j/report-engine → (manuel)
     Ancienne version : correspondances.csv.bak
 
 Méthodes retenues
@@ -607,7 +607,7 @@ Chaque méthode, seule
 "team-a/alpha-service","team-a:alpha","clé lue dans la CI","exact","","","","","team-a:alpha","","","","","","team-a:alpha","oui","team-a:alpha (0.95)"
 "team-a/beta","org.example:beta","clé Maven du pom","exact","","","","","","org.example:beta","","org.example:beta","","","org.example:beta-legacy","non","org.example:beta (0.89)"
 "team-b/gamma","org.example:gamma","liaison DevOps Sonar → GitLab","exact","","","","","","","org.example:gamma","org.example:gamma","","","","","org.example:gamma (0.87)"
-"team-c/101-delta","","rejeté à la main","rejete","","","","","","","","grp.delta:delta","","","","","grp.delta:delta (0.91)"
+"team-c/101-delta","grp.delta:delta","rejeté à la main","rejete","","","","","","","","grp.delta:delta","","","","","grp.delta:delta (0.91)"
 "team-e/12-","TEAM-E_12","clé normalisée = chemin GitLab","derived","","","","","","","","","TEAM-E_12","","","","TEAM-E_12 (1.00)"
 "team-f/zp-web","org.example:zportal","nom du pom = nom Sonar","derived","","","","","","","","","","org.example:zportal","","","TEAM-E_12 (0.16, sous le seuil)"
 "team-f/common-ui","org.example:common-b","saisi à la main","manuel","org.example:common-a","0.57","org.example:common-b (0.57)","ambigu","","","","","","org.example:common-a org.example:common-b","","","org.example:common-a (0.57, ambigu)"
@@ -631,7 +631,7 @@ Appariement
     1 lignes pour des projets absents de cet audit, conservées.
     2 paires vers une clé qui n'existe plus, recalculées :
       team-g/inventory-tracker → org.example:vanished (manuel)
-      team-j/report-engine →  (manuel)
+      team-j/report-engine → (manuel)
     Ancienne version : correspondances.csv.bak
 
 Méthodes retenues

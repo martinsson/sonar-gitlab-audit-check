@@ -8,6 +8,7 @@ import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -106,8 +107,9 @@ final class DerivedMethods {
         new Pair(
             r,
             inventory.row(g),
-            "%s (%d homonymes, départagés par %s)"
-                .formatted(step.label(), cands.size(), pick.get().how()),
+            Text.format(
+                "%s (%d homonymes, départagés par %s)",
+                step.label(), cands.size(), pick.get().how()),
             Confidence.SUGGESTION,
             matcher.score(g, s),
             names,

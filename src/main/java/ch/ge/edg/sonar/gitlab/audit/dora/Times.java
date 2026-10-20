@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.dora;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.time.Instant;
@@ -13,9 +14,10 @@ import org.jspecify.annotations.Nullable;
 /** Les dates telles que Jira et GoCD les écrivent, et telles qu'Excel les lit. */
 public final class Times {
 
-  private static final DateTimeFormatter OUT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+  private static final DateTimeFormatter OUT =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ROOT);
   private static final DateTimeFormatter JIRA =
-      DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
+      DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.ROOT);
 
   private Times() {}
 
@@ -64,6 +66,6 @@ public final class Times {
   }
 
   private static String tenths(double value) {
-    return String.format(Locale.ROOT, "%.1f", value).replace('.', ',');
+    return Text.format("%.1f", value).replace('.', ',');
   }
 }

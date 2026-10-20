@@ -4,6 +4,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.GREEN;
 import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.YELLOW;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
@@ -54,7 +55,7 @@ final class Findings {
     LocalDateTime lastCommit = cadence.lastCommit();
     if (lastCommit == null) return;
     long idle = ChronoUnit.DAYS.between(lastCommit, dates.now());
-    if (idle > 90) found.add("Dernier commit il y a %d j : dépôt dormant.".formatted(idle));
+    if (idle > 90) found.add(Text.format("Dernier commit il y a %d j : dépôt dormant.", idle));
     LocalDateTime activity = dates.parseLocal(p.lastActivityAt());
     if (activity != null && idle > 180 && ChronoUnit.DAYS.between(activity, dates.now()) < 90) {
       found.add(
@@ -66,47 +67,54 @@ final class Findings {
   private void review(Cadence cadence, ReviewMeasures reviews) {
     if (cadence.commits() > 0 && reviews.noMrs()) {
       found.add(
-          "%d commits, aucune MR : le code arrive sans revue sur la branche par défaut."
-              .formatted(cadence.commits()));
+          Text.format(
+              "%d commits, aucune MR : le code arrive sans revue sur la branche par défaut.",
+              cadence.commits()));
     }
     if (reviews.selfMergedShare() > 50) {
       found.add(
-          "%.0f %% des MR sont fusionnées par leur auteur : la revue est facultative."
-              .formatted(reviews.selfMergedShare()));
+          Text.format(
+              "%.0f %% des MR sont fusionnées par leur auteur : la revue est facultative.",
+              reviews.selfMergedShare()));
     }
     if (reviews.mrs() > 0 && reviews.silentShare() > 60) {
       found.add(
-          "%.0f %% des MR n'ont aucun commentaire : la revue est un tampon."
-              .formatted(reviews.silentShare()));
+          Text.format(
+              "%.0f %% des MR n'ont aucun commentaire : la revue est un tampon.",
+              reviews.silentShare()));
     }
     if (reviews.leadP90() > 30 * 24) {
       found.add(
-          "9e décile du délai de fusion à %s : une MR sur dix traîne un mois."
-              .formatted(ReportFormat.hours(reviews.leadP90())));
+          Text.format(
+              "9e décile du délai de fusion à %s : une MR sur dix traîne un mois.",
+              ReportFormat.hours(reviews.leadP90())));
     }
   }
 
   private void team(People people) {
     if (people.authors() > 0 && people.busFactor() <= 1) {
       found.add(
-          "Une seule personne signe 80 %% des commits (%.0f %% pour la première)."
-              .formatted(people.topShare()));
+          Text.format(
+              "Une seule personne signe 80 %% des commits (%.0f %% pour la première).",
+              people.topShare()));
     }
     if (people.authors() > 2 && people.activeRecently() <= 1) {
       found.add(
-          "%d auteurs sur la fenêtre, %d actif sur 90 j : l'équipe s'est vidée."
-              .formatted(people.authors(), people.activeRecently()));
+          Text.format(
+              "%d auteurs sur la fenêtre, %d actif sur 90 j : l'équipe s'est vidée.",
+              people.authors(), people.activeRecently()));
     }
   }
 
   private void habits(Commits commits, Cadence cadence, ReviewMeasures reviews) {
     if (cadence.bigCommitShare() > 10) {
       found.add(
-          "%.0f %% des commits dépassent %d lignes : imports, code généré ou gros lots."
-              .formatted(cadence.bigCommitShare(), CadenceSection.BIG_COMMIT));
+          Text.format(
+              "%.0f %% des commits dépassent %d lignes : imports, code généré ou gros lots.",
+              cadence.bigCommitShare(), CadenceSection.BIG_COMMIT));
     }
     if (cadence.weekendShare() > 25) {
-      found.add("%.0f %% des commits le week-end.".formatted(cadence.weekendShare()));
+      found.add(Text.format("%.0f %% des commits le week-end.", cadence.weekendShare()));
     }
     if (reviews.squashShare() > 80) {
       found.add(

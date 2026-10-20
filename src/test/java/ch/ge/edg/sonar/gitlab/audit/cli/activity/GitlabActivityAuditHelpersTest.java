@@ -50,9 +50,9 @@ class GitlabActivityAuditHelpersTest {
   }
 
   @Test
-  void decimalsFollowTheDefaultLocale() {
+  void decimalsIgnoreTheDefaultLocale() {
     Locale.setDefault(Locale.FRANCE);
-    assertThat(CellFormat.dec(1.5)).isEqualTo("1,50");
+    assertThat(CellFormat.dec(1.5)).isEqualTo("1.50");
     assertThat(CellFormat.pct(1, 3)).isEqualTo("33 %");
   }
 

@@ -4,6 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report;
 import ch.ge.edg.sonar.gitlab.audit.matching.report.ReportPrinter;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.nio.file.Path;
 
 /** Ce que l'appariement dit à la console, autour du rapport d'évaluation. */
@@ -14,8 +15,8 @@ record MapperReport(Console console) {
 
   void inputs(Csv.Table left, Path leftFile, Csv.Table right, Path rightFile) {
     console.println(console.color("\nAppariement", BOLD));
-    console.out().printf("  Gauche : %d lignes (%s)%n", left.rows().size(), leftFile);
-    console.out().printf("  Droite : %d lignes (%s)%n", right.rows().size(), rightFile);
+    console.print(Text.format("  Gauche : %d lignes (%s)%n", left.rows().size(), leftFile));
+    console.print(Text.format("  Droite : %d lignes (%s)%n", right.rows().size(), rightFile));
   }
 
   void evaluation(Report rep) {
@@ -28,6 +29,6 @@ record MapperReport(Console console) {
   }
 
   void reportWritten(Path json) {
-    console.out().printf("  Rapport     : %s%n", json.toAbsolutePath());
+    console.print(Text.format("  Rapport     : %s%n", json.toAbsolutePath()));
   }
 }

@@ -5,6 +5,7 @@
 //DEPS info.picocli:picocli:4.7.6
 //DEPS org.yaml:snakeyaml:2.2
 //DEPS org.jspecify:jspecify:1.0.0
+//DEPS com.google.errorprone:error_prone_annotations:2.50.0
 //SOURCES ../src/main/java/ch/ge/edg/sonar/gitlab/audit/**/*.java
 
 // Entry point for `jbang dora/JiraExtract.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/JiraExtract.java.

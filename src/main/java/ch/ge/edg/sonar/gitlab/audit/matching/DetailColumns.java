@@ -41,7 +41,7 @@ public final class DetailColumns {
         g.candidate().isEmpty() ? "" : Text.decimal(g.score()),
         g.runnerUp().isEmpty()
             ? ""
-            : "%s (%s)".formatted(g.runnerUp(), Text.decimal(g.runnerUpScore())),
+            : Text.format("%s (%s)", g.runnerUp(), Text.decimal(g.runnerUpScore())),
         rejection == null ? "" : rejection);
   }
 
@@ -56,8 +56,8 @@ public final class DetailColumns {
   private static String freeCell(@Nullable NameGuess f) {
     if (f == null || f.candidate().isEmpty()) return "";
     String rejection = f.rejection();
-    return "%s (%s%s)"
-        .formatted(
-            f.candidate(), Text.decimal(f.score()), rejection == null ? "" : ", " + rejection);
+    return Text.format(
+        "%s (%s%s)",
+        f.candidate(), Text.decimal(f.score()), rejection == null ? "" : ", " + rejection);
   }
 }

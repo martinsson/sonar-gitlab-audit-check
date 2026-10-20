@@ -3,13 +3,11 @@ package ch.ge.edg.sonar.gitlab.audit.matching;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.yaml.snakeyaml.error.YAMLException;
 
 /** The namespace mapping read from a YAML file, and what it says on the error stream. */
 class NamespaceMappingTest {
@@ -36,11 +34,9 @@ class NamespaceMappingTest {
   }
 
   @Test
-  @SuspectedBug(
-      "Only IOException is caught, so a directory escapes the loader; a fix would report it as a warning")
-  void a_directory_fails_inside_the_yaml_reader_uncaught() {
-    assertThatThrownBy(() -> NamespaceMapping.load(dir, Path.of("")))
-        .isInstanceOf(YAMLException.class);
+  void a_directory_is_reported_as_unreadable() {
+    assertThat(NamespaceMapping.load(dir, Path.of("")).warnings())
+        .containsExactly("Erreur lecture mapping : " + dir);
   }
 
   @Test
@@ -63,18 +59,16 @@ class NamespaceMappingTest {
   }
 
   @Test
-  @SuspectedBug(
-      "Lookup is upper-cased but file keys are kept as written; a fix would match lowercase keys too")
-  void a_lowercase_namespace_in_the_file_never_matches() throws Exception {
+  void a_lowercase_namespace_in_the_file_matches_too() throws Exception {
     Path f = Files.writeString(dir.resolve("m.yaml"), "zzmap-low: zz_low_prefix\n");
     NamespaceMapping m = NamespaceMapping.load(dir, f);
-    assertThat(m.mappedGitlabPaths("zzmap-low/alpha")).containsExactly("zzmap-low-alpha", "alpha");
+    assertThat(m.mappedGitlabPaths("zzmap-low/alpha"))
+        .containsExactly("zz_low_prefix-alpha", "alpha");
   }
 
   @Test
-  @SuspectedBug(
-      "A non-string value escapes the loader as ClassCastException; a fix would report it as a warning")
-  void a_non_string_value_fails_with_a_class_cast() throws Exception {
+  // Intended (documented on load): a malformed mapping fails loudly rather than mapping half.
+  void a_non_string_value_fails_the_load() throws Exception {
     Path f = Files.writeString(dir.resolve("m.yaml"), "ZZMAP-NUM: 42\n");
     assertThatThrownBy(() -> NamespaceMapping.load(dir, f)).isInstanceOf(ClassCastException.class);
   }

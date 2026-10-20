@@ -31,7 +31,7 @@ Instance : http://gitlab.test
   Coupe --active-within 30        : 1 projets écartés sur 2
     Écartés sans être comptés : « pas regardé » n'est pas « rien vu ».
     Gratuit — la date vient de la passe GraphQL, pas d'un appel de plus.
-  Comptés par pagination REST     : 1 projets
+  Comptés par pagination REST     : 1 projet
   Avec au moins un commit humain  : 1
 
 4. Plancher d'activité (étape 3)
@@ -260,7 +260,7 @@ Synthèse
 ╔═ graphqlDatesTheLastCommitAndSparesTheStaleProjects/csv ═╗
 <BOM>"id";"path";"name";"namespace";"default_branch";"visibility";"created_at";"last_activity_at";"archived";"fork";"mirror";"total_commits";"repo_size";"bucket";"last_commit";"commits_window";"commits_bots";"authors_window";"merge_commits";"reverts";"active_days";"commits_per_week";"tronque";"exclu";"fuite_filtre";"selectionne";"motif_selection"
 "1";"team-a/alpha";"ALPHA";"team-a";"main";"private";"2020-01-01T00:00Z";"2099-01-01T10:00Z";"false";"false";"false";"50";"1000";"A(<100)";"2099-02-01T00:00Z";"6";"0";"1";"0";"0";"6";"0.47";"false";"";"false";"true";"tête de strate A(<100)"
-"2";"team-a/beta";"BETA";"team-a";"main";"private";"2020-01-01T00:00Z";"2099-01-01T10:00Z";"false";"false";"false";"50";"1000";"";"2000-01-01T10:00Z";"0";"0";"0";"";"";"";"0.00";"false";"sous le plancher (0 commits)";"false";"false";""
+"2";"team-a/beta";"BETA";"team-a";"main";"private";"2020-01-01T00:00Z";"2099-01-01T10:00Z";"false";"false";"false";"50";"1000";"";"2000-01-01T10:00Z";"0";"0";"0";"0";"0";"0";"0.00";"false";"sous le plancher (0 commits)";"false";"false";""
 "3";"team-a/gamma";"GAMMA";"team-a";"main";"private";"2020-01-01T00:00Z";"2099-01-01T10:00Z";"false";"false";"false";"50";"1000";"A(<100)";"2099-01-01T10:00Z";"8";"0";"1";"0";"0";"8";"0.62";"false";"";"false";"true";"tête de strate A(<100)"
 
 ╔═ graphqlDatesTheLastCommitAndSparesTheStaleProjects/stdout ═╗
@@ -358,7 +358,7 @@ Instance : http://gitlab.test
 3. Activité réelle en commits (étape 2)
 ---------------------------------------
   GraphQL indisponible sur cette instance — repli REST.
-  Comptés par pagination REST     : 1 projets
+  Comptés par pagination REST     : 1 projet
   Avec au moins un commit humain  : 1
 
 4. Plancher d'activité (étape 3)

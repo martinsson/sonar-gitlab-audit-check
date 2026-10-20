@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Paging;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -21,17 +20,12 @@ class HelpersTest {
   void parseDateReadsColonOffsetsIntoTheClockZone() {
     assertThat(Values.parseDate("2026-08-16T05:43:07+02:00", ZoneOffset.UTC))
         .isEqualTo(LocalDateTime.of(2026, 8, 16, 3, 43, 7));
-    // Sonar writes "+0200": ISO_OFFSET_DATE_TIME rejects it, so the offset is dropped and
-    // the wall-clock time is kept as is (the comment above parseDate says otherwise).
-    assertThat(Values.parseDate("2026-08-16T05:43:07+0200", ZoneOffset.UTC))
-        .isEqualTo(LocalDateTime.of(2026, 8, 16, 5, 43, 7));
   }
 
   @Test
-  @SuspectedBug("Sonar's compact offset +0200 should be read and converted, not dropped")
-  void parseDateDropsSonarsCompactOffset() {
+  void parseDateReadsSonarsCompactOffsetIntoTheClockZone() {
     assertThat(Values.parseDate("2026-08-16T05:43:07+0200", ZoneOffset.UTC))
-        .isEqualTo(LocalDateTime.of(2026, 8, 16, 5, 43, 7));
+        .isEqualTo(LocalDateTime.of(2026, 8, 16, 3, 43, 7));
   }
 
   @Test

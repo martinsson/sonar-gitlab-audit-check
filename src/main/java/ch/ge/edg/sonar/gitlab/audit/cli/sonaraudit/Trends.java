@@ -8,6 +8,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
@@ -91,25 +92,26 @@ final class Trends {
     long measured = up + down + flat;
     Console out = session.out();
     out.println();
-    out.out()
-        .printf(
+    out.print(
+        Text.format(
             "  Tendance des issues/kLOC sur %d j (%d projets mesurables) :%n",
-            activityDays, measured);
-    out.out()
-        .printf(
+            activityDays, measured));
+    out.print(
+        Text.format(
             "    en hausse (> +%.0f %%/mois)    : %s%n",
-            Trend.FLAT_PCT, out.color(String.valueOf(up), up > 0 ? YELLOW : GREEN));
-    out.out()
-        .printf(
+            Trend.FLAT_PCT, out.color(String.valueOf(up), up > 0 ? YELLOW : GREEN)));
+    out.print(
+        Text.format(
             "    en baisse (< -%.0f %%/mois)    : %s%n",
-            Trend.FLAT_PCT, out.color(String.valueOf(down), GREEN));
-    out.out().printf("    stables                      : %d%n", flat);
-    out.out().printf("    non mesurables               : %d%n", total - measured);
+            Trend.FLAT_PCT, out.color(String.valueOf(down), GREEN)));
+    out.print(Text.format("    stables                      : %d%n", flat));
+    out.print(Text.format("    non mesurables               : %d%n", total - measured));
     out.println(
         out.color(
-            ("    (moins de %d analyses ou moins de %d j d'historique dans la "
-                    + "fenêtre, ou\n     aucune issue : une pente relative à zéro n'existe pas)")
-                .formatted(Trend.MIN_POINTS, Trend.MIN_SPAN_DAYS),
+            Text.format(
+                "    (moins de %d analyses ou moins de %d j d'historique dans la "
+                    + "fenêtre, ou\n     aucune issue : une pente relative à zéro n'existe pas)",
+                Trend.MIN_POINTS, Trend.MIN_SPAN_DAYS),
             DIM));
   }
 }

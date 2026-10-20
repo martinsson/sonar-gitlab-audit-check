@@ -8,6 +8,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.cross.CrossPair.perKlocChanged;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
 import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -61,9 +62,9 @@ final class CrossFindings {
             + "inventaire\n    Sonar seul confond avec eux.",
         active,
         p ->
-            "%s — %s commits"
-                .formatted(
-                    p.gl().str(GitlabPractices.PATH), p.gl().str(GitlabPractices.COMMITS_WINDOW)));
+            Text.format(
+                "%s — %s commits",
+                p.gl().str(GitlabPractices.PATH), p.gl().str(GitlabPractices.COMMITS_WINDOW)));
   }
 
   /**
@@ -106,11 +107,11 @@ final class CrossFindings {
             + "atteindre\n    la branche par défaut sans une seule MR fusionnée.",
         unreviewed,
         p ->
-            "%s — %s violations neuves, %s commits, 0 MR"
-                .formatted(
-                    p.gl().str(GitlabPractices.PATH),
-                    p.sqStr(SonarInventory.NEW_VIOLATIONS),
-                    p.gl().str(GitlabPractices.COMMITS_WINDOW)));
+            Text.format(
+                "%s — %s violations neuves, %s commits, 0 MR",
+                p.gl().str(GitlabPractices.PATH),
+                p.sqStr(SonarInventory.NEW_VIOLATIONS),
+                p.gl().str(GitlabPractices.COMMITS_WINDOW)));
   }
 
   /**
@@ -132,11 +133,11 @@ final class CrossFindings {
             + "deux\n    filets manquent en même temps.",
         naked,
         p ->
-            "%s — couverture %s %%, %s commits"
-                .formatted(
-                    p.gl().str(GitlabPractices.PATH),
-                    p.sqStr(SonarInventory.COVERAGE),
-                    p.gl().str(GitlabPractices.COMMITS_WINDOW)));
+            Text.format(
+                "%s — couverture %s %%, %s commits",
+                p.gl().str(GitlabPractices.PATH),
+                p.sqStr(SonarInventory.COVERAGE),
+                p.gl().str(GitlabPractices.COMMITS_WINDOW)));
   }
 
   /** Au moins 20 commits sur la fenêtre, et aucune MR fusionnée. */
@@ -162,8 +163,9 @@ final class CrossFindings {
             + "dépôt\n    lui-même, pas déduit d'une date d'analyse ancienne.",
         carrying,
         p ->
-            "%s — %s min de dette, 0 commit"
-                .formatted(p.gl().str(GitlabPractices.PATH), p.sqStr(SonarInventory.SQALE_INDEX)));
+            Text.format(
+                "%s — %s min de dette, 0 commit",
+                p.gl().str(GitlabPractices.PATH), p.sqStr(SonarInventory.SQALE_INDEX)));
   }
 
   /**
@@ -184,8 +186,9 @@ final class CrossFindings {
             + "regarde que le pourcentage.",
         unwired,
         p ->
-            "%s — %s tests, couverture 0 %%"
-                .formatted(p.gl().str(GitlabPractices.PATH), p.sqStr(SonarInventory.TESTS)));
+            Text.format(
+                "%s — %s tests, couverture 0 %%",
+                p.gl().str(GitlabPractices.PATH), p.sqStr(SonarInventory.TESTS)));
   }
 
   /**
@@ -209,24 +212,24 @@ final class CrossFindings {
             + "c'est du bruit.",
         degrading,
         p ->
-            "%s — %+.1f issues / kLOC modifié, %s lignes"
-                .formatted(
-                    p.gl().str(GitlabPractices.PATH),
-                    perKlocChanged(p),
-                    p.gl().str(GitlabPractices.LINES_CHANGED)));
+            Text.format(
+                "%s — %+.1f issues / kLOC modifié, %s lignes",
+                p.gl().str(GitlabPractices.PATH),
+                perKlocChanged(p),
+                p.gl().str(GitlabPractices.LINES_CHANGED)));
   }
 
   /** Un constat, son effectif, sa lecture, et au plus cinq exemples nommés. */
   private void finding(
       String title, String reading, List<CrossPair> examples, Function<CrossPair, String> line) {
     int n = examples.size();
-    out.out()
-        .printf(
+    out.print(
+        Text.format(
             "%n  %s : %s%n",
-            title, out.color(String.valueOf(n), n > 0 ? CrossReport.YELLOW : CrossReport.GREEN));
+            title, out.color(String.valueOf(n), n > 0 ? CrossReport.YELLOW : CrossReport.GREEN)));
     if (n == 0) return;
     out.println(out.color("    " + reading, CrossReport.DIM));
     examples.stream().limit(5).forEach(p -> out.println("      " + line.apply(p)));
-    if (n > 5) out.out().printf("      … et %d autres, dans le CSV.%n", n - 5);
+    if (n > 5) out.print(Text.format("      … et %d autres, dans le CSV.%n", n - 5));
   }
 }

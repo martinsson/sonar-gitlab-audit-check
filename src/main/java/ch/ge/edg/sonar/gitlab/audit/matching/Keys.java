@@ -3,7 +3,6 @@ package ch.ge.edg.sonar.gitlab.audit.matching;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
@@ -108,7 +107,8 @@ public final class Keys {
    */
   public static List<String> mappedSonarKey(@Nullable String sonarKey) {
     List<String> result = new ArrayList<>();
-    result.add(normalise(Objects.requireNonNull(sonarKey)));
+    if (sonarKey == null) return result;
+    result.add(normalise(sonarKey));
 
     if (sonarKey.isBlank()) return result;
 

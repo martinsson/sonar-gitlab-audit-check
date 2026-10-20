@@ -14,7 +14,7 @@ Instance : http://gitlab.test
     team-a/secret                            HTTP 403 — ignoré
   Projets retournés               : 1
   Retenus pour analyse            : 1 (100 % du parc)
-    1 réponses 403 : le jeton ne voit pas tout le parc.
+    1 réponse 403 : le jeton ne voit pas tout le parc.
     Un trou de permission raccourcit la liste sans lever d'erreur.
 
 2. Filtre de fraîcheur (étape 1) — 0 appel
@@ -25,7 +25,7 @@ Instance : http://gitlab.test
 3. Activité réelle en commits (étape 2)
 ---------------------------------------
   GraphQL indisponible sur cette instance — repli REST.
-  Comptés par pagination REST     : 1 projets
+  Comptés par pagination REST     : 1 projet
   Avec au moins un commit humain  : 1
 
 4. Plancher d'activité (étape 3)

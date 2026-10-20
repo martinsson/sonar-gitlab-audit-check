@@ -5,6 +5,7 @@ import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Materials;
 import ch.ge.edg.sonar.gitlab.audit.gocd.PipelineGroups;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -76,7 +77,7 @@ record GocdIndex(String builtAt, Map<String, Pipeline> pipelines) {
     int n = 0;
     for (Map.Entry<String, String> e : groupOf.entrySet()) {
       if (++n % PROGRESS == 0) {
-        err.printf("  index GoCD : %d / %d pipelines%n", n, groupOf.size());
+        err.print(Text.format("  index GoCD : %d / %d pipelines%n", n, groupOf.size()));
       }
       pipelines.put(e.getKey(), pipeline(gocd, e.getKey(), e.getValue(), zone));
     }

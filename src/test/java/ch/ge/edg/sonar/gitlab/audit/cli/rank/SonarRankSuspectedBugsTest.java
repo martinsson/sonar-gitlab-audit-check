@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
-import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -63,17 +62,14 @@ class SonarRankSuspectedBugsTest {
   }
 
   @Test
-  @SuspectedBug("truncate should return at most max characters, not max + 2")
-  void truncate_returns_two_characters_more_than_max() {
+  void ellipsize_returns_at_most_max_characters() {
     String cut = Text.ellipsize("abcdefghij", 6);
 
-    assertThat(cut).isEqualTo("abcde...").hasSize(6 + 2);
+    assertThat(cut).isEqualTo("abc...").hasSize(6);
   }
 
   @Test
-  @SuspectedBug(
-      "a project excluded for too few signals should not count in its stratum's percentiles")
-  void a_project_with_too_few_signals_still_lowers_the_percentiles_of_its_stratum()
+  void a_project_with_too_few_signals_leaves_the_percentiles_of_its_stratum_alone()
       throws IOException {
     rank(
         List.of(
@@ -81,13 +77,12 @@ class SonarRankSuspectedBugsTest {
             "few,Few,2000,2026-06-01,3,100,,,,,20,A,A,A,OK"));
 
     assertThat(velocityRow("few").str("exclusion")).isNotBlank();
-    // Alone in its stratum, "full" would be at the 50th percentile; "few" pulls it to 25.
-    assertThat(velocityRow("full").num("pct_ratio_dette")).isEqualTo(25.0);
+    // Alone in its stratum once "few" is excluded, "full" is at the 50th percentile.
+    assertThat(velocityRow("full").num("pct_ratio_dette")).isEqualTo(50.0);
   }
 
   @Test
-  @SuspectedBug("a project excluded for too few signals should not count in its stratum's quota")
-  void a_project_with_too_few_signals_still_counts_in_the_shortlist_quota() throws IOException {
+  void a_project_with_too_few_signals_does_not_count_in_the_shortlist_quota() throws IOException {
     rank(
         List.of(
             "one,One,2000,2026-06-01,3,1000,20,30,50,5,10,A,A,A,OK",
@@ -96,17 +91,17 @@ class SonarRankSuspectedBugsTest {
         "--top-percent",
         "50");
 
-    // Two ranked projects at 50 % give a quota of 1; counting "few" makes it round(1.5) = 2.
-    assertThat(velocityRow("one").str("retenu")).isEqualTo("O");
-    assertThat(velocityRow("two").str("retenu")).isEqualTo("O");
+    // Two ranked projects at 50 % give a quota of 1; "few" is not counted.
+    assertThat(List.of(velocityRow("one").str("retenu"), velocityRow("two").str("retenu")))
+        .containsExactlyInAnyOrder("O", "N");
   }
 
   @Test
-  @SuspectedBug("\"Actifs (< 90 j)\" should not include a project analysed exactly 90 days ago")
-  void a_project_analysed_exactly_stale_days_ago_counts_as_active() throws IOException {
+  void a_project_analysed_exactly_stale_days_ago_counts_as_active_as_its_label_says()
+      throws IOException {
     Cli.Result r = rank(List.of("ninety,Ninety,3000,2026-06-01,90,100,1,80,70,0,1,A,A,A,OK"));
 
-    assertThat(r.out()).contains("Actifs (< 90 j)                 : 1 (100%)");
+    assertThat(r.out()).contains("Actifs (≤ 90 j)                 : 1 (100%)");
     assertThat(r.out()).contains("Analysés, obsolètes (> 90 j)    : 0 (0%)");
   }
 }

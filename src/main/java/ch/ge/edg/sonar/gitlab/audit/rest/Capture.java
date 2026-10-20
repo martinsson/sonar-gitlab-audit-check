@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.rest;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -154,10 +155,10 @@ public final class Capture {
     try {
       byte[] d = MessageDigest.getInstance("SHA-1").digest(s.getBytes(StandardCharsets.UTF_8));
       StringBuilder sb = new StringBuilder();
-      for (int i = 0; i < 4; i++) sb.append("%02x".formatted(d[i]));
+      for (int i = 0; i < 4; i++) sb.append(Text.format("%02x", d[i]));
       return sb.toString();
     } catch (NoSuchAlgorithmException e) {
-      return "%08x".formatted(s.hashCode());
+      return Text.format("%08x", s.hashCode());
     }
   }
 }

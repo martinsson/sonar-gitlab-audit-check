@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,7 +13,7 @@ final class CellFormat {
   private CellFormat() {}
 
   static String pct(long n, long total) {
-    return total == 0 ? "—" : "%.0f %%".formatted(100.0 * n / total);
+    return total == 0 ? "—" : Text.format("%.0f %%", 100.0 * n / total);
   }
 
   static @Nullable Double median(@Nullable List<Double> xs) {
@@ -32,7 +33,7 @@ final class CellFormat {
   }
 
   static String dec(@Nullable Double d) {
-    return d == null ? "" : "%.2f".formatted(d);
+    return d == null ? "" : Text.format("%.2f", d);
   }
 
   static boolean isBlank(@Nullable String s) {
