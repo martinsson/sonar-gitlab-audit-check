@@ -16,7 +16,7 @@ import org.jspecify.annotations.Nullable;
  * normalisation — puis la ressemblance de noms sur ce qui reste, en suggestion seulement. Les liens
  * sont lus et jamais utilisés pour apparier.
  */
-public final class Mapper {
+final class Mapper {
 
   private final Spec spec;
   private final List<KeyMethod> available;

@@ -17,7 +17,7 @@ import org.yaml.snakeyaml.Yaml;
  * Namespace GitLab → préfixe Sonar, lu dans un YAML {@code NAMESPACE: prefixe}. Les clés du fichier
  * sont gardées telles qu'écrites, et cherchées en majuscules.
  */
-public final class NamespaceMapping {
+final class NamespaceMapping {
 
   /** Le fichier lu dans le répertoire de travail. */
   public static final String DEFAULT_FILE = "namespace-mapping.yaml";

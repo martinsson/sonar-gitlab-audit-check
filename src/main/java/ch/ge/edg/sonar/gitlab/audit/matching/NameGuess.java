@@ -3,7 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.matching;
 import org.jspecify.annotations.Nullable;
 
 /** Un rapprochement de noms : le candidat, son score, le suivant, et le refus éventuel. */
-public record NameGuess(
+record NameGuess(
     String candidate,
     double score,
     String runnerUp,
