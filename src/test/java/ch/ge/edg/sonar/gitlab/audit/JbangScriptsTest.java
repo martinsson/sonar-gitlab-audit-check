@@ -79,13 +79,13 @@ class JbangScriptsTest {
 
   @Test
   void a_thin_entry_point_passes() {
-    assertThat(problems(Path.of("Thin.java"), thin("cli.CrossAudit"))).isEmpty();
+    assertThat(problems(Path.of("Thin.java"), thin("cli.cross.CrossAudit"))).isEmpty();
   }
 
   @Test
   void imports_or_extra_code_in_the_script_are_refused() {
     String fat =
-        thin("cli.CrossAudit").replace("public class", "import java.util.List;\npublic class")
+        thin("cli.cross.CrossAudit").replace("public class", "import java.util.List;\npublic class")
             + "\nclass Helper {}\n";
     assertThat(problems(Path.of("Fat.java"), fat))
         .singleElement()
@@ -96,7 +96,8 @@ class JbangScriptsTest {
   @Test
   void a_long_script_and_sources_outside_src_main_java_are_refused() {
     String text =
-        thin("cli.CrossAudit").replace("//SOURCES", "//SOURCES ../helpers/Helper.java\n//SOURCES")
+        thin("cli.cross.CrossAudit")
+                .replace("//SOURCES", "//SOURCES ../helpers/Helper.java\n//SOURCES")
             + "\n".repeat(MAX_SCRIPT_LINES);
     assertThat(problems(Path.of("Long.java"), text))
         .hasSize(2)
