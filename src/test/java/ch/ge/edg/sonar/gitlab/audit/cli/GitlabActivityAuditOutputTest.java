@@ -123,7 +123,7 @@ class GitlabActivityAuditOutputTest extends GitlabActivityAuditTestBase {
               "0001-api_v4_user.json",
               "0002-api_v4_metadata.json",
               "0003-api_v4_groups_team_a_projects_include_subgroups_true_with_shared_false"
-                  + "_statistics_true_archived_false_per_page_100_")
+                  + "_statistics_true_archived_false_per_page_100_.json")
           .last()
           .asString()
           .startsWith("0004-api_v4_projects_1_repository_commits_")
