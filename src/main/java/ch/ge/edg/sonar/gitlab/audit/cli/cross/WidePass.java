@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.cross;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabInventory;
+import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import ch.ge.edg.sonar.gitlab.audit.matching.Result;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,7 +23,7 @@ record WidePass(
     @Nullable Path sonarGitlabCsv,
     @Nullable Path out,
     boolean comma,
-    SonarToGitlab.NameThresholds thresholds) {
+    Guards thresholds) {
 
   /** Chaque projet Sonar contre tout l'inventaire GitLab ; null sans inventaire. */
   SonarToGitlab.@Nullable Result run(

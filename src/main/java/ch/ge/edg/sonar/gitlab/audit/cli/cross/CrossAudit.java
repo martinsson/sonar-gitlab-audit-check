@@ -7,6 +7,7 @@ import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
 import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Evaluation;
+import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import ch.ge.edg.sonar.gitlab.audit.matching.MappingFile;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report;
 import ch.ge.edg.sonar.gitlab.audit.matching.Result;
@@ -217,10 +218,6 @@ public class CrossAudit implements Callable<Integer> {
   /** La passe sur tout GitLab telle que les options la décrivent. */
   private WidePass widePass() {
     return new WidePass(
-        inventoryCsv,
-        sonarGitlabCsv,
-        out,
-        style.comma(),
-        new SonarToGitlab.NameThresholds(nameThreshold, nameMargin));
+        inventoryCsv, sonarGitlabCsv, out, style.comma(), new Guards(nameThreshold, nameMargin));
   }
 }

@@ -8,6 +8,7 @@ import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -90,7 +91,7 @@ team-h/import-me_0123abcd-0123-4567-89ab-0123456789aZ ->  | aucune | none | - | 
             inv(),
             List.of(),
             new SonarToGitlab.Rejections(Set.of("team-h:plain\nteam-h/plain"), Set.of()),
-            new SonarToGitlab.NameThresholds(0.5, 0.1));
+            new Guards(0.5, 0.1));
     expectSelfie(describe(r))
         .toBe(
             "team-h:plain ->  | aucune | none | - | team-h/uuid-repo (0.10), team-h/import-me (0.08) | sous le seuil");

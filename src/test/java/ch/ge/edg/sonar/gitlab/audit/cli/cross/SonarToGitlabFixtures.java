@@ -4,6 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Choice;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
 import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
+import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import ch.ge.edg.sonar.gitlab.audit.matching.Match;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -39,7 +40,7 @@ final class SonarToGitlabFixtures {
         inventory,
         cross,
         new SonarToGitlab.Rejections(Set.of(), Set.of()),
-        new SonarToGitlab.NameThresholds(0.5, 0.1));
+        new Guards(0.5, 0.1));
   }
 
   /** key → path | method | confidence | score | candidates | reason, one line per pair. */

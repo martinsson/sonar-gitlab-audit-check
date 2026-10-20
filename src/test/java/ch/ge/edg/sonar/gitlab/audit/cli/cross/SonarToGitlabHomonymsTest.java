@@ -8,6 +8,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.cross.SonarToGitlabFixtures.sonar
 import static com.diffplug.selfie.Selfie.expectSelfie;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
+import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import ch.ge.edg.sonar.gitlab.audit.testing.SuspectedBug;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -108,7 +109,7 @@ same ->  | aucune | none | - | team-c/same (0.92), team-d/same (0.92) | homonyme
             inv,
             List.of(),
             new SonarToGitlab.Rejections(Set.of(), Set.of("team-a/dup")),
-            new SonarToGitlab.NameThresholds(0.5, 0.1));
+            new Guards(0.5, 0.1));
     expectSelfie(describe(r))
         .toBe(
             "dup ->  | aucune | none | - | team-a/dup (0.84), team-b/dup (0.84) | homonymes non départagés (nom court de la clé = dernier segment / nom GitLab)");

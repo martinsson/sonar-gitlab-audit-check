@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import ch.ge.edg.sonar.gitlab.audit.matching.Match;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -94,7 +95,7 @@ delta -> team-b/delta | croisement : nom du pom = nom Sonar | derived | - |  |\s
             inv,
             List.of(),
             new SonarToGitlab.Rejections(Set.of("k-rejected\nteam-a/two-repo"), Set.of()),
-            new SonarToGitlab.NameThresholds(0.5, 0.1));
+            new Guards(0.5, 0.1));
     expectSelfie(describe(r))
         .toBe(
 """
@@ -151,7 +152,7 @@ qqq ->  | aucune | none | - |  | aucun candidat""");
             List.of(),
             new SonarToGitlab.Rejections(
                 Set.of("rep-a\nteam-q/report-engine"), Set.of("team-p/payment-gateway")),
-            new SonarToGitlab.NameThresholds(0.5, 0.1));
+            new Guards(0.5, 0.1));
     expectSelfie(describe(r))
         .toBe(
 """
@@ -174,7 +175,7 @@ rep-a ->  | aucune | none | - |  | aucun candidat""");
                 inv,
                 List.of(),
                 new SonarToGitlab.Rejections(Set.of(), Set.of()),
-                new SonarToGitlab.NameThresholds(0.0, 0.0)));
+                new Guards(0.0, 0.0)));
     String strict =
         describe(
             SonarToGitlab.map(
@@ -182,7 +183,7 @@ rep-a ->  | aucune | none | - |  | aucun candidat""");
                 inv,
                 List.of(),
                 new SonarToGitlab.Rejections(Set.of(), Set.of()),
-                new SonarToGitlab.NameThresholds(0.99, 0.0)));
+                new Guards(0.99, 0.0)));
     expectSelfie(loose + "\n" + strict)
         .toBe(
 """

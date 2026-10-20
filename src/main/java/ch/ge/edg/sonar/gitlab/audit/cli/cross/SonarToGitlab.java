@@ -5,6 +5,7 @@ import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
 import ch.ge.edg.sonar.gitlab.audit.exchange.Mapping;
 import ch.ge.edg.sonar.gitlab.audit.exchange.SonarInventory;
 import ch.ge.edg.sonar.gitlab.audit.matching.Confidence;
+import ch.ge.edg.sonar.gitlab.audit.matching.Guards;
 import ch.ge.edg.sonar.gitlab.audit.matching.Match;
 import ch.ge.edg.sonar.gitlab.audit.matching.NameSpec;
 import ch.ge.edg.sonar.gitlab.audit.matching.similarity.NameMatcher;
@@ -113,14 +114,6 @@ final class SonarToGitlab {
     }
   }
 
-  /**
-   * La ressemblance de noms exigée d'une suggestion.
-   *
-   * @param threshold score minimal du meilleur candidat
-   * @param margin écart minimal entre le meilleur candidat et le suivant
-   */
-  record NameThresholds(double threshold, double margin) {}
-
   private SonarToGitlab() {}
 
   /**
@@ -132,7 +125,7 @@ final class SonarToGitlab {
       Csv.Table inventory,
       List<Match> fromCross,
       Rejections rejected,
-      NameThresholds thresholds) {
+      Guards thresholds) {
     GitlabInventoryIndex index = new GitlabInventoryIndex(inventory.rows());
     NameMatcher matcher =
         new NameSpec(GitlabPractices.PATH, List.of(SonarInventory.KEY, SonarInventory.NAME), true)
