@@ -16,9 +16,13 @@ import picocli.CommandLine.Option;
  *
  * <p>L'entonnoir (cf. GITLAB_ANALYSIS.md §2) :
  *
- * <p>étape 0 inventaire, exclusions dures ~20 appels étape 1 filtre de fraîcheur 0 appel (+
- * échantillon de validation) étape 2 activité réelle en commits ~40 (GraphQL) ou ~800 (REST) étape
- * 3 plancher d'activité 0 appel étape 4 sélection par quotas 0 appel
+ * <ul>
+ *   <li>étape 0 : inventaire, exclusions dures, ~20 appels
+ *   <li>étape 1 : filtre de fraîcheur, 0 appel (+ échantillon de validation)
+ *   <li>étape 2 : activité réelle en commits, ~40 appels (GraphQL) ou ~800 (REST)
+ *   <li>étape 3 : plancher d'activité, 0 appel
+ *   <li>étape 4 : sélection par quotas, 0 appel
+ * </ul>
  *
  * <p>Puis, optionnellement, --deep : les signaux de pratique sur les sélectionnés.
  *
@@ -30,10 +34,15 @@ import picocli.CommandLine.Option;
  * et la clé Sonar, seule donnée non fenêtrée de l'audit, est relue d'un cache disque tant que la
  * tête de la branche par défaut n'a pas bougé.
  *
- * <p>Usage : export GITLAB_URL=https://gitlab.example.com export GITLAB_TOKEN=glpat-xxxxxxxx #
- * portée read_api suffit jbang GitlabActivityAudit.java --group mon/groupe jbang
- * GitlabActivityAudit.java --top 200 --csv inventaire.csv jbang GitlabActivityAudit.java --group
- * mon/groupe --deep --pratiques prat.csv
+ * <p>Usage :
+ *
+ * <pre>
+ * export GITLAB_URL=https://gitlab.example.com
+ * export GITLAB_TOKEN=glpat-xxxxxxxx   # portée read_api suffit
+ * jbang GitlabActivityAudit.java --group mon/groupe
+ * jbang GitlabActivityAudit.java --top 200 --csv inventaire.csv
+ * jbang GitlabActivityAudit.java --group mon/groupe --deep --pratiques prat.csv
+ * </pre>
  *
  * <p>Lecture seule de bout en bout : aucune requête autre que GET (et le POST GraphQL de l'étape 2,
  * qui ne fait que lire).

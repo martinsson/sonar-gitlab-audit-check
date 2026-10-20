@@ -8,7 +8,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
@@ -22,19 +21,15 @@ abstract class GitlabActivityAuditTestBase {
   @TempDir Path tmp;
 
   GitlabAuditFake fake;
-  private Locale savedLocale;
 
   @BeforeEach
   void setUpBase() {
-    savedLocale = Locale.getDefault();
-    Locale.setDefault(Locale.ROOT);
     fake = new GitlabAuditFake();
   }
 
   @AfterEach
   void tearDownBase() {
     fake.close();
-    Locale.setDefault(savedLocale);
   }
 
   /** Stdout with the port and temp directory replaced, stderr appended when not empty. */

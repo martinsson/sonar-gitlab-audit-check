@@ -8,7 +8,6 @@ import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 import org.junit.jupiter.api.AfterEach;
@@ -26,14 +25,11 @@ abstract class GitLabProjectReportHarness {
 
   FakeHttpServer server;
   GitLabProjectReportFakeGitlab fx;
-  private Locale locale;
   private TimeZone zone;
 
   @BeforeEach
   void startFakeGitlab() {
-    locale = Locale.getDefault();
     zone = TimeZone.getDefault();
-    Locale.setDefault(Locale.ROOT);
     TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
     server = new FakeHttpServer();
     fx = new GitLabProjectReportFakeGitlab();
@@ -42,7 +38,6 @@ abstract class GitLabProjectReportHarness {
   @AfterEach
   void stopFakeGitlab() {
     server.close();
-    Locale.setDefault(locale);
     TimeZone.setDefault(zone);
   }
 

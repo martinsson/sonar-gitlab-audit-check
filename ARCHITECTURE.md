@@ -39,6 +39,9 @@ GitLab preset plus the wide pass) share `matching`.
 | `cli.mapper` | ProjectMapper | The matcher on its own |
 | `cli.cross` | CrossAudit | Crossing Sonar and GitLab, including the SonarToGitlab wide pass |
 | `cli.vues` | Vues | Views over the CSVs |
+| `cli.doralocate` | dora/DoraLocate | Where the DORA data lives: finds the Jira and GoCD sources of the projects |
+| `cli.gocdextract` | dora/GocdExtract | GoCD pipeline runs extracted for the DORA measures |
+| `cli.jiraextract` | dora/JiraExtract | Jira issues and their transitions extracted for the DORA measures |
 
 In a command package only the `@Command` class is public.
 
@@ -65,9 +68,13 @@ Tests build it with fixed values.
 
 `rest` is the only package that opens connections. It owns TLS, authentication headers, retries
 and capture/replay. A capture keeps the status and body under a name that is stable across runs.
-An expected status (403, 404) is data, carried in the response. Only transport and parse failures
-throw, as one unchecked `SourceException`. The "one project failing must not stop the audit"
-barrier catches `SourceException` only, through one shared helper.
+
+There is one response type in `rest`. An unreachable server and an unreadable body are states of
+the response, not exceptions: the response says whether it got an answer, its status, and whether
+the body could be read. An expected status (403, 404) is data in the same way. The clients read
+the response and decide what a state means for their data; nothing in `rest` throws for the
+outcome of a call. The "one project failing must not stop the audit" barrier therefore works on
+values, through one shared helper, rather than by catching exceptions.
 
 ## Data
 

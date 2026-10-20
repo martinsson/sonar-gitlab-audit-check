@@ -9,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /** Synthetic inputs for CrossAudit and SonarToGitlab: invented teams, projects and people. */
 final class CrossAuditFixtures {
@@ -104,15 +103,9 @@ final class CrossAuditFixtures {
         "team-g/legacy,legacy,105,false,0,2020-01-01,false,false,oui");
   }
 
-  /** Runs CrossAudit in-process, colors off unless asked, under a fixed locale. */
+  /** Runs CrossAudit in-process, colors off unless asked. */
   static Cli.Result run(String... args) {
-    Locale saved = Locale.getDefault();
-    Locale.setDefault(Locale.ROOT);
-    try {
-      return Cli.run(CrossAudit::new, args);
-    } finally {
-      Locale.setDefault(saved);
-    }
+    return Cli.run(CrossAudit::new, args);
   }
 
   /** The output with the temporary directory replaced, so that it can be snapshotted. */

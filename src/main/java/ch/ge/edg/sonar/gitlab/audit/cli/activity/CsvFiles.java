@@ -6,6 +6,8 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.num;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.orEmpty;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Column;
+import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabInventory;
+import ch.ge.edg.sonar.gitlab.audit.exchange.GitlabPractices;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.List;
 import java.util.function.Function;
@@ -22,14 +24,14 @@ final class CsvFiles {
   /** Tout le périmètre, exclus compris, sur une fenêtre de {@code windowDays} jours. */
   static List<Column<AuditedProject>> inventory(int windowDays) {
     return List.of(
-        project("id", p -> String.valueOf(p.id())),
-        project("path", p -> orEmpty(p.path())),
-        project("name", p -> orEmpty(p.name())),
+        project(GitlabInventory.ID, p -> String.valueOf(p.id())),
+        project(GitlabInventory.PATH, p -> orEmpty(p.path())),
+        project(GitlabInventory.NAME, p -> orEmpty(p.name())),
         project("namespace", p -> orEmpty(p.namespace())),
         project("default_branch", p -> orEmpty(p.defaultBranch())),
         project("visibility", p -> orEmpty(p.visibility())),
         project("created_at", p -> iso(p.dates().created())),
-        project("last_activity_at", p -> iso(p.lastActivity())),
+        project(GitlabInventory.LAST_ACTIVITY_AT, p -> iso(p.lastActivity())),
         repo("archived", r -> String.valueOf(r.archived())),
         repo("fork", r -> r.forkedFrom() == null ? "false" : "true"),
         repo("mirror", r -> String.valueOf(r.mirror())),
@@ -37,7 +39,7 @@ final class CsvFiles {
         repo("repo_size", r -> num(r.size())),
         new Column<>("bucket", a -> a.fate().bucket()),
         new Column<>("last_commit", a -> iso(a.lastCommit())),
-        commits("commits_window", m -> num(m.human())),
+        commits(GitlabPractices.COMMITS_WINDOW, m -> num(m.human())),
         commits("commits_bots", m -> num(m.bots())),
         commits("authors_window", m -> num(m.authors())),
         commits("merge_commits", m -> num(m.merges())),
@@ -49,7 +51,7 @@ final class CsvFiles {
         commits("tronque", m -> String.valueOf(m.truncated())),
         new Column<>("exclu", a -> a.fate().exclusion()),
         commits("fuite_filtre", m -> String.valueOf(m.leaked())),
-        new Column<>("selectionne", a -> String.valueOf(a.fate().isSelected())),
+        new Column<>(GitlabInventory.SELECTED, a -> String.valueOf(a.fate().isSelected())),
         new Column<>("motif_selection", a -> a.fate().selectionReason()));
   }
 
@@ -69,10 +71,10 @@ final class CsvFiles {
   /** Les seuls sélectionnés, sur une fenêtre de {@code windowDays} jours. */
   static List<Column<Assessed>> practices(int windowDays) {
     return List.of(
-        audited("path", a -> orEmpty(a.project().path())),
+        audited(GitlabPractices.PATH, a -> orEmpty(a.project().path())),
         audited("motif_selection", a -> a.fate().selectionReason()),
         audited("bucket", a -> a.fate().bucket()),
-        audited("commits_window", a -> num(a.commits().human())),
+        audited(GitlabPractices.COMMITS_WINDOW, a -> num(a.commits().human())),
         audited("authors_window", a -> num(a.commits().authors())),
         practice("branche_protegee", r -> String.valueOf(r.protection().defaultProtected())),
         practice("push_verrouille", r -> String.valueOf(r.protection().pushLocked())),
@@ -93,16 +95,16 @@ final class CsvFiles {
         deployment("dora_indispo", d -> String.valueOf(d.doraUnavailable())),
         facts("ci_sonar", f -> String.valueOf(f.ciSonar)),
         facts("ci_securite", f -> String.valueOf(f.ciSecurity)),
-        facts("cle_sonar", f -> orEmpty(f.sonarKey)),
+        facts(GitlabPractices.SONAR_KEY, f -> orEmpty(f.sonarKey)),
         facts("source_cle_sonar", f -> orEmpty(f.shownKeySource())),
         practice("fichiers", r -> String.join(" ", r.sonar().files())),
-        audited("id", a -> String.valueOf(a.project().id())),
+        audited(GitlabPractices.ID, a -> String.valueOf(a.project().id())),
         new Column<>("fenetre_j", a -> String.valueOf(windowDays)),
-        lines("lignes_modifiees", l -> num(l.changed())),
+        lines(GitlabPractices.LINES_CHANGED, l -> num(l.changed())),
         lines("commits_lignes", l -> num(l.commits())),
         lines("lignes_tronquees", l -> String.valueOf(l.truncated())),
-        facts("cle_pom", f -> orEmpty(f.pomKey)),
-        facts("nom_pom", f -> orEmpty(f.pomName)));
+        facts(GitlabPractices.POM_KEY, f -> orEmpty(f.pomKey)),
+        facts(GitlabPractices.POM_NAME, f -> orEmpty(f.pomName)));
   }
 
   private static Column<Assessed> audited(String name, Function<AuditedProject, String> f) {

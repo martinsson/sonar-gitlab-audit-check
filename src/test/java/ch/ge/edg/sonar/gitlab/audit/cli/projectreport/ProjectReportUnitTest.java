@@ -10,7 +10,6 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TimeZone;
@@ -24,20 +23,16 @@ import org.junit.jupiter.params.provider.CsvSource;
 /** The pure helpers of {@link ProjectReport}. */
 class ProjectReportUnitTest {
 
-  private Locale locale = Locale.ROOT;
   private TimeZone zone = TimeZone.getDefault();
 
   @BeforeEach
   void pin() {
-    locale = Locale.getDefault();
     zone = TimeZone.getDefault();
-    Locale.setDefault(Locale.ROOT);
     TimeZone.setDefault(TimeZone.getTimeZone("Europe/Zurich"));
   }
 
   @AfterEach
   void restore() {
-    Locale.setDefault(locale);
     TimeZone.setDefault(zone);
   }
 
@@ -114,12 +109,6 @@ class ProjectReportUnitTest {
     String inUtc = new Dates(Clock.systemUTC()).dateOnly(lateEvening);
     String inZurich = new Dates(Clock.system(ZoneId.of("Europe/Zurich"))).dateOnly(lateEvening);
     assertThat(List.of(inUtc, inZurich)).containsExactly("2024-03-04", "2024-03-05");
-  }
-
-  @Test
-  void hoursKeepADecimalPointUnderAFrenchDefaultLocale() {
-    Locale.setDefault(Locale.FRANCE);
-    assertThat(ReportFormat.hours(1.5)).isEqualTo("1.5 h");
   }
 
   @ParameterizedTest

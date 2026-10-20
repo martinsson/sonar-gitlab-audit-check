@@ -2,7 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
 import java.time.LocalDateTime;
 
-/** The three measuring sections of the report, run in order over one project. */
+/** Les trois sections de mesure du rapport, exécutées dans l'ordre sur un projet. */
 final class Sections {
 
   private final CadenceSection cadence;
@@ -17,7 +17,7 @@ final class Sections {
     this.reviews = new ReviewSection(report, api, settings, dates);
   }
 
-  /** Each section prints what it measures, then the whole is handed to the findings. */
+  /** Chaque section affiche ce qu'elle mesure, puis le tout est remis aux constats. */
   Measured measure(Project project, LocalDateTime since) {
     Commits commits = api.commits(project, since);
     return new Measured(

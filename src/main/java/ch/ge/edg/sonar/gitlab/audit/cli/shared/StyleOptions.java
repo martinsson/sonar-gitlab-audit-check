@@ -2,7 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.shared;
 
 import picocli.CommandLine.Mixin;
 
-/** How a command reports: colours on the console, and the CSV form it writes. */
+/** La manière dont une commande rend compte : couleurs en console, et forme des CSV écrits. */
 public final class StyleOptions {
 
   @Mixin ColorOption color = new ColorOption();
@@ -14,7 +14,7 @@ public final class StyleOptions {
     return color.mode();
   }
 
-  /** CSV with commas and no BOM, for a tool, rather than Excel's form. */
+  /** CSV à virgules et sans BOM, pour un outil plutôt que pour Excel. */
   public boolean comma() {
     return comma.enabled();
   }

@@ -20,9 +20,12 @@ import java.time.Clock;
 /**
  * Diagnostic préalable à un audit de parc SonarQube.
  *
- * <p>1. L'API répond-elle et mon token est-il valide ? 2. Quelles requêtes puis-je réellement faire
- * (parmi celles qui comptent) ? 3. Combien de projets je vois, et combien m'échappent ? 4. Quels
- * signaux d'activité sont disponibles sans passer par Git ?
+ * <ol>
+ *   <li>L'API répond-elle et mon token est-il valide ?
+ *   <li>Quelles requêtes puis-je réellement faire (parmi celles qui comptent) ?
+ *   <li>Combien de projets je vois, et combien m'échappent ?
+ *   <li>Quels signaux d'activité sont disponibles sans passer par Git ?
+ * </ol>
  */
 final class SonarAudit {
 

@@ -1,8 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.architecture;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaCall;
 import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.domain.JavaField;
 import com.tngtech.archunit.core.importer.ImportOption;
@@ -42,4 +44,53 @@ class SharedOptionsTest {
               "cli.shared exists for the options several commands repeat: a class there that"
                   + " is neither an option group nor a converter is logic that belongs to a"
                   + " domain package");
+
+  private static final String ROOT = "ch.ge.edg.sonar.gitlab.audit.";
+  private static final String SHARED = ROOT + "cli.shared..";
+
+  @ArchTest
+  static final ArchRule SHARED_DEPENDS_ONLY_ON_OPTION_PLUMBING =
+      classes()
+          .that()
+          .resideInAPackage(SHARED)
+          .should()
+          .onlyDependOnClassesThat()
+          .resideInAnyPackage(
+              SHARED,
+              "picocli..",
+              "org.jspecify..",
+              "java.lang..",
+              "java.util..",
+              "java.nio.file..",
+              "java.io",
+              ROOT + "matching..",
+              ROOT + "exclusions..",
+              ROOT + "gitlab..",
+              ROOT + "console..",
+              ROOT + "text..")
+          .because(
+              "an option group resolves what the command line said into a value the commands"
+                  + " use, nothing else");
+
+  @ArchTest
+  static final ArchRule SHARED_DOES_NO_IO_BEYOND_PATHS =
+      noClasses()
+          .that()
+          .resideInAPackage(SHARED)
+          .should()
+          .dependOnClassesThat()
+          .resideInAnyPackage("java.net..", "javax.net..")
+          .orShould()
+          .callMethodWhere(callsIo())
+          .because("reading or writing a file is the work of a command or a domain package");
+
+  private static DescribedPredicate<JavaCall<?>> callsIo() {
+    return DescribedPredicate.describe(
+        "java.nio.file.Files or java.io streams",
+        (JavaCall<?> call) -> {
+          String owner = call.getTargetOwner().getName();
+          return owner.equals("java.nio.file.Files")
+              || (owner.startsWith("java.io.") && !owner.equals("java.io.PrintStream"));
+        });
+  }
 }

@@ -8,7 +8,7 @@
 //DEPS com.google.errorprone:error_prone_annotations:2.50.0
 //SOURCES ../src/main/java/ch/ge/edg/sonar/gitlab/audit/**/*.java
 
-// Entry point for `jbang dora/GocdExtract.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/GocdExtract.java.
+// Entry point for `jbang dora/GocdExtract.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/gocdextract/GocdExtract.java.
 public class GocdExtract {
     public static void main(String[] args) {
         ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdExtract.main(args);

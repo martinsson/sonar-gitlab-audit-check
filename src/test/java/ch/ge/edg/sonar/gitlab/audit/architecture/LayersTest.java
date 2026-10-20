@@ -10,8 +10,8 @@ import com.tngtech.archunit.lang.ArchRule;
 
 /**
  * The layers of ARCHITECTURE.md, top to bottom. A layer may use the layers below it, never the ones
- * above. Layers that hold no code yet (cli.shared, exchange, runtime) are optional, so the rule
- * already says where they sit.
+ * above. Every layer holds code, so none is optional: an empty layer would make its part of the
+ * rule pass for nothing (see {@link ImportIsNotVacuousTest}).
  */
 @AnalyzeClasses(
     packages = "ch.ge.edg.sonar.gitlab.audit",
@@ -24,7 +24,7 @@ class LayersTest {
   static final ArchRule EACH_LAYER_USES_ONLY_THE_LAYERS_BELOW =
       layeredArchitecture()
           .consideringOnlyDependenciesInLayers()
-          .withOptionalLayers(true)
+          .withOptionalLayers(false)
           .layer("Commands")
           .definedBy(
               resideInAPackage(ROOT + "cli..")

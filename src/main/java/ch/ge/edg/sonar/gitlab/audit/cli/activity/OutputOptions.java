@@ -35,8 +35,7 @@ final class OutputOptions {
       names = "--pratiques",
       order = 18,
       description =
-          "chemin explicite du CSV de pratiques "
-              + "(implique --deep ; l'inventaire est écrit à côté)")
+          "chemin explicite du CSV de pratiques (implique --deep ; l'inventaire est écrit à côté)")
   @Nullable Path pratiquesCsv;
 
   @Mixin CommaOption comma = new CommaOption();
