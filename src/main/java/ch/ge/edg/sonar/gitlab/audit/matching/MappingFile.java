@@ -1,8 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.matching;
 
-import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.c;
+import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.YELLOW;
+import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.c;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.matching.Replay.Reuse;

@@ -1,11 +1,13 @@
-package ch.ge.edg.sonar.gitlab.audit.matching;
+package ch.ge.edg.sonar.gitlab.audit.matching.report;
 
-import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.BOLD;
-import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.GREEN;
-import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.matching.Fmt.c;
+import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.BOLD;
+import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.GREEN;
+import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.YELLOW;
+import static ch.ge.edg.sonar.gitlab.audit.matching.report.Colors.c;
 
+import ch.ge.edg.sonar.gitlab.audit.matching.Fmt;
+import ch.ge.edg.sonar.gitlab.audit.matching.Report;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Agreement;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Bucket;
 import ch.ge.edg.sonar.gitlab.audit.matching.Report.Example;
