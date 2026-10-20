@@ -1,7 +1,7 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.SonarAuditCheckFake.ok;
-import static ch.ge.edg.sonar.gitlab.audit.cli.SonarAuditCheckRoutes.paging;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarAuditCheckFake.ok;
+import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarAuditCheckRoutes.paging;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;

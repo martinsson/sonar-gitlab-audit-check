@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;

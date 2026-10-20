@@ -7,9 +7,9 @@
 //DEPS org.jspecify:jspecify:1.0.0
 //SOURCES src/main/java/ch/ge/edg/sonar/gitlab/audit/**/*.java
 
-// Entry point for `jbang SonarAuditCheck.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/SonarAuditCheck.java.
+// Entry point for `jbang SonarAuditCheck.java`; the code is in src/main/java/ch/ge/edg/sonar/gitlab/audit/cli/sonaraudit/SonarAuditCheck.java.
 public class SonarAuditCheck {
     public static void main(String[] args) {
-        ch.ge.edg.sonar.gitlab.audit.cli.SonarAuditCheck.main(args);
+        ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarAuditCheck.main(args);
     }
 }

@@ -1,9 +1,5 @@
-package ch.ge.edg.sonar.gitlab.audit.cli;
+package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.InstanceOptions;
-import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.OutputOptions;
-import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.ScanOptions;
-import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarAudit;
 import ch.ge.edg.sonar.gitlab.audit.console.ConsoleOut;
 import java.io.PrintStream;
 import java.util.concurrent.Callable;
