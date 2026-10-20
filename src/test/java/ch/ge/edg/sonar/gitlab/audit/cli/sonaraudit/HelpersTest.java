@@ -12,6 +12,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 /** Small pure helpers: dates, parameters, null-safe accessors, verdicts. */
 class HelpersTest {
@@ -84,18 +86,24 @@ class HelpersTest {
     assertThat(Values.total(new Paging(1, 1, 7))).isEqualTo("7");
     assertThat(Values.size(null)).isZero();
     assertThat(Values.size(List.of(1, 2))).isEqualTo(2);
-    assertThat(Text.isBlank(" ")).isTrue();
-    assertThat(Text.isBlank("a")).isFalse();
     assertThat(Values.notEmpty(null)).isFalse();
     assertThat(Values.notEmpty(List.of())).isFalse();
     assertThat(Values.notEmpty(List.of(1))).isTrue();
     assertThat(Values.orEmptyList(null)).isEmpty();
-    assertThat(Text.orEmpty(null)).isEmpty();
-    assertThat(Text.orNa(" ")).isEqualTo("n/a");
-    assertThat(Text.orNa(null)).isEqualTo("n/a");
-    assertThat(Text.orNa("v")).isEqualTo("v");
-    assertThat(Text.truncate("abcd", 4)).isEqualTo("abcd");
-    assertThat(Text.truncate("abcde", 4)).isEqualTo("abcd");
+  }
+
+  @ParameterizedTest
+  @CsvSource(
+      nullValues = "null",
+      value = {"' ',n/a", "null,n/a", "v,v"})
+  void orNaSaysNotAvailableForBlank(String raw, String expected) {
+    assertThat(Text.orNa(raw)).isEqualTo(expected);
+  }
+
+  @ParameterizedTest
+  @CsvSource({"abcd,abcd", "abcde,abcd"})
+  void truncateKeepsAtMostTheLimit(String raw, String expected) {
+    assertThat(Text.truncate(raw, 4)).isEqualTo(expected);
   }
 
   @Test

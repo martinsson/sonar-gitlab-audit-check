@@ -23,7 +23,7 @@ class ExchangeContractTest {
   }
 
   @Test
-  void inventaire_carries_the_columns_the_crossing_reads() {
+  void inventaireCarriesTheColumnsTheCrossingReads() {
     assertThat(inventoryColumns())
         .contains(
             GitlabInventory.ID,
@@ -35,7 +35,7 @@ class ExchangeContractTest {
   }
 
   @Test
-  void pratiques_carries_the_columns_the_crossing_reads() {
+  void pratiquesCarriesTheColumnsTheCrossingReads() {
     List<String> required = List.of(GitlabPractices.required());
     assertThat(practicesColumns()).containsAll(required).containsAll(GitlabPractices.CROSSED);
     assertThat(practicesColumns())

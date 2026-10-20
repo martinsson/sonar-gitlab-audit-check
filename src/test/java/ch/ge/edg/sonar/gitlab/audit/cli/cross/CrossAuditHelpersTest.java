@@ -35,7 +35,7 @@ class CrossAuditHelpersTest {
   }
 
   @Test
-  void issues_over_the_window_is_the_monthly_slope_times_the_window() throws IOException {
+  void issuesOverTheWindowIsTheMonthlySlopeTimesTheWindow() throws IOException {
     CrossPair p = pair(gl("45,2000,4,false"), sq("6"), Confidence.EXACT);
     assertThat(CrossPair.issuesOverWindow(p)).isCloseTo(9.0, within(1e-9));
     assertThat(CrossPair.perKlocChanged(p)).isCloseTo(4.5, within(1e-9));
@@ -46,7 +46,7 @@ class CrossAuditHelpersTest {
   }
 
   @Test
-  void only_sure_pairs_have_a_trend() throws IOException {
+  void onlySurePairsHaveATrend() throws IOException {
     Csv.Row g = gl("30,1000,10,false");
     Csv.Row s = sq("3");
     assertThat(CrossPair.issuesOverWindow(pair(g, s, Confidence.DERIVED))).isEqualTo(3.0);
@@ -58,7 +58,7 @@ class CrossAuditHelpersTest {
   }
 
   @Test
-  void any_missing_piece_or_a_truncated_count_gives_no_trend() throws IOException {
+  void anyMissingPieceOrATruncatedCountGivesNoTrend() throws IOException {
     assertThat(CrossPair.issuesOverWindow(pair(gl("30,1,1,false"), sq(""), Confidence.EXACT)))
         .isNull();
     assertThat(CrossPair.issuesOverWindow(pair(gl(",1,1,false"), sq("3"), Confidence.EXACT)))
@@ -70,7 +70,7 @@ class CrossAuditHelpersTest {
   }
 
   @Test
-  void zero_or_missing_denominators_give_no_ratio() throws IOException {
+  void zeroOrMissingDenominatorsGiveNoRatio() throws IOException {
     CrossPair zero = pair(gl("30,0,0,false"), sq("3"), Confidence.EXACT);
     assertThat(CrossPair.issuesOverWindow(zero)).isEqualTo(3.0);
     assertThat(CrossPair.perKlocChanged(zero)).isNull();
@@ -84,7 +84,7 @@ class CrossAuditHelpersTest {
   }
 
   @Test
-  void num_keeps_absent_apart_from_zero_and_nz_brings_it_back_to_zero() throws IOException {
+  void numKeepsAbsentApartFromZeroAndNzBringsItBackToZero() throws IOException {
     Csv.Row s = sq("");
     assertThat(CrossPair.num(null, SQ)).isNull();
     assertThat(CrossPair.num(s, SQ)).isNull();
@@ -95,7 +95,7 @@ class CrossAuditHelpersTest {
   }
 
   @Test
-  void dec_is_two_decimals_with_a_point_whatever_the_locale() {
+  void decIsTwoDecimalsWithAPointWhateverTheLocale() {
     Locale saved = Locale.getDefault();
     Locale.setDefault(Locale.FRANCE);
     try {
@@ -109,7 +109,7 @@ class CrossAuditHelpersTest {
   }
 
   @Test
-  void pct_rounds_and_has_a_dash_for_no_total() {
+  void pctRoundsAndHasADashForNoTotal() {
     assertThat(Text.pct(0, 0)).isEqualTo("—");
     assertThat(Text.pct(1, 3)).isEqualTo("33 %");
     assertThat(Text.pct(2, 3)).isEqualTo("67 %");
@@ -118,7 +118,7 @@ class CrossAuditHelpersTest {
   }
 
   @Test
-  void title_follows_the_color_switch() {
+  void titleFollowsTheColorSwitch() {
     assertThat(CrossReport.BOLD + CrossReport.DIM + CrossReport.GREEN)
         .isEqualTo("\033[1m\033[2m\033[32m");
     assertThat(title(Printed.plain(), "Abc")).isEqualTo("\nAbc\n---\n");

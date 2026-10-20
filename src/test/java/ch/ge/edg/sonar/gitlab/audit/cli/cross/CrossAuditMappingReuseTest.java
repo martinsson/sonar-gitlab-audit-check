@@ -60,7 +60,7 @@ class CrossAuditMappingReuseTest {
   }
 
   @Test
-  void hand_made_decisions_are_replayed_and_the_old_file_kept_as_bak() throws IOException {
+  void handMadeDecisionsAreReplayedAndTheOldFileKeptAsBak() throws IOException {
     String before = read(mapping);
     Cli.Result r = run();
 
@@ -74,7 +74,7 @@ class CrossAuditMappingReuseTest {
   }
 
   @Test
-  void a_second_run_keeps_the_rejected_pair() throws IOException {
+  void aSecondRunKeepsTheRejectedPair() throws IOException {
     run();
     String afterFirst = read(mapping);
     Cli.Result r = run();
@@ -87,7 +87,7 @@ class CrossAuditMappingReuseTest {
   }
 
   @Test
-  void a_rejected_pair_stays_out_of_sonar_gitlab_on_the_second_run() throws IOException {
+  void aRejectedPairStaysOutOfSonarGitlabOnTheSecondRun() throws IOException {
     String rejectedPair = "\"alpha-key\";\"Alpha Service\";\"team-a/alpha-service\";";
     run();
     assertThat(read(mapping))
@@ -100,7 +100,7 @@ class CrossAuditMappingReuseTest {
   }
 
   @Test
-  void reapparier_recomputes_exact_and_derived_but_keeps_manual_and_rejected() throws IOException {
+  void reapparierRecomputesExactAndDerivedButKeepsManualAndRejected() throws IOException {
     Cli.Result r = run("--reapparier");
 
     assertThat(r.exitCode()).isZero();
@@ -109,7 +109,7 @@ class CrossAuditMappingReuseTest {
   }
 
   @Test
-  void an_appariement_without_its_columns_is_refused() throws IOException {
+  void anAppariementWithoutItsColumnsIsRefused() throws IOException {
     csv(mapping, "gauche_path,confiance", "team-a/alpha-service,exact");
     Cli.Result r = run();
     assertThat(r.exitCode()).isEqualTo(1);

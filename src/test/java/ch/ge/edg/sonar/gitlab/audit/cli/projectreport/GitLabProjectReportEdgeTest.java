@@ -25,7 +25,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void a_bare_project_seen_anonymously() {
+  void aBareProjectSeenAnonymously() {
     Map<String, Object> p = fx.project(ID, PATH, "", false);
     p.remove("statistics");
     p.put("visibility", null);
@@ -44,7 +44,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void an_unknown_project_is_a_404_with_an_explanation() {
+  void anUnknownProjectIsA404WithAnExplanation() {
     fail(projectRoute(), 404, "{\"message\":\"404 Project Not Found\"}");
 
     Cli.Result r = run();
@@ -55,7 +55,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void a_server_error_on_the_project_has_no_404_explanation() {
+  void aServerErrorOnTheProjectHasNo404Explanation() {
     fail(projectRoute(), 500, "{\"error\":\"boom\"}");
 
     Cli.Result r = run();
@@ -65,7 +65,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void a_project_answer_without_an_id_is_not_found() {
+  void aProjectAnswerWithoutAnIdIsNotFound() {
     server.json(projectRoute(), "{\"name\":\"x\"}");
 
     Cli.Result r = run();
@@ -75,7 +75,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void an_unreachable_instance_is_reported() {
+  void anUnreachableInstanceIsReported() {
     String url = server.url();
     server.close();
 
@@ -99,7 +99,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void the_path_is_normalized_from_a_browser_url() {
+  void thePathIsNormalizedFromABrowserUrl() {
     project(fx.project(ID, PATH, "", false));
     mrs(List.of());
     contributors(0);
@@ -122,7 +122,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void refused_commits_and_merge_requests_are_said() {
+  void refusedCommitsAndMergeRequestsAreSaid() {
     project(fx.project(ID, PATH, "main", false));
     fail(API + ID + "/repository/commits", 403, "{\"message\":\"403 Forbidden\"}");
     fail(API + ID + "/merge_requests", 500, "oops");
@@ -135,7 +135,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void bots_only() {
+  void botsOnly() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(
@@ -150,7 +150,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void nothing_at_all_on_the_window() {
+  void nothingAtAllOnTheWindow() {
     project(fx.project(ID, PATH, "main", false));
     commits(List.of());
     contributors(0);
@@ -165,7 +165,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void merge_commits_only() {
+  void mergeCommitsOnly() {
     project(fx.project(ID, PATH, "main", false));
     commits(List.of(merge(oneCommit("Alice", "alice@example.com", 1))));
     contributors(0);
@@ -177,7 +177,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void commits_without_stats_or_dates() {
+  void commitsWithoutStatsOrDates() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(
@@ -192,7 +192,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void one_person_with_several_addresses_and_names() {
+  void onePersonWithSeveralAddressesAndNames() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(
@@ -210,7 +210,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void caps_are_reported_and_the_window_shrinks_to_what_was_read() {
+  void capsAreReportedAndTheWindowShrinksToWhatWasRead() {
     project(fx.project(ID, PATH, "main", false));
     commits(
         List.of(
@@ -231,7 +231,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void refused_notes_stop_the_sample_at_the_first_refusal() {
+  void refusedNotesStopTheSampleAtTheFirstRefusal() {
     project(fx.project(ID, PATH, "main", false));
     commits(List.of(oneCommit("Alice", "alice@example.com", 1)));
     contributors(0);
@@ -249,7 +249,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void merged_requests_without_merger_cannot_say_who_merged() {
+  void mergedRequestsWithoutMergerCannotSayWhoMerged() {
     project(fx.project(ID, PATH, "main", false));
     commits(List.of(oneCommit("Alice", "alice@example.com", 1)));
     contributors(0);
@@ -269,7 +269,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void self_merges_are_not_measurable_without_any_merger() {
+  void selfMergesAreNotMeasurableWithoutAnyMerger() {
     project(fx.project(ID, PATH, "main", false));
     commits(List.of(oneCommit("Alice", "alice@example.com", 1)));
     contributors(0);

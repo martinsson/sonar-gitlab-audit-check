@@ -1,14 +1,14 @@
-╔═ a_right_key_whose_short_name_normalises_to_itself_is_indexed_once ═╗
+╔═ aRightKeyWhoseShortNameNormalisesToItselfIsIndexedOnce ═╗
 "gauche_path","droite_key","methode","confiance","candidat_nom","score_nom","second_nom","rejet_nom","m_ns_map","m_chemin","m_noms_libre"
 "team-a/alpha","-alpha","mapping namespace GL→Sonar","derived","","","","","-alpha","","-alpha (0.82)"
 
-╔═ evaluation_corners_with_plain_names/mapping ═╗
+╔═ evaluationCornersWithPlainNames/mapping ═╗
 "gauche_nom","droite_code","methode","confiance","candidat_nom","score_nom","second_nom","rejet_nom","m_ref","m_noms_libre"
 "42","c42","ref","exact","","","","","c42",""
 "alpha beta","c5","ref","exact","","","","","c5","ab1 (0.27, sous le seuil)"
 "orphan words","","aucune","none","","","","aucun candidat","",""
 
-╔═ evaluation_corners_with_plain_names/report ═╗
+╔═ evaluationCornersWithPlainNames/report ═╗
 {
   "summary" : {
     "left" : 3,
@@ -160,7 +160,7 @@
     } ]
   }
 }
-╔═ evaluation_corners_with_plain_names/stdout ═╗
+╔═ evaluationCornersWithPlainNames/stdout ═╗
 
 Appariement
   Gauche : 3 lignes (<tmp>/a.csv)
@@ -212,16 +212,16 @@ Ressemblance de noms, jugée sur 2 paires sûres
   Format machine (virgule, sans BOM).
   Rapport     : <tmp>/r.json
 
-╔═ only_a_derived_method ═╗
+╔═ onlyADerivedMethod ═╗
 "gauche_nom","droite_code","methode","confiance","candidat_nom","score_nom","second_nom","rejet_nom","m_d"
 "Alpha One","alpha_one","d","derived","","","","","alpha_one"
 "beta","","aucune","none","","","","",""
 
-╔═ only_a_link_method_joins_nothing/mapping ═╗
+╔═ onlyALinkMethodJoinsNothing/mapping ═╗
 "gauche_nom","droite_code","methode","confiance","candidat_nom","score_nom","second_nom","rejet_nom","m_l","l_concorde"
 "grp/alpha","","aucune","none","","","","","k1",""
 
-╔═ only_a_link_method_joins_nothing/stdout ═╗
+╔═ onlyALinkMethodJoinsNothing/stdout ═╗
 
 Appariement
   Gauche : 1 lignes (<tmp>/a.csv)

@@ -149,7 +149,7 @@ class GitlabConventionsTest {
   }
 
   @Test
-  void a_long_request_is_cut_in_the_dump_name_never_the_extension() {
+  void aLongRequestIsCutInTheDumpNameNeverTheExtension() {
     String request = "api/v4/projects/1/repository/commits?since=" + "9".repeat(200);
     String name = Capture.name(request);
     assertThat(name)

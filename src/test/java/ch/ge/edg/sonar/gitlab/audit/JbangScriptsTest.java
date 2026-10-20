@@ -45,7 +45,7 @@ class JbangScriptsTest {
               + " Exception)? \\{ ((?:\\w+\\.)+\\w+)\\.main\\(args\\); \\} \\}");
 
   @Test
-  void every_jbang_script_only_delegates_to_src_main_java() throws IOException {
+  void everyJbangScriptOnlyDelegatesToSrcMainJava() throws IOException {
     Set<String> baseline = baseline();
     Map<String, List<String>> broken = new TreeMap<>();
     for (Path script : scripts()) {
@@ -64,7 +64,7 @@ class JbangScriptsTest {
   }
 
   @Test
-  void the_baseline_lists_only_scripts_that_still_break_the_rule() throws IOException {
+  void theBaselineListsOnlyScriptsThatStillBreakTheRule() throws IOException {
     List<String> stale = new ArrayList<>();
     for (String name : baseline()) {
       Path script = ROOT.resolve(name);
@@ -78,12 +78,12 @@ class JbangScriptsTest {
   }
 
   @Test
-  void a_thin_entry_point_passes() {
+  void aThinEntryPointPasses() {
     assertThat(problems(Path.of("Thin.java"), thin("cli.cross.CrossAudit"))).isEmpty();
   }
 
   @Test
-  void imports_or_extra_code_in_the_script_are_refused() {
+  void importsOrExtraCodeInTheScriptAreRefused() {
     String fat =
         thin("cli.cross.CrossAudit").replace("public class", "import java.util.List;\npublic class")
             + "\nclass Helper {}\n";
@@ -94,7 +94,7 @@ class JbangScriptsTest {
   }
 
   @Test
-  void a_long_script_and_sources_outside_src_main_java_are_refused() {
+  void aLongScriptAndSourcesOutsideSrcMainJavaAreRefused() {
     String text =
         thin("cli.cross.CrossAudit")
                 .replace("//SOURCES", "//SOURCES ../helpers/Helper.java\n//SOURCES")
@@ -106,7 +106,7 @@ class JbangScriptsTest {
   }
 
   @Test
-  void the_delegate_must_exist_in_src_main_java() {
+  void theDelegateMustExistInSrcMainJava() {
     assertThat(problems(Path.of("Ghost.java"), thin("cli.NoSuchTool")))
         .singleElement()
         .asString()

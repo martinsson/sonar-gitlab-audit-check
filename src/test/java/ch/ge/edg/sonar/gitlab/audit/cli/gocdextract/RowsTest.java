@@ -30,7 +30,7 @@ class RowsTest {
   }
 
   @Test
-  void a_failed_stage_beats_a_cancelled_one_which_beats_one_still_running() {
+  void aFailedStageBeatsACancelledOneWhichBeatsOneStillRunning() {
     assertThat(Outcome.of(stages(stage("Passed", true), stage("Failed", true)))).isEqualTo("échec");
     assertThat(Outcome.of(stages(stage("Cancelled", true), stage("Failed", true))))
         .isEqualTo("échec");
@@ -45,7 +45,7 @@ class RowsTest {
   }
 
   @Test
-  void a_stage_that_never_ran_does_not_count() {
+  void aStageThatNeverRanDoesNotCount() {
     assertThat(Outcome.of(stages(stage("Passed", true), stage("Failed", false))))
         .isEqualTo("succès");
     assertThat(Outcome.of(stages(stage("Passed", true), stage("Unknown", false))))
@@ -53,7 +53,7 @@ class RowsTest {
   }
 
   @Test
-  void the_captured_failed_prod_deploy_row() {
+  void theCapturedFailedProdDeployRow() {
     JsonNode run = node(fixture("go_api_pipelines_hello_deploy_prod_history_page_size_100"));
     String[] cells =
         RunRow.cells("hello-deploy-prod", "hello", run.path("pipelines").get(0), List.of(), ZURICH);
@@ -79,7 +79,7 @@ class RowsTest {
   }
 
   @Test
-  void a_run_row_spans_its_commits_and_gathers_their_keys() {
+  void aRunRowSpansItsCommitsAndGathersTheirKeys() {
     String json =
         """
         {"counter":4,"label":"4-a","scheduled_date":"2026-01-02T12:00:00Z",
@@ -117,7 +117,7 @@ class RowsTest {
   }
 
   @Test
-  void a_span_without_dates_is_empty() {
+  void aSpanWithoutDatesIsEmpty() {
     RunRow.Span s = RunRow.Span.of(List.of(new Commit("v", "r", "x", null, Set.of())));
     assertThat(s.first()).isNull();
     assertThat(s.last()).isNull();
@@ -132,8 +132,7 @@ class RowsTest {
   }
 
   @Test
-  void stage_rows_read_the_end_only_with_durations_and_only_for_stages_that_ran()
-      throws IOException, Stop {
+  void stageRowsReadTheEndOnlyWithDurationsAndOnlyForStagesThatRan() throws IOException, Stop {
     try (FakeHttpServer server = new FakeHttpServer()) {
       server.json(
           "/go/api/stages/hello-deploy-prod/1/deploy/1",
@@ -169,7 +168,7 @@ class RowsTest {
   }
 
   @Test
-  void a_stage_waiting_for_approval_or_rerun_and_an_unreadable_stage() throws IOException, Stop {
+  void aStageWaitingForApprovalOrRerunAndAnUnreadableStage() throws IOException, Stop {
     try (FakeHttpServer server = new FakeHttpServer()) {
       server.on("/go/api/stages/p%20q/3/build/2", r -> Response.status(500, "{}"));
       String json =
@@ -204,7 +203,7 @@ class RowsTest {
   }
 
   @Test
-  void a_refused_token_on_a_stage_stops() throws IOException {
+  void aRefusedTokenOnAStageStops() throws IOException {
     try (FakeHttpServer server = new FakeHttpServer()) {
       server.onPrefix("/go/api/stages/", r -> Response.status(401, "{}"));
       JsonNode run = node("{\"counter\":1,\"stages\":[{\"name\":\"s\",\"counter\":\"1\"}]}");
@@ -216,7 +215,7 @@ class RowsTest {
   }
 
   @Test
-  void the_end_is_the_last_completed_transition_of_any_job() {
+  void theEndIsTheLastCompletedTransitionOfAnyJob() {
     JsonNode stage =
         node(
             """
@@ -233,7 +232,7 @@ class RowsTest {
   }
 
   @Test
-  void minutes_have_one_decimal_and_a_decimal_comma() {
+  void minutesHaveOneDecimalAndADecimalComma() {
     Instant t = Instant.parse("2026-01-01T00:00:00Z");
     assertThat(StageRows.minutes(t, t.plusSeconds(90))).isEqualTo("1,5");
     assertThat(StageRows.minutes(t, t.plusSeconds(3))).isEqualTo("0,1");

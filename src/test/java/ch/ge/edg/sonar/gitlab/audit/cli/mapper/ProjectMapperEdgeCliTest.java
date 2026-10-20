@@ -38,7 +38,7 @@ class ProjectMapperEdgeCliTest {
   }
 
   @Test
-  void only_a_derived_method() throws Exception {
+  void onlyADerivedMethod() throws Exception {
     Path left = write(dir, "a.csv", "nom\nAlpha One\nbeta\n");
     Path right = write(dir, "b.csv", "code\nalpha_one\ngamma\n");
 
@@ -49,7 +49,7 @@ class ProjectMapperEdgeCliTest {
   }
 
   @Test
-  void only_a_link_method_joins_nothing() throws Exception {
+  void onlyALinkMethodJoinsNothing() throws Exception {
     Path left = write(dir, "a.csv", "nom\ngrp/alpha\n");
     Path right = write(dir, "b.csv", "code,urls\nk1,https://h/grp/alpha\n");
 
@@ -61,7 +61,7 @@ class ProjectMapperEdgeCliTest {
   }
 
   @Test
-  void a_right_key_whose_short_name_normalises_to_itself_is_indexed_once() throws Exception {
+  void aRightKeyWhoseShortNameNormalisesToItselfIsIndexedOnce() throws Exception {
     Path left = write(dir, "a.csv", "path\nteam-a/alpha\n");
     Path right = write(dir, "b.csv", "key\n-alpha\n");
 
@@ -80,7 +80,7 @@ class ProjectMapperEdgeCliTest {
   }
 
   @Test
-  void evaluation_corners_with_plain_names() throws Exception {
+  void evaluationCornersWithPlainNames() throws Exception {
     Path left =
         write(
             dir,

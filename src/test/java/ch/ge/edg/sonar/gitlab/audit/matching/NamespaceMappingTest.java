@@ -15,7 +15,7 @@ class NamespaceMappingTest {
   @TempDir Path dir;
 
   @Test
-  void a_missing_file_only_warns() {
+  void aMissingFileOnlyWarns() {
     NamespaceMapping m = NamespaceMapping.load(dir, Path.of("absent.yaml"));
     assertThat(m.warnings())
         .containsExactly(
@@ -26,7 +26,7 @@ class NamespaceMappingTest {
   }
 
   @Test
-  void an_unreadable_file_reports_the_error() throws Exception {
+  void anUnreadableFileReportsTheError() throws Exception {
     Path f = Files.writeString(dir.resolve("locked.yaml"), "ZZMAP-LOCKED: x\n");
     Files.setPosixFilePermissions(f, Set.of());
     assertThat(NamespaceMapping.load(dir, f).warnings())
@@ -34,19 +34,19 @@ class NamespaceMappingTest {
   }
 
   @Test
-  void a_directory_is_reported_as_unreadable() {
+  void aDirectoryIsReportedAsUnreadable() {
     assertThat(NamespaceMapping.load(dir, Path.of("")).warnings())
         .containsExactly("Erreur lecture mapping : " + dir);
   }
 
   @Test
-  void an_empty_file_maps_nothing() throws Exception {
+  void anEmptyFileMapsNothing() throws Exception {
     Path f = Files.writeString(dir.resolve("empty.yaml"), "");
     assertThat(NamespaceMapping.load(dir, f).warnings()).isEmpty();
   }
 
   @Test
-  void an_uppercase_namespace_maps_to_its_prefix() throws Exception {
+  void anUppercaseNamespaceMapsToItsPrefix() throws Exception {
     Files.writeString(dir.resolve("m.yaml"), " ZZMAP-UP :  zz_up_prefix \n");
     // A relative name is read from the working directory.
     NamespaceMapping m = NamespaceMapping.load(dir, Path.of("m.yaml"));
@@ -59,7 +59,7 @@ class NamespaceMappingTest {
   }
 
   @Test
-  void a_lowercase_namespace_in_the_file_matches_too() throws Exception {
+  void aLowercaseNamespaceInTheFileMatchesToo() throws Exception {
     Path f = Files.writeString(dir.resolve("m.yaml"), "zzmap-low: zz_low_prefix\n");
     NamespaceMapping m = NamespaceMapping.load(dir, f);
     assertThat(m.mappedGitlabPaths("zzmap-low/alpha"))
@@ -68,7 +68,7 @@ class NamespaceMappingTest {
 
   @Test
   // Intended (documented on load): a malformed mapping fails loudly rather than mapping half.
-  void a_non_string_value_fails_the_load() throws Exception {
+  void aNonStringValueFailsTheLoad() throws Exception {
     Path f = Files.writeString(dir.resolve("m.yaml"), "ZZMAP-NUM: 42\n");
     assertThatThrownBy(() -> NamespaceMapping.load(dir, f)).isInstanceOf(ClassCastException.class);
   }

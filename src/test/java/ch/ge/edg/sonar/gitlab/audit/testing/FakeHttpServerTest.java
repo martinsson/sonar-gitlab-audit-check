@@ -17,7 +17,7 @@ class FakeHttpServerTest {
   }
 
   @Test
-  void serves_routes_records_requests_and_404s_the_rest() throws Exception {
+  void servesRoutesRecordsRequestsAnd404sTheRest() throws Exception {
     try (FakeHttpServer server = new FakeHttpServer()) {
       server.json("/api/x", "{\"a\":1}");
       server.onPrefix("/api/p/", r -> FakeHttpServer.Response.json("\"" + r.param("q") + "\""));

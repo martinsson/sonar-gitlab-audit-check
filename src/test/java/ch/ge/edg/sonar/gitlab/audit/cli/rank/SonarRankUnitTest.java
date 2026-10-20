@@ -49,7 +49,7 @@ class SonarRankUnitTest {
   }
 
   @Test
-  void percentile_is_the_mean_rank_of_the_value() {
+  void percentileIsTheMeanRankOfTheValue() {
     List<Double> sorted = List.of(1.0, 2.0, 2.0, 4.0);
     assertThat(VelocityRanking.percentileOf(0.5, sorted)).isZero();
     assertThat(VelocityRanking.percentileOf(1.0, sorted)).isEqualTo(12.5);
@@ -61,7 +61,7 @@ class SonarRankUnitTest {
   }
 
   @Test
-  void buckets_are_half_open_and_anything_unmatched_is_large() {
+  void bucketsAreHalfOpenAndAnythingUnmatchedIsLarge() {
     assertThat(Bucket.of(0)).isEqualTo(Bucket.XS);
     assertThat(Bucket.of(999)).isEqualTo(Bucket.XS);
     assertThat(Bucket.of(1_000)).isEqualTo(Bucket.S);
@@ -76,7 +76,7 @@ class SonarRankUnitTest {
   }
 
   @Test
-  void signals_point_the_same_way_and_absent_stays_absent() {
+  void signalsPointTheSameWayAndAbsentStaysAbsent() {
     InventoryRow full =
         row(
             "new_violations",
@@ -106,7 +106,7 @@ class SonarRankUnitTest {
   }
 
   @Test
-  void a_row_reads_its_identity_size_and_age() {
+  void aRowReadsItsIdentitySizeAndAge() {
     InventoryRow r =
         row(
             "key",
@@ -129,7 +129,7 @@ class SonarRankUnitTest {
   }
 
   @Test
-  void presentation_helpers() {
+  void presentationHelpers() {
     RankReport report =
         new RankReport(Printed.colored().console(), new RankSettings(365, 730, 0, 10, 2));
     assertThat(report.paint("x", "")).isEqualTo("x");
@@ -147,7 +147,7 @@ class SonarRankUnitTest {
   }
 
   @Test
-  void defaults_are_those_documented() {
+  void defaultsAreThoseDocumented() {
     SonarRank cmd = new SonarRank(Cli.host());
     new CommandLine(cmd).parseArgs("--in", "x.csv");
     assertThat(cmd.out).isEqualTo(Path.of("classement.csv"));
@@ -174,7 +174,7 @@ class SonarRankUnitTest {
   }
 
   @Test
-  void an_inventory_with_only_a_header_is_refused() throws IOException {
+  void anInventoryWithOnlyAHeaderIsRefused() throws IOException {
     Cli.Result r = runOn("key,ncloc,analysisDate\n");
 
     assertThat(r.exitCode()).isEqualTo(1);
@@ -184,7 +184,7 @@ class SonarRankUnitTest {
   }
 
   @Test
-  void an_empty_file_is_refused_for_its_missing_columns() throws IOException {
+  void anEmptyFileIsRefusedForItsMissingColumns() throws IOException {
     Cli.Result r = runOn("");
 
     assertThat(r.exitCode()).isEqualTo(1);
@@ -192,7 +192,7 @@ class SonarRankUnitTest {
   }
 
   @Test
-  void a_file_that_is_not_an_inventory_is_refused() throws IOException {
+  void aFileThatIsNotAnInventoryIsRefused() throws IOException {
     Cli.Result r = runOn("key,ncloc\nalpha,10\n");
 
     assertThat(r.exitCode()).isEqualTo(1);
@@ -201,7 +201,7 @@ class SonarRankUnitTest {
   }
 
   @Test
-  void a_missing_input_file_fails() {
+  void aMissingInputFileFails() {
     Cli.Result r =
         Cli.run(SonarRank::new, "--in", dir.resolve("nope.csv").toString(), "--color", "never");
 

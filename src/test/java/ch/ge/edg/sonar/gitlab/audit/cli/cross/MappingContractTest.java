@@ -14,8 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 class MappingContractTest {
 
   @Test
-  void a_pair_rejected_by_hand_in_the_written_file_is_read_back_as_rejected(@TempDir Path dir)
-      throws Exception {
+  void aPairRejectedByHandInTheWrittenFileIsReadBackAsRejected(@TempDir Path dir) throws Exception {
     Csv.Table gitlab = CrossAuditFixtures.table(dir, "pratiques.csv", "path,cle_sonar", "g/app,k1");
     Csv.Table sonar = SonarToGitlabFixtures.sonar(dir, "k1,App,,,2026-01-01,100");
     Path file = dir.resolve("appariement.csv");

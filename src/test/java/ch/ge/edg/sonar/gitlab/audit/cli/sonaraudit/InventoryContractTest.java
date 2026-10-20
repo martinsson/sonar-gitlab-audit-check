@@ -21,8 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 class InventoryContractTest {
 
   @Test
-  void the_written_inventory_carries_every_column_the_readers_name(@TempDir Path dir)
-      throws Exception {
+  void theWrittenInventoryCarriesEveryColumnTheReadersName(@TempDir Path dir) throws Exception {
     Path file = dir.resolve("inventaire.csv");
     new InventoryCsv(true, Clock.systemUTC())
         .write(file, new InventoryCsv.Park(List.of(), Map.of(), Map.of(), Map.of()));

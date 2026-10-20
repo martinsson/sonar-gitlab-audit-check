@@ -22,7 +22,7 @@ class SonarToGitlabHomonymsTest {
   @TempDir Path dir;
 
   @Test
-  void names_decide_when_one_copy_resembles_clearly_more() throws IOException {
+  void namesDecideWhenOneCopyResemblesClearlyMore() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -35,7 +35,7 @@ class SonarToGitlabHomonymsTest {
   }
 
   @Test
-  void activity_decides_when_names_do_not_original_before_fork() throws IOException {
+  void activityDecidesWhenNamesDoNotOriginalBeforeFork() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -49,7 +49,7 @@ class SonarToGitlabHomonymsTest {
   }
 
   @Test
-  void activity_decides_by_commits_then_last_activity() throws IOException {
+  void activityDecidesByCommitsThenLastActivity() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -66,7 +66,7 @@ same ->  | aucune | none | - | team-c/same (0.92), team-d/same (0.92) | homonyme
   }
 
   @Test
-  void equally_active_originals_are_split_by_the_most_recent_activity() throws IOException {
+  void equallyActiveOriginalsAreSplitByTheMostRecentActivity() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -81,7 +81,7 @@ same ->  | aucune | none | - | team-c/same (0.92), team-d/same (0.92) | homonyme
 
   @Test
   // Intended (DerivedMethods.tieBreak): two dead copies are not told apart, a person decides.
-  void two_dead_originals_are_left_to_a_person() throws IOException {
+  void twoDeadOriginalsAreLeftToAPerson() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -94,7 +94,7 @@ same ->  | aucune | none | - | team-c/same (0.92), team-d/same (0.92) | homonyme
   }
 
   @Test
-  void a_pick_on_a_rejected_path_leaves_the_project_unpaired() throws IOException {
+  void aPickOnARejectedPathLeavesTheProjectUnpaired() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -114,7 +114,7 @@ same ->  | aucune | none | - | team-c/same (0.92), team-d/same (0.92) | homonyme
   }
 
   @Test
-  void more_than_five_homonyms_list_only_the_first_five() throws IOException {
+  void moreThanFiveHomonymsListOnlyTheFirstFive() throws IOException {
     Csv.Table inv =
         inventory(
             dir,
@@ -131,7 +131,7 @@ same ->  | aucune | none | - | team-c/same (0.92), team-d/same (0.92) | homonyme
   }
 
   @Test
-  void derived_methods_are_replayed_on_exact_liaison_pairs() throws IOException {
+  void derivedMethodsAreReplayedOnExactLiaisonPairs() throws IOException {
     Csv.Table inv =
         inventory(
             dir,

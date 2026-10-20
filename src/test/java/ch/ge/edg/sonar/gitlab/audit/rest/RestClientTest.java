@@ -31,7 +31,7 @@ class RestClientTest {
   }
 
   @Test
-  void sends_the_fixed_headers_and_the_extra_ones_and_counts_calls() throws IOException {
+  void sendsTheFixedHeadersAndTheExtraOnesAndCountsCalls() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       gocd.json("/go/api/version", "{\"version\":\"25.3.0\"}");
       RestClient c = client(gocd.url() + "//", AuthHeaders.bearer(" tok "));
@@ -48,7 +48,7 @@ class RestClientTest {
   }
 
   @Test
-  void a_full_url_is_used_as_is_for_pagination_links() throws IOException {
+  void aFullUrlIsUsedAsIsForPaginationLinks() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       gocd.json("/next", "[]");
       RestClient c = client("http://unused.invalid", Map.of());
@@ -57,14 +57,14 @@ class RestClientTest {
   }
 
   @Test
-  void a_malformed_url_is_an_unreachable_response_not_a_crash() throws IOException {
+  void aMalformedUrlIsAnUnreachableResponseNotACrash() throws IOException {
     RestResponse r = client("http://bad host", Map.of()).get("/x");
     assertThat(r.status()).isZero();
     assertThat(r.error()).startsWith("IllegalArgumentException");
   }
 
   @Test
-  void dump_dir_keeps_each_raw_answer_under_a_name_stable_across_runs() throws IOException {
+  void dumpDirKeepsEachRawAnswerUnderANameStableAcrossRuns() throws IOException {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.json("/rest/api/2/serverInfo", "{\"version\":\"11.3.10\"}");
       Path dumps = dir.resolve("dumps");
@@ -84,7 +84,7 @@ class RestClientTest {
   }
 
   @Test
-  void a_dump_that_cannot_be_written_is_reported_not_fatal() throws IOException {
+  void aDumpThatCannotBeWrittenIsReportedNotFatal() throws IOException {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.json("/x", "{}");
       Path dumps = dir.resolve("gone");
@@ -102,7 +102,7 @@ class RestClientTest {
   }
 
   @Test
-  void insecure_builds_a_client_that_trusts_any_certificate() throws IOException {
+  void insecureBuildsAClientThatTrustsAnyCertificate() throws IOException {
     RestClient c =
         new RestClient(
             RestClient.Settings.of("https://self-signed.invalid", Map.of(), true),

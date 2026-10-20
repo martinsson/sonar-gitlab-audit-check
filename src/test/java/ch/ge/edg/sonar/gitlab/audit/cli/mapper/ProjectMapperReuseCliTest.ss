@@ -1,4 +1,4 @@
-╔═ a_second_run_on_its_own_output_changes_nothing ═╗
+╔═ aSecondRunOnItsOwnOutputChangesNothing ═╗
 
 Appariement
   Gauche : 14 lignes (<tmp>/pratiques.csv)
@@ -98,7 +98,7 @@ Ressemblance de noms, jugée sur 7 paires sûres
     org.example: 6
   Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start correspondances.csv`. Pour un autre outil : --comma.
 
-╔═ an_edited_mapping_wins_where_it_decided_and_is_kept_in_a_bak/mapping ═╗
+╔═ anEditedMappingWinsWhereItDecidedAndIsKeptInABak/mapping ═╗
 <BOM>"gauche_path";"droite_key";"methode";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_cle_ci";"m_cle_pom";"m_liaison";"m_ns_map";"m_chemin";"m_nom_pom";"m_liens";"liens_concorde";"m_noms_libre"⏎
 "team-a/alpha-service";"team-a:alpha";"clé lue dans la CI";"exact";"";"";"";"";"team-a:alpha";"";"";"";"";"";"team-a:alpha";"oui";"team-a:alpha (0.95)"⏎
 "team-a/beta";"org.example:beta";"clé Maven du pom";"exact";"";"";"";"";"";"org.example:beta";"";"org.example:beta";"";"";"org.example:beta-legacy";"non";"org.example:beta (0.89)"⏎
@@ -116,7 +116,7 @@ Ressemblance de noms, jugée sur 7 paires sûres
 "team-m/epsilon-api";"org.example:epsilon-api";"noms ressemblants (TF-IDF)";"derived";"";"";"";"";"org.example:eps-key";"";"";"org.example:epsilon-api";"";"";"";"";"org.example:epsilon-api (0.95)"⏎
 "old/removed-project";"org.example:x";"saisi à la main";"manuel";"";"";"";"";"";"";"";"";"";"";"";"";""⏎
 
-╔═ an_edited_mapping_wins_where_it_decided_and_is_kept_in_a_bak/report ═╗
+╔═ anEditedMappingWinsWhereItDecidedAndIsKeptInABak/report ═╗
 {
   "summary" : {
     "left" : 14,
@@ -448,7 +448,7 @@ Ressemblance de noms, jugée sur 7 paires sûres
     } ]
   }
 }
-╔═ an_edited_mapping_wins_where_it_decided_and_is_kept_in_a_bak/stdout ═╗
+╔═ anEditedMappingWinsWhereItDecidedAndIsKeptInABak/stdout ═╗
 
 Appariement
   Gauche : 14 lignes (<tmp>/pratiques.csv)
@@ -550,7 +550,7 @@ Ressemblance de noms, jugée sur 8 paires sûres
   Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start correspondances.csv`. Pour un autre outil : --comma.
   Rapport     : <tmp>/rapport.json
 
-╔═ more_than_ten_stale_pairs_print_only_the_first_ten/mapping ═╗
+╔═ moreThanTenStalePairsPrintOnlyTheFirstTen/mapping ═╗
 ﻿"gauche_nom";"droite_code";"methode";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_ref"⏎
 "p0";"p0";"ref";"exact";"";"";"";"";"p0"⏎
 "p1";"";"aucune";"none";"";"";"";"";""⏎
@@ -565,7 +565,7 @@ Ressemblance de noms, jugée sur 8 paires sûres
 "p10";"";"aucune";"none";"";"";"";"";""⏎
 "p11";"";"aucune";"none";"";"";"";"";""⏎
 
-╔═ more_than_ten_stale_pairs_print_only_the_first_ten/stdout ═╗
+╔═ moreThanTenStalePairsPrintOnlyTheFirstTen/stdout ═╗
 
 Appariement
   Gauche : 12 lignes (<tmp>/l.csv)
@@ -602,7 +602,7 @@ Chaque méthode, seule
   ref                    1         0         1         1
   Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start correspondances.csv`. Pour un autre outil : --comma.
 
-╔═ reapparier_recomputes_exact_and_derived_but_not_manual_or_rejected/mapping ═╗
+╔═ reapparierRecomputesExactAndDerivedButNotManualOrRejected/mapping ═╗
 "gauche_path","droite_key","methode","confiance","candidat_nom","score_nom","second_nom","rejet_nom","m_cle_ci","m_cle_pom","m_liaison","m_ns_map","m_chemin","m_nom_pom","m_liens","liens_concorde","m_noms_libre"
 "team-a/alpha-service","team-a:alpha","clé lue dans la CI","exact","","","","","team-a:alpha","","","","","","team-a:alpha","oui","team-a:alpha (0.95)"
 "team-a/beta","org.example:beta","clé Maven du pom","exact","","","","","","org.example:beta","","org.example:beta","","","org.example:beta-legacy","non","org.example:beta (0.89)"
@@ -620,7 +620,7 @@ Chaque méthode, seule
 "team-m/epsilon-api","org.example:eps-key","clé lue dans la CI","exact","","","","","org.example:eps-key","","","org.example:epsilon-api","","","","","org.example:epsilon-api (0.95)"
 "old/removed-project","org.example:x","saisi à la main","manuel","","","","","","","","","","","","",""
 
-╔═ reapparier_recomputes_exact_and_derived_but_not_manual_or_rejected/stdout ═╗
+╔═ reapparierRecomputesExactAndDerivedButNotManualOrRejected/stdout ═╗
 
 Appariement
   Gauche : 14 lignes (<tmp>/pratiques.csv)

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class NameMatcherTokensTest {
 
   @Test
-  void tokens_split_on_separators_camel_case_and_drop_numbers_and_single_letters() {
+  void tokensSplitOnSeparatorsCamelCaseAndDropNumbersAndSingleLetters() {
     assertThat(NameMatcher.tokens("MonApi_Service-v2")).containsExactly("mon", "api", "service");
     assertThat(NameMatcher.tokens("alpha.beta gamma/delta"))
         .containsExactly("alpha", "beta", "gamma", "delta");
@@ -19,38 +19,38 @@ class NameMatcherTokensTest {
   }
 
   @Test
-  void tokens_split_an_acronym_from_the_following_word() {
+  void tokensSplitAnAcronymFromTheFollowingWord() {
     assertThat(NameMatcher.tokens("HTTPServer")).containsExactly("http", "server");
     assertThat(NameMatcher.tokens("myHTTPServer")).containsExactly("my", "http", "server");
     assertThat(NameMatcher.tokens("ALLCAPS")).containsExactly("allcaps");
   }
 
   @Test
-  void tokens_remove_accents_and_ignore_case() {
+  void tokensRemoveAccentsAndIgnoreCase() {
     assertThat(NameMatcher.tokens("Élan-Café")).containsExactly("elan", "cafe");
     assertThat(NameMatcher.tokens("ÉLAN")).containsExactly("elan");
   }
 
   @Test
-  void tokens_keep_duplicates_and_order() {
+  void tokensKeepDuplicatesAndOrder() {
     assertThat(NameMatcher.tokens("api-api-core")).containsExactly("api", "api", "core");
   }
 
   @Test
-  void tokens_of_null_or_empty_are_empty() {
+  void tokensOfNullOrEmptyAreEmpty() {
     assertThat(NameMatcher.tokens(null)).isEmpty();
     assertThat(NameMatcher.tokens("")).isEmpty();
     assertThat(NameMatcher.tokens("123-456")).isEmpty();
   }
 
   @Test
-  void tokens_drop_non_latin_letters_entirely() {
+  void tokensDropNonLatinLettersEntirely() {
     assertThat(NameMatcher.tokens("straße")).containsExactly("stra");
     assertThat(NameMatcher.tokens("ßß-ok")).containsExactly("ok");
   }
 
   @Test
-  void numbers_are_the_digit_runs_without_leading_zeros() {
+  void numbersAreTheDigitRunsWithoutLeadingZeros() {
     assertThat(NameMatcher.numbers("app-02")).containsExactly("2");
     assertThat(NameMatcher.numbers("app2")).containsExactly("2");
     assertThat(NameMatcher.numbers("v0")).containsExactly("0");
@@ -60,14 +60,14 @@ class NameMatcherTokensTest {
   }
 
   @Test
-  void numbers_of_null_or_digitless_are_empty_and_mutable() {
+  void numbersOfNullOrDigitlessAreEmptyAndMutable() {
     assertThat(NameMatcher.numbers(null)).isEmpty();
     assertThat(NameMatcher.numbers("alpha")).isEmpty();
     NameMatcher.numbers(null).add("x");
   }
 
   @Test
-  void add_tokens_counts_each_word_with_its_weight() {
+  void addTokensCountsEachWordWithItsWeight() {
     Map<String, Double> tf = new HashMap<>();
     NameMatcher.addTokens(tf, "alpha-beta-alpha", 2.0);
     NameMatcher.addTokens(tf, "beta", 0.5);

@@ -20,7 +20,7 @@ class CrossAuditEndToEndTest {
   @TempDir Path dir;
 
   @Test
-  void full_run_with_inventory_writes_croisement_sonar_gitlab_and_appariement() throws IOException {
+  void fullRunWithInventoryWritesCroisementSonarGitlabAndAppariement() throws IOException {
     Path sonar = CrossAuditFixtures.sonar(dir);
     Path gitlab = CrossAuditFixtures.gitlab(dir);
     CrossAuditFixtures.inventory(dir);

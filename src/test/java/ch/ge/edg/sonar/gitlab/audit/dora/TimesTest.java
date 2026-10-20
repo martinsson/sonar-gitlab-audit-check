@@ -14,7 +14,7 @@ class TimesTest {
   private static final JsonNodeFactory F = new ObjectMapper().getNodeFactory();
 
   @Test
-  void gocd_epoch_iso_and_jira_formats() {
+  void gocdEpochIsoAndJiraFormats() {
     assertThat(Times.parse(F.numberNode(1_000L))).isEqualTo(Instant.ofEpochMilli(1_000));
     assertThat(Times.parse(F.textNode("2026-03-04T10:15:30Z")))
         .isEqualTo(Instant.parse("2026-03-04T10:15:30Z"));
@@ -23,7 +23,7 @@ class TimesTest {
   }
 
   @Test
-  void absent_or_unreadable_is_null() {
+  void absentOrUnreadableIsNull() {
     assertThat(Times.parse(F.nullNode())).isNull();
     assertThat(Times.parse(MissingNode.getInstance())).isNull();
     assertThat(Times.parse((com.fasterxml.jackson.databind.JsonNode) null)).isNull();
@@ -33,7 +33,7 @@ class TimesTest {
   }
 
   @Test
-  void durations_use_a_decimal_comma_and_stay_empty_when_unknown_or_negative() {
+  void durationsUseADecimalCommaAndStayEmptyWhenUnknownOrNegative() {
     Instant a = Instant.parse("2026-01-01T00:00:00Z");
     assertThat(Times.hours(a, a.plusSeconds(90 * 60))).isEqualTo("1,5");
     assertThat(Times.days(a, a.plusSeconds(36 * 3600))).isEqualTo("1,5");
@@ -44,7 +44,7 @@ class TimesTest {
   }
 
   @Test
-  void format_is_local_time_readable_by_excel() {
+  void formatIsLocalTimeReadableByExcel() {
     Instant a = Instant.parse("2026-01-01T12:30:05Z");
     assertThat(Times.format(a, ZoneOffset.ofHours(1))).isEqualTo("2026-01-01 13:30:05");
     assertThat(Times.format(null, ZoneOffset.UTC)).isEmpty();

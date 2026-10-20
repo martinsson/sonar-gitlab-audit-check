@@ -49,8 +49,7 @@ class CrossAuditOptionsTest {
   }
 
   @Test
-  void without_cle_sonar_inventory_or_out_it_warns_and_writes_only_the_appariement()
-      throws IOException {
+  void withoutCleSonarInventoryOrOutItWarnsAndWritesOnlyTheAppariement() throws IOException {
     Cli.Result r =
         run(
             "--sonar", smallSonar().toString(),
@@ -65,7 +64,7 @@ class CrossAuditOptionsTest {
   }
 
   @Test
-  void every_path_option_and_the_report_with_comma_separated_files() throws IOException {
+  void everyPathOptionAndTheReportWithCommaSeparatedFiles() throws IOException {
     Path in = dir.resolve("in");
     Path sonar = CrossAuditFixtures.sonar(in);
     Path gitlab = CrossAuditFixtures.gitlab(in);
@@ -109,7 +108,7 @@ class CrossAuditOptionsTest {
   }
 
   @Test
-  void without_out_the_sonar_gitlab_file_goes_next_to_pratiques() throws IOException {
+  void withoutOutTheSonarGitlabFileGoesNextToPratiques() throws IOException {
     Path sonar = CrossAuditFixtures.sonar(dir);
     Path gitlab = CrossAuditFixtures.gitlab(dir);
     CrossAuditFixtures.inventory(dir);
@@ -128,7 +127,7 @@ class CrossAuditOptionsTest {
   }
 
   @Test
-  void colors_always_wraps_titles_warnings_and_counts() throws IOException {
+  void colorsAlwaysWrapsTitlesWarningsAndCounts() throws IOException {
     Cli.Result r =
         run(
             "--sonar", smallSonar().toString(),
@@ -141,7 +140,7 @@ class CrossAuditOptionsTest {
   }
 
   @Test
-  void exactly_half_paired_is_not_a_warning_less_than_half_is() throws IOException {
+  void exactlyHalfPairedIsNotAWarningLessThanHalfIs() throws IOException {
     Path sonar =
         csv(dir.resolve("projets.csv"), SONAR_HEADER, "k1,Zulu Quebec,2026-01-01,1,,,,,,,,,");
     Path half =
@@ -169,7 +168,7 @@ class CrossAuditOptionsTest {
   }
 
   @Test
-  void an_explicit_inventory_that_does_not_exist_fails() throws IOException {
+  void anExplicitInventoryThatDoesNotExistFails() throws IOException {
     Path missing = dir.resolve("nope.csv");
     Cli.Result r =
         run(
@@ -181,7 +180,7 @@ class CrossAuditOptionsTest {
   }
 
   @Test
-  void an_inventory_without_selectionne_is_refused() throws IOException {
+  void anInventoryWithoutSelectionneIsRefused() throws IOException {
     Path inv = csv(dir.resolve("inventaire.csv"), "path,id", "team-a/alpha-service,1");
     Cli.Result r =
         run("--sonar", smallSonar().toString(), "--gitlab", gitlabWithoutKeys().toString());
@@ -194,7 +193,7 @@ class CrossAuditOptionsTest {
   }
 
   @Test
-  void a_sonar_file_without_its_columns_is_refused_before_anything_is_written() throws IOException {
+  void aSonarFileWithoutItsColumnsIsRefusedBeforeAnythingIsWritten() throws IOException {
     Path sonar = csv(dir.resolve("projets.csv"), "key,name,ncloc", "alpha,Alpha,1");
     Cli.Result r = run("--sonar", sonar.toString(), "--gitlab", gitlabWithoutKeys().toString());
     assertThat(r.exitCode()).isEqualTo(1);
@@ -204,7 +203,7 @@ class CrossAuditOptionsTest {
   }
 
   @Test
-  void a_gitlab_file_without_its_columns_is_refused() throws IOException {
+  void aGitlabFileWithoutItsColumnsIsRefused() throws IOException {
     Path gitlab = csv(dir.resolve("pratiques.csv"), "path,name", "team-a/alpha,alpha");
     Cli.Result r = run("--sonar", smallSonar().toString(), "--gitlab", gitlab.toString());
     assertThat(r.exitCode()).isEqualTo(1);
@@ -216,14 +215,14 @@ class CrossAuditOptionsTest {
   }
 
   @Test
-  void both_inputs_are_required() {
+  void bothInputsAreRequired() {
     Cli.Result r = run("--sonar", "x.csv");
     assertThat(r.exitCode()).isEqualTo(2);
     assertThat(r.err()).startsWith("Missing required option: '--gitlab=<gitlabCsv>'");
   }
 
   @Test
-  void help_prints_the_custom_synopsis_options_and_footer() {
+  void helpPrintsTheCustomSynopsisOptionsAndFooter() {
     Cli.Result r = run("--help");
     assertThat(r.exitCode()).isZero();
     expectSelfie(r.out()).toMatchDisk();

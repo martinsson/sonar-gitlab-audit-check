@@ -61,7 +61,7 @@ class ProjectMapperCustomCliTest {
   }
 
   @Test
-  void custom_methods_with_plain_names_comma_output_and_tuned_thresholds() throws Exception {
+  void customMethodsWithPlainNamesCommaOutputAndTunedThresholds() throws Exception {
     Path left = write(dir, "a.csv", LEFT);
     Path right = write(dir, "b.csv", RIGHT);
     Path out = dir.resolve("map.csv");
@@ -94,7 +94,7 @@ class ProjectMapperCustomCliTest {
   }
 
   @Test
-  void names_as_paths_score_the_last_segment_double() throws Exception {
+  void namesAsPathsScoreTheLastSegmentDouble() throws Exception {
     Path left = write(dir, "a.csv", "nom\ngrp/alpha-billing\nbilling/other\n");
     Path right = write(dir, "b.csv", "code;libelle\nx1;alpha billing\nx2;billing other\n");
 
@@ -119,7 +119,7 @@ class ProjectMapperCustomCliTest {
   }
 
   @Test
-  void methods_and_names_on_missing_columns_are_reported_unavailable() throws Exception {
+  void methodsAndNamesOnMissingColumnsAreReportedUnavailable() throws Exception {
     Path left = write(dir, "a.csv", "nom\nalpha\n");
     Path right = write(dir, "b.csv", "code\nalpha\n");
 
@@ -138,7 +138,7 @@ class ProjectMapperCustomCliTest {
   }
 
   @Test
-  void names_whose_right_columns_are_all_missing_are_unavailable() throws Exception {
+  void namesWhoseRightColumnsAreAllMissingAreUnavailable() throws Exception {
     Path left = write(dir, "a.csv", "nom\nalpha\n");
     Path right = write(dir, "b.csv", "code\nalpha\n");
 
@@ -160,7 +160,7 @@ class ProjectMapperCustomCliTest {
   }
 
   @Test
-  void many_disagreements_print_five_and_count_the_rest() throws Exception {
+  void manyDisagreementsPrintFiveAndCountTheRest() throws Exception {
     StringBuilder l = new StringBuilder("nom,ref\n");
     StringBuilder rt = new StringBuilder("code,ref_externe,kind\n");
     for (int i = 0; i < 7; i++) {
@@ -178,7 +178,7 @@ class ProjectMapperCustomCliTest {
   }
 
   @Test
-  void the_preset_keys_can_be_overridden() throws Exception {
+  void thePresetKeysCanBeOverridden() throws Exception {
     Path left = write(dir, "a.csv", "path,cle_sonar\nteam-a/alpha,Alpha\n");
     Path right = write(dir, "b.csv", "key,name\nk1,Alpha\n");
 
@@ -202,7 +202,7 @@ class ProjectMapperCustomCliTest {
   }
 
   @Test
-  void only_a_right_key_override_keeps_the_preset_left_key() throws Exception {
+  void onlyARightKeyOverrideKeepsThePresetLeftKey() throws Exception {
     Path left = write(dir, "a.csv", "path\nteam-a/alpha\n");
     Path right = write(dir, "b.csv", "code,key\nteam-a-alpha,k\n");
 
@@ -223,7 +223,7 @@ class ProjectMapperCustomCliTest {
   }
 
   @Test
-  void empty_inputs_give_an_empty_report() throws Exception {
+  void emptyInputsGiveAnEmptyReport() throws Exception {
     Path left = write(dir, "a.csv", "path\n");
     Path right = write(dir, "b.csv", "key\n");
 

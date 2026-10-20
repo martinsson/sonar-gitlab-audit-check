@@ -7,7 +7,7 @@ import org.junit.jupiter.api.Test;
 class UpstreamTest {
 
   @Test
-  void parses_pipeline_and_counter_of_a_pipeline_revision() {
+  void parsesPipelineAndCounterOfAPipelineRevision() {
     Upstream u = Upstream.parse("build/12/compile/1");
     assertThat(u).isEqualTo(new Upstream("build", 12));
     assertThat(String.valueOf(u)).isEqualTo("build/12");
@@ -15,7 +15,7 @@ class UpstreamTest {
   }
 
   @Test
-  void anything_else_is_null() {
+  void anythingElseIsNull() {
     assertThat(Upstream.parse(null)).isNull();
     assertThat(Upstream.parse("7fd1a60b")).isNull();
     assertThat(Upstream.parse("/12/s/1")).isNull();

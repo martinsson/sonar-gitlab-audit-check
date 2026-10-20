@@ -1,4 +1,4 @@
-╔═ preset_maps_with_every_method_and_writes_mapping_and_report/mapping ═╗
+╔═ presetMapsWithEveryMethodAndWritesMappingAndReport/mapping ═╗
 <BOM>"gauche_path";"droite_key";"methode";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_cle_ci";"m_cle_pom";"m_liaison";"m_ns_map";"m_chemin";"m_nom_pom";"m_liens";"liens_concorde";"m_noms_libre"⏎
 "team-a/alpha-service";"team-a:alpha";"clé lue dans la CI";"exact";"";"";"";"";"team-a:alpha";"";"";"";"";"";"team-a:alpha";"oui";"team-a:alpha (0.95)"⏎
 "team-a/beta";"org.example:beta";"clé Maven du pom";"exact";"";"";"";"";"";"org.example:beta";"";"org.example:beta";"";"";"org.example:beta-legacy";"non";"org.example:beta (0.89)"⏎
@@ -15,7 +15,7 @@
 "team-l/gamma-tools-extra-stuff";"";"aucune";"none";"org.example:gamma-gh";"0.23";"";"sous le seuil";"";"";"";"";"";"";"";"";"org.example:gamma (0.36, sous le seuil)"⏎
 "team-m/epsilon-api";"org.example:eps-key";"clé lue dans la CI";"exact";"";"";"";"";"org.example:eps-key";"";"";"org.example:epsilon-api";"";"";"";"";"org.example:epsilon-api (0.95)"⏎
 
-╔═ preset_maps_with_every_method_and_writes_mapping_and_report/report ═╗
+╔═ presetMapsWithEveryMethodAndWritesMappingAndReport/report ═╗
 {
   "summary" : {
     "left" : 14,
@@ -364,7 +364,7 @@
     } ]
   }
 }
-╔═ preset_maps_with_every_method_and_writes_mapping_and_report/stdout ═╗
+╔═ presetMapsWithEveryMethodAndWritesMappingAndReport/stdout ═╗
 
 Appariement
   Gauche : 14 lignes (<tmp>/pratiques.csv)
@@ -465,7 +465,7 @@ Ressemblance de noms, jugée sur 7 paires sûres
   Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start correspondances.csv`. Pour un autre outil : --comma.
   Rapport     : <tmp>/sub/rapport.json
 
-╔═ preset_without_outputs_only_prints ═╗
+╔═ presetWithoutOutputsOnlyPrints ═╗
 
 Appariement
   Gauche : 14 lignes (<tmp>/pratiques.csv)
@@ -554,7 +554,7 @@ Ressemblance de noms, jugée sur 7 paires sûres
   Préfixes des clés de droite jamais retenues :
     org.example: 6
 
-╔═ zero_examples_lists_no_example_anywhere/report ═╗
+╔═ zeroExamplesListsNoExampleAnywhere/report ═╗
 {
   "summary" : {
     "left" : 14,
@@ -873,7 +873,7 @@ Ressemblance de noms, jugée sur 7 paires sûres
     } ]
   }
 }
-╔═ zero_examples_lists_no_example_anywhere/stdout ═╗
+╔═ zeroExamplesListsNoExampleAnywhere/stdout ═╗
 
 Appariement
   Gauche : 14 lignes (<tmp>/pratiques.csv)

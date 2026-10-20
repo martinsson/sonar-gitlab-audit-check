@@ -1,4 +1,4 @@
-╔═ bots_can_be_counted_as_people ═╗
+╔═ botsCanBeCountedAsPeople ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -62,7 +62,7 @@
 
   9 appels API.
 
-╔═ reports_cadence_people_and_review_of_a_busy_project ═╗
+╔═ reportsCadencePeopleAndReviewOfABusyProject ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -126,7 +126,7 @@
 
   9 appels API.
 
-╔═ samples_only_the_first_merged_requests ═╗
+╔═ samplesOnlyTheFirstMergedRequests ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service
@@ -190,7 +190,7 @@
 
   6 appels API.
 
-╔═ the_bot_pattern_can_be_replaced ═╗
+╔═ theBotPatternCanBeReplaced ═╗
 
 === 1. Le projet ======================================================
   Chemin                          : team-a/alpha-service

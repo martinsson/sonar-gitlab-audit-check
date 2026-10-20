@@ -47,20 +47,19 @@ class NameMatcherPropertiesTest {
   }
 
   @Property
-  void tokens_are_lowercase_ascii_words_of_two_letters_or_more(@ForAll String s) {
+  void tokensAreLowercaseAsciiWordsOfTwoLettersOrMore(@ForAll String s) {
     assertThat(NameMatcher.tokens(s)).allSatisfy(t -> assertThat(t).matches("[a-z]{2,}"));
   }
 
   @Property
-  void tokens_of_lowercase_words_are_the_words_of_two_letters_or_more(
-      @ForAll("wordLists") List<String> ws) {
+  void tokensOfLowercaseWordsAreTheWordsOfTwoLettersOrMore(@ForAll("wordLists") List<String> ws) {
     List<String> expected = ws.stream().filter(w -> w.length() >= 2).toList();
     assertThat(NameMatcher.tokens(String.join("_", ws))).isEqualTo(expected);
     assertThat(NameMatcher.tokens(String.join(" . ", ws))).isEqualTo(expected);
   }
 
   @Property
-  void tokens_ignore_case_for_capitalised_words(@ForAll("wordLists") List<String> ws) {
+  void tokensIgnoreCaseForCapitalisedWords(@ForAll("wordLists") List<String> ws) {
     String capitalised =
         String.join(
             "-",
@@ -71,31 +70,31 @@ class NameMatcherPropertiesTest {
   }
 
   @Property
-  void numbers_are_digit_runs_without_leading_zeros(@ForAll String s) {
+  void numbersAreDigitRunsWithoutLeadingZeros(@ForAll String s) {
     assertThat(NameMatcher.numbers(s)).allSatisfy(n -> assertThat(n).matches("0|[1-9]\\d*"));
   }
 
   @Property
-  void leading_zeros_do_not_change_a_number(
+  void leadingZerosDoNotChangeANumber(
       @ForAll @NumericChars @StringLength(min = 1, max = 6) String digits) {
     assertThat(NameMatcher.numbers("x00" + digits + "y"))
         .isEqualTo(NameMatcher.numbers("x" + digits));
   }
 
   @Property
-  void jaro_winkler_is_between_zero_and_one_and_one_on_identity(
+  void jaroWinklerIsBetweenZeroAndOneAndOneOnIdentity(
       @ForAll("words") String a, @ForAll("words") String b) {
     assertThat(JaroWinkler.similarity(a, b)).isBetween(0.0, 1.0 + 1e-12);
     assertThat(JaroWinkler.similarity(a, a)).isEqualTo(1.0);
   }
 
   @Property
-  void jaro_winkler_is_symmetric(@ForAll("words") String a, @ForAll("words") String b) {
+  void jaroWinklerIsSymmetric(@ForAll("words") String a, @ForAll("words") String b) {
     assertThat(JaroWinkler.similarity(a, b)).isCloseTo(JaroWinkler.similarity(b, a), within(1e-12));
   }
 
   @Property
-  void token_similarity_is_zero_or_above_the_threshold(
+  void tokenSimilarityIsZeroOrAboveTheThreshold(
       @ForAll @AlphaChars @StringLength(max = 8) String a,
       @ForAll @AlphaChars @StringLength(max = 8) String b) {
     double s = SoftTfIdf.tokenSimilarity(a, b);
@@ -104,7 +103,7 @@ class NameMatcherPropertiesTest {
   }
 
   @Property
-  void scores_are_between_zero_and_one(@ForAll("corpus") List<String> sources) {
+  void scoresAreBetweenZeroAndOne(@ForAll("corpus") List<String> sources) {
     NameMatcher m = matcher(sources, sources);
     for (int i = 0; i < sources.size(); i++) {
       for (int j = 0; j < sources.size(); j++) {
@@ -114,7 +113,7 @@ class NameMatcherPropertiesTest {
   }
 
   @Property
-  void a_name_scores_one_against_itself(@ForAll("corpus") List<String> names) {
+  void aNameScoresOneAgainstItself(@ForAll("corpus") List<String> names) {
     NameMatcher m = matcher(names, names);
     for (int i = 0; i < names.size(); i++) {
       assertThat(m.score(i, i)).isCloseTo(1.0, within(1e-9));
@@ -122,7 +121,7 @@ class NameMatcherPropertiesTest {
   }
 
   @Property
-  void ranks_are_sorted_positive_allowed_and_free_of_number_conflicts(
+  void ranksAreSortedPositiveAllowedAndFreeOfNumberConflicts(
       @ForAll("corpus") List<String> sources, @ForAll("corpus") List<String> targets) {
     NameMatcher m = matcher(sources, targets);
     for (int i = 0; i < sources.size(); i++) {
@@ -136,7 +135,7 @@ class NameMatcherPropertiesTest {
   }
 
   @Property
-  void rank_sources_are_sorted_positive_and_free_of_number_conflicts(
+  void rankSourcesAreSortedPositiveAndFreeOfNumberConflicts(
       @ForAll("corpus") List<String> sources, @ForAll("corpus") List<String> targets) {
     NameMatcher m = matcher(sources, targets);
     for (int j = 0; j < targets.size(); j++) {
@@ -149,7 +148,7 @@ class NameMatcherPropertiesTest {
   }
 
   @Property
-  void a_number_veto_means_a_conflicting_candidate_exists(
+  void aNumberVetoMeansAConflictingCandidateExists(
       @ForAll("corpus") List<String> sources, @ForAll("corpus") List<String> targets) {
     NameMatcher m = matcher(sources, targets);
     for (int i = 0; i < sources.size(); i++) {

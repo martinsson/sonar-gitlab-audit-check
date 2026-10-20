@@ -1,4 +1,4 @@
-╔═ colours_always_wraps_titles_and_hints_in_ansi_codes ═╗
+╔═ coloursAlwaysWrapsTitlesAndHintsInAnsiCodes ═╗
 <ESC>[1m
 Appariement<ESC>[0m
   Gauche : 14 lignes (<tmp>/pratiques.csv)
@@ -98,7 +98,7 @@ Appariement<ESC>[0m
     org.example: 6
 <ESC>[2m  Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start m.csv`. Pour un autre outil : --comma.<ESC>[0m
 
-╔═ help_lists_every_option_and_the_footer ═╗
+╔═ helpListsEveryOptionAndTheFooter ═╗
 Usage: ProjectMapper [-hV] [--comma] [--plain-names] [--reapparier]
                      [--color=<mode>] [--examples=<examples>] --left=<leftCsv>
                      [--left-key=<leftKey>] [--marge-nom=<margin>]

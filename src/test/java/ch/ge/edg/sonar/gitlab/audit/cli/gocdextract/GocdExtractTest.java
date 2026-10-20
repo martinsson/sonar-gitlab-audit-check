@@ -43,7 +43,7 @@ class GocdExtractTest {
   }
 
   @Test
-  void a_group_on_the_captured_gocd_gives_what_the_jbang_prototype_gave() throws IOException {
+  void aGroupOnTheCapturedGocdGivesWhatTheJbangPrototypeGave() throws IOException {
     try (FakeHttpServer gocd = GocdFixtures.serve(new FakeHttpServer())) {
       Cli.Result r = extract(gocd, "--group", "hello", "--durations");
       assertThat(r.exitCode()).isZero();
@@ -78,7 +78,7 @@ class GocdExtractTest {
   }
 
   @Test
-  void a_deploy_alone_reads_its_upstream_runs_one_by_one() throws IOException {
+  void aDeployAloneReadsItsUpstreamRunsOneByOne() throws IOException {
     try (FakeHttpServer gocd = GocdFixtures.serve(new FakeHttpServer())) {
       Cli.Result r = extract(gocd, "--pipeline", "hello-deploy-recette");
       assertThat(r.exitCode()).isZero();
@@ -99,7 +99,7 @@ class GocdExtractTest {
   }
 
   @Test
-  void the_upstream_budget_holds_for_the_captured_prod_deploy() throws IOException {
+  void theUpstreamBudgetHoldsForTheCapturedProdDeploy() throws IOException {
     try (FakeHttpServer gocd = GocdFixtures.serve(new FakeHttpServer())) {
       assertThat(extract(gocd, "--pipeline", "hello-deploy-prod").exitCode()).isZero();
       assertThat(gocd.requests())
@@ -122,7 +122,7 @@ class GocdExtractTest {
   }
 
   @Test
-  void the_range_rule_end_to_end_on_hand_made_runs() throws IOException {
+  void theRangeRuleEndToEndOnHandMadeRuns() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       GocdFixtures.chain(gocd);
       gocd.json("/go/api/dashboard", GocdFixtures.dashboard("g", "prod"));
@@ -144,7 +144,7 @@ class GocdExtractTest {
   }
 
   @Test
-  void runs_older_than_the_window_are_left_out() throws IOException {
+  void runsOlderThanTheWindowAreLeftOut() throws IOException {
     try (FakeHttpServer gocd = GocdFixtures.serve(new FakeHttpServer())) {
       Cli.Result r = extract(gocd, "--group", "hello", "--days", "0");
       assertThat(r.exitCode()).isZero();
@@ -156,7 +156,7 @@ class GocdExtractTest {
   }
 
   @Test
-  void nothing_to_extract_stops_with_exit_2() {
+  void nothingToExtractStopsWithExit2() {
     try (FakeHttpServer gocd = GocdFixtures.serve(new FakeHttpServer())) {
       Cli.Result r = extract(gocd, "--group", "nobody");
       assertThat(r.exitCode()).isEqualTo(2);
@@ -167,7 +167,7 @@ class GocdExtractTest {
   }
 
   @Test
-  void a_refused_token_stops_with_exit_2() {
+  void aRefusedTokenStopsWithExit2() {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       gocd.onPrefix("/go/", req -> Response.status(401, "{}"));
       Cli.Result r = extract(gocd, "--group", "hello");
@@ -177,7 +177,7 @@ class GocdExtractTest {
   }
 
   @Test
-  void a_missing_url_stops_with_exit_2() {
+  void aMissingUrlStopsWithExit2() {
     Cli.Result r = Cli.run(GocdExtract::new, "--url", "", "--token", "t", "--pipeline", "p");
     assertThat(r.exitCode()).isEqualTo(2);
     assertThat(r.err()).contains("Arrêt : GOCD_URL manquant");

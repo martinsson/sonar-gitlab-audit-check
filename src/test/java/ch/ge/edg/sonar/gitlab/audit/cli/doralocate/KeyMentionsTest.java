@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 class KeyMentionsTest {
 
   @Test
-  void prefixes_rank_by_commits_plus_merge_requests_then_alphabetically() {
+  void prefixesRankByCommitsPlusMergeRequestsThenAlphabetically() {
     Map<String, Mentions> by = new TreeMap<>();
     KeyMentions.tally(by, "AAA-1", Mentions::commit);
     KeyMentions.tally(by, "ZZZ-1 ZZZ-2", Mentions::commit);
@@ -34,7 +34,7 @@ class KeyMentionsTest {
   }
 
   @Test
-  void a_merge_request_text_is_its_title_branch_and_description() {
+  void aMergeRequestTextIsItsTitleBranchAndDescription() {
     assertThat(
             KeyMentions.mrText(
                 GocdIndexTest.json(

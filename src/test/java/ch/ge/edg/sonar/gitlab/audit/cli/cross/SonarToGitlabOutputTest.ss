@@ -1,9 +1,9 @@
-╔═ print_of_nothing ═╗
+╔═ printOfNothing ═╗
   Projets Sonar : 0, dont 0 appariés sûrement (—)
   Appariés à un dépôt hors de la sélection GitLab : 0, dont 0 actifs (10 commits ou plus)
   Sonar × tout GitLab : 0 lignes → <tmp>/sg.csv
 
-╔═ print_sums_up_by_confidence_outside_selection_reasons_and_checks ═╗
+╔═ printSumsUpByConfidenceOutsideSelectionReasonsAndChecks ═╗
   Projets Sonar : 7, dont 4 appariés sûrement (57 %)
     derived    2
     exact      1
@@ -19,7 +19,7 @@
     m1 : 1 d'accord, 1 non
   Sonar × tout GitLab : 7 lignes → <tmp>/sg.csv
 
-╔═ write_gives_one_row_per_sonar_project_with_its_repository_counts ═╗
+╔═ writeGivesOneRowPerSonarProjectWithItsRepositoryCounts ═╗
 "sonar_key","sonar_name","gitlab_path","gitlab_id","methode","confiance","score","autres_candidats","raison","cles_sonar_sur_ce_projet","dans_selection","gl_commits_window","gl_last_activity_at","gl_exclu","sq_analysisDate","sq_ncloc"
 "k1","One","team-a/shared","1","croisement : x","exact","","","","2","oui","50","2026-01-01","","2026-01-01","100"
 "k2","Two","team-a/shared","1","liaison","manuel","0.50","c, d","","2","oui","50","2026-01-01","","2026-01-02","200"

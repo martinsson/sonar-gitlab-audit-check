@@ -30,7 +30,7 @@ class CsvTest {
   // ---------------------------------------------------------------- writer
 
   @Test
-  void excel_writer_puts_a_bom_semicolons_quotes_and_crlf() throws IOException {
+  void excelWriterPutsABomSemicolonsQuotesAndCrlf() throws IOException {
     Path f = dir.resolve("out.csv");
     try (CSVWriter w = Csv.writer(f, false)) {
       w.writeNext(new String[] {"key", "nom"});
@@ -45,7 +45,7 @@ class CsvTest {
   }
 
   @Test
-  void comma_writer_has_no_bom_commas_and_lf() throws IOException {
+  void commaWriterHasNoBomCommasAndLf() throws IOException {
     Path f = dir.resolve("out.csv");
     try (CSVWriter w = Csv.writer(f, true)) {
       w.writeNext(new String[] {"key", "nom"});
@@ -56,7 +56,7 @@ class CsvTest {
   }
 
   @Test
-  void what_the_writer_writes_the_reader_reads_back_in_both_formats() throws IOException {
+  void whatTheWriterWritesTheReaderReadsBackInBothFormats() throws IOException {
     for (boolean comma : new boolean[] {false, true}) {
       Path f = dir.resolve("rt" + comma + ".csv");
       try (CSVWriter w = Csv.writer(f, comma)) {
@@ -74,28 +74,28 @@ class CsvTest {
   // ---------------------------------------------------------------- read
 
   @Test
-  void an_empty_file_is_an_empty_table() throws IOException {
+  void anEmptyFileIsAnEmptyTable() throws IOException {
     Csv.Table t = Csv.read(file(""));
     assertThat(t.index()).isEmpty();
     assertThat(t.rows()).isEmpty();
   }
 
   @Test
-  void a_file_with_only_a_newline_has_one_empty_column_and_no_row() throws IOException {
+  void aFileWithOnlyANewlineHasOneEmptyColumnAndNoRow() throws IOException {
     Csv.Table t = Csv.read(file("\n"));
     assertThat(t.index()).isEqualTo(Map.of("", 0));
     assertThat(t.rows()).isEmpty();
   }
 
   @Test
-  void semicolon_wins_when_the_header_has_more_semicolons_than_commas() throws IOException {
+  void semicolonWinsWhenTheHeaderHasMoreSemicolonsThanCommas() throws IOException {
     Csv.Table t = Csv.read(file("﻿key ; a,b;c\nalpha;x,y;z\n"));
     assertThat(t.index()).isEqualTo(Map.of("key", 0, "a,b", 1, "c", 2));
     assertThat(t.rows().get(0).str("a,b")).isEqualTo("x,y");
   }
 
   @Test
-  void comma_wins_on_a_tie_and_the_bom_is_stripped() throws IOException {
+  void commaWinsOnATieAndTheBomIsStripped() throws IOException {
     Csv.Table t = Csv.read(file("﻿key,a;b\nalpha,x;y\n"));
     assertThat(t.index()).isEqualTo(Map.of("key", 0, "a;b", 1));
     assertThat(t.has("key")).isTrue();
@@ -103,38 +103,38 @@ class CsvTest {
   }
 
   @Test
-  void header_without_bom_is_kept_as_is() throws IOException {
+  void headerWithoutBomIsKeptAsIs() throws IOException {
     Csv.Table t = Csv.read(file("key,ncloc\nalpha,3\n"));
     assertThat(t.index()).isEqualTo(Map.of("key", 0, "ncloc", 1));
   }
 
   @Test
-  void blank_lines_are_skipped_but_rows_of_empty_cells_are_kept() throws IOException {
+  void blankLinesAreSkippedButRowsOfEmptyCellsAreKept() throws IOException {
     Csv.Table t = Csv.read(file("key,ncloc\n\nalpha,1\n   \n,\nbeta,2\n"));
     assertThat(t.rows()).extracting(r -> r.str("key")).containsExactly("alpha", "", "beta");
   }
 
   @Test
-  void quoted_multiline_cells_are_read_whole() throws IOException {
+  void quotedMultilineCellsAreReadWhole() throws IOException {
     Csv.Table t = Csv.read(file("key,txt\nalpha,\"a\nb\"\n"));
     assertThat(t.rows().get(0).str("txt")).isEqualTo("a\nb");
   }
 
   @Test
-  void an_unterminated_quote_fails_with_an_io_exception() throws IOException {
+  void anUnterminatedQuoteFailsWithAnIoException() throws IOException {
     Path f = file("key,txt\nalpha,\"never closed\n");
     assertThatThrownBy(() -> Csv.read(f)).isInstanceOf(IOException.class);
   }
 
   @Test
-  void a_missing_file_fails() {
+  void aMissingFileFails() {
     assertThatThrownBy(() -> Csv.read(dir.resolve("absent.csv"))).isInstanceOf(IOException.class);
   }
 
   // ---------------------------------------------------------------- Table
 
   @Test
-  void require_accepts_present_columns_and_names_the_first_missing_one() throws IOException {
+  void requireAcceptsPresentColumnsAndNamesTheFirstMissingOne() throws IOException {
     Path f = file("key,ncloc\n");
     Csv.Table t = Csv.read(f);
     t.require(f, "SonarAuditCheck");
@@ -150,7 +150,7 @@ class CsvTest {
   // ---------------------------------------------------------------- Row
 
   @Test
-  void str_is_trimmed_and_empty_when_missing_out_of_range_or_null() {
+  void strIsTrimmedAndEmptyWhenMissingOutOfRangeOrNull() {
     Map<String, Integer> idx = Map.of("a", 0, "b", 1, "c", 2);
     Csv.Row r = row(idx, "  x  ", null);
     assertThat(r.str("a")).isEqualTo("x");
@@ -160,7 +160,7 @@ class CsvTest {
   }
 
   @Test
-  void num_reads_decimals_with_a_point_or_a_lone_comma() {
+  void numReadsDecimalsWithAPointOrALoneComma() {
     Map<String, Integer> idx = Map.of("v", 0);
     assertThat(row(idx, "12.5").num("v")).isEqualTo(12.5);
     assertThat(row(idx, " 12,5 ").num("v")).isEqualTo(12.5);
@@ -170,7 +170,7 @@ class CsvTest {
   }
 
   @Test
-  void num_is_null_for_empty_or_unreadable_never_zero() {
+  void numIsNullForEmptyOrUnreadableNeverZero() {
     Map<String, Integer> idx = Map.of("v", 0);
     assertThat(row(idx, "").num("v")).isNull();
     assertThat(row(idx, "   ").num("v")).isNull();
@@ -182,7 +182,7 @@ class CsvTest {
   }
 
   @Test
-  void flag_is_true_only_for_true_in_any_case() {
+  void flagIsTrueOnlyForTrueInAnyCase() {
     Map<String, Integer> idx = Map.of("f", 0);
     assertThat(row(idx, "true").flag("f")).isTrue();
     assertThat(row(idx, " TRUE ").flag("f")).isTrue();
@@ -196,7 +196,7 @@ class CsvTest {
   // ---------------------------------------------------------------- hint
 
   @Test
-  void opening_hint_names_the_file_for_excel_and_not_for_a_machine() {
+  void openingHintNamesTheFileForExcelAndNotForAMachine() {
     Path p = dir.resolve("sub").resolve("croisement.csv");
     assertThat(Csv.openingHint(p, true)).isEqualTo("  Format machine (virgule, sans BOM).");
     assertThat(Csv.openingHint(p, false))

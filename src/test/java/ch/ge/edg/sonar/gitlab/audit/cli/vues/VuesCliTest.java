@@ -93,7 +93,7 @@ class VuesCliTest {
   }
 
   @Test
-  void writes_three_excel_views_and_summarizes_them() throws IOException {
+  void writesThreeExcelViewsAndSummarizesThem() throws IOException {
     Path in = writeInput("croisement.csv", csv(fullHeader(), sampleRows()));
 
     Cli.Result r = Cli.run(Vues::new, "--in", in.toString(), "--color", "never");
@@ -118,7 +118,7 @@ class VuesCliTest {
   }
 
   @Test
-  void drift_view_is_ordered_by_signal_count_then_density_slope() throws IOException {
+  void driftViewIsOrderedBySignalCountThenDensitySlope() throws IOException {
     Path in = writeInput("croisement.csv", csv(fullHeader(), sampleRows()));
 
     Cli.run(Vues::new, "--in", in.toString(), "--comma", "--color", "never");
@@ -138,7 +138,7 @@ class VuesCliTest {
   }
 
   @Test
-  void unpaired_view_keeps_active_projects_most_active_first() throws IOException {
+  void unpairedViewKeepsActiveProjectsMostActiveFirst() throws IOException {
     Path in = writeInput("croisement.csv", csv(fullHeader(), sampleRows()));
 
     Cli.run(Vues::new, "--in", in.toString(), "--comma", "--color", "never");
@@ -148,7 +148,7 @@ class VuesCliTest {
   }
 
   @Test
-  void comma_mode_writes_plain_csv_without_bom() throws IOException {
+  void commaModeWritesPlainCsvWithoutBom() throws IOException {
     Path in = writeInput("croisement.csv", csv(fullHeader(), sampleRows()));
 
     Cli.run(Vues::new, "--in", in.toString(), "--comma", "--color", "never");
@@ -159,7 +159,7 @@ class VuesCliTest {
   }
 
   @Test
-  void an_older_crossing_without_the_drift_columns_is_read_and_the_gap_said() throws IOException {
+  void anOlderCrossingWithoutTheDriftColumnsIsReadAndTheGapSaid() throws IOException {
     Path in = writeInput("old.csv", "projet;confiance;gl_commits_window\nalpha;exact;3\nbeta;;4\n");
 
     Cli.Result r = Cli.run(Vues::new, "--in", in.toString(), "--color", "never");
@@ -172,7 +172,7 @@ class VuesCliTest {
   }
 
   @Test
-  void colors_wrap_the_hints_when_asked() throws IOException {
+  void colorsWrapTheHintsWhenAsked() throws IOException {
     Path in = writeInput("old.csv", "projet,confiance\nalpha,exact\n");
 
     Cli.Result r = Cli.run(Vues::new, "--in", in.toString(), "--color", "always");
@@ -184,7 +184,7 @@ class VuesCliTest {
   }
 
   @Test
-  void a_file_without_the_crossing_columns_is_refused() throws IOException {
+  void aFileWithoutTheCrossingColumnsIsRefused() throws IOException {
     Path in = writeInput("wrong.csv", "key,name\nalpha,Alpha\n");
 
     Cli.Result r = Cli.run(Vues::new, "--in", in.toString(), "--color", "never");
@@ -196,7 +196,7 @@ class VuesCliTest {
   }
 
   @Test
-  void the_input_option_is_required() {
+  void theInputOptionIsRequired() {
     Cli.Result r = Cli.run(Vues::new);
 
     assertThat(r.exitCode()).isEqualTo(2);

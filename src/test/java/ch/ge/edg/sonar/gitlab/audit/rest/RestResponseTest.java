@@ -12,7 +12,7 @@ class RestResponseTest {
   }
 
   @Test
-  void a_login_page_answered_200_is_not_a_success() {
+  void aLoginPageAnswered200IsNotASuccess() {
     RestResponse page =
         new RestResponse(200, "<p>login</p>", Map.of("content-type", "text/html"), "");
     assertThat(page.ok()).isFalse();
@@ -24,7 +24,7 @@ class RestResponseTest {
   }
 
   @Test
-  void tags_say_what_happened_in_one_word() {
+  void tagsSayWhatHappenedInOneWord() {
     assertThat(of(200, "{}").tag()).isEqualTo("OK");
     assertThat(of(204, "").ok()).isTrue();
     assertThat(of(299, "").ok()).isTrue();
@@ -36,7 +36,7 @@ class RestResponseTest {
   }
 
   @Test
-  void reasons_never_quote_the_body() {
+  void reasonsNeverQuoteTheBody() {
     assertThat(RestResponse.unreachable("ConnectException").why()).isEqualTo("ConnectException");
     assertThat(of(401, "secret").why()).isEqualTo("non authentifié");
     assertThat(of(403, "").why()).isEqualTo("authentifié mais pas autorisé");
@@ -52,7 +52,7 @@ class RestResponseTest {
   }
 
   @Test
-  void a_body_that_is_not_json_reads_as_missing() {
+  void aBodyThatIsNotJsonReadsAsMissing() {
     assertThat(of(200, "not json").json().isMissingNode()).isTrue();
     assertThat(of(200, "").json().isMissingNode()).isTrue();
     assertThat(of(200, "[1]").json().size()).isEqualTo(1);

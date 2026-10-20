@@ -103,7 +103,7 @@ class GitLabProjectReportRichTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void reports_cadence_people_and_review_of_a_busy_project() {
+  void reportsCadencePeopleAndReviewOfABusyProject() {
     richProject();
 
     Cli.Result r = run();
@@ -114,7 +114,7 @@ class GitLabProjectReportRichTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void asks_gitlab_for_the_window_on_the_default_branch() {
+  void asksGitlabForTheWindowOnTheDefaultBranch() {
     richProject();
 
     run("--days", "30");
@@ -143,7 +143,7 @@ class GitLabProjectReportRichTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void samples_only_the_first_merged_requests() {
+  void samplesOnlyTheFirstMergedRequests() {
     richProject();
 
     Cli.Result r = run("--sample", "2");
@@ -155,7 +155,7 @@ class GitLabProjectReportRichTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void a_zero_sample_reads_no_notes() {
+  void aZeroSampleReadsNoNotes() {
     richProject();
 
     Cli.Result r = run("--sample", "0");
@@ -165,7 +165,7 @@ class GitLabProjectReportRichTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void bots_can_be_counted_as_people() {
+  void botsCanBeCountedAsPeople() {
     richProject();
 
     Cli.Result r = run("--include-bots");
@@ -174,7 +174,7 @@ class GitLabProjectReportRichTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void the_bot_pattern_can_be_replaced() {
+  void theBotPatternCanBeReplaced() {
     richProject();
 
     Cli.Result r = run("--bot-pattern", "^bob@");
@@ -183,7 +183,7 @@ class GitLabProjectReportRichTest extends GitLabProjectReportHarness {
   }
 
   @Test
-  void colors_mark_titles_and_findings() {
+  void colorsMarkTitlesAndFindings() {
     richProject();
 
     Cli.Result r = run("--color", "always");

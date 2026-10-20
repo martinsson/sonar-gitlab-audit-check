@@ -1,4 +1,4 @@
-╔═ a_second_run_keeps_the_rejected_pair/appariement ═╗
+╔═ aSecondRunKeepsTheRejectedPair/appariement ═╗
 ﻿"gauche_path";"droite_key";"methode";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_cle_ci";"m_cle_pom";"m_liaison";"m_ns_map";"m_chemin";"m_nom_pom";"m_liens";"liens_concorde";"m_noms_libre"
 "team-a/alpha-service";"alpha-key";"rejeté à la main";"rejete";"";"";"";"";"alpha-key";"";"";"";"";"";"";"";"alpha-key (0.85)"
 "team-a/beta-lib";"org.example:beta-lib";"clé Maven du pom";"exact";"";"";"";"";"";"org.example:beta-lib";"";"org.example:beta-lib";"";"";"";"";"org.example:beta-lib (0.85)"
@@ -14,7 +14,7 @@
 "team-f/mu-tool";"";"";"rejected";"";"";"";"";"";"";"";"";"";"";"";"";""
 "gone/project";"ghost-key";"clé lue dans la CI";"exact";"";"";"";"";"";"";"";"";"";"";"";"";""
 
-╔═ a_second_run_keeps_the_rejected_pair/sonarGitlab ═╗
+╔═ aSecondRunKeepsTheRejectedPair/sonarGitlab ═╗
 ﻿"sonar_key";"sonar_name";"gitlab_path";"gitlab_id";"methode";"confiance";"score";"autres_candidats";"raison";"cles_sonar_sur_ce_projet";"dans_selection";"gl_commits_window";"gl_last_activity_at";"gl_exclu";"sq_analysisDate";"sq_ncloc"
 "alpha-key";"Alpha Service";"";"";"aucune";"none";"";"";"aucun candidat";"";"";"";"";"";"2026-01-10";"5000"
 "org.example:beta-lib";"Beta Lib";"team-a/beta-lib";"12";"croisement : clé Maven du pom";"exact";"";"";"";"1";"oui";"0";"2025-01-01";"";"2025-03-01";"2000"
@@ -26,7 +26,7 @@
 "nu-thing";"Nu Thing";"";"";"aucune";"none";"";"";"aucun candidat";"";"";"";"";"";"";""
 "zz-other-key";"(iota-three) Legacy";"team-d/iota-three";"19";"nom Sonar = dernier segment / nom GitLab";"derived";"0.55";"";"";"1";"oui";"23";"2026-02-01";"";"2026-01-07";"600"
 
-╔═ a_second_run_keeps_the_rejected_pair/stdout ═╗
+╔═ aSecondRunKeepsTheRejectedPair/stdout ═╗
 
 Croisement SonarQube × GitLab
   Côté Sonar   : 9 projets (<tmp>/projets.csv)
@@ -187,7 +187,7 @@ Ressemblance de noms, jugée sur 3 paires sûres
     = suggestion donne la liste des rapprochements qu'un humain doit
     confirmer ; ils ne comptent dans aucun des constats ci-dessus.
 
-╔═ hand_made_decisions_are_replayed_and_the_old_file_kept_as_bak/appariement ═╗
+╔═ handMadeDecisionsAreReplayedAndTheOldFileKeptAsBak/appariement ═╗
 ﻿"gauche_path";"droite_key";"methode";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_cle_ci";"m_cle_pom";"m_liaison";"m_ns_map";"m_chemin";"m_nom_pom";"m_liens";"liens_concorde";"m_noms_libre"
 "team-a/alpha-service";"alpha-key";"rejeté à la main";"rejete";"";"";"";"";"alpha-key";"";"";"";"";"";"";"";"alpha-key (0.85)"
 "team-a/beta-lib";"org.example:beta-lib";"clé Maven du pom";"exact";"";"";"";"";"";"org.example:beta-lib";"";"org.example:beta-lib";"";"";"";"";"org.example:beta-lib (0.85)"
@@ -203,7 +203,7 @@ Ressemblance de noms, jugée sur 3 paires sûres
 "team-f/mu-tool";"";"";"rejected";"";"";"";"";"";"";"";"";"";"";"";"";""
 "gone/project";"ghost-key";"clé lue dans la CI";"exact";"";"";"";"";"";"";"";"";"";"";"";"";""
 
-╔═ hand_made_decisions_are_replayed_and_the_old_file_kept_as_bak/croisement ═╗
+╔═ handMadeDecisionsAreReplayedAndTheOldFileKeptAsBak/croisement ═╗
 ﻿"projet";"methode_jointure";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_cle_ci";"m_cle_pom";"m_liaison";"m_ns_map";"m_chemin";"m_nom_pom";"m_liens";"liens_concorde";"m_noms_libre";"gl_path";"gl_bucket";"gl_commits_window";"gl_authors_window";"gl_mr_fusionnees";"gl_auto_merge";"gl_part_approuvee";"gl_branche_protegee";"gl_taux_succes";"gl_rouge_non_resolu";"gl_ci_sonar";"gl_ci_securite";"gl_cle_sonar";"gl_source_cle_sonar";"gl_cle_pom";"gl_nom_pom";"gl_id";"gl_fenetre_j";"gl_lignes_modifiees";"gl_commits_lignes";"gl_lignes_tronquees";"sq_key";"sq_name";"sq_analysisDate";"sq_days_since_analysis";"sq_ncloc";"sq_coverage";"sq_new_coverage";"sq_tests";"sq_test_failures";"sq_lines_to_cover";"sq_uncovered_lines";"sq_sqale_index";"sq_sqale_debt_ratio";"sq_bugs";"sq_vulnerabilities";"sq_code_smells";"sq_violations";"sq_new_lines";"sq_new_violations";"sq_alert_status";"sq_duplicated_lines_density";"sq_new_duplicated_lines_density";"sq_alm";"sq_alm_repository";"sq_liens";"sq_tendance_analyses";"sq_tendance_jours";"sq_violations_pente_mois";"sq_violations_kloc_pente_pct_mois";"sq_dette_ratio_pente_pct_mois";"issues_par_kloc_modifie";"issues_par_commit"
 "team-a/alpha-service";"rejeté à la main";"rejete";"";"";"";"";"alpha-key";"";"";"";"";"";"";"";"alpha-key (0.85)";"team-a/alpha-service";"actif";"30";"";"0";"";"";"";"";"";"true";"";"alpha-key";"";"";"";"11";"90";"1000";"10";"false";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
 "team-a/beta-lib";"clé Maven du pom";"exact";"";"";"";"";"";"org.example:beta-lib";"";"org.example:beta-lib";"";"";"";"";"org.example:beta-lib (0.85)";"team-a/beta-lib";"dormant";"0";"";"2";"";"";"";"";"";"false";"";"";"";"org.example:beta-lib";"";"12";"90";"0";"0";"false";"org.example:beta-lib";"Beta Lib";"2025-03-01";"";"2000";"0";"";"12";"";"";"";"120";"";"";"";"";"";"";"0";"";"";"";"";"";"";"2";"";"";"";"";"";""
@@ -216,7 +216,7 @@ Ressemblance de noms, jugée sur 3 paires sûres
 "team-d/iota-three";"noms ressemblants (TF-IDF)";"suggestion";"zz-other-key";"0.53";"team-e_lambda-svc (0.03)";"";"";"";"";"";"";"";"";"";"zz-other-key (0.53)";"team-d/iota-three";"actif";"23";"";"0";"";"";"";"";"";"false";"";"";"";"";"";"19";"";"";"";"";"zz-other-key";"(iota-three) Legacy";"2026-01-07";"";"600";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
 "team-d/kappa-four";"aucune";"none";"team-e_lambda-svc";"0.03";"";"sous le seuil";"";"";"";"";"";"";"";"";"team-e_lambda-svc (0.03, sous le seuil)";"team-d/kappa-four";"actif";"24";"";"0";"";"";"";"";"";"false";"";"";"";"";"";"20";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";"";""
 
-╔═ hand_made_decisions_are_replayed_and_the_old_file_kept_as_bak/sonarGitlab ═╗
+╔═ handMadeDecisionsAreReplayedAndTheOldFileKeptAsBak/sonarGitlab ═╗
 ﻿"sonar_key";"sonar_name";"gitlab_path";"gitlab_id";"methode";"confiance";"score";"autres_candidats";"raison";"cles_sonar_sur_ce_projet";"dans_selection";"gl_commits_window";"gl_last_activity_at";"gl_exclu";"sq_analysisDate";"sq_ncloc"
 "alpha-key";"Alpha Service";"";"";"aucune";"none";"";"";"aucun candidat";"";"";"";"";"";"2026-01-10";"5000"
 "org.example:beta-lib";"Beta Lib";"team-a/beta-lib";"12";"croisement : clé Maven du pom";"exact";"";"";"";"1";"oui";"0";"2025-01-01";"";"2025-03-01";"2000"
@@ -228,7 +228,7 @@ Ressemblance de noms, jugée sur 3 paires sûres
 "nu-thing";"Nu Thing";"";"";"aucune";"none";"";"";"aucun candidat";"";"";"";"";"";"";""
 "zz-other-key";"(iota-three) Legacy";"team-d/iota-three";"19";"nom Sonar = dernier segment / nom GitLab";"derived";"0.55";"";"";"1";"oui";"23";"2026-02-01";"";"2026-01-07";"600"
 
-╔═ hand_made_decisions_are_replayed_and_the_old_file_kept_as_bak/stdout ═╗
+╔═ handMadeDecisionsAreReplayedAndTheOldFileKeptAsBak/stdout ═╗
 
 Croisement SonarQube × GitLab
   Côté Sonar   : 9 projets (<tmp>/projets.csv)
@@ -392,7 +392,7 @@ Ressemblance de noms, jugée sur 3 paires sûres
     = suggestion donne la liste des rapprochements qu'un humain doit
     confirmer ; ils ne comptent dans aucun des constats ci-dessus.
 
-╔═ reapparier_recomputes_exact_and_derived_but_keeps_manual_and_rejected/appariement ═╗
+╔═ reapparierRecomputesExactAndDerivedButKeepsManualAndRejected/appariement ═╗
 ﻿"gauche_path";"droite_key";"methode";"confiance";"candidat_nom";"score_nom";"second_nom";"rejet_nom";"m_cle_ci";"m_cle_pom";"m_liaison";"m_ns_map";"m_chemin";"m_nom_pom";"m_liens";"liens_concorde";"m_noms_libre"
 "team-a/alpha-service";"alpha-key";"rejeté à la main";"rejete";"";"";"";"";"alpha-key";"";"";"";"";"";"";"";"alpha-key (0.85)"
 "team-a/beta-lib";"org.example:beta-lib";"clé Maven du pom";"exact";"";"";"";"";"";"org.example:beta-lib";"";"org.example:beta-lib";"";"";"";"";"org.example:beta-lib (0.85)"
@@ -408,7 +408,7 @@ Ressemblance de noms, jugée sur 3 paires sûres
 "team-f/mu-tool";"";"";"rejected";"";"";"";"";"";"";"";"";"";"";"";"";""
 "gone/project";"ghost-key";"clé lue dans la CI";"exact";"";"";"";"";"";"";"";"";"";"";"";"";""
 
-╔═ reapparier_recomputes_exact_and_derived_but_keeps_manual_and_rejected/stdout ═╗
+╔═ reapparierRecomputesExactAndDerivedButKeepsManualAndRejected/stdout ═╗
 
 Croisement SonarQube × GitLab
   Côté Sonar   : 9 projets (<tmp>/projets.csv)

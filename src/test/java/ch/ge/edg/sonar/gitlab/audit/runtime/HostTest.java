@@ -24,27 +24,27 @@ class HostTest {
   private static final Charset CP850 = Charset.forName("IBM850");
 
   @Test
-  void a_forced_charset_wins_and_is_trimmed() {
+  void aForcedCharsetWinsAndIsTrimmed() {
     assertThat(Host.charset(" IBM850 ", null)).isEqualTo(CP850);
     assertThat(Host.charset("windows-1252", StandardCharsets.UTF_8))
         .isEqualTo(Charset.forName("windows-1252"));
   }
 
   @Test
-  void an_unknown_or_illegal_forced_charset_falls_back_to_utf8() {
+  void anUnknownOrIllegalForcedCharsetFallsBackToUtf8() {
     assertThat(Host.charset("no-such-charset", CP850)).isEqualTo(StandardCharsets.UTF_8);
     assertThat(Host.charset("bad charset name!", CP850)).isEqualTo(StandardCharsets.UTF_8);
   }
 
   @Test
-  void without_a_forced_charset_the_terminal_decides_and_utf8_without_one() {
+  void withoutAForcedCharsetTheTerminalDecidesAndUtf8WithoutOne() {
     assertThat(Host.charset("   ", CP850)).isEqualTo(CP850);
     assertThat(Host.charset(null, CP850)).isEqualTo(CP850);
     assertThat(Host.charset(null, null)).isEqualTo(StandardCharsets.UTF_8);
   }
 
   @Test
-  void colours_need_a_terminal_and_no_NO_COLOR() {
+  void coloursNeedATerminalAndNoNOCOLOR() {
     assertThat(new Terminal(true, false).colors(Map.of())).isTrue();
     assertThat(new Terminal(false, false).colors(Map.of())).isFalse();
     assertThat(new Terminal(true, false).colors(Map.of("NO_COLOR", ""))).isFalse();
@@ -52,7 +52,7 @@ class HostTest {
   }
 
   @Test
-  void on_windows_colours_need_an_emulator_that_says_so() {
+  void onWindowsColoursNeedAnEmulatorThatSaysSo() {
     Terminal windows = new Terminal(true, true);
     assertThat(windows.colors(Map.of())).isFalse();
     for (String v : new String[] {"WT_SESSION", "ConEmuANSI", "ANSICON", "TERM"}) {
@@ -62,7 +62,7 @@ class HostTest {
   }
 
   @Test
-  void the_console_follows_the_option_over_the_terminal() {
+  void theConsoleFollowsTheOptionOverTheTerminal() {
     Host host = host(new Terminal(true, false));
     assertThat(host.console(null).colors()).isTrue();
     assertThat(host.console("never").colors()).isFalse();
@@ -71,7 +71,7 @@ class HostTest {
   }
 
   @Test
-  void the_command_line_writes_help_and_errors_on_the_host_streams() {
+  void theCommandLineWritesHelpAndErrorsOnTheHostStreams() {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     Host host =
         new Host(
@@ -89,7 +89,7 @@ class HostTest {
   }
 
   @Test
-  void the_system_host_replaces_both_streams_and_has_no_terminal() {
+  void theSystemHostReplacesBothStreamsAndHasNoTerminal() {
     for (String cs : new String[] {"UTF-8", "IBM850"}) {
       @Nullable String saved = System.getProperty(Host.FORCED_CHARSET);
       PrintStream out = System.out;
