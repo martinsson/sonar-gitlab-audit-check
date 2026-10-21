@@ -11,7 +11,10 @@ jbang FrontendInventory.java --days 30 --out f.csv --limit 50
 jbang FrontendInventory.java --seuil-front 10 --threads 4 --profondeur 4
 ```
 
-Le CSV est au format Excel (point-virgule, BOM UTF-8).
+Le CSV est au format Excel (point-virgule, BOM UTF-8). Un fichier existant n'est jamais
+écrasé : si `frontend.csv` existe, la sortie va dans `frontend-1.csv`, puis `frontend-2.csv`...
+Chaque ligne est écrite dès que son projet est traité, dans l'ordre où ils se terminent :
+après un arrêt ou une erreur, le fichier contient déjà les projets finis.
 
 ## Méthode
 
