@@ -6,9 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.Test;
@@ -33,26 +31,6 @@ class SonarHelpersTest {
     assertThat(Sonar.needsOrganization("api/components/tree")).isFalse();
     assertThat(Sonar.needsOrganization("api/measures/search")).isFalse();
     assertThat(Sonar.needsOrganization("/api/issues/search")).isFalse();
-  }
-
-  @Test
-  void queryStringIsEmptyForNoParams() {
-    assertThat(Sonar.queryString(Map.of())).isEmpty();
-  }
-
-  @Test
-  void queryStringEncodesKeysAndValuesInOrder() {
-    Map<String, String> p = new LinkedHashMap<>();
-    p.put("metric Keys", "a,b");
-    p.put("q", "é&=");
-    assertThat(Sonar.queryString(p)).isEqualTo("?metric+Keys=a%2Cb&q=%C3%A9%26%3D");
-  }
-
-  @Test
-  void queryStringOfOnlyNullValuesIsAQuestionMark() {
-    Map<String, String> p = new LinkedHashMap<>();
-    p.put("a", null);
-    assertThat(Sonar.queryString(p)).isEqualTo("?");
   }
 
   @Test

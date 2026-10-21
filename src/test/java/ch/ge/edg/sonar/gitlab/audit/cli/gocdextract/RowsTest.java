@@ -5,6 +5,7 @@ import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.fixture;
 import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.node;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.databind.JsonNode;

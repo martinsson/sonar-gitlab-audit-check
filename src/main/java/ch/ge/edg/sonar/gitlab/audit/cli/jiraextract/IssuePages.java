@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
@@ -33,7 +34,7 @@ final class IssuePages {
     return "project in (" + keys + ") AND updated >= -" + days + "d ORDER BY key ASC";
   }
 
-  public void each(String jql, Sink sink) throws ExtractionStop, IOException {
+  public void each(String jql, Sink sink) throws Stop, IOException {
     int startAt = 0;
     int total = -1;
     while (total < 0 || startAt < total) {
@@ -48,7 +49,7 @@ final class IssuePages {
   }
 
   /** Le ticket tel quel si son historique est entier, relu seul sinon. */
-  JsonNode complete(JsonNode issue) throws ExtractionStop {
+  JsonNode complete(JsonNode issue) throws Stop {
     JsonNode changelog = issue.path("changelog");
     if (changelog.path("total").asInt(0) <= changelog.path("histories").size()) return issue;
     return jira.issue(issue.path("key").asText());

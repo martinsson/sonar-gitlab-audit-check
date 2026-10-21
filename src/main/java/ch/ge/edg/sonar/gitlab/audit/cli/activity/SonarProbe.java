@@ -1,10 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.enc;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
+import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.enc;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Locale;
@@ -109,10 +110,10 @@ final class SonarProbe {
 
   /** Le contenu d'un fichier de la branche par défaut, ou null s'il ne se lit pas. */
   private @Nullable String raw(GitlabProject p, String file) {
-    Gitlab.Response r =
+    RestResponse r =
         gitlab.get(
             "projects/" + p.id() + "/repository/files/" + enc(file) + "/raw",
             Map.of("ref", p.defaultBranch()));
-    return r.status() == 200 ? r.body() : null;
+    return r.is(200) ? r.body() : null;
   }
 }

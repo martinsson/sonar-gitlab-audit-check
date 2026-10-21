@@ -4,6 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.dora.Platforms;
 import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
@@ -90,7 +91,7 @@ final class StageRows {
             GocdApi.enc(stage.path("name").asText()),
             stage.path("counter").asText("1"));
     RestResponse r = gocd.checked(gocd.api().api(path));
-    return r.ok() ? completed(r.json()) : null;
+    return r.ok() ? completed(r.tree()) : null;
   }
 
   /** La dernière fois qu'un job du stage est passé à « Completed ». */

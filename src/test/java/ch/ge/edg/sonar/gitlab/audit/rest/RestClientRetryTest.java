@@ -42,9 +42,9 @@ class RestClientRetryTest {
 
   @Test
   void theWaitIsCappedAndABadRetryAfterMeansFiveSeconds() {
-    RestResponse huge = new RestResponse(429, "", Map.of("retry-after", "3600"), "");
-    RestResponse junk = new RestResponse(429, "", Map.of("retry-after", "soon"), "");
-    RestResponse negative = new RestResponse(429, "", Map.of("retry-after", "-3"), "");
+    RestResponse huge = new RestResponse.Answered(429, "", Map.of("retry-after", "3600"));
+    RestResponse junk = new RestResponse.Answered(429, "", Map.of("retry-after", "soon"));
+    RestResponse negative = new RestResponse.Answered(429, "", Map.of("retry-after", "-3"));
     assertThat(RestClient.retryAfter(huge)).isEqualTo(3600);
     assertThat(RestClient.retryAfter(junk)).isEqualTo(5);
     assertThat(RestClient.retryAfter(negative)).isZero();
@@ -55,7 +55,7 @@ class RestClientRetryTest {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on("/x", r -> Response.status(429, "{}").withHeader("Retry-After", "100"));
       RestClient c = client(jira.url(), Map.of());
-      assertThat(c.get("/x").status()).isEqualTo(429);
+      assertThat(c.get("/x").is(429)).isTrue();
       assertThat(c.calls()).isEqualTo(3);
       assertThat(waits).containsExactly(60L, 60L);
     }
@@ -66,7 +66,7 @@ class RestClientRetryTest {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on("/x", r -> Response.status(403, "{}"));
       RestClient c = client(jira.url(), Map.of());
-      assertThat(c.get("/x").status()).isEqualTo(403);
+      assertThat(c.get("/x").is(403)).isTrue();
       assertThat(c.calls()).isEqualTo(1);
     }
   }
@@ -79,8 +79,8 @@ class RestClientRetryTest {
     }
     RestClient c = client("http://127.0.0.1:" + port, Map.of());
     RestResponse r = c.get("/x");
-    assertThat(r.status()).isZero();
-    assertThat(r.error()).contains("ConnectException");
+    assertThat(r.unreachable()).isTrue();
+    assertThat(r.why()).contains("ConnectException");
     assertThat(c.calls()).isEqualTo(3);
   }
 }

@@ -2,8 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.jira;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -15,9 +14,11 @@ import org.junit.jupiter.api.Test;
 class JiraApiTest {
 
   private static JiraApi api(FakeHttpServer jira) throws IOException {
-    return new JiraApi(
-        new RestClient(
-            RestClient.Settings.of(jira.url(), Map.of(), false), Capture.none(), pause -> {}));
+    try {
+      return JiraApi.connect(jira.url(), "t", false, pause -> {});
+    } catch (Stop e) {
+      throw new IllegalStateException(e);
+    }
   }
 
   @Test
@@ -105,7 +106,7 @@ class JiraApiTest {
               "/rest/api/2/field",
               "/rest/api/2/issue/ABC-1?expand=changelog",
               "/rest/api/2/issue/ABC-2");
-      assertThat(api.http().calls()).isEqualTo(8);
+      assertThat(api.calls()).isEqualTo(8);
     }
   }
 }

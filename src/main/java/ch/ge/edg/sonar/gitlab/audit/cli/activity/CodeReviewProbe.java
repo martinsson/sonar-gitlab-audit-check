@@ -1,12 +1,13 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.parse;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.iso;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.median;
+import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.parse;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
@@ -68,7 +69,7 @@ final class CodeReviewProbe {
   private List<JsonNode> mergedMrs(GitlabProject p) {
     List<JsonNode> mrs = new ArrayList<>();
     for (int page = 1; page <= 3; page++) {
-      Gitlab.Response m =
+      RestResponse m =
           gitlab.get(
               "projects/" + p.id() + "/merge_requests",
               params(
@@ -82,8 +83,8 @@ final class CodeReviewProbe {
                   "100",
                   "page",
                   String.valueOf(page)));
-      JsonNode arr = m.json();
-      if (m.status() != 200 || !arr.isArray() || arr.isEmpty()) break;
+      JsonNode arr = m.tree();
+      if (!m.is(200) || !arr.isArray() || arr.isEmpty()) break;
       arr.forEach(mrs::add);
       if (arr.size() < 100) break;
     }
@@ -97,13 +98,13 @@ final class CodeReviewProbe {
     int seen = 0;
     for (int i = 0; i < sample; i++) {
       JsonNode mr = mrs.get(i);
-      Gitlab.Response ap =
+      RestResponse ap =
           gitlab.get(
               "projects/" + p.id() + "/merge_requests/" + mr.path("iid").asInt() + "/approvals",
               Map.of());
-      if (ap.status() != 200) break;
+      if (!ap.is(200)) break;
       seen++;
-      JsonNode by = ap.json().path("approved_by");
+      JsonNode by = ap.tree().path("approved_by");
       if (by.size() > 0) approved++;
       selfApproved += selfApprovals(by, mr.path("author").path("id").asInt(-1));
     }

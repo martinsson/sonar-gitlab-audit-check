@@ -2,25 +2,21 @@ package ch.ge.edg.sonar.gitlab.audit.sonar;
 
 import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
+import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Retries;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
-import ch.ge.edg.sonar.gitlab.audit.text.Text;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -70,57 +66,6 @@ public final class Sonar {
           "api/qualitygates/get_by_project");
 
   // ----------------------------------------------------------------------
-  // Réponse
-  // ----------------------------------------------------------------------
-
-  /** Statut + corps brut. Le corps est toujours présent, y compris sur erreur. */
-  public record Response(int status, @Nullable String body) {
-
-    public boolean unreachable() {
-      return status == 0;
-    }
-
-    public boolean ok() {
-      return status == 200;
-    }
-
-    /** null si le statut n'est pas 200 ou si le corps n'est pas le JSON attendu. */
-    public <T> @Nullable T as(Class<T> type) {
-      if (status != 200 || body == null) return null;
-      try {
-        return MAPPER.readValue(body, type);
-      } catch (IOException e) {
-        return null;
-      }
-    }
-
-    public String errorMessage() {
-      if (body == null) return "";
-      try {
-        ErrorResponse e = MAPPER.readValue(body, ErrorResponse.class);
-        List<ErrorMessage> errors = e.errors();
-        if (errors != null && !errors.isEmpty()) {
-          return Text.truncate(
-              errors.stream()
-                  .map(ErrorMessage::msg)
-                  .filter(Objects::nonNull)
-                  .collect(Collectors.joining("; ")),
-              90);
-        }
-      } catch (IOException ignored) {
-        // corps non-JSON : on le montre tel quel
-      }
-      return Text.truncate(body.replace("\n", " "), 90);
-    }
-  }
-
-  @JsonIgnoreProperties(ignoreUnknown = true)
-  public record ErrorResponse(@Nullable List<ErrorMessage> errors) {}
-
-  @JsonIgnoreProperties(ignoreUnknown = true)
-  public record ErrorMessage(@Nullable String msg) {}
-
-  // ----------------------------------------------------------------------
   // Client
   // ----------------------------------------------------------------------
 
@@ -159,6 +104,23 @@ public final class Sonar {
             sleeper);
   }
 
+  /**
+   * Un client qui enregistre ses réponses dans {@code dumpDir}, ou les rejoue depuis {@code
+   * replayDir} sans appeler l'instance.
+   *
+   * @param notWritten reçoit la raison d'une capture qui n'a pas pu s'écrire
+   * @param sleeper l'attente avant un nouvel essai
+   */
+  public static Sonar connect(
+      SonarConnection connection,
+      @Nullable Path dumpDir,
+      @Nullable Path replayDir,
+      Consumer<String> notWritten,
+      Sleeper sleeper)
+      throws IOException {
+    return new Sonar(connection, new Capture(dumpDir, replayDir, notWritten), sleeper);
+  }
+
   public int calls() {
     return client.calls();
   }
@@ -180,14 +142,13 @@ public final class Sonar {
     return client.replaying();
   }
 
-  public Response get(String path, Map<String, String> params) {
+  public RestResponse get(String path, Map<String, String> params) {
     String cleanPath = path.replaceAll("^/+", "");
     Map<String, String> all = new LinkedHashMap<>(params);
     if (organization != null && needsOrganization(cleanPath)) {
       all.putIfAbsent("organization", organization);
     }
-    RestResponse r = client.get("/" + cleanPath + queryString(all));
-    return new Response(r.status(), r.status() == 0 ? r.error() : r.body());
+    return client.get("/" + cleanPath + Query.string(all));
   }
 
   // ----------------------------------------------------------------------
@@ -210,17 +171,5 @@ public final class Sonar {
   /** Voir {@link #ORGANIZATION_PATHS}. */
   static boolean needsOrganization(String path) {
     return ORGANIZATION_PATHS.stream().anyMatch(path::startsWith);
-  }
-
-  static String queryString(Map<String, String> params) {
-    if (params.isEmpty()) return "";
-    return params.entrySet().stream()
-        .filter(e -> e.getValue() != null)
-        .map(e -> encode(e.getKey()) + "=" + encode(e.getValue()))
-        .collect(Collectors.joining("&", "?", ""));
-  }
-
-  private static String encode(String s) {
-    return URLEncoder.encode(s, StandardCharsets.UTF_8);
   }
 }

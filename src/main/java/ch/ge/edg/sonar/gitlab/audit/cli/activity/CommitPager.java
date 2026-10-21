@@ -1,10 +1,12 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.iso;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import com.fasterxml.jackson.databind.JsonNode;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 /** Les commits de la branche par défaut sur la fenêtre, lus en REST. */
@@ -18,25 +20,29 @@ final class CommitPager {
     this.funnel = funnel;
   }
 
-  /** L'issue d'une pagination : lue jusqu'au bout, plafonnée, ou interrompue sur un statut. */
-  record Walk(boolean ok, int status, boolean truncated) {}
+  /**
+   * L'issue d'une pagination : lue jusqu'au bout, plafonnée, ou interrompue sur un statut.
+   *
+   * @param status « HTTP 200 », ou le statut qui l'a interrompue (« HTTP 403 », « injoignable »)
+   */
+  record Walk(boolean ok, String status, boolean truncated) {}
 
   /** Compte sans pagination quand X-Total est là ; sinon pagine. */
   int count(GitlabProject p) {
     String since = iso(funnel.windowStart());
-    Gitlab.Response r =
+    RestResponse r =
         gitlab.get(path(p), params("ref_name", p.defaultBranch(), "since", since, "per_page", "1"));
-    if (r.status() != 200) return 0;
-    Integer total = r.intHeader("x-total");
-    if (total != null) return total;
+    if (!r.is(200)) return 0;
+    Optional<Integer> total = r.intHeader("x-total");
+    if (total.isPresent()) return total.get();
     // GitLab omet X-Total quand le comptage serait coûteux. Absent ne veut pas
     // dire zéro : on redemande une page pleine plutôt que de lire un en-tête
     // manquant comme un 0 — c'est exactement la confusion « absent = zéro »
     // qui a déjà coûté cher côté Sonar.
-    Gitlab.Response full =
+    RestResponse full =
         gitlab.get(
             path(p), params("ref_name", p.defaultBranch(), "since", since, "per_page", "100"));
-    return full.status() == 200 && full.json().isArray() ? full.json().size() : 0;
+    return full.is(200) && full.tree().isArray() ? full.tree().size() : 0;
   }
 
   /**
@@ -51,7 +57,7 @@ final class CommitPager {
     // pas » ne doit surtout pas se lire comme « aucune activité ».
     return w.ok()
         ? tally.result(p.head(), w.truncated())
-        : new CommitMeasure.Unmeasurable("HTTP " + w.status());
+        : new CommitMeasure.Unmeasurable(w.status());
   }
 
   /** Ce que reçoit chaque page non vide : son numéro et ses commits. */
@@ -67,16 +73,16 @@ final class CommitPager {
     int max = funnel.options().maxCommitPages;
     boolean truncated = false;
     for (int page = 1; page <= max; page++) {
-      Gitlab.Response r =
+      RestResponse r =
           gitlab.get(path(p), Api.commitPage(p, funnel.windowStart(), page, withStats));
-      if (r.status() != 200) return new Walk(false, r.status(), truncated);
-      JsonNode arr = r.json();
+      if (!r.is(200)) return new Walk(false, r.statusLine(), truncated);
+      JsonNode arr = r.tree();
       if (!arr.isArray() || arr.isEmpty()) break;
       visitor.visit(page, arr);
       if (arr.size() < 100) break;
       if (page == max) truncated = true;
     }
-    return new Walk(true, 200, truncated);
+    return new Walk(true, "HTTP 200", truncated);
   }
 
   /** Pour qui n'a qu'un commit à la fois à regarder. */

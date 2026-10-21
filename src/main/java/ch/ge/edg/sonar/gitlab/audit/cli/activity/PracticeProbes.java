@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;
 import java.util.Map;
@@ -54,11 +55,11 @@ final class PracticeProbes {
 
   /** Binaire, non ambigu, et cela explique le nombre de poussées directes. */
   private Practices.Protection protection(GitlabProject p) {
-    Gitlab.Response br =
+    RestResponse br =
         gitlab.get("projects/" + p.id() + "/protected_branches", Map.of("per_page", "100"));
     Practices.Protection found = Practices.Protection.none();
-    if (br.status() != 200) return found;
-    for (JsonNode b : br.json()) {
+    if (!br.is(200)) return found;
+    for (JsonNode b : br.tree()) {
       if (p.defaultBranch().equals(text(b, "name"))) {
         JsonNode lvl = b.path("push_access_levels");
         found =

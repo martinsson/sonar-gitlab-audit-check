@@ -1,12 +1,13 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.enc;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.isBlank;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.SonarKeys.firstMatch;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.SonarKeys.unquote;
+import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.enc;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.isBlank;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.HashSet;
 import java.util.List;
@@ -89,28 +90,27 @@ final class CiConfig {
       Ci merged = lint(p);
       if (merged != null) return merged;
     }
-    Gitlab.Response raw =
+    RestResponse raw =
         gitlab.get(
             "projects/" + p.id() + "/repository/files/" + enc(".gitlab-ci.yml") + "/raw",
             Map.of("ref", p.defaultBranch()));
     String body = raw.body();
-    if (raw.status() != 200 || body == null) return null;
+    if (!raw.is(200)) return null;
     StringBuilder all = new StringBuilder(body);
     chaseIncludes(body, new Chase(all, new HashSet<>()), 0);
     return new Ci(all.toString(), FALLBACK);
   }
 
   private @Nullable Ci lint(GitlabProject p) {
-    Gitlab.Response lint =
+    RestResponse lint =
         gitlab.get(
             "projects/" + p.id() + "/ci/lint",
             params(
                 "ref", p.defaultBranch(),
                 "content_ref", p.defaultBranch(),
                 "include_merged_yaml", "true"));
-    int status = lint.status();
-    if (status == 200) {
-      JsonNode j = lint.json();
+    if (lint.is(200)) {
+      JsonNode j = lint.tree();
       String merged = j.path("merged_yaml").asText(null);
       if (isBlank(merged)) merged = j.path("content").path("merged_yaml").asText(null);
       if (merged != null && !merged.isBlank()) {
@@ -118,11 +118,12 @@ final class CiConfig {
       }
       // 200 sans merged_yaml : configuration invalide, ou version
       // de GitLab qui ne le renvoie pas. Les deux se replient.
-    } else if (status == 401 || status == 403 || status == 404) {
+    } else if (lint instanceof RestResponse.Answered a
+        && (a.status() == 401 || a.status() == 403 || a.status() == 404)) {
       // Refusé une fois, refusé partout : le droit se donne au
       // jeton, pas au projet. Insister coûterait un appel perdu
       // par projet du parc.
-      lintRefusedStatus = status;
+      lintRefusedStatus = a.status();
     }
     return null;
   }
@@ -176,12 +177,11 @@ final class CiConfig {
   }
 
   private String fetchRaw(String projId, String file, String ref) {
-    Gitlab.Response fr =
+    RestResponse fr =
         gitlab.get(
             "projects/" + enc(projId) + "/repository/files/" + enc(file) + "/raw",
             Map.of("ref", ref));
-    String body = fr.body();
-    return fr.status() == 200 && body != null ? body : "";
+    return fr.is(200) ? fr.body() : "";
   }
 
   /**
@@ -195,9 +195,9 @@ final class CiConfig {
       projPathToId.put(projPath, projPath);
       return projPath;
     }
-    Gitlab.Response proj = gitlab.get("projects/" + enc(projPath), Map.of("per_page", "1"));
-    if (proj.status() == 200 && proj.body() != null) {
-      JsonNode node = proj.json();
+    RestResponse proj = gitlab.get("projects/" + enc(projPath), Map.of("per_page", "1"));
+    if (proj.is(200)) {
+      JsonNode node = proj.tree();
       if (node.hasNonNull("id")) {
         String id = String.valueOf(node.path("id").asLong());
         projPathToId.put(projPath, id);

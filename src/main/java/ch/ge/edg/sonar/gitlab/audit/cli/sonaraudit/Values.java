@@ -9,10 +9,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 import java.util.Collection;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -65,12 +63,6 @@ final class Values {
   }
 
   /** Paires clé, valeur ; une valeur null n'est pas envoyée (voir {@code Sonar.queryString}). */
-  static Map<String, String> params(@Nullable String... pairs) {
-    Map<String, String> m = new LinkedHashMap<>();
-    for (int i = 0; i + 1 < pairs.length; i += 2) m.put(pairs[i], pairs[i + 1]);
-    return m;
-  }
-
   static int orZero(@Nullable Integer i) {
     return i == null ? 0 : i;
   }

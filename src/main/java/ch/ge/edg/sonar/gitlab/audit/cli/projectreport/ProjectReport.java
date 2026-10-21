@@ -4,6 +4,7 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.Report.DIM;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.PrintStream;
 import java.time.LocalDateTime;
@@ -51,13 +52,13 @@ final class ProjectReport {
   }
 
   private Optional<Project> fetchProject(String projectPath) {
-    Gitlab.Response r = api.project(projectPath);
-    Project p = r.as(Project.class);
-    if (p != null && p.id() != null) return Optional.of(p);
+    RestResponse r = api.project(projectPath);
+    Optional<Project> p = r.as(Project.class).filter(x -> x.id() != null);
+    if (p.isPresent()) return p;
 
     err.println("Projet introuvable : " + projectPath);
-    err.println("  HTTP " + r.status() + " — " + r.errorMessage());
-    if (r.status() == 404) {
+    err.println("  " + r.statusLine() + " — " + r.message());
+    if (r.is(404)) {
       err.println(
           """
           404 ne distingue pas « n'existe pas » de « pas de droit de lecture » :

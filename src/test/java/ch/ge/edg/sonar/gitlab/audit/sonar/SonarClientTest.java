@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.sonar;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
@@ -41,9 +42,9 @@ class SonarClientTest {
   void getSendsBearerTokenAcceptAndQueryOnACleanUrl() throws Exception {
     server.json("/api/system/status", "{\"status\":\"UP\"}");
     Sonar sq = client(null);
-    Sonar.Response r = sq.get("//api/system/status", Map.of("a", "x y"));
+    RestResponse r = sq.get("//api/system/status", Map.of("a", "x y"));
 
-    assertThat(r).isEqualTo(new Sonar.Response(200, "{\"status\":\"UP\"}"));
+    assertAnswered(r, 200, "{\"status\":\"UP\"}");
     Request req = server.requests("/api/system/status").getFirst();
     assertThat(req.method()).isEqualTo("GET");
     assertThat(req.target()).isEqualTo("/api/system/status?a=x+y");
@@ -65,9 +66,9 @@ class SonarClientTest {
   @Test
   void nonOkStatusIsReturnedWithItsBody() throws Exception {
     server.on("/api/x", r -> Response.status(403, "{\"errors\":[{\"msg\":\"nope\"}]}"));
-    Sonar.Response r = client(null).get("api/x", Map.of());
-    assertThat(r.status()).isEqualTo(403);
-    assertThat(r.errorMessage()).isEqualTo("nope");
+    RestResponse r = client(null).get("api/x", Map.of());
+    assertThat(r.is(403)).isTrue();
+    assertThat(r.message()).isEqualTo("nope");
     assertThat(server.requests("/api/x").getFirst().target()).isEqualTo("/api/x");
   }
 
@@ -117,8 +118,8 @@ class SonarClientTest {
   void throttledRequestsAreRetriedThreeTimesThenReturned() throws Exception {
     server.on("/api/t", r -> Response.status(429, "slow").withHeader("Retry-After", " 0 "));
     Sonar sq = client(null);
-    Sonar.Response r = sq.get("api/t", Map.of());
-    assertThat(r).isEqualTo(new Sonar.Response(429, "slow"));
+    RestResponse r = sq.get("api/t", Map.of());
+    assertAnswered(r, 429, "slow");
     assertThat(sq.calls()).isEqualTo(4);
     assertThat(sq.throttled()).isEqualTo(3);
     assertThat(sq.retried()).isZero();
@@ -173,9 +174,9 @@ class SonarClientTest {
     int[] codes = {503, 504, 502};
     server.on("/api/g", r -> Response.status(codes[n.getAndIncrement()], "gw"));
     Sonar sq = client(null);
-    Sonar.Response r = sq.get("api/g", Map.of());
+    RestResponse r = sq.get("api/g", Map.of());
     assertThat(pauses).as("back-off").containsExactly(Duration.ofSeconds(1), Duration.ofSeconds(2));
-    assertThat(r).isEqualTo(new Sonar.Response(502, "gw"));
+    assertAnswered(r, 502, "gw");
     assertThat(sq.calls()).isEqualTo(3);
     assertThat(sq.retried()).isEqualTo(2);
     assertThat(sq.throttled()).isZero();
@@ -185,7 +186,7 @@ class SonarClientTest {
   void serverErrorOtherThanGatewayIsNotRetried() throws Exception {
     server.on("/api/e", r -> Response.status(500, "boom"));
     Sonar sq = client(null);
-    assertThat(sq.get("api/e", Map.of()).status()).isEqualTo(500);
+    assertThat(sq.get("api/e", Map.of()).is(500)).isTrue();
     assertThat(sq.calls()).isEqualTo(1);
     assertThat(sq.retried()).isZero();
   }
@@ -201,10 +202,10 @@ class SonarClientTest {
             new SonarConnection("http://127.0.0.1:" + port, "t", null, 2, false),
             Capture.none(),
             pause -> {});
-    Sonar.Response r = sq.get("api/system/status", Map.of());
+    RestResponse r = sq.get("api/system/status", Map.of());
     assertThat(r.unreachable()).isTrue();
     // "ConnectException: Connection refused" on macOS and Linux; the class name always leads.
-    assertThat(r.body()).startsWith("ConnectException: ");
+    assertThat(r.why()).startsWith("ConnectException: ");
     assertThat(sq.calls()).isEqualTo(1);
   }
 
@@ -213,16 +214,16 @@ class SonarClientTest {
     Sonar sq =
         new Sonar(
             new SonarConnection("not a url", "t", null, 2, false), Capture.none(), pause -> {});
-    Sonar.Response r = sq.get("api/x", Map.of());
-    assertThat(r.status()).isZero();
-    assertThat(r.body()).startsWith("IllegalArgumentException: ");
+    RestResponse r = sq.get("api/x", Map.of());
+    assertThat(r.unreachable()).isTrue();
+    assertThat(r.why()).startsWith("IllegalArgumentException: ");
   }
 
   @Test
   void urlWithoutSchemeIsReportedWithTheExceptionMessage() throws Exception {
     Sonar sq = new Sonar(new SonarConnection("", "t", null, 2, false), Capture.none(), pause -> {});
     assertThat(sq.get("api/x", Map.of()))
-        .isEqualTo(new Sonar.Response(0, "IllegalArgumentException: URI with undefined scheme"));
+        .isEqualTo(RestResponse.unreachable("IllegalArgumentException: URI with undefined scheme"));
   }
 
   @Test
@@ -231,8 +232,8 @@ class SonarClientTest {
     Sonar sq = client(null);
     Thread.currentThread().interrupt();
     try {
-      Sonar.Response r = sq.get("api/x", Map.of());
-      assertThat(r).isEqualTo(new Sonar.Response(0, "interrompu"));
+      RestResponse r = sq.get("api/x", Map.of());
+      assertThat(r).isEqualTo(RestResponse.unreachable("interrompu"));
       assertThat(Thread.currentThread().isInterrupted()).isTrue();
     } finally {
       Thread.interrupted();
@@ -251,5 +252,10 @@ class SonarClientTest {
     assertThat(sq.get("api/x", Map.of()).body()).isEqualTo("{\"v\":1}");
     assertThat(System.getProperty("jdk.internal.httpclient.disableHostnameVerification"))
         .isEqualTo("true");
+  }
+
+  private static void assertAnswered(RestResponse r, int status, String body) {
+    assertThat(r.is(status)).as("status").isTrue();
+    assertThat(r.body()).isEqualTo(body);
   }
 }

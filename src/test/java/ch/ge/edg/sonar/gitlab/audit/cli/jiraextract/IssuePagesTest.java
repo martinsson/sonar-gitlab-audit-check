@@ -4,9 +4,7 @@ import static ch.ge.edg.sonar.gitlab.audit.testing.JiraFixtures.json;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
-import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.ByteArrayOutputStream;
@@ -15,7 +13,6 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class IssuePagesTest {
@@ -23,11 +20,8 @@ class IssuePagesTest {
   private static final PrintStream QUIET =
       new PrintStream(new ByteArrayOutputStream(), true, StandardCharsets.UTF_8);
 
-  private static JiraSource source(FakeHttpServer jira) throws IOException {
-    return new JiraSource(
-        new JiraApi(
-            new RestClient(
-                RestClient.Settings.of(jira.url(), Map.of(), false), Capture.none(), pause -> {})));
+  private static JiraSource source(FakeHttpServer jira) throws IOException, Stop {
+    return JiraSource.connect(jira.url(), "t", false, pause -> {});
   }
 
   @Test
@@ -99,7 +93,7 @@ class IssuePagesTest {
     try (FakeHttpServer jira = new FakeHttpServer()) {
       jira.on("/rest/api/2/search", r -> FakeHttpServer.Response.status(500, ""));
       assertThatThrownBy(() -> source(jira).search("q", 0))
-          .isInstanceOf(ExtractionStop.class)
+          .isInstanceOf(Stop.class)
           .hasMessage("search : HTTP 500");
     }
   }
@@ -113,10 +107,9 @@ class IssuePagesTest {
   }
 
   @Test
-  void aRequiredValueIsTrimmed() throws ExtractionStop {
-    assertThat(JiraSource.require("  http://jira  ", "JIRA_URL")).isEqualTo("http://jira");
-    assertThatThrownBy(() -> JiraSource.require(null, "JIRA_TOKEN"))
-        .hasMessage("JIRA_TOKEN manquant");
+  void aRequiredValueIsTrimmed() throws Stop {
+    assertThat(Stop.require("  http://jira  ", "JIRA_URL")).isEqualTo("http://jira");
+    assertThatThrownBy(() -> Stop.require(null, "JIRA_TOKEN")).hasMessage("JIRA_TOKEN manquant");
   }
 
   @Test

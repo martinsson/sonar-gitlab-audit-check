@@ -3,8 +3,8 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.GREEN;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ScmResponse;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;

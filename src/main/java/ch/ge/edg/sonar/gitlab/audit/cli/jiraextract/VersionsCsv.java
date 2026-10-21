@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -18,13 +19,13 @@ final class VersionsCsv {
   private VersionsCsv() {}
 
   public static void write(JiraSource jira, List<String> projects, Output output, PrintStream err)
-      throws ExtractionStop, IOException {
+      throws Stop, IOException {
     try (CountedCsv csv =
         new CountedCsv(output.dir().resolve("jira-versions.csv"), output.comma(), HEADER)) {
       for (String p : projects) {
         RestResponse r = jira.versions(p);
         if (r.ok()) {
-          for (JsonNode v : r.json()) csv.row(row(p, v));
+          for (JsonNode v : r.tree()) csv.row(row(p, v));
         } else {
           err.println("versions de " + p + " : " + r.why());
         }

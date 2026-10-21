@@ -1,8 +1,9 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.parse;
+import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.parse;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,9 +78,9 @@ final class GraphqlDates {
   }
 
   /** Le nœud data d'une réponse sans erreur, sinon null. */
-  private static @Nullable JsonNode data(Gitlab.Response r) {
-    if (r.status() != 200) return null;
-    JsonNode json = r.json();
+  private static @Nullable JsonNode data(RestResponse r) {
+    if (!r.is(200)) return null;
+    JsonNode json = r.tree();
     JsonNode data = json.path("data");
     return data.isMissingNode() || json.has("errors") ? null : data;
   }

@@ -3,7 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 import static ch.ge.edg.sonar.gitlab.audit.text.Text.isBlank;
 import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
 
@@ -12,12 +12,13 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ProjectLink;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ProjectLinks;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
-import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 
@@ -77,19 +78,19 @@ final class Bindings {
   }
 
   private Attachments attachments(String key) {
-    Sonar.Response r = session.sq().get("api/alm_settings/get_binding", params("project", key));
+    RestResponse r = session.sq().get("api/alm_settings/get_binding", params("project", key));
     String alm;
     String repository = "";
     if (r.ok()) {
-      AlmBinding b = r.as(AlmBinding.class);
+      Optional<AlmBinding> b = r.as(AlmBinding.class);
       // En rejeu, un 404 capturé revient en 200 avec son corps d'erreur :
       // une liaison sans plateforme est une absence, pas une lecture ratée.
-      alm = b == null ? "" : orEmpty(b.alm()).toLowerCase(Locale.ROOT);
-      repository = b == null ? "" : orEmpty(b.repository());
-    } else if (r.status() == 404) {
+      alm = b.map(x -> orEmpty(x.alm()).toLowerCase(Locale.ROOT)).orElse("");
+      repository = b.map(x -> orEmpty(x.repository())).orElse("");
+    } else if (r.is(404)) {
       alm = "";
     } else {
-      alm = Attachments.REFUSED + " (HTTP " + r.status() + ")";
+      alm = Attachments.REFUSED + " (" + r.statusLine() + ")";
     }
     ProjectLinks pl =
         session.read("api/project_links/search", params("projectKey", key), ProjectLinks.class);

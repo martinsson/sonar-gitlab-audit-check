@@ -152,10 +152,6 @@ class ProjectReportUnitTest {
 
   @Test
   void smallUtilities() {
-    assertThat(ProjectApi.params("a", "1", "b", "2", "odd"))
-        .containsExactly(Map.entry("a", "1"), Map.entry("b", "2"));
-    assertThat(ProjectApi.params()).isEmpty();
-    assertThat(ProjectApi.enc("a/b c")).isEqualTo("a%2Fb+c");
     assertThat(ReportFormat.orZero(null)).isZero();
     assertThat(ReportFormat.orZero(4)).isEqualTo(4);
     assertThat(ReportFormat.str(null)).isNull();

@@ -2,24 +2,18 @@ package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
-import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
-import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
-import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
-import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
+import ch.ge.edg.sonar.gitlab.audit.gitlab.GitlabWarnings;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Les trois serveurs, ouverts d'après les options : GitLab par PRIVATE-TOKEN, Jira et GoCD par un
- * PAT en Bearer. Un jeton refusé (401) arrête l'outil : la suite ne lirait plus rien.
+ * GitLab, ouvert d'après les options, par PRIVATE-TOKEN ; Jira et GoCD s'ouvrent par leur client
+ * ({@code JiraApi.connect}, {@code GocdApi.connect}). Un jeton refusé (401) arrête l'outil : la
+ * suite ne lirait plus rien.
  */
 final class Access {
 
@@ -41,46 +35,16 @@ final class Access {
             TIMEOUT_SECONDS,
             insecure,
             null);
-    return new Gitlab(c, new GitlabWarnings(console), sleeper);
-  }
-
-  public static JiraApi jira(
-      @Nullable String url, @Nullable String token, boolean insecure, Sleeper sleeper)
-      throws Stop, IOException {
-    Map<String, String> headers =
-        new HashMap<>(AuthHeaders.bearer(Stop.require(token, "JIRA_TOKEN")));
-    headers.put("Accept", "application/json");
-    return new JiraApi(
-        new RestClient(
-            Settings.of(Stop.require(url, "JIRA_URL"), headers, insecure),
-            Capture.none(),
-            sleeper));
-  }
-
-  /** Une URL GoCD donnée avec ou sans « /go » final : les chemins d'API le remettent. */
-  public static GocdApi gocd(
-      @Nullable String url, @Nullable String token, boolean insecure, Sleeper sleeper)
-      throws Stop, IOException {
-    String base = Stop.require(url, "GOCD_URL").replaceAll("/+$", "").replaceFirst("/go$", "");
-    Map<String, String> headers = AuthHeaders.bearer(Stop.require(token, "GOCD_TOKEN"));
-    return new GocdApi(
-        new RestClient(Settings.of(base, headers, insecure), Capture.none(), sleeper));
-  }
-
-  /** Une réponse Jira ou GoCD, telle quelle sauf un 401. */
-  static RestResponse checked(RestResponse r, RestClient http) throws Stop {
-    if (r.status() == 401) throw new Stop(http.base() + " : jeton refusé (401)");
-    return r;
+    return new Gitlab(c, GitlabWarnings.onError(console), sleeper);
   }
 
   /** Une réponse GitLab, telle quelle sauf un 401. */
-  static Gitlab.Response checked(Gitlab.Response r, Gitlab gitlab) throws Stop {
-    if (r.status() == 401) throw new Stop(gitlab.base + " : jeton refusé (401)");
-    return r;
+  static RestResponse checked(RestResponse r, Gitlab gitlab) throws Stop {
+    return Stop.unlessRefused(r, gitlab.base);
   }
 
   /** Pourquoi une réponse GitLab n'est pas exploitable, sans recopier le corps. */
-  static String why(Gitlab.Response r) {
-    return r.unreachable() ? Objects.toString(r.body(), "") : "HTTP " + r.status();
+  static String why(RestResponse r) {
+    return r instanceof RestResponse.Unreachable u ? u.reason() : r.statusLine();
   }
 }

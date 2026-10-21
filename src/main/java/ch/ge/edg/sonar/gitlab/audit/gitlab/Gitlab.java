@@ -1,14 +1,14 @@
 package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
 import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
+import ch.ge.edg.sonar.gitlab.audit.rest.Query;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
@@ -21,7 +21,6 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -42,76 +41,8 @@ public final class Gitlab {
       new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
   // ----------------------------------------------------------------------
-  // Réponse
+  // Pages
   // ----------------------------------------------------------------------
-
-  /** Statut, corps brut, en-têtes. GitLab met la pagination dans les en-têtes. */
-  public record Response(int status, @Nullable String body, Map<String, String> headers) {
-
-    public boolean unreachable() {
-      return status == 0;
-    }
-
-    public boolean ok() {
-      return status >= 200 && status < 300;
-    }
-
-    public JsonNode json() {
-      if (body == null) return MAPPER.nullNode();
-      try {
-        return MAPPER.readTree(body);
-      } catch (IOException e) {
-        return MAPPER.nullNode();
-      }
-    }
-
-    /** Lecture typée, pour l'outil qui préfère des records à un arbre. */
-    public <T> @Nullable T as(Class<T> type) {
-      if (!ok() || Text.isBlank(body)) return null;
-      try {
-        return MAPPER.readValue(body, type);
-      } catch (IOException e) {
-        return null;
-      }
-    }
-
-    /**
-     * Vide quand la réponse est refusée ou illisible : une liste vide dirait « rien à lire », et la
-     * pagination typée doit pouvoir rapporter « réponse illisible » au lieu d'un plancher.
-     */
-    public <T> Optional<List<T>> asList(Class<T> type) {
-      if (!ok() || Text.isBlank(body)) return Optional.empty();
-      try {
-        List<T> list =
-            MAPPER.readValue(
-                body, MAPPER.getTypeFactory().constructCollectionType(List.class, type));
-        return Optional.ofNullable(list);
-      } catch (IOException e) {
-        return Optional.empty();
-      }
-    }
-
-    public @Nullable Integer intHeader(String name) {
-      String v = headers.get(name.toLowerCase(Locale.ROOT));
-      if (v == null || v.isBlank()) return null;
-      try {
-        return Integer.parseInt(v.trim());
-      } catch (NumberFormatException e) {
-        return null;
-      }
-    }
-
-    /** GitLab répond message, error ou error_description selon l'endpoint. */
-    public String errorMessage() {
-      if (status == 429) return "limite de débit atteinte (429)";
-      if (body == null) return "";
-      JsonNode j = json();
-      for (String k : List.of("message", "error", "error_description")) {
-        if (j.hasNonNull(k) && j.get(k).isTextual()) return Text.truncate(j.get(k).asText(), 90);
-      }
-      return Text.truncate(body.replace("\n", " "), 90);
-    }
-  }
 
   /**
    * Une page de résultats typés, avec de quoi distinguer les trois issues : complet, plafonné, ou
@@ -160,23 +91,22 @@ public final class Gitlab {
     this.http = new GitlabHttp(c, listener, sleeper);
   }
 
-  public Response get(String path, Map<String, String> params) {
+  public RestResponse get(String path, Map<String, String> params) {
     return http.send("GET", base + "/api/v4/" + path.replaceAll("^/+", "") + query(params), null);
   }
 
   /** Existence d'un fichier sans transférer son contenu. */
   public boolean exists(String path, Map<String, String> params) {
     return http.send("HEAD", base + "/api/v4/" + path.replaceAll("^/+", "") + query(params), null)
-            .status()
-        == 200;
+        .is(200);
   }
 
-  public Response graphql(String q) {
+  public RestResponse graphql(String q) {
     String payload;
     try {
       payload = MAPPER.writeValueAsString(Map.of("query", q));
     } catch (IOException e) {
-      return new Response(0, e.toString(), Map.of());
+      return RestResponse.unreachable(e.toString());
     }
     return http.send("POST", base + "/api/graphql", payload);
   }
@@ -190,12 +120,12 @@ public final class Gitlab {
     List<JsonNode> nodes = new ArrayList<>();
     String page = "1";
     for (int i = 0; i < 500 && !page.isBlank(); i++) {
-      Response r = get(path, pageParams(params, page));
-      if (r.status() != 200) {
-        listener.pagingInterrupted(page, r.status());
+      RestResponse r = get(path, pageParams(params, page));
+      if (!r.is(200)) {
+        listener.pagingInterrupted(page, r.statusLine());
         break;
       }
-      JsonNode arr = r.json();
+      JsonNode arr = r.tree();
       if (!arr.isArray()) break;
       arr.forEach(nodes::add);
       page = nextPage(r);
@@ -211,9 +141,9 @@ public final class Gitlab {
     List<T> items = new ArrayList<>();
     String page = "1";
     while (!page.isBlank() && items.size() < max) {
-      Response r = get(path, pageParams(params, page));
+      RestResponse r = get(path, pageParams(params, page));
       if (!r.ok()) {
-        return new Page<>(items, false, "HTTP " + r.status() + " — " + r.errorMessage());
+        return new Page<>(items, false, r.statusLine() + " — " + r.message());
       }
       Optional<List<T>> batch = r.asList(type);
       if (batch.isEmpty()) return new Page<>(items, false, "réponse illisible");
@@ -254,8 +184,8 @@ public final class Gitlab {
   }
 
   /** Un en-tête X-Next-Page absent vaut un en-tête vide : la fin. */
-  private static String nextPage(Response r) {
-    return r.headers().getOrDefault("x-next-page", "");
+  private static String nextPage(RestResponse r) {
+    return r.header("x-next-page");
   }
 
   private static Map<String, String> pageParams(Map<String, String> params, String page) {
@@ -336,15 +266,10 @@ public final class Gitlab {
   }
 
   public static String enc(String s) {
-    return URLEncoder.encode(s, StandardCharsets.UTF_8);
+    return Query.enc(s);
   }
 
   private static String query(Map<String, String> params) {
-    String joined =
-        params.entrySet().stream()
-            .filter(e -> e.getValue() != null)
-            .map(e -> enc(e.getKey()) + "=" + enc(e.getValue()))
-            .collect(Collectors.joining("&"));
-    return joined.isEmpty() ? "" : "?" + joined;
+    return Query.string(params);
   }
 }

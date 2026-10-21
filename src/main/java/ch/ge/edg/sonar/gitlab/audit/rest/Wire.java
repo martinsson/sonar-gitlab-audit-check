@@ -53,7 +53,7 @@ final class Wire {
       headers.forEach(rb::header);
       HttpResponse<String> res =
           client.send(rb.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-      return new RestResponse(res.statusCode(), res.body(), lowerCase(res), "");
+      return new RestResponse.Answered(res.statusCode(), res.body(), lowerCase(res));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       return RestResponse.unreachable(RestClient.INTERRUPTED);

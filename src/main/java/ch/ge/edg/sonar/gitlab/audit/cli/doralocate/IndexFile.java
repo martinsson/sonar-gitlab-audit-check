@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;

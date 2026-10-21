@@ -5,9 +5,7 @@ import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.run;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
-import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures;
@@ -18,7 +16,6 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SelectionAndHistoryTest {
@@ -30,13 +27,8 @@ class SelectionAndHistoryTest {
     return errBytes.toString(StandardCharsets.UTF_8);
   }
 
-  private Gocd gocd(FakeHttpServer server) throws IOException {
-    return new Gocd(
-        new GocdApi(
-            new RestClient(
-                RestClient.Settings.of(server.url(), Map.of(), false),
-                Capture.none(),
-                pause -> {})));
+  private Gocd gocd(FakeHttpServer server) {
+    return new Gocd(GocdFixtures.api(server));
   }
 
   @Test

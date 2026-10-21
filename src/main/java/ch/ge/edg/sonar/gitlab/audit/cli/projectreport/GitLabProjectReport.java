@@ -4,6 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.shared.ColorOption;
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.GitlabConnectionOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.gitlab.GitlabWarnings;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -122,7 +123,7 @@ public class GitLabProjectReport implements Callable<Integer> {
     Gitlab client =
         new Gitlab(
             gitlab.connectionOrAnonymous("https://gitlab.com"),
-            new GitlabWarnings(out),
+            GitlabWarnings.onOutput(out),
             host.sleeper());
 
     return new ProjectReport(client, settings, out, new Dates(host.clock()))

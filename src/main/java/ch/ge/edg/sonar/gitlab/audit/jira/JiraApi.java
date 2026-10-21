@@ -1,12 +1,18 @@
 package ch.ge.edg.sonar.gitlab.audit.jira;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
+import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Jira Server / Data Center, API REST v2, en lecture. Chaque méthode rend la réponse telle quelle :
@@ -16,12 +22,41 @@ public final class JiraApi {
 
   private final RestClient http;
 
-  public JiraApi(RestClient http) {
+  private JiraApi(RestClient http) {
     this.http = http;
   }
 
-  public RestClient http() {
-    return http;
+  /**
+   * Un client authentifié par un PAT Jira Data Center, envoyé en Bearer.
+   *
+   * @param url l'option, ou JIRA_URL
+   * @param token l'option, ou JIRA_TOKEN
+   * @param sleeper l'attente avant un nouvel essai
+   * @throws Stop si l'URL ou le jeton manque
+   */
+  public static JiraApi connect(
+      @Nullable String url, @Nullable String token, boolean insecure, Sleeper sleeper)
+      throws Stop, IOException {
+    String base = Stop.require(url, "JIRA_URL");
+    Map<String, String> headers =
+        new HashMap<>(AuthHeaders.bearer(Stop.require(token, "JIRA_TOKEN")));
+    headers.put("Accept", "application/json");
+    return new JiraApi(
+        new RestClient(Settings.of(base, headers, insecure), Capture.none(), sleeper));
+  }
+
+  public String base() {
+    return http.base();
+  }
+
+  /** Les essais faits, nouveaux essais compris. */
+  public int calls() {
+    return http.calls();
+  }
+
+  /** La réponse telle quelle, sauf un 401 : voir {@link Stop#unlessRefused}. */
+  public RestResponse unlessRefused(RestResponse r) throws Stop {
+    return Stop.unlessRefused(r, base());
   }
 
   public RestResponse serverInfo() {
@@ -72,20 +107,20 @@ public final class JiraApi {
             + maxResults
             + (params.isEmpty() ? "" : "&" + params);
     RestResponse r = http.get("/rest/api/2/search" + q);
-    if (r.status() == 404 || r.status() == 410) r = http.get("/rest/api/latest/search" + q);
+    if (r.is(404) || r.is(410)) r = http.get("/rest/api/latest/search" + q);
     return r;
   }
 
   /** Le nombre de tickets d'une requête, sans en lire aucun ; -1 si la recherche échoue. */
   public long count(String jql) {
     RestResponse r = search(jql, 0, 0, "fields=none");
-    return r.ok() ? r.json().path("total").asLong(-1) : -1;
+    return r.ok() ? r.tree().path("total").asLong(-1) : -1;
   }
 
   /** id de statut → catégorie (new, indeterminate, done), vide si illisible. */
   public Map<String, String> statusCategories() {
     RestResponse r = statuses();
-    return r.ok() ? statusCategories(r.json()) : new HashMap<>();
+    return r.ok() ? statusCategories(r.tree()) : new HashMap<>();
   }
 
   /** id de statut → catégorie, lu dans une réponse de /rest/api/2/status déjà obtenue. */
@@ -98,6 +133,6 @@ public final class JiraApi {
   }
 
   public static String enc(String s) {
-    return URLEncoder.encode(s, StandardCharsets.UTF_8).replace("+", "%20");
+    return Query.segment(s);
   }
 }

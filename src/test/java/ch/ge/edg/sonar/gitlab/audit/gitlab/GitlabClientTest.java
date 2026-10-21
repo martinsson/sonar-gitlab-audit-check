@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.gitlab;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
@@ -41,10 +42,10 @@ class GitlabClientTest {
     Gitlab gitlab = client("glpat-secret");
     assertThat(gitlab.base).isEqualTo(server.url());
 
-    Gitlab.Response r = gitlab.get("///user", Map.of());
+    RestResponse r = gitlab.get("///user", Map.of());
 
-    assertThat(r.status()).isEqualTo(200);
-    assertThat(r.json().path("username").asText()).isEqualTo("alice");
+    assertThat(r.is(200)).isTrue();
+    assertThat(r.tree().path("username").asText()).isEqualTo("alice");
     Request req = server.requests("/api/v4/user").getFirst();
     assertThat(req.method()).isEqualTo("GET");
     assertThat(req.target()).isEqualTo("/api/v4/user");
@@ -89,9 +90,9 @@ class GitlabClientTest {
   @Test
   void responseHeadersAreLowerCasedWithTheirFirstValue() throws Exception {
     server.on("/api/v4/x", r -> Response.json("[]").withHeader("X-Next-Page", "3"));
-    Gitlab.Response r = client("t").get("x", Map.of());
-    assertThat(r.headers()).containsEntry("x-next-page", "3");
-    assertThat(r.intHeader("X-Next-Page")).isEqualTo(3);
+    RestResponse r = client("t").get("x", Map.of());
+    assertThat(r.header("x-next-page")).isEqualTo("3");
+    assertThat(r.intHeader("X-Next-Page")).hasValue(3);
   }
 
   @Test
@@ -111,8 +112,8 @@ class GitlabClientTest {
   @Test
   void graphqlPostsToTheGraphqlEndpoint() throws Exception {
     server.json("/api/graphql", "{\"data\":{\"ok\":true}}");
-    Gitlab.Response r = client("t").graphql("{ currentUser { username } }");
-    assertThat(r.json().path("data").path("ok").asBoolean()).isTrue();
+    RestResponse r = client("t").graphql("{ currentUser { username } }");
+    assertThat(r.tree().path("data").path("ok").asBoolean()).isTrue();
     Request req = server.requests("/api/graphql").getFirst();
     assertThat(req.method()).isEqualTo("POST");
     assertThat(req.header("Content-Type")).isEqualTo("application/json");
@@ -129,8 +130,8 @@ class GitlabClientTest {
                 ? Response.status(429, "{}").withHeader("Retry-After", " 0 ")
                 : Response.json("{\"id\":1}"));
     Gitlab gitlab = client("t");
-    Gitlab.Response r = gitlab.get("user", Map.of());
-    assertThat(r.status()).isEqualTo(200);
+    RestResponse r = gitlab.get("user", Map.of());
+    assertThat(r.is(200)).isTrue();
     assertThat(gitlab.calls()).isEqualTo(2);
     assertThat(gitlab.throttled()).isEqualTo(1);
     assertThat(gitlab.forbidden()).isZero();
@@ -159,8 +160,8 @@ class GitlabClientTest {
   void a429IsRetriedThreeTimesThenReturned() throws Exception {
     server.on("/api/v4/user", r -> Response.status(429, "slow").withHeader("Retry-After", "0"));
     Gitlab gitlab = client("t");
-    Gitlab.Response r = gitlab.get("user", Map.of());
-    assertThat(r.status()).isEqualTo(429);
+    RestResponse r = gitlab.get("user", Map.of());
+    assertThat(r.is(429)).isTrue();
     assertThat(r.body()).isEqualTo("slow");
     assertThat(gitlab.calls()).isEqualTo(4);
     assertThat(gitlab.throttled()).isEqualTo(3);
@@ -171,10 +172,10 @@ class GitlabClientTest {
   void a403IsCounted() throws Exception {
     server.on("/api/v4/user", r -> Response.status(403, "{\"message\":\"403 Forbidden\"}"));
     Gitlab gitlab = client("t");
-    Gitlab.Response r = gitlab.get("user", Map.of());
+    RestResponse r = gitlab.get("user", Map.of());
     gitlab.get("user", Map.of());
-    assertThat(r.status()).isEqualTo(403);
-    assertThat(r.errorMessage()).isEqualTo("403 Forbidden");
+    assertThat(r.is(403)).isTrue();
+    assertThat(r.message()).isEqualTo("403 Forbidden");
     assertThat(gitlab.forbidden()).isEqualTo(2);
     assertThat(gitlab.throttled()).isZero();
   }
@@ -187,10 +188,10 @@ class GitlabClientTest {
     }
     Gitlab gitlab =
         GitlabStreams.quiet(new Gitlab.Connection("http://127.0.0.1:" + port, "t", 5, false, null));
-    Gitlab.Response r = gitlab.get("user", Map.of());
+    RestResponse r = gitlab.get("user", Map.of());
     assertThat(r.unreachable()).isTrue();
-    assertThat(r.body()).startsWith("ConnectException");
-    assertThat(r.headers()).isEmpty();
+    assertThat(r.why()).startsWith("ConnectException");
+    assertThat(r.header("x-next-page")).isEmpty();
     assertThat(gitlab.calls()).isEqualTo(1);
   }
 
@@ -198,9 +199,9 @@ class GitlabClientTest {
   void anExceptionWithAMessageKeepsBoth() throws Exception {
     Gitlab gitlab =
         GitlabStreams.quiet(new Gitlab.Connection("http://bad host", "t", 5, false, null));
-    Gitlab.Response r = gitlab.get("user", Map.of());
-    assertThat(r.status()).isZero();
-    assertThat(r.body()).startsWith("IllegalArgumentException: ");
+    RestResponse r = gitlab.get("user", Map.of());
+    assertThat(r.unreachable()).isTrue();
+    assertThat(r.why()).startsWith("IllegalArgumentException: ");
   }
 
   @Test
@@ -208,10 +209,10 @@ class GitlabClientTest {
     server.json("/api/v4/user", "{}");
     Gitlab gitlab = client("t");
     Thread.currentThread().interrupt();
-    Gitlab.Response r = gitlab.get("user", Map.of());
+    RestResponse r = gitlab.get("user", Map.of());
     boolean stillInterrupted = Thread.interrupted();
-    assertThat(r.status()).isZero();
-    assertThat(r.body()).isEqualTo("interrompu");
+    assertThat(r.unreachable()).isTrue();
+    assertThat(r.why()).isEqualTo("interrompu");
     assertThat(stillInterrupted).isTrue();
   }
 

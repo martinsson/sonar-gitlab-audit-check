@@ -37,7 +37,7 @@ class RestClientTest {
       RestClient c = client(gocd.url() + "//", AuthHeaders.bearer(" tok "));
       RestResponse r = c.get("/go/api/version", Map.of("Accept", "application/vnd.go.cd+json"));
       assertThat(r.ok()).isTrue();
-      assertThat(r.json().path("version").asText()).isEqualTo("25.3.0");
+      assertThat(r.tree().path("version").asText()).isEqualTo("25.3.0");
       assertThat(r.header("Content-Type")).isEqualTo("application/json");
       FakeHttpServer.Request sent = gocd.requests().get(0);
       assertThat(sent.header("authorization")).isEqualTo("Bearer tok");
@@ -59,8 +59,8 @@ class RestClientTest {
   @Test
   void aMalformedUrlIsAnUnreachableResponseNotACrash() throws IOException {
     RestResponse r = client("http://bad host", Map.of()).get("/x");
-    assertThat(r.status()).isZero();
-    assertThat(r.error()).startsWith("IllegalArgumentException");
+    assertThat(r.unreachable()).isTrue();
+    assertThat(r.why()).startsWith("IllegalArgumentException");
   }
 
   @Test

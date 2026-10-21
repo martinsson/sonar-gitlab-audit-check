@@ -5,6 +5,7 @@ import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Materials;
 import ch.ge.edg.sonar.gitlab.audit.gocd.PipelineGroups;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -70,9 +71,9 @@ record GocdIndex(String builtAt, Map<String, Pipeline> pipelines) {
 
   /** Le tableau de bord, puis une page d'historique par pipeline. */
   static GocdIndex build(GocdApi gocd, String builtAt, ZoneId zone, PrintStream err) throws Stop {
-    RestResponse dash = Access.checked(gocd.dashboard(), gocd.http());
+    RestResponse dash = gocd.unlessRefused(gocd.dashboard());
     if (!dash.ok()) throw new Stop("/go/api/dashboard : " + dash.why());
-    Map<String, String> groupOf = PipelineGroups.of(dash.json());
+    Map<String, String> groupOf = PipelineGroups.of(dash.tree());
     Map<String, Pipeline> pipelines = new LinkedHashMap<>();
     int n = 0;
     for (Map.Entry<String, String> e : groupOf.entrySet()) {
@@ -87,8 +88,8 @@ record GocdIndex(String builtAt, Map<String, Pipeline> pipelines) {
   private static Pipeline pipeline(GocdApi gocd, String name, String group, ZoneId zone)
       throws Stop {
     String path = "/go/api/pipelines/" + GocdApi.enc(name) + "/history?page_size=" + RUNS;
-    RestResponse r = Access.checked(gocd.api(path), gocd.http());
-    JsonNode runs = r.json().path("pipelines");
+    RestResponse r = gocd.unlessRefused(gocd.api(path));
+    JsonNode runs = r.tree().path("pipelines");
     if (!r.ok() || runs.isEmpty()) return new Pipeline(group, List.of(), List.of(), "");
     Set<String> git = new LinkedHashSet<>();
     Set<String> upstream = new LinkedHashSet<>();

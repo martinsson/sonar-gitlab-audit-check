@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.PrintStream;
@@ -68,8 +69,8 @@ final class JiraSection {
 
   private void integration(GitlabProject project) throws Stop {
     String path = "projects/" + project.id() + "/integrations/jira";
-    Gitlab.Response r = Access.checked(gitlab.get(path, Map.of()), gitlab);
-    JsonNode j = r.json();
+    RestResponse r = Access.checked(gitlab.get(path, Map.of()), gitlab);
+    JsonNode j = r.tree();
     if (r.ok() && j.path("active").asBoolean(false)) {
       JsonNode props = j.path("properties");
       out.println(
@@ -87,10 +88,10 @@ final class JiraSection {
   }
 
   private void row(GitlabProject project, String prefix, Mentions m, int commits) throws Stop {
-    RestResponse p = Access.checked(jira.project(prefix), jira.http());
+    RestResponse p = jira.unlessRefused(jira.project(prefix));
     String name;
-    if (p.ok()) name = p.json().path("name").asText();
-    else name = p.status() == 404 ? "(pas un projet Jira visible)" : p.why();
+    if (p.ok()) name = p.tree().path("name").asText();
+    else name = p.is(404) ? "(pas un projet Jira visible)" : p.why();
     if (p.ok() && commits > 0 && m.commits() * SHARE >= commits) {
       ctx.suggestions().jira(prefix, project.path());
     }

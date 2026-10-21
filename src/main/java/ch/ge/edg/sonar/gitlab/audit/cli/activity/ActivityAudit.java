@@ -9,6 +9,7 @@ import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Column;
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.gitlab.GitlabWarnings;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -64,7 +65,7 @@ final class ActivityAudit {
               "GITLAB_URL et GITLAB_TOKEN sont requis " + "(variables d'env ou --url/--token).");
       return 2;
     }
-    Gitlab gitlab = new Gitlab(connection.get(), new GitlabWarnings(out), sleeper);
+    Gitlab gitlab = new Gitlab(connection.get(), GitlabWarnings.onOutput(out), sleeper);
     Funnel funnel = Funnel.start(settings.funnel(), clock);
     Outputs outputs = settings.output().resolve();
 

@@ -1,7 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
-import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
 import ch.ge.edg.sonar.gitlab.audit.sonar.SonarConnection;
@@ -27,13 +26,12 @@ record Session(Sonar sq, Console out, int concurrency, Clock clock) {
     OutputOptions output = options.output();
     ScanOptions scan = options.scan();
     Sonar sq =
-        new Sonar(
+        Sonar.connect(
             new SonarConnection(
                 instance.url, instance.token, instance.organization, scan.timeout, scan.insecure),
-            new Capture(
-                output.dumpDir,
-                output.replayDir,
-                reason -> out.err().println("  (capture non écrite : " + reason + ")")),
+            output.dumpDir,
+            output.replayDir,
+            reason -> out.err().println("  (capture non écrite : " + reason + ")"),
             sleeper);
     return new Session(sq, out, scan.concurrency, clock);
   }
@@ -45,7 +43,7 @@ record Session(Sonar sq, Console out, int concurrency, Clock clock) {
 
   /** Un GET lu comme {@code type} ; null si l'appel échoue ou si la réponse est illisible. */
   <T> @Nullable T read(String path, Map<String, String> params, Class<T> type) {
-    return sq.get(path, params).as(type);
+    return sq.get(path, params).as(type).orElse(null);
   }
 
   /** Une passe par projet, recouverte, avec son compteur. */
