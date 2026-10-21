@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.LinkedHashMap;
@@ -36,8 +37,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Inventaire des technos frontend de toute une instance GitLab.
  *
  * Pour chaque projet non archivé : les langages calculés par GitLab donnent la part
- * de code front. Si elle est notable, on cherche tous les package.json du dépôt,
- * sinon seulement celui de la racine. Les package.json disent la techno
+ * de code front. Si elle est notable, on cherche les package.json du dépôt jusqu'à
+ * une profondeur donnée, sinon seulement celui de la racine. Les package.json disent la techno
  * (Vue 2 / Vue 3, React, Angular...). Puis l'activité sur N jours (commits, MR,
  * lignes changées). La colonne a_verifier signale les cas que ces règles ne
  * savent pas trancher.
@@ -46,6 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  *   export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxx
  *   jbang FrontendInventory.java [--out frontend.csv] [--days 90] [--limit N] [--threads 10] [--seuil-front 5]
+ *                                [--profondeur 3]
  */
 public class FrontendInventory {
 
@@ -66,27 +68,33 @@ public class FrontendInventory {
     // Langages GitLab (Linguist) qui comptent comme du front.
     static final Set<String> FRONT_LANGUAGES = Set.of("JavaScript", "TypeScript", "TSX", "JSX", "Vue", "Svelte",
             "HTML", "CSS", "SCSS", "Sass", "Less", "Stylus");
-    // Dossiers de dépendances commités : leurs package.json ne disent rien du projet.
-    static final Pattern VENDORED = Pattern.compile("(^|/)(node_modules|bower_components|vendor)/");
+    // Dossiers où l'on ne descend pas : dépendances commitées, sorties de build, sources Java.
+    // Leurs package.json ne disent rien du projet, et ce sont eux qui coûtent des appels.
+    static final Pattern PRUNED = Pattern.compile(
+            "(^|/)(node_modules|bower_components|vendor|target|build|dist)$|(^|/)src/(main/java|test)$");
+    // Garde-fou : appels /repository/tree au plus par projet, quelle que soit la profondeur.
+    static final int MAX_TREE_CALLS = 200;
 
     // "Nj" est remplacé par la fenêtre, ex. commits_90j.
     static final List<String> COLUMNS = List.of("id", "projet", "url", "branche", "derniere_activite",
             "part_front_pct", "langages", "techno", "package_json", "vue", "react", "angular", "autres_front",
-            "outillage", "fichiers", "commits_Nj", "mr_Nj", "lignes_ajoutees_Nj", "lignes_supprimees_Nj",
+            "outillage", "commits_Nj", "mr_Nj", "lignes_ajoutees_Nj", "lignes_supprimees_Nj",
             "commits_total", "a_verifier", "erreur");
 
     final String baseUrl;
     final String token;
     final double frontThreshold;
+    final int maxDepth;
     final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(20))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    FrontendInventory(String baseUrl, String token, double frontThreshold) {
+    FrontendInventory(String baseUrl, String token, double frontThreshold, int maxDepth) {
         this.baseUrl = baseUrl.replaceAll("/+$", "") + "/api/v4";
         this.token = token;
         this.frontThreshold = frontThreshold;
+        this.maxDepth = maxDepth;
     }
 
     public static void main(String[] args) throws Exception {
@@ -95,6 +103,7 @@ public class FrontendInventory {
         int limit = Integer.MAX_VALUE;
         int threads = Runtime.getRuntime().availableProcessors();
         double frontThreshold = 5;
+        int maxDepth = 3;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--out" -> out = args[++i];
@@ -102,11 +111,14 @@ public class FrontendInventory {
                 case "--limit" -> limit = Integer.parseInt(args[++i]);
                 case "--threads" -> threads = Integer.parseInt(args[++i]);
                 case "--seuil-front" -> frontThreshold = Double.parseDouble(args[++i]);
+                case "--profondeur" -> maxDepth = Integer.parseInt(args[++i]);
                 case "-h", "--help" -> {
                     System.out.println("Usage: FrontendInventory [--out frontend.csv] [--days 90] [--limit N] [--threads N]"
-                            + " [--seuil-front 5]\n"
+                            + " [--seuil-front 5] [--profondeur 3]\n"
                             + "  --seuil-front : part de code front (%) à partir de laquelle on cherche les package.json"
-                            + " dans tout le dépôt\n"
+                            + " dans les sous-dossiers\n"
+                            + "  --profondeur : profondeur maximale des dossiers où chercher un package.json"
+                            + " (0 = racine seule)\n"
                             + "Env: GITLAB_URL, GITLAB_TOKEN");
                     return;
                 }
@@ -119,7 +131,7 @@ public class FrontendInventory {
             System.err.println("GITLAB_URL manquant");
             System.exit(2);
         }
-        new FrontendInventory(url, token, frontThreshold).run(Path.of(out), days, limit, threads);
+        new FrontendInventory(url, token, frontThreshold, maxDepth).run(Path.of(out), days, limit, threads);
     }
 
     void run(Path out, int days, int limit, int threads) throws Exception {
@@ -213,9 +225,10 @@ public class FrontendInventory {
                 .map(e -> e.getKey() + " " + String.format("%.1f", e.getValue())).toList()));
         row.put("part_front_pct", languages.isEmpty() ? "" : String.format("%.1f", frontShare));
 
+        List<String> warnings = new ArrayList<>();
         List<String> paths;
         if (frontShare >= frontThreshold) {
-            paths = packageJsonPaths(id, branch, row);
+            paths = packageJsonPaths(id, branch, warnings);
         } else {
             // Peu ou pas de front : on regarde seulement la racine, un appel.
             paths = List.of("package.json");
@@ -225,7 +238,6 @@ public class FrontendInventory {
         Map<String, Set<String>> versions = new LinkedHashMap<>();
         Map<String, Set<String>> tooling = new LinkedHashMap<>();
         List<String> found = new ArrayList<>();
-        List<String> warnings = new ArrayList<>();
         if (languages.isEmpty()) warnings.add("langages non calculés par GitLab");
         for (String path : paths) {
             HttpResponse<String> resp = get(baseUrl + "/projects/" + id + "/repository/files/" + enc(path)
@@ -310,26 +322,42 @@ public class FrontendInventory {
         return languages;
     }
 
-    /** Tous les package.json de la branche hors dépendances commitées. Remplit au passage "fichiers". */
-    List<String> packageJsonPaths(long id, String branch, Map<String, String> row) throws Exception {
+    /**
+     * Les package.json de la branche jusqu'à maxDepth (dossier racine = 0), parcours en largeur
+     * un dossier à la fois sans descendre dans PRUNED. Au-delà de MAX_TREE_CALLS appels on
+     * s'arrête et on le signale.
+     */
+    List<String> packageJsonPaths(long id, String branch, List<String> warnings) throws Exception {
         List<String> paths = new ArrayList<>();
-        int files = 0;
-        String next = baseUrl + "/projects/" + id + "/repository/tree?ref=" + enc(branch)
-                + "&recursive=true&per_page=100&pagination=keyset";
-        while (next != null) {
-            HttpResponse<String> resp = get(next);
-            if (resp.statusCode() != 200) throw new IOException("arborescence → " + resp.statusCode());
-            for (JsonNode e : JSON.readTree(resp.body())) {
-                if (!e.path("type").asText().equals("blob")) continue;
-                files++;
-                String path = e.path("path").asText();
-                if ((path.equals("package.json") || path.endsWith("/package.json")) && !VENDORED.matcher(path).find()) {
-                    paths.add(path);
+        ArrayDeque<String> dirs = new ArrayDeque<>(List.of(""));
+        int calls = 0;
+        while (!dirs.isEmpty()) {
+            String dir = dirs.poll();
+            int depth = dir.isEmpty() ? 0 : dir.split("/").length;
+            String next = baseUrl + "/projects/" + id + "/repository/tree?ref=" + enc(branch)
+                    + (dir.isEmpty() ? "" : "&path=" + enc(dir)) + "&per_page=100&pagination=keyset";
+            while (next != null) {
+                if (++calls > MAX_TREE_CALLS) {
+                    warnings.add("arborescence tronquée");
+                    return paths;
                 }
+                HttpResponse<String> resp = get(next);
+                if (resp.statusCode() != 200) throw new IOException("arborescence " + dir + " → " + resp.statusCode());
+                for (JsonNode e : JSON.readTree(resp.body())) {
+                    String path = e.path("path").asText();
+                    switch (e.path("type").asText()) {
+                        case "blob" -> {
+                            if (e.path("name").asText().equals("package.json")) paths.add(path);
+                        }
+                        case "tree" -> {
+                            if (depth < maxDepth && !PRUNED.matcher(path).find()) dirs.add(path);
+                        }
+                        default -> { }
+                    }
+                }
+                next = nextPage(next, resp);
             }
-            next = nextPage(next, resp);
         }
-        row.put("fichiers", String.valueOf(files));
         return paths;
     }
 
