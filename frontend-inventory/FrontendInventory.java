@@ -34,6 +34,7 @@ import java.util.regex.Pattern;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -154,49 +155,54 @@ public class FrontendInventory {
     }
 
     void run(Writer csv, String since, int limit, int threads) throws Exception {
-        // Collecter tous les projets d'abord
-        List<JsonNode> projects = new ArrayList<>();
-        int n = 0;
-        String next = baseUrl + "/projects?archived=false&statistics=true&simple=false"
-                + "&per_page=100&order_by=id&sort=asc&pagination=keyset";
-        while (next != null && n < limit) {
-            HttpResponse<String> resp = get(next);
-            if (resp.statusCode() != 200) throw new IOException("GET projects → " + resp.statusCode() + " " + resp.body());
-            for (JsonNode p : JSON.readTree(resp.body())) {
-                if (n++ >= limit) break;
-                projects.add(p);
-            }
-            next = nextLink(resp);
-        }
-        System.err.println(n + " projets collectés, traitement parallèle avec " + threads + " threads");
-
-        // Executor pour le parallélisme
         ThreadFactory tf = r -> {
             Thread t = new Thread(r);
             t.setName("inventory-worker");
             t.setDaemon(true);
             return t;
         };
+        AtomicInteger listed = new AtomicInteger();
         AtomicInteger done = new AtomicInteger();
+        AtomicBoolean listing = new AtomicBoolean(true);
         try (ExecutorService executor = Executors.newFixedThreadPool(threads, tf)) {
-            List<CompletableFuture<Void>> futures = new ArrayList<>(projects.size());
-            for (JsonNode p : projects) {
-                // Ordre d'achèvement, pas d'id : un projet lent ne retient pas les lignes déjà prêtes.
-                futures.add(CompletableFuture.supplyAsync(() -> project(p, since), executor).thenAccept(row -> {
-                    synchronized (csv) {
-                        try {
-                            writeRow(csv, row);
-                            csv.flush();
-                        } catch (IOException e) {
-                            throw new UncheckedIOException(e);
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            // Chaque page de projets part au traitement dès qu'elle arrive : sur une grosse instance,
+            // lister tous les projets d'abord laissait plusieurs minutes sans rien écrire.
+            String next = baseUrl + "/projects?archived=false&statistics=true&simple=false"
+                    + "&per_page=100&order_by=id&sort=asc&pagination=keyset";
+            while (next != null && listed.get() < limit) {
+                HttpResponse<String> resp = get(next);
+                if (resp.statusCode() != 200) throw new IOException("GET projects → " + resp.statusCode() + " " + resp.body());
+                for (JsonNode p : JSON.readTree(resp.body())) {
+                    if (listed.get() >= limit) break;
+                    listed.incrementAndGet();
+                    // Ordre d'achèvement, pas d'id : un projet lent ne retient pas les lignes déjà prêtes.
+                    futures.add(CompletableFuture.supplyAsync(() -> project(p, since), executor).thenAccept(row -> {
+                        synchronized (csv) {
+                            try {
+                                writeRow(csv, row);
+                                csv.flush();
+                            } catch (IOException e) {
+                                throw new UncheckedIOException(e);
+                            }
+                            progress(done.incrementAndGet(), listed.get(), listing.get());
                         }
-                        System.err.printf("\r%d/%d projets", done.incrementAndGet(), projects.size());
-                    }
-                }));
+                    }));
+                }
+                next = nextLink(resp);
+                synchronized (csv) {
+                    listing.set(next != null && listed.get() < limit);
+                    progress(done.get(), listed.get(), listing.get());
+                }
             }
             CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
         }
         System.err.println();
+    }
+
+    /** « 120/1300 projets (liste en cours) » : le total grandit tant que des pages arrivent. */
+    static void progress(int done, int listed, boolean listing) {
+        System.err.printf("\r%d/%d projets%s", done, listed, listing ? " (liste en cours)  " : "                  ");
     }
 
     /** frontend.csv s'il est libre, sinon frontend-1.csv, frontend-2.csv... : on n'écrase jamais un résultat. */
