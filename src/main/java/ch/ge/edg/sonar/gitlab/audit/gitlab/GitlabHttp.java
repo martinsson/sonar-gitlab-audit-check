@@ -1,6 +1,5 @@
 package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
-import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.Response;
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Retries;
@@ -57,9 +56,9 @@ final class GitlabHttp {
     return client.throttled();
   }
 
-  Response send(String method, String uri, @Nullable String body) {
+  RestResponse send(String method, String uri, @Nullable String body) {
     RestResponse r = client.send(method, uri, body, Map.of());
-    if (r.status() == 403) forbiddenCount.incrementAndGet();
-    return new Response(r.status(), r.status() == 0 ? r.error() : r.body(), r.headers());
+    if (r.is(403)) forbiddenCount.incrementAndGet();
+    return r;
   }
 }

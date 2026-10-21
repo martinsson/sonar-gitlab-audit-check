@@ -5,8 +5,8 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orZero;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
 import static ch.ge.edg.sonar.gitlab.audit.text.Text.orNa;
 
@@ -19,7 +19,7 @@ import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.IssuesSearch;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Measure;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SearchHistory;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
-import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -27,6 +27,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** 4. Les signaux d'activité qu'on lit sans passer par Git, sur le projet témoin. */
@@ -59,19 +60,18 @@ final class ActivitySignals {
 
   /** Cadence d'analyses = cadence de livraison (biais : les builds nocturnes la gonflent). */
   private void reportAnalysisCadence(String since) {
-    Sonar.Response r =
+    RestResponse r =
         session
             .sq()
             .get(
                 "api/project_analyses/search",
                 params("project", sample, "ps", "500", "from", since));
-    Analyses a = r.as(Analyses.class);
-    if (a == null) {
-      Presentation.line(
-          out, "api/project_analyses/search", CallVerdict.of(r), "HTTP " + r.status());
+    Optional<Analyses> a = r.as(Analyses.class);
+    if (a.isEmpty()) {
+      Presentation.line(out, "api/project_analyses/search", CallVerdict.of(r), r.statusLine());
       return;
     }
-    List<Analysis> analyses = orEmptyList(a.analyses());
+    List<Analysis> analyses = orEmptyList(a.get().analyses());
     long versions =
         analyses.stream()
             .flatMap(x -> orEmptyList(x.events()).stream())
@@ -103,20 +103,19 @@ final class ActivitySignals {
 
   /** La facette 'author' donne le nombre de contributeurs sans toucher à Git. */
   private void reportAuthorConcentration(String since) {
-    Sonar.Response r =
+    RestResponse r =
         session
             .sq()
             .get(
                 "api/issues/search",
                 params(
                     "componentKeys", sample, "createdAfter", since, "facets", "author", "ps", "1"));
-    IssuesSearch is = r.as(IssuesSearch.class);
-    if (is == null) {
-      Presentation.line(
-          out, "Facette 'author' sur issues", CallVerdict.of(r), "HTTP " + r.status());
+    Optional<IssuesSearch> is = r.as(IssuesSearch.class);
+    if (is.isEmpty()) {
+      Presentation.line(out, "Facette 'author' sur issues", CallVerdict.of(r), r.statusLine());
       return;
     }
-    List<FacetValue> authors = is.facetValues("author");
+    List<FacetValue> authors = is.get().facetValues("author");
     int total = Math.max(1, authors.stream().mapToInt(f -> orZero(f.count())).sum());
 
     out.println();

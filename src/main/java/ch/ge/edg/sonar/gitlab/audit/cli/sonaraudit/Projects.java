@@ -6,15 +6,15 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.GREEN;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.RED;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.parseDate;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.totalOf;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Component;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.ProjectSearch;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
-import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 
 /** Les projets visibles, ce qui échappe au jeton, et la fraîcheur de leurs analyses. */
@@ -42,7 +43,7 @@ final class Projects {
     List<Component> all = new ArrayList<>();
     int page = 1;
     while (page <= MAX_PAGES) {
-      Sonar.Response r =
+      RestResponse r =
           session
               .sq()
               .get(
@@ -54,16 +55,16 @@ final class Projects {
                       String.valueOf(page),
                       "f",
                       "analysisDate,leakPeriodDate"));
-      ProjectSearch p = r.as(ProjectSearch.class);
-      if (p == null) {
+      Optional<ProjectSearch> p = r.as(ProjectSearch.class);
+      if (p.isEmpty()) {
         out.println(
             out.color(
-                Text.format("  Échec de la pagination page %d : HTTP %d", page, r.status()), RED));
+                Text.format("  Échec de la pagination page %d : %s", page, r.statusLine()), RED));
         break;
       }
-      List<Component> batch = orEmptyList(p.components());
+      List<Component> batch = orEmptyList(p.get().components());
       all.addAll(batch);
-      if (batch.isEmpty() || all.size() >= totalOf(p.paging())) break;
+      if (batch.isEmpty() || all.size() >= totalOf(p.get().paging())) break;
       page++;
     }
     if (page > MAX_PAGES)

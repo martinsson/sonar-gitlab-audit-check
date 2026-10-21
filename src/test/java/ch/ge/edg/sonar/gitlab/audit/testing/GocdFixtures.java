@@ -1,8 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.testing;
 
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
-import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,7 +9,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Map;
 
 /**
  * Responses captured from a real GoCD 25.3.0 (synthetic data: octocat/Hello-World built by
@@ -25,14 +23,14 @@ public final class GocdFixtures {
 
   private GocdFixtures() {}
 
-  /** A GoCD client on a fake server, without authentication. */
+  /** A GoCD client on a fake server, with a token the fake does not check. */
   public static GocdApi api(FakeHttpServer server) {
     try {
-      return new GocdApi(
-          new RestClient(
-              RestClient.Settings.of(server.url(), Map.of(), false), Capture.none(), pause -> {}));
+      return GocdApi.connect(server.url(), "t", false, pause -> {});
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    } catch (Stop e) {
+      throw new IllegalStateException(e);
     }
   }
 

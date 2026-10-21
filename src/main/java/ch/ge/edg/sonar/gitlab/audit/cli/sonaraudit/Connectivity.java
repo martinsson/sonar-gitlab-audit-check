@@ -5,16 +5,17 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.RED;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.line;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.params;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.CurrentUser;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.SystemStatus;
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Validation;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
-import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.List;
+import java.util.Optional;
 
 /** 1. L'API répond-elle, le jeton est-il valide, et qui est-il ? */
 final class Connectivity {
@@ -36,24 +37,25 @@ final class Connectivity {
   }
 
   private boolean reachable() {
-    Sonar.Response status = session.sq().get("api/system/status", params());
+    RestResponse status = session.sq().get("api/system/status", params());
     if (status.unreachable()) {
-      line(out, "api/system/status", CallVerdict.ERROR, status.errorMessage());
+      line(out, "api/system/status", CallVerdict.ERROR, status.message());
       out.println();
       out.println(
           out.color(
               "  Impossible de joindre l'instance. " + "Vérifie l'URL, le proxy, le TLS.", RED));
       return false;
     }
-    SystemStatus st = status.as(SystemStatus.class);
-    if (st != null) {
+    Optional<SystemStatus> read = status.as(SystemStatus.class);
+    if (read.isPresent()) {
+      SystemStatus st = read.get();
       line(
           out,
           "api/system/status",
           CallVerdict.OK,
           Text.format("%s · v%s · %s", st.status(), st.version(), orEmpty(st.id())));
     } else {
-      line(out, "api/system/status", CallVerdict.of(status), "HTTP " + status.status());
+      line(out, "api/system/status", CallVerdict.of(status), status.statusLine());
     }
     return true;
   }
@@ -75,12 +77,13 @@ final class Connectivity {
   }
 
   private void identity() {
-    Sonar.Response r = session.sq().get("api/users/current", params());
-    CurrentUser me = r.as(CurrentUser.class);
-    if (me == null) {
-      line(out, "api/users/current", CallVerdict.of(r), r.errorMessage());
+    RestResponse r = session.sq().get("api/users/current", params());
+    Optional<CurrentUser> read = r.as(CurrentUser.class);
+    if (read.isEmpty()) {
+      line(out, "api/users/current", CallVerdict.of(r), r.message());
       return;
     }
+    CurrentUser me = read.get();
     List<String> perms = me.globalPermissions();
     line(
         out,

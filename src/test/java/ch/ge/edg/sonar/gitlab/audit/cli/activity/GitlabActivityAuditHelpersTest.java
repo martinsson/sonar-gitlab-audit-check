@@ -12,20 +12,12 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class GitlabActivityAuditHelpersTest {
-
-  @Test
-  void paramsDropsNullValuesAndAnOddTail() {
-    assertThat(Api.params("a", "1", "b", null, "c", "3", "dangling"))
-        .containsExactly(java.util.Map.entry("a", "1"), java.util.Map.entry("c", "3"));
-    assertThat(Api.params()).isEmpty();
-  }
 
   @Test
   void pctRoundsToAWholePercentAndDashesAnEmptyTotal() {
@@ -62,16 +54,6 @@ class GitlabActivityAuditHelpersTest {
     assertThat(CellFormat.dec(2.0 / 3)).isEqualTo("0.67");
     assertThat(CellFormat.orEmpty(null)).isEmpty();
     assertThat(CellFormat.orEmpty("x")).isEqualTo("x");
-    assertThat(CellFormat.isBlank(null)).isTrue();
-    assertThat(CellFormat.isBlank(" \t")).isTrue();
-    assertThat(CellFormat.isBlank(" x ")).isFalse();
-  }
-
-  @Test
-  void truncateAddsAnEllipsis() {
-    assertThat(CellFormat.truncate(null, 3)).isEmpty();
-    assertThat(CellFormat.truncate("abc", 3)).isEqualTo("abc");
-    assertThat(CellFormat.truncate("abcd", 3)).isEqualTo("ab…");
   }
 
   @Test
@@ -82,17 +64,6 @@ class GitlabActivityAuditHelpersTest {
     assertThat(Api.text(n, "c")).isEmpty();
     assertThat(Api.text(n, "missing")).isEmpty();
     assertThat(Api.text(null, "a")).isEmpty();
-  }
-
-  @Test
-  void parseAndEncDelegateToGitlab() {
-    assertThat(
-            Objects.requireNonNull(Api.parse("2099-01-01T00:00:00+02:00"))
-                .getOffset()
-                .getTotalSeconds())
-        .isEqualTo(7200);
-    assertThat(Api.parse("nope")).isNull();
-    assertThat(Api.enc("a/b c")).isEqualTo("a%2Fb+c");
   }
 
   @ParameterizedTest

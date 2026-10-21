@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.sonar;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import java.io.ByteArrayOutputStream;
@@ -102,7 +103,7 @@ class SonarCaptureTest {
             pause -> {});
     Files.createDirectories(dump.resolve(Capture.name("api/x")));
 
-    Sonar.Response r = sq.get("api/x", Map.of());
+    RestResponse r = sq.get("api/x", Map.of());
     assertThat(r.body()).isEqualTo("{}");
     assertThat(err.toString(StandardCharsets.UTF_8)).startsWith("  (capture non écrite : ");
     assertThat(dump.resolve("index.txt")).doesNotExist();
@@ -117,15 +118,14 @@ class SonarCaptureTest {
             new SonarConnection(server.url(), "t", null, 5, false),
             new Capture(dir, null, reason -> {}),
             pause -> {});
-    assertThat(live.get("api/denied", Map.of()).status()).isEqualTo(403);
+    assertThat(live.get("api/denied", Map.of()).is(403)).isTrue();
 
     Sonar replay =
         new Sonar(
             new SonarConnection(server.url(), "t", null, 5, false),
             new Capture(null, dir, reason -> {}),
             pause -> {});
-    assertThat(replay.get("api/denied", Map.of()))
-        .isEqualTo(new Sonar.Response(403, "{\"errors\":[{\"msg\":\"no\"}]}"));
+    assertAnswered(replay.get("api/denied", Map.of()), 403, "{\"errors\":[{\"msg\":\"no\"}]}");
   }
 
   @Test
@@ -137,7 +137,7 @@ class SonarCaptureTest {
             new SonarConnection(null, null, null, 5, false),
             new Capture(null, replay, reason -> {}),
             pause -> {});
-    assertThat(sq.get("api/x", Map.of())).isEqualTo(new Sonar.Response(200, "{\"r\":1}"));
+    assertAnswered(sq.get("api/x", Map.of()), 200, "{\"r\":1}");
   }
 
   @Test
@@ -151,7 +151,7 @@ class SonarCaptureTest {
             pause -> {});
 
     assertThat(sq.replaying()).isTrue();
-    assertThat(sq.get("/api/x", Map.of("p", "1"))).isEqualTo(new Sonar.Response(200, "{\"r\":1}"));
+    assertAnswered(sq.get("/api/x", Map.of("p", "1")), 200, "{\"r\":1}");
     assertThat(sq.calls()).isEqualTo(1);
     assertThat(sq.missingCaptures()).isZero();
     assertThat(server.requests()).isEmpty();
@@ -165,12 +165,11 @@ class SonarCaptureTest {
             new SonarConnection(null, null, "org-a", 5, false),
             new Capture(null, replay, reason -> {}),
             pause -> {});
-    Sonar.Response r = sq.get("api/issues/search", Map.of("ps", "1"));
+    RestResponse r = sq.get("api/issues/search", Map.of("ps", "1"));
     String expected = Capture.name("api/issues/search?ps=1&organization=org-a");
     assertThat(r)
         .isEqualTo(
-            new Sonar.Response(
-                0,
+            RestResponse.unreachable(
                 "aucune capture pour api/issues/search?ps=1&organization=org-a (attendu : "
                     + expected
                     + ")"));
@@ -189,9 +188,9 @@ class SonarCaptureTest {
             new SonarConnection(null, null, null, 5, false),
             new Capture(null, replay, reason -> {}),
             pause -> {});
-    Sonar.Response r = sq.get("api/x", Map.of());
-    assertThat(r.status()).isZero();
-    assertThat(r.body()).startsWith("capture illisible : ");
+    RestResponse r = sq.get("api/x", Map.of());
+    assertThat(r.unreachable()).isTrue();
+    assertThat(r.why()).startsWith("capture illisible : ");
     assertThat(sq.missingCaptures()).isEqualTo(1);
   }
 
@@ -204,7 +203,7 @@ class SonarCaptureTest {
             new SonarConnection(null, null, null, 5, false),
             new Capture(null, replay, reason -> {}),
             pause -> {});
-    assertThat(sq.get("api/x", Map.of()).body()).startsWith("aucune capture pour api/x (attendu");
+    assertThat(sq.get("api/x", Map.of()).why()).startsWith("aucune capture pour api/x (attendu");
   }
 
   private static String sha1Prefix(String s) {
@@ -216,5 +215,10 @@ class SonarCaptureTest {
     } catch (java.security.NoSuchAlgorithmException e) {
       throw new IllegalStateException(e);
     }
+  }
+
+  private static void assertAnswered(RestResponse r, int status, String body) {
+    assertThat(r.is(status)).as("status").isTrue();
+    assertThat(r.body()).isEqualTo(body);
   }
 }

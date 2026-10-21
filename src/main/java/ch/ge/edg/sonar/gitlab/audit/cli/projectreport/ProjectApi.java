@@ -1,11 +1,13 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
+import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.enc;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
+
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /** Les appels GitLab du rapport, un par question posée au projet. */
 final class ProjectApi {
@@ -22,7 +24,7 @@ final class ProjectApi {
     return gitlab.calls();
   }
 
-  Gitlab.Response project(String projectPath) {
+  RestResponse project(String projectPath) {
     return gitlab.get("projects/" + enc(projectPath), params("statistics", "true"));
   }
 
@@ -92,15 +94,5 @@ final class ProjectApi {
 
   private boolean isBot(Commit x) {
     return Gitlab.isBot(settings.bots(), x.authorEmail(), x.authorName());
-  }
-
-  static Map<String, String> params(String... pairs) {
-    Map<String, String> m = new LinkedHashMap<>();
-    for (int i = 0; i + 1 < pairs.length; i += 2) m.put(pairs[i], pairs[i + 1]);
-    return m;
-  }
-
-  static String enc(String s) {
-    return Gitlab.enc(s);
   }
 }

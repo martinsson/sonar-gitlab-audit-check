@@ -95,7 +95,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
             "2");
 
     assertThat(r.exitCode()).isEqualTo(2);
-    assertThat(r.err()).startsWith("Projet introuvable : team-a/alpha-service\n  HTTP 0 — ");
+    assertThat(r.err()).startsWith("Projet introuvable : team-a/alpha-service\n  injoignable — ");
   }
 
   @Test

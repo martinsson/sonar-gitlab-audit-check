@@ -1,10 +1,15 @@
 package ch.ge.edg.sonar.gitlab.audit.gocd;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
+import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
+import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
+import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import com.fasterxml.jackson.databind.JsonNode;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -30,12 +35,41 @@ public final class GocdApi {
   private final Map<String, String> acceptSeen = new LinkedHashMap<>();
   private final Map<String, Optional<JsonNode>> instances = new HashMap<>();
 
-  public GocdApi(RestClient http) {
+  private GocdApi(RestClient http) {
     this.http = http;
   }
 
-  public RestClient http() {
-    return http;
+  /**
+   * Un client authentifié par un PAT en Bearer. L'URL se donne avec ou sans « /go » final : les
+   * chemins d'API le remettent.
+   *
+   * @param url l'option, ou GOCD_URL
+   * @param token l'option, ou GOCD_TOKEN
+   * @param sleeper l'attente avant un nouvel essai
+   * @throws Stop si l'URL ou le jeton manque
+   */
+  public static GocdApi connect(
+      @Nullable String url, @Nullable String token, boolean insecure, Sleeper sleeper)
+      throws Stop, IOException {
+    String base = Stop.require(url, "GOCD_URL").replaceAll("/+$", "").replaceFirst("/go$", "");
+    Map<String, String> headers = AuthHeaders.bearer(Stop.require(token, "GOCD_TOKEN"));
+    return new GocdApi(
+        new RestClient(Settings.of(base, headers, insecure), Capture.none(), sleeper));
+  }
+
+  /** La racine de l'instance, sans « /go ». */
+  public String base() {
+    return http.base();
+  }
+
+  /** Les essais faits, nouveaux essais compris. */
+  public int calls() {
+    return http.calls();
+  }
+
+  /** La réponse telle quelle, sauf un 401 : voir {@link Stop#unlessRefused}. */
+  public RestResponse unlessRefused(RestResponse r) throws Stop {
+    return Stop.unlessRefused(r, base());
   }
 
   /** API → en-tête Accept qui a marché, pour le rapport. */
@@ -53,7 +87,7 @@ public final class GocdApi {
     for (String accept : accepts) {
       last = http.get(path, Map.of("Accept", accept));
       accepted = accept;
-      if (last.status() != 404 && last.status() != 406) break;
+      if (!last.is(404) && !last.is(406)) break;
     }
     if (last.ok()) acceptSeen.putIfAbsent(apiName(path), accepted);
     return last;
@@ -77,7 +111,7 @@ public final class GocdApi {
     Optional<JsonNode> cached = instances.get(key);
     if (cached != null) return cached;
     RestResponse r = api("/go/api/pipelines/" + enc(pipeline) + "/" + counter, "v1");
-    Optional<JsonNode> run = r.ok() ? Optional.of(r.json()) : Optional.empty();
+    Optional<JsonNode> run = r.ok() ? r.json() : Optional.empty();
     instances.put(key, run);
     return run;
   }
@@ -102,7 +136,7 @@ public final class GocdApi {
       if (first == null) first = page;
       if (!page.ok()) break;
       pages++;
-      Page p = read(pipeline, page.json(), stop, runs);
+      Page p = read(pipeline, page.tree(), stop, runs);
       complete = p.exhausted();
       next = p.next();
     }
@@ -132,6 +166,6 @@ public final class GocdApi {
   public record History(List<JsonNode> runs, int pages, boolean complete, RestResponse first) {}
 
   public static String enc(String s) {
-    return URLEncoder.encode(s, StandardCharsets.UTF_8).replace("+", "%20");
+    return Query.segment(s);
   }
 }

@@ -1,10 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
-import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
-import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
 import org.jspecify.annotations.Nullable;
@@ -28,14 +26,7 @@ final class Gocd {
   public static Gocd connect(
       @Nullable String url, @Nullable String token, boolean insecure, Sleeper sleeper)
       throws Stop, IOException {
-    String base = Stop.require(url, "GOCD_URL").replaceAll("/+$", "").replaceFirst("/go$", "");
-    String pat = Stop.require(token, "GOCD_TOKEN");
-    return new Gocd(
-        new GocdApi(
-            new RestClient(
-                RestClient.Settings.of(base, AuthHeaders.bearer(pat), insecure),
-                Capture.none(),
-                sleeper)));
+    return new Gocd(GocdApi.connect(url, token, insecure, sleeper));
   }
 
   GocdApi api() {
@@ -43,18 +34,18 @@ final class Gocd {
   }
 
   public int calls() {
-    return api.http().calls();
+    return api.calls();
   }
 
   /** Un échec, quel qu'il soit, arrête : pour les appels sans lesquels rien n'a de sens. */
   RestResponse must(RestResponse r, String path) throws Stop {
-    Stop.unlessRefused(r, api.http());
+    api.unlessRefused(r);
     if (!r.ok()) throw new Stop(path + " : " + r.why());
     return r;
   }
 
   /** Un 401 arrête l'outil ; toute autre réponse revient telle quelle. */
   RestResponse checked(RestResponse r) throws Stop {
-    return Stop.unlessRefused(r, api.http());
+    return api.unlessRefused(r);
   }
 }

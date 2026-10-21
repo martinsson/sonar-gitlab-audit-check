@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.parse;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
+import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.parse;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;

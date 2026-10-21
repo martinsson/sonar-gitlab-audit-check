@@ -41,7 +41,7 @@ final class FunnelReport {
   void inventory(Inventory.Census census) {
     List<AuditedProject> all = census.all();
     for (Inventory.Ignored i : census.ignored()) {
-      out.printf("    %-40s HTTP %d — ignoré%n", i.path(), i.status());
+      out.printf("    %-40s %s — ignoré%n", i.path(), i.status());
     }
     out.printf("  Projets retournés               : %d%n", all.size());
     if (!census.exclusions().isEmpty()) {

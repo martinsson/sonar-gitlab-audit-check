@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.PrintStream;
 import java.time.Instant;

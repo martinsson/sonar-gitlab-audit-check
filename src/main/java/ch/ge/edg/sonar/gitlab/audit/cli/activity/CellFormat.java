@@ -36,17 +36,8 @@ final class CellFormat {
     return d == null ? "" : Text.format("%.2f", d);
   }
 
-  static boolean isBlank(@Nullable String s) {
-    return s == null || s.isBlank();
-  }
-
   static String orEmpty(@Nullable String s) {
     return s == null ? "" : s;
-  }
-
-  static String truncate(@Nullable String s, int max) {
-    if (s == null) return "";
-    return s.length() <= max ? s : s.substring(0, max - 1) + "…";
   }
 
   /** « s » au pluriel. */

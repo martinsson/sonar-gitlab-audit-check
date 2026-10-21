@@ -1,9 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.parse;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
+import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.parse;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
@@ -69,7 +70,7 @@ final class CommitTally {
     String sha = dated.sha();
     CommitMeasure.Head head =
         new CommitMeasure.Head(
-            last != null ? last : newest, CellFormat.isBlank(sha) && first != null ? first : sha);
+            last != null ? last : newest, Text.isBlank(sha) && first != null ? first : sha);
     return new CommitMeasure.Counted(
         head,
         new CommitMeasure.Volume(human, bot, authors.size(), merges, days.size(), reverts),

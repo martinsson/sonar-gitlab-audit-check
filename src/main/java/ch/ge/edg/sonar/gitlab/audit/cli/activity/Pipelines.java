@@ -1,12 +1,13 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.parse;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.iso;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.median;
+import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.parse;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
@@ -27,7 +28,7 @@ final class Pipelines {
   }
 
   Practices.Builds measure(GitlabProject p) {
-    Gitlab.Response pl =
+    RestResponse pl =
         gitlab.get(
             "projects/" + p.id() + "/pipelines",
             params(
@@ -37,8 +38,8 @@ final class Pipelines {
                 iso(funnel.windowStart()),
                 "per_page",
                 "100"));
-    JsonNode arr = pl.json();
-    if (pl.status() != 200 || !arr.isArray()) return Practices.Builds.none();
+    JsonNode arr = pl.tree();
+    if (!pl.is(200) || !arr.isArray()) return Practices.Builds.none();
     int n = arr.size();
     int ok = 0;
     for (JsonNode x : arr) if ("success".equals(text(x, "status"))) ok++;

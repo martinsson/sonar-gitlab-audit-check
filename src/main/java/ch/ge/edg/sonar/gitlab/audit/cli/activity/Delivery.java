@@ -1,9 +1,10 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.iso;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -27,12 +28,10 @@ final class Delivery {
   }
 
   Practices.Deployment measure(GitlabProject p) {
-    Gitlab.Response env =
-        gitlab.get("projects/" + p.id() + "/environments", Map.of("per_page", "1"));
+    RestResponse env = gitlab.get("projects/" + p.id() + "/environments", Map.of("per_page", "1"));
     Integer environments = null;
-    if (env.status() == 200) {
-      Integer t = env.intHeader("x-total");
-      environments = t != null ? t : env.json().size();
+    if (env.is(200)) {
+      environments = env.intHeader("x-total").orElse(env.tree().size());
     }
     if (!enterprise || (environments != null && environments == 0)) {
       return new Practices.Deployment(environments, null, false);
@@ -42,7 +41,7 @@ final class Delivery {
 
   /** La fréquence de déploiement sur la fenêtre, ou le constat qu'elle n'est pas disponible. */
   private Practices.Deployment dora(GitlabProject p, @Nullable Integer environments) {
-    Gitlab.Response df =
+    RestResponse df =
         gitlab.get(
             "projects/" + p.id() + "/dora/metrics",
             params(
@@ -52,11 +51,11 @@ final class Delivery {
                 iso(funnel.windowStart()).substring(0, 10),
                 "interval",
                 "monthly"));
-    if (df.status() == 200 && df.json().isArray()) {
+    if (df.is(200) && df.tree().isArray()) {
       double sum = 0;
-      for (JsonNode d : df.json()) sum += d.path("value").asDouble(0);
+      for (JsonNode d : df.tree()) sum += d.path("value").asDouble(0);
       return new Practices.Deployment(environments, sum, false);
     }
-    return new Practices.Deployment(environments, null, df.status() == 403 || df.status() == 404);
+    return new Practices.Deployment(environments, null, df.is(403) || df.is(404));
   }
 }

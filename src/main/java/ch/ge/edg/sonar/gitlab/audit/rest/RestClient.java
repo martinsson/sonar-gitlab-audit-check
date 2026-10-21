@@ -181,18 +181,19 @@ public final class RestClient {
    */
   private Optional<Duration> pauseBefore(RestResponse r, int[] spent) {
     Retries policy = settings.retries();
-    int code = r.status();
-    if (code == 429 && spent[0] < policy.throttled()) {
+    if (r.is(429) && spent[0] < policy.throttled()) {
       spent[0]++;
       throttled.incrementAndGet();
       return Optional.of(Duration.ofSeconds(Math.min(retryAfter(r), MAX_WAIT_SECONDS)));
     }
-    if ((code == 502 || code == 503 || code == 504) && spent[1] < policy.serverErrors()) {
+    if ((r.is(502) || r.is(503) || r.is(504)) && spent[1] < policy.serverErrors()) {
       spent[1]++;
       retried.incrementAndGet();
       return Optional.of(Duration.ofSeconds(spent[1]));
     }
-    if (code == 0 && !INTERRUPTED.equals(r.error()) && spent[2] < policy.unreachable()) {
+    if (r instanceof RestResponse.Unreachable u
+        && !INTERRUPTED.equals(u.reason())
+        && spent[2] < policy.unreachable()) {
       spent[2]++;
       retried.incrementAndGet();
       return Optional.of(Duration.ZERO);

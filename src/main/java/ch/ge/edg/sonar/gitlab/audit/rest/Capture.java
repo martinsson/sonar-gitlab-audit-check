@@ -118,7 +118,7 @@ public final class Capture {
       return Optional.of(
           status == 0
               ? RestResponse.unreachable(body)
-              : new RestResponse(status, body, Map.of(), ""));
+              : new RestResponse.Answered(status, body, Map.of()));
     } catch (IOException | NumberFormatException e) {
       missingCount.incrementAndGet();
       return Optional.of(RestResponse.unreachable("capture illisible : " + e.getMessage()));
@@ -134,10 +134,13 @@ public final class Capture {
     Path dir = dumpDir;
     if (dir == null) return;
     try {
-      Files.writeString(dir.resolve(capture), r.status() == 0 ? r.error() : r.body());
+      // Sur disque, une absence de réponse s'écrit statut 0, sa raison à la place du corps.
+      int status = r instanceof RestResponse.Answered a ? a.status() : 0;
+      String body = r instanceof RestResponse.Unreachable u ? u.reason() : r.body();
+      Files.writeString(dir.resolve(capture), body);
       Path statusFile = dir.resolve(capture + ".status");
-      if (r.status() == 200) Files.deleteIfExists(statusFile);
-      else Files.writeString(statusFile, String.valueOf(r.status()));
+      if (status == 200) Files.deleteIfExists(statusFile);
+      else Files.writeString(statusFile, String.valueOf(status));
       synchronized (this) {
         Files.writeString(
             dir.resolve("index.txt"),

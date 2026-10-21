@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
@@ -41,17 +42,17 @@ final class Preflight {
 
   Result check() {
     List<Probe> probes = new ArrayList<>();
-    Gitlab.Response me = gitlab.get("user", Map.of());
+    RestResponse me = gitlab.get("user", Map.of());
     if (me.unreachable()) {
-      probes.add(new Probe("api/v4/user", ProbeVerdict.ERROR, me.errorMessage()));
+      probes.add(new Probe("api/v4/user", ProbeVerdict.ERROR, me.message()));
       return new Result(
           probes,
           List.of("Instance injoignable. Vérifie l'URL, le proxy, le TLS."),
           Optional.empty());
     }
-    if (me.status() != 200) {
+    if (!me.is(200)) {
       probes.add(
-          new Probe("api/v4/user", ProbeVerdict.DENIED, "HTTP " + me.status() + " — jeton refusé"));
+          new Probe("api/v4/user", ProbeVerdict.DENIED, me.statusLine() + " — jeton refusé"));
       return new Result(
           probes,
           List.of(
@@ -59,7 +60,7 @@ final class Preflight {
               "mais un jeton expiré ou révoqué donne le même 401."),
           Optional.empty());
     }
-    JsonNode user = me.json();
+    JsonNode user = me.tree();
     probes.add(
         new Probe(
             "api/v4/user",
@@ -74,9 +75,9 @@ final class Preflight {
    * découvrir après coup, c'est réécrire l'analyse.
    */
   private boolean enterprise(List<Probe> probes) {
-    Gitlab.Response meta = gitlab.get("metadata", Map.of());
-    if (meta.status() == 200) {
-      JsonNode metadata = meta.json();
+    RestResponse meta = gitlab.get("metadata", Map.of());
+    if (meta.is(200)) {
+      JsonNode metadata = meta.tree();
       boolean enterprise = metadata.path("enterprise").asBoolean(false);
       probes.add(
           new Probe(
@@ -92,7 +93,7 @@ final class Preflight {
         new Probe(
             "api/v4/metadata",
             ProbeVerdict.MISSING,
-            "HTTP " + meta.status() + " — plan inconnu, on suppose Community"));
+            meta.statusLine() + " — plan inconnu, on suppose Community"));
     return false;
   }
 }

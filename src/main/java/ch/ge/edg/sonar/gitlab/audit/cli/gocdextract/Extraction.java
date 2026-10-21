@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;

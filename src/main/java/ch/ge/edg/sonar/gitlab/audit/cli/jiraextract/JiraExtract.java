@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.CommaOption;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -91,13 +92,13 @@ public class JiraExtract implements Callable<Integer> {
     try {
       extract(err);
       return 0;
-    } catch (ExtractionStop | IOException e) {
+    } catch (Stop | IOException e) {
       err.println("Arrêt : " + e.getMessage());
       return 2;
     }
   }
 
-  private void extract(PrintStream err) throws ExtractionStop, IOException {
+  private void extract(PrintStream err) throws Stop, IOException {
     JiraSource jira = JiraSource.connect(url, token, insecure, host.sleeper());
     FieldSelection fields = FieldSelection.of(jira.fields(), extraFields, err);
     Map<String, String> categories = jira.statusCategories();

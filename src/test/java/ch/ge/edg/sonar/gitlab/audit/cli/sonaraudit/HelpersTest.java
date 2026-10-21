@@ -3,7 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.SonarApi.Paging;
-import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -61,13 +61,6 @@ class HelpersTest {
   }
 
   @Test
-  void paramsPairsKeysAndValuesAndDropsAnOddTail() {
-    assertThat(Values.params("a", "1", "b", "2", "c"))
-        .containsExactly(Map.entry("a", "1"), Map.entry("b", "2"));
-    assertThat(Values.params()).isEmpty();
-  }
-
-  @Test
   void shortNameKeepsWhatFollowsTheLastColonUpToFifty() {
     assertThat(Values.shortName("proj:src/A.java")).isEqualTo("src/A.java");
     assertThat(Values.shortName("noColon")).isEqualTo("noColon");
@@ -110,7 +103,7 @@ class HelpersTest {
   void verdictFollowsTheStatus() {
     assertThat(
             Arrays.stream(new int[] {200, 401, 403, 404, 0, 500, 201})
-                .mapToObj(s -> CallVerdict.of(new Sonar.Response(s, "")))
+                .mapToObj(s -> CallVerdict.of(new RestResponse.Answered(s, "", Map.of())))
                 .toList())
         .containsExactly(
             CallVerdict.OK,
@@ -120,6 +113,7 @@ class HelpersTest {
             CallVerdict.ERROR,
             CallVerdict.ERROR,
             CallVerdict.ERROR);
+    assertThat(CallVerdict.of(RestResponse.unreachable("x"))).isEqualTo(CallVerdict.ERROR);
     assertThat(CallVerdict.EMPTY.tag).isEqualTo("VIDE    ");
     assertThat(CallVerdict.EMPTY.color).isEqualTo(Presentation.YELLOW);
   }

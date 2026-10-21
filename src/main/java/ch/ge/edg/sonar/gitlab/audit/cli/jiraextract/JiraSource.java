@@ -1,14 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
 import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
-import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
-import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -37,49 +34,39 @@ final class JiraSource {
   /** Un PAT Jira Data Center, envoyé en Bearer. */
   public static JiraSource connect(
       @Nullable String url, @Nullable String token, boolean insecure, Sleeper sleeper)
-      throws ExtractionStop, IOException {
-    String base = require(url, "JIRA_URL");
-    Map<String, String> headers = new HashMap<>(AuthHeaders.bearer(require(token, "JIRA_TOKEN")));
-    headers.put("Accept", "application/json");
-    RestClient http =
-        new RestClient(RestClient.Settings.of(base, headers, insecure), Capture.none(), sleeper);
-    return new JiraSource(new JiraApi(http));
-  }
-
-  static String require(@Nullable String value, String env) throws ExtractionStop {
-    if (value == null || value.isBlank()) throw new ExtractionStop(env + " manquant");
-    return value.trim();
+      throws Stop, IOException {
+    return new JiraSource(JiraApi.connect(url, token, insecure, sleeper));
   }
 
   public int calls() {
-    return api.http().calls();
+    return api.calls();
   }
 
-  public JsonNode fields() throws ExtractionStop {
+  public JsonNode fields() throws Stop {
     return must(api.fields(), "/rest/api/2/field");
   }
 
   /** id de statut → catégorie (new, indeterminate, done). */
-  public Map<String, String> statusCategories() throws ExtractionStop {
+  public Map<String, String> statusCategories() throws Stop {
     return JiraApi.statusCategories(must(api.statuses(), "/rest/api/2/status"));
   }
 
   /** Une page de recherche ; l'erreur garde un extrait du corps, où Jira dit ce qui cloche. */
-  public JsonNode search(String jql, int startAt) throws ExtractionStop {
+  public JsonNode search(String jql, int startAt) throws Stop {
     RestResponse r = guard(api.search(jql, startAt, PAGE, EVERYTHING));
     if (!r.ok()) {
-      throw new ExtractionStop(("search : " + r.why() + " " + excerpt(r.body())).strip());
+      throw new Stop(("search : " + r.why() + " " + excerpt(r.body())).strip());
     }
-    return r.json();
+    return r.tree();
   }
 
   /** Un ticket seul, avec tous ses champs et son historique complet. */
-  public JsonNode issue(String key) throws ExtractionStop {
+  public JsonNode issue(String key) throws Stop {
     return must(api.issue(key, "expand=changelog&fields=*all"), "/rest/api/2/issue/" + key);
   }
 
   /** Les versions d'un projet ; un échec se rapporte, il n'arrête pas. */
-  public RestResponse versions(String project) throws ExtractionStop {
+  public RestResponse versions(String project) throws Stop {
     return guard(api.versions(project.toUpperCase(Locale.ROOT)));
   }
 
@@ -88,13 +75,12 @@ final class JiraSource {
     return flat.substring(0, Math.min(EXCERPT, flat.length()));
   }
 
-  private JsonNode must(RestResponse r, String path) throws ExtractionStop {
-    if (!guard(r).ok()) throw new ExtractionStop(path + " : " + r.why());
-    return r.json();
+  private JsonNode must(RestResponse r, String path) throws Stop {
+    if (!guard(r).ok()) throw new Stop(path + " : " + r.why());
+    return r.tree();
   }
 
-  private RestResponse guard(RestResponse r) throws ExtractionStop {
-    if (r.status() == 401) throw new ExtractionStop(api.http().base() + " : jeton refusé (401)");
-    return r;
+  private RestResponse guard(RestResponse r) throws Stop {
+    return api.unlessRefused(r);
   }
 }

@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.Platforms;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
+import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.io.PrintStream;
 import java.nio.file.Path;

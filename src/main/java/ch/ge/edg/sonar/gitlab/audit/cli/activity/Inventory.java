@@ -1,11 +1,12 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.enc;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.params;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.isBlank;
+import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.enc;
+import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.isBlank;
 
 import ch.ge.edg.sonar.gitlab.audit.exclusions.Exclusions;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -42,7 +43,7 @@ final class Inventory {
       List<AuditedProject> all, List<Ignored> ignored, Exclusions exclusions, int forbidden) {}
 
   /** Un chemin de --projects-file auquel GitLab a répondu autre chose que 200. */
-  record Ignored(String path, int status) {}
+  record Ignored(String path, String status) {}
 
   /**
    * Le périmètre, chaque projet exclu d'office portant son motif.
@@ -98,16 +99,16 @@ final class Inventory {
             .map(String::trim)
             .filter(l -> !l.isEmpty() && !l.startsWith("#"))
             .toList();
-    List<Gitlab.Response> rs =
+    List<RestResponse> rs =
         gitlab.map(
             paths,
             funnel.concurrency(),
             path -> gitlab.get("projects/" + enc(path), Map.of("statistics", "true")));
     List<JsonNode> found = new ArrayList<>();
     for (int i = 0; i < paths.size(); i++) {
-      Gitlab.Response r = rs.get(i);
-      if (r.status() == 200) found.add(r.json());
-      else ignored.add(new Ignored(paths.get(i), r.status()));
+      RestResponse r = rs.get(i);
+      if (r.is(200)) found.add(r.tree());
+      else ignored.add(new Ignored(paths.get(i), r.statusLine()));
     }
     return found;
   }

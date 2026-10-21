@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
-import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.Map;
 import java.util.function.Function;
@@ -18,14 +18,13 @@ record Probe<T>(
     Map<String, String> params) {
 
   void run(Session session) {
-    Sonar.Response r = session.sq().get(path, params);
+    RestResponse r = session.sq().get(path, params);
     CallVerdict v = CallVerdict.of(r);
     String detail;
     if (v == CallVerdict.OK) {
-      T parsed = r.as(type);
-      detail = (parsed == null) ? "réponse illisible" : Text.orEmpty(hint.apply(parsed));
+      detail = r.as(type).map(t -> Text.orEmpty(hint.apply(t))).orElse("réponse illisible");
     } else {
-      detail = Text.format("HTTP %d %s", r.status(), r.errorMessage());
+      detail = r.statusLine() + " " + r.message();
     }
     Presentation.line(session.out(), label, v, detail);
   }

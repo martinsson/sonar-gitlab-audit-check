@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.isBlank;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.orEmpty;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.isBlank;
+import static ch.ge.edg.sonar.gitlab.audit.text.Text.orEmpty;
 
 import java.util.List;
 import java.util.Locale;

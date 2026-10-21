@@ -2,22 +2,18 @@ package ch.ge.edg.sonar.gitlab.audit.gocd;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class GocdApiTest {
 
-  private static GocdApi api(FakeHttpServer gocd) throws IOException {
-    return new GocdApi(
-        new RestClient(
-            RestClient.Settings.of(gocd.url(), Map.of(), false), Capture.none(), pause -> {}));
+  private static GocdApi api(FakeHttpServer gocd) {
+    return GocdFixtures.api(gocd);
   }
 
   private static String run(int counter, long scheduled) {
@@ -47,9 +43,9 @@ class GocdApiTest {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       gocd.on("/go/api/admin/templates", r -> Response.status(403, "{}"));
       GocdApi api = api(gocd);
-      assertThat(api.api("/go/api/admin/templates", "v7", "v6").status()).isEqualTo(403);
+      assertThat(api.api("/go/api/admin/templates", "v7", "v6").is(403)).isTrue();
       assertThat(gocd.requests()).hasSize(1);
-      assertThat(api.api("/go/api/version", "v1").status()).isEqualTo(404);
+      assertThat(api.api("/go/api/version", "v1").is(404)).isTrue();
       assertThat(api.acceptSeen()).isEmpty();
     }
   }
@@ -116,10 +112,10 @@ class GocdApiTest {
       assertThat(h.pages()).isEqualTo(3);
       assertThat(h.complete()).isFalse();
       GocdApi.History missing = api.history("absent", r -> false, 3);
-      assertThat(missing.first().status()).isEqualTo(404);
+      assertThat(missing.first().is(404)).isTrue();
       assertThat(missing.pages()).isZero();
       GocdApi.History none = api.history("p", r -> false, 0);
-      assertThat(none.first().status()).isZero();
+      assertThat(none.first().unreachable()).isTrue();
     }
   }
 
@@ -135,7 +131,7 @@ class GocdApiTest {
       assertThat(api.instance("build", 13)).isEmpty();
       assertThat(gocd.requests("/go/api/pipelines/build/12")).hasSize(1);
       assertThat(gocd.requests("/go/api/pipelines/build/13")).hasSize(2);
-      assertThat(api.http().calls()).isEqualTo(3);
+      assertThat(api.calls()).isEqualTo(3);
     }
   }
 
