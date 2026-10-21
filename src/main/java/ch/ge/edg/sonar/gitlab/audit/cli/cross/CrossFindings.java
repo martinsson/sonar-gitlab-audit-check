@@ -208,8 +208,7 @@ final class CrossFindings {
     finding(
         "Chaque modification ajoute des issues",
         "Pente des issues Sonar sur la fenêtre, rapportée aux lignes modifiées "
-            + "dans\n    GitLab. Au moins 5 analyses et 500 lignes, sinon "
-            + "c'est du bruit.",
+            + "dans\n    GitLab. Au moins 5 analyses et 500 lignes, sinon c'est du bruit.",
         degrading,
         p ->
             Text.format(

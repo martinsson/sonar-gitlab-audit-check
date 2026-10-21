@@ -10,9 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -48,18 +45,6 @@ class SonarRankCliTest {
           "xs-one,XS One,800,2026-06-01,1,100,0,100,100,0,0,A,A,A,OK");
 
   @TempDir Path dir;
-  private Locale locale;
-
-  @BeforeEach
-  void pinLocale() {
-    locale = Locale.getDefault();
-    Locale.setDefault(Locale.ROOT);
-  }
-
-  @AfterEach
-  void restoreLocale() {
-    Locale.setDefault(locale);
-  }
 
   Path inventory(List<String> rows) throws IOException {
     Path in = dir.resolve("inventaire.csv");

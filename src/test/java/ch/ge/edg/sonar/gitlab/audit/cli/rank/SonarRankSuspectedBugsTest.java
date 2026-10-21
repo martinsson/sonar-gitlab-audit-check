@@ -11,9 +11,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -21,18 +18,6 @@ import org.junit.jupiter.api.io.TempDir;
 class SonarRankSuspectedBugsTest {
 
   @TempDir Path dir;
-  private Locale locale;
-
-  @BeforeEach
-  void pinLocale() {
-    locale = Locale.getDefault();
-    Locale.setDefault(Locale.ROOT);
-  }
-
-  @AfterEach
-  void restoreLocale() {
-    Locale.setDefault(locale);
-  }
 
   Cli.Result rank(List<String> rows, String... extra) throws IOException {
     Path in = dir.resolve("inventaire.csv");

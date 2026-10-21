@@ -22,8 +22,7 @@ final class ScanOptions {
       names = "--no-bindings",
       description =
           "ne pas lire la liaison GitLab ni les liens de chaque projet "
-              + "(deux appels de moins par projet ; CrossAudit perd sa jointure exacte "
-              + "côté Sonar)")
+              + "(deux appels de moins par projet ; CrossAudit perd sa jointure exacte côté Sonar)")
   boolean noBindings;
 
   @Option(

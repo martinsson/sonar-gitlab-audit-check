@@ -33,23 +33,29 @@ import picocli.CommandLine.Option;
  *
  * <p>Trois principes, tous hérités de §6 :
  *
- * <p>ADDITIF Il lit deux CSV déjà produits et n'appelle aucune API. On peut le relancer, changer de
- * seuil, refaire la jointure autrement, sans repayer l'un ou l'autre audit — et sans qu'un échec
- * ici n'invalide quoi que ce soit là-bas.
- *
- * <p>ÉTIQUETÉ Chaque appariement porte la méthode qui l'a produit et sa confiance. Un rapprochement
- * par ressemblance de nom n'a pas à ressembler, dans un tableau, à une clé lue dans la CI.
- *
- * <p>JAMAIS PORTEUR Seules les jointures exactes et dérivées alimentent une affirmation. Les
- * suggestions sortent dans le CSV, marquées, pour qu'un humain tranche — jamais dans un compte.
+ * <ul>
+ *   <li>ADDITIF : il lit deux CSV déjà produits et n'appelle aucune API. On peut le relancer,
+ *       changer de seuil, refaire la jointure autrement, sans repayer l'un ou l'autre audit — et
+ *       sans qu'un échec ici n'invalide quoi que ce soit là-bas.
+ *   <li>ÉTIQUETÉ : chaque appariement porte la méthode qui l'a produit et sa confiance. Un
+ *       rapprochement par ressemblance de nom n'a pas à ressembler, dans un tableau, à une clé lue
+ *       dans la CI.
+ *   <li>JAMAIS PORTEUR : seules les jointures exactes et dérivées alimentent une affirmation. Les
+ *       suggestions sortent dans le CSV, marquées, pour qu'un humain tranche — jamais dans un
+ *       compte.
+ * </ul>
  *
  * <p>Le taux d'appariement est lui-même un résultat : un taux bas ne dit pas que l'outil a échoué,
  * il dit que l'intégration GitLab↔SonarQube n'est pas configurée, ce qui est la même classe de
  * constat que les projets jamais analysés.
  *
- * <p>Usage : jbang SonarAuditCheck.java --csv projets.csv jbang GitlabActivityAudit.java --group
- * mon/groupe --deep --out-dir ./audit jbang CrossAudit.java --sonar projets.csv --gitlab
- * ./audit/pratiques.csv \ --out croisement.csv
+ * <p>Usage :
+ *
+ * <pre>
+ * jbang SonarAuditCheck.java --csv projets.csv
+ * jbang GitlabActivityAudit.java --group mon/groupe --deep --out-dir ./audit
+ * jbang CrossAudit.java --sonar projets.csv --gitlab ./audit/pratiques.csv  *     --out croisement.csv
+ * </pre>
  */
 @Command(
     name = "CrossAudit",
@@ -118,8 +124,7 @@ public class CrossAudit implements Callable<Integer> {
   @Option(
       names = "--appariement",
       description =
-          "appariement à reprendre et à compléter "
-              + "(défaut : appariement.csv à côté de --gitlab)")
+          "appariement à reprendre et à compléter (défaut : appariement.csv à côté de --gitlab)")
   @Nullable Path mappingFile;
 
   @Option(

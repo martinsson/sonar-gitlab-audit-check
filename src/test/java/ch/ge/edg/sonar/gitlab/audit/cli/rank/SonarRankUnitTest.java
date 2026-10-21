@@ -13,10 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import picocli.CommandLine;
@@ -25,18 +22,6 @@ import picocli.CommandLine;
 class SonarRankUnitTest {
 
   @TempDir Path dir;
-  private Locale locale;
-
-  @BeforeEach
-  void pinLocale() {
-    locale = Locale.getDefault();
-    Locale.setDefault(Locale.ROOT);
-  }
-
-  @AfterEach
-  void restore() {
-    Locale.setDefault(locale);
-  }
 
   static InventoryRow row(String... kv) {
     Map<String, Integer> index = new HashMap<>();

@@ -12,28 +12,12 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.function.Consumer;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 class GitlabActivityAuditHelpersTest {
-
-  private Locale saved;
-
-  @BeforeEach
-  void fixLocale() {
-    saved = Locale.getDefault();
-    Locale.setDefault(Locale.ROOT);
-  }
-
-  @AfterEach
-  void restoreLocale() {
-    Locale.setDefault(saved);
-  }
 
   @Test
   void pctRoundsToAWholePercentAndDashesAnEmptyTotal() {
@@ -41,13 +25,6 @@ class GitlabActivityAuditHelpersTest {
     assertThat(CellFormat.pct(2, 3)).isEqualTo("67 %");
     assertThat(CellFormat.pct(0, 5)).isEqualTo("0 %");
     assertThat(CellFormat.pct(5, 0)).isEqualTo("—");
-  }
-
-  @Test
-  void decimalsIgnoreTheDefaultLocale() {
-    Locale.setDefault(Locale.FRANCE);
-    assertThat(CellFormat.dec(1.5)).isEqualTo("1.50");
-    assertThat(CellFormat.pct(1, 3)).isEqualTo("33 %");
   }
 
   @Test

@@ -21,17 +21,25 @@ import picocli.CommandLine.Option;
  * <p>Sonar décrit l'état du code à l'instant de l'analyse. GitLab décrit le procédé qui l'a produit
  * — et c'est le procédé qu'on cherche à qualifier :
  *
- * <p>1. Cadence : à quel rythme, par à-coups ou en continu, quand ? 2. Contributeurs : combien de
- * gens, et quelle concentration ? 3. Revue : les MR sont-elles relues, par qui, en combien de temps
- * ? 4. Constats : ce qui, dans les trois sections précédentes, mérite qu'on aille voir.
+ * <ol>
+ *   <li>Cadence : à quel rythme, par à-coups ou en continu, quand ?
+ *   <li>Contributeurs : combien de gens, et quelle concentration ?
+ *   <li>Revue : les MR sont-elles relues, par qui, en combien de temps ?
+ *   <li>Constats : ce qui, dans les trois sections précédentes, mérite qu'on aille voir.
+ * </ol>
  *
  * <p>Le croisement avec Sonar (fréquence de modification × complexité, obsolète vs abandonné,
  * quality gate décorative) viendra se poser par-dessus : cette moitié-ci se tient debout seule, et
  * c'est voulu — un dépôt jamais analysé par Sonar reste parfaitement lisible ici.
  *
- * <p>Usage : export GITLAB_URL=https://gitlab.example.com # défaut : gitlab.com export
- * GITLAB_TOKEN=glpat_xxxxxxxx # PAT, portée read_api jbang GitLabProjectReport.java --path
- * groupe/sous-groupe/projet jbang GitLabProjectReport.java --path groupe/projet --days 365
+ * <p>Usage :
+ *
+ * <pre>
+ * export GITLAB_URL=https://gitlab.example.com   # défaut : gitlab.com
+ * export GITLAB_TOKEN=glpat_xxxxxxxx             # PAT, portée read_api
+ * jbang GitLabProjectReport.java --path groupe/sous-groupe/projet
+ * jbang GitLabProjectReport.java --path groupe/projet --days 365
+ * </pre>
  *
  * <p>Le rapport lui-même est dans {@link ProjectReport}.
  */

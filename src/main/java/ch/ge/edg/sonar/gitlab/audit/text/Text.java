@@ -5,7 +5,7 @@ import com.google.errorprone.annotations.FormatString;
 import java.util.Locale;
 import org.jspecify.annotations.Nullable;
 
-/** The small text and number helpers every command was keeping its own copy of. */
+/** Les petits utilitaires de texte et de nombres que chaque commande recopiait. */
 public final class Text {
 
   private Text() {}
@@ -32,7 +32,7 @@ public final class Text {
     return s.length() <= max ? s : s.substring(0, Math.max(0, max - 3)) + "...";
   }
 
-  /** Two decimals with a point whatever the locale: CSV files are read back by other tools. */
+  /** Deux décimales avec un point, quelle que soit la locale : d'autres outils relisent les CSV. */
   public static String decimal(@Nullable Double d) {
     return d == null ? "" : String.format(Locale.ROOT, "%.2f", d);
   }
@@ -50,8 +50,9 @@ public final class Text {
   }
 
   /**
-   * {@link String#format} with {@link Locale#ROOT}: the one way a command formats numbers and dates
-   * into text, so a French machine still writes 1.5 and the same report comes out everywhere.
+   * {@link String#format} en {@link Locale#ROOT} : la seule façon dont une commande met nombres et
+   * dates en texte, pour qu'une machine française écrive aussi 1.5 et que le même rapport sorte
+   * partout.
    */
   @FormatMethod
   public static String format(@FormatString String pattern, @Nullable Object... args) {

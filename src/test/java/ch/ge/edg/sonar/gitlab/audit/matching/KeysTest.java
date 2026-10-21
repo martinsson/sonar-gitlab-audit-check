@@ -25,8 +25,7 @@ class KeysTest {
   @Test
   void linkedPathsReadHttpsSshAndTreeUrlsIgnoringTheHost() {
     String links =
-        "gitlab https://git.example.test/team-a/alpha.git"
-            + " | github git@git.example.test:Team-B/Beta"
+        "gitlab https://git.example.test/team-a/alpha.git | github git@git.example.test:Team-B/Beta"
             + " | other https://git.example.test/team-a/alpha/-/tree/main";
     assertThat(Keys.linkedPaths(links)).containsExactly("team-a/alpha", "team-b/beta");
   }

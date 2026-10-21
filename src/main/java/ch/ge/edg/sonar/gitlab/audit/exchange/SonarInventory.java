@@ -9,25 +9,26 @@ import java.util.List;
  */
 public final class SonarInventory {
 
-  public static final String KEY = "key";
-  public static final String NAME = "name";
-  public static final String ANALYSIS_DATE = "analysisDate";
-  public static final String DAYS_SINCE_ANALYSIS = "days_since_analysis";
+  public static final String KEY = Columns.named("key");
+  public static final String NAME = Columns.named("name");
+  public static final String ANALYSIS_DATE = Columns.named("analysisDate");
+  public static final String DAYS_SINCE_ANALYSIS = Columns.named("days_since_analysis");
 
-  public static final String NCLOC = "ncloc";
-  public static final String COVERAGE = "coverage";
-  public static final String NEW_COVERAGE = "new_coverage";
-  public static final String TESTS = "tests";
-  public static final String SQALE_INDEX = "sqale_index";
-  public static final String SQALE_DEBT_RATIO = "sqale_debt_ratio";
-  public static final String NEW_LINES = "new_lines";
-  public static final String NEW_VIOLATIONS = "new_violations";
-  public static final String NEW_DUPLICATED_LINES_DENSITY = "new_duplicated_lines_density";
-  public static final String ALERT_STATUS = "alert_status";
+  public static final String NCLOC = Columns.named("ncloc");
+  public static final String COVERAGE = Columns.named("coverage");
+  public static final String NEW_COVERAGE = Columns.named("new_coverage");
+  public static final String TESTS = Columns.named("tests");
+  public static final String SQALE_INDEX = Columns.named("sqale_index");
+  public static final String SQALE_DEBT_RATIO = Columns.named("sqale_debt_ratio");
+  public static final String NEW_LINES = Columns.named("new_lines");
+  public static final String NEW_VIOLATIONS = Columns.named("new_violations");
+  public static final String NEW_DUPLICATED_LINES_DENSITY =
+      Columns.named("new_duplicated_lines_density");
+  public static final String ALERT_STATUS = Columns.named("alert_status");
 
-  public static final String ALM = "alm";
-  public static final String ALM_REPOSITORY = "alm_repository";
-  public static final String LIENS = "liens";
+  public static final String ALM = Columns.named("alm");
+  public static final String ALM_REPOSITORY = Columns.named("alm_repository");
+  public static final String LIENS = Columns.named("liens");
 
   public static final List<String> IDENTITY =
       List.of(KEY, NAME, ANALYSIS_DATE, DAYS_SINCE_ANALYSIS);

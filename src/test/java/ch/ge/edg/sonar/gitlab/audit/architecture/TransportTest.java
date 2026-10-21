@@ -10,7 +10,9 @@ import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import java.net.HttpURLConnection;
+import java.net.Socket;
 import java.net.URL;
+import java.net.URLConnection;
 
 /**
  * One HTTP stack (ARCHITECTURE.md): {@code rest} is the only package that opens connections, so
@@ -35,7 +37,15 @@ class TransportTest {
           .dependOnClassesThat()
           .areAssignableTo(HttpURLConnection.class)
           .orShould()
+          .dependOnClassesThat()
+          .areAssignableTo(URLConnection.class)
+          .orShould()
+          .dependOnClassesThat()
+          .areAssignableTo(Socket.class)
+          .orShould()
           .callMethod(URL.class, "openConnection")
+          .orShould()
+          .callMethod(URL.class, "openStream")
           .because(
               "a second transport is a second set of retries, captures and TLS settings that"
                   + " drift apart: GitLab and Sonar build on rest.RestClient");
