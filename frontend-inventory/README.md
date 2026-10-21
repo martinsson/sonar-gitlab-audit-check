@@ -8,7 +8,7 @@ Lecture seule. Autonome : aucun lien avec le reste de ce dépôt.
 export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxxxxxx
 jbang FrontendInventory.java                    # → frontend.csv, fenêtre de 90 jours
 jbang FrontendInventory.java --days 30 --out f.csv --limit 50
-jbang FrontendInventory.java --seuil-front 10 --threads 4
+jbang FrontendInventory.java --seuil-front 10 --threads 4 --profondeur 4
 ```
 
 Le CSV est au format Excel (point-virgule, BOM UTF-8).
@@ -21,8 +21,11 @@ Le CSV est au format Excel (point-virgule, BOM UTF-8).
   somme de JavaScript, TypeScript, TSX, JSX, Vue, Svelte, HTML, CSS, SCSS, Sass,
   Less et Stylus.
 - **Où chercher les `package.json`** :
-  - part de front ≥ `--seuil-front` (5 % par défaut) : dans tout le dépôt, en
-    parcourant l'arborescence, hors `node_modules/`, `bower_components/` et `vendor/` ;
+  - part de front ≥ `--seuil-front` (5 % par défaut) : dans les dossiers jusqu'à
+    `--profondeur` (3 par défaut, la racine vaut 0 : `src/main/webapp/package.json` est
+    trouvé, `module/src/main/frontend/package.json` non). Un appel par dossier visité,
+    sans descendre dans `node_modules/`, `bower_components/`, `vendor/`, `target/`,
+    `build/`, `dist/`, `src/main/java/` ni `src/test/`. Au plus 200 appels par projet ;
   - sinon : seulement à la racine, un appel.
 - **Techno** : dépendances, devDependencies et peerDependencies confondues, sur
   tous les `package.json` trouvés.
@@ -44,7 +47,6 @@ Le CSV est au format Excel (point-virgule, BOM UTF-8).
 | `vue`, `react`, `angular` | plages de version déclarées, séparées par ` / ` s'il y en a plusieurs |
 | `autres_front` | Svelte, jQuery |
 | `outillage` | nuxt, next, vite, @vue/cli-service, react-scripts, typescript |
-| `fichiers` | nombre de fichiers du dépôt. Rempli seulement quand l'arborescence a été parcourue |
 | `commits_Nj`, `mr_Nj`, `lignes_ajoutees_Nj`, `lignes_supprimees_Nj` | activité sur la fenêtre |
 | `commits_total` | `commit_count` des statistiques GitLab (vide sans le rôle Reporter) |
 | `a_verifier` | cas que les règles ne tranchent pas, à regarder à la main (ci-dessous) |
@@ -58,5 +60,6 @@ Le CSV est au format Excel (point-virgule, BOM UTF-8).
 | `front sans framework déclaré` | part de front au-dessus du seuil, des `package.json` mais aucun des frameworks suivis |
 | `fichiers .vue sans dépendance vue` | GitLab voit du Vue, aucun `package.json` ne déclare `vue` (souvent Nuxt 3) |
 | `plusieurs versions de Vue` (ou d'un autre framework) | des `package.json` qui déclarent des versions majeures différentes |
+| `arborescence tronquée` | plus de 200 appels pour parcourir les dossiers : les `package.json` restants n'ont pas été cherchés |
 | `<chemin> illisible` | un `package.json` qui n'est pas du JSON valide |
 | `langages non calculés par GitLab` | `/languages` vide : seule la racine a été regardée |
