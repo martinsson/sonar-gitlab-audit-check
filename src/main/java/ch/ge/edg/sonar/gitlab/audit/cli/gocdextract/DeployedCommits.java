@@ -1,11 +1,12 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.JiraKeys;
-import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
-import ch.ge.edg.sonar.gitlab.audit.gocd.Materials;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Material;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run.MaterialRevision;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run.Modification;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Upstream;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,18 +39,18 @@ final class DeployedCommits {
     this.maxUpstream = maxUpstream;
   }
 
-  public List<Commit> of(String pipeline, JsonNode run) {
+  public List<Commit> of(String pipeline, Run run) {
     Walk walk = new Walk();
     walk.collect(pipeline, run, "direct", 0);
     return new ArrayList<>(walk.found.values());
   }
 
   /** Le compteur du pipeline amont qu'un run a pris, -1 si inconnu. */
-  static int upstreamCounter(Optional<JsonNode> run, String upstream) {
+  static int upstreamCounter(Optional<Run> run, String upstream) {
     if (run.isEmpty()) return -1;
-    for (JsonNode mr : run.get().path("build_cause").path("material_revisions")) {
-      for (JsonNode mod : mr.path("modifications")) {
-        Upstream up = Upstream.parse(mod.path("revision").asText());
+    for (MaterialRevision mr : run.get().buildCause().materialRevisions()) {
+      for (Modification mod : mr.modifications()) {
+        Upstream up = Upstream.parse(mod.revision());
         if (up != null && up.pipeline().equals(upstream)) return up.counter();
       }
     }
@@ -71,35 +72,28 @@ final class DeployedCommits {
     final Map<String, Commit> found = new LinkedHashMap<>();
     int budget = maxUpstream;
 
-    void collect(String pipeline, JsonNode run, String via, int depth) {
+    void collect(String pipeline, Run run, String via, int depth) {
       if (depth > MAX_DEPTH) return;
-      int counter = run.path("counter").asInt();
-      for (JsonNode mr : run.path("build_cause").path("material_revisions")) {
-        if (!mr.path("changed").asBoolean(false)) continue;
-        JsonNode material = mr.path("material");
-        if (Materials.isGit(material)) git(mr, via);
-        else if (Materials.isPipeline(material)) upstream(pipeline, counter, mr, depth);
+      for (MaterialRevision mr : run.buildCause().materialRevisions()) {
+        if (!mr.changed()) continue;
+        Material material = mr.material();
+        if (material.isGit()) git(mr, via);
+        else if (material.isPipeline()) upstream(pipeline, run.counter(), mr, depth);
       }
     }
 
-    private void git(JsonNode mr, String via) {
-      String repo = Materials.gitUrl(mr.path("material"));
-      for (JsonNode mod : mr.path("modifications")) {
-        String revision = mod.path("revision").asText();
+    private void git(MaterialRevision mr, String via) {
+      String repo = mr.material().gitUrl();
+      for (Modification mod : mr.modifications()) {
         found.putIfAbsent(
-            revision,
-            new Commit(
-                via,
-                repo,
-                revision,
-                Times.parse(mod.path("modified_time")),
-                JiraKeys.in(mod.path("comment").asText(""))));
+            mod.revision(),
+            new Commit(via, repo, mod.revision(), mod.modifiedTime(), JiraKeys.in(mod.comment())));
       }
     }
 
-    private void upstream(String pipeline, int counter, JsonNode mr, int depth) {
-      for (JsonNode mod : mr.path("modifications")) {
-        Upstream to = Upstream.parse(mod.path("revision").asText());
+    private void upstream(String pipeline, int counter, MaterialRevision mr, int depth) {
+      for (Modification mod : mr.modifications()) {
+        Upstream to = Upstream.parse(mod.revision());
         if (to == null) continue;
         int previous = upstreamCounter(fetch(pipeline, counter - 1), to.pipeline());
         for (int c = firstCounter(previous, to.counter()); c <= to.counter(); c++) {
@@ -110,7 +104,7 @@ final class DeployedCommits {
     }
 
     /** Un run déjà lu ne coûte rien ; les autres consomment le budget du run. */
-    private Optional<JsonNode> fetch(String pipeline, int counter) {
+    private Optional<Run> fetch(String pipeline, int counter) {
       if (gocd.cached(pipeline, counter)) return gocd.instance(pipeline, counter);
       if (counter <= 0 || budget <= 0) return Optional.empty();
       budget--;

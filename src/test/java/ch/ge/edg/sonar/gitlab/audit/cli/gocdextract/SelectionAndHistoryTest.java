@@ -5,11 +5,11 @@ import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.run;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -71,10 +71,10 @@ class SelectionAndHistoryTest {
       server.json(
           "/go/api/pipelines/p/history",
           history(run("p", 3, 3000), run("p", 2, 2000), run("p", 1, 1000)));
-      List<JsonNode> runs = RunHistory.since(gocd(server), "p", Instant.ofEpochMilli(2000), err);
-      assertThat(runs).extracting(r -> r.path("counter").asInt()).containsExactly(3, 2);
+      List<Run> runs = RunHistory.since(gocd(server), "p", Instant.ofEpochMilli(2000), err);
+      assertThat(runs).extracting(Run::counter).containsExactly(3, 2);
       assertThat(err()).isEmpty();
-      List<JsonNode> all = RunHistory.since(gocd(server), "p", Instant.ofEpochMilli(0), err);
+      List<Run> all = RunHistory.since(gocd(server), "p", Instant.ofEpochMilli(0), err);
       assertThat(all).hasSize(3);
       assertThat(err()).isEmpty();
     }

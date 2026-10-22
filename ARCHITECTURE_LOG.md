@@ -241,3 +241,24 @@ Exceptions left:
 - sonaraudit.Session.read still returns @Nullable (13 callers) via `as(type).orElse(null)`.
 - doralocate.Access.why stays (one-line "reason or HTTP n" formatter for GitLab failures).
 - Commands still import rest.RestResponse, rest.Query (params) and rest.Stop - none import RestClient/Capture/AuthHeaders.
+
+## GoCD responses into records (2026-10-22)
+Owner's request: map API responses to Java records with Jackson instead of walking JsonNode, starting
+with GoCD (Jira done elsewhere). No OpenAPI/JSON Schema exists for GoCD: records are hand-written from
+the docs and the 25.3 captures, and hold only the fields the tool reads (`gocd.Dashboard`, `Run`,
+`Material`, `Stage`, `HistoryPage`; one reader in `gocd.GocdJson`: snake_case, unknown fields ignored,
+absent/null text and lists read as empty, dates as epoch ms or ISO-8601). Generated code, for APIs that
+have a schema, would go in a separate committed source folder, not under src/.
+- `Materials` and `PipelineGroups` became methods of `Material` and `Dashboard`.
+- `GocdApi` returns `Run`s and keeps each run's raw JSON in its cache (`raw()`), so gocd-runs.jsonl is
+  still GoCD's full response, not the record.
+Behaviour changes (deliberate):
+- A field of the wrong shape (e.g. a text counter that is not a number) now stops with
+  IllegalStateException "Réponse GoCD inattendue pour ..." instead of reading as 0/"": better stop than
+  extract wrong numbers. Absent fields still read as empty, as before.
+- A stage without counter now reads as 1 everywhere; gocd-stages.csv used to print an empty
+  `compteur_stage` for it (GoCD always sends one: no capture changed).
+- GoCD dates no longer accept the Jira format (`...SSS+0100`), which GoCD never writes.
+Gate change: EdgeTest.STATIC_FIELDS_ARE_CONSTANTS lists ObjectReader as immutable (it is, by contract;
+ObjectMapper, already listed, is not). Answers the "ObjectReader constants" item above for new code.
+Not done: probes/GocdProbe.java (diagnostic JBang script, outside src/) still walks JsonNode.

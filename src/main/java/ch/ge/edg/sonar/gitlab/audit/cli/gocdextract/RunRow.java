@@ -2,8 +2,12 @@ package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.Platforms;
 import ch.ge.edg.sonar.gitlab.audit.dora.Times;
-import ch.ge.edg.sonar.gitlab.audit.gocd.Materials;
-import com.fasterxml.jackson.databind.JsonNode;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Material;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run.BuildCause;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run.MaterialRevision;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run.Modification;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Stage;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -36,19 +40,18 @@ final class RunRow {
 
   private RunRow() {}
 
-  static String[] cells(
-      String pipeline, String group, JsonNode run, List<Commit> found, ZoneId zone) {
-    JsonNode cause = run.path("build_cause");
-    Instant scheduled = Times.parse(run.path("scheduled_date"));
+  static String[] cells(String pipeline, String group, Run run, List<Commit> found, ZoneId zone) {
+    BuildCause cause = run.buildCause();
+    Instant scheduled = run.scheduledDate();
     Span span = Span.of(found);
     return new String[] {
       pipeline,
       group,
       Platforms.guess(pipeline),
-      String.valueOf(run.path("counter").asInt()),
-      run.path("label").asText(),
+      String.valueOf(run.counter()),
+      run.label(),
       Times.format(scheduled, zone),
-      cause.path("trigger_forced").asBoolean(false) ? "forcé" : "automatique",
+      cause.triggerForced() ? "forcé" : "automatique",
       Outcome.of(run),
       String.join("|", stages(run)),
       String.join("|", repos(cause)),
@@ -62,30 +65,30 @@ final class RunRow {
   }
 
   /** « build:Passed », ou « NonLancé » pour un stage qui attend son approbation. */
-  static List<String> stages(JsonNode run) {
+  static List<String> stages(Run run) {
     List<String> out = new ArrayList<>();
-    for (JsonNode s : run.path("stages")) {
-      String result = s.path("scheduled").asBoolean(true) ? s.path("result").asText() : "NonLancé";
-      out.add(s.path("name").asText() + ":" + result);
+    for (Stage s : run.stages()) {
+      out.add(s.name() + ":" + (s.launched() ? s.result() : "NonLancé"));
     }
     return out;
   }
 
   /** Les dépôts git du run, changés ou non. */
-  static Set<String> repos(JsonNode cause) {
+  static Set<String> repos(BuildCause cause) {
     Set<String> out = new LinkedHashSet<>();
-    for (JsonNode mr : cause.path("material_revisions")) {
-      if (Materials.isGit(mr.path("material"))) out.add(Materials.gitUrl(mr.path("material")));
+    for (MaterialRevision mr : cause.materialRevisions()) {
+      Material m = mr.material();
+      if (m.isGit()) out.add(m.gitUrl());
     }
     return out;
   }
 
   /** Les révisions amont prises par le run, « recette/3/deploy/1 ». */
-  static Set<String> upstream(JsonNode cause) {
+  static Set<String> upstream(BuildCause cause) {
     Set<String> out = new LinkedHashSet<>();
-    for (JsonNode mr : cause.path("material_revisions")) {
-      if (!Materials.isPipeline(mr.path("material"))) continue;
-      for (JsonNode mod : mr.path("modifications")) out.add(mod.path("revision").asText());
+    for (MaterialRevision mr : cause.materialRevisions()) {
+      if (!mr.material().isPipeline()) continue;
+      for (Modification mod : mr.modifications()) out.add(mod.revision());
     }
     return out;
   }

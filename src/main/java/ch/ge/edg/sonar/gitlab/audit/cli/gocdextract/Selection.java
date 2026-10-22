@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
-import ch.ge.edg.sonar.gitlab.audit.gocd.PipelineGroups;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Dashboard;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import java.io.PrintStream;
 import java.util.Collections;
@@ -26,7 +26,8 @@ record Selection(Set<String> pipelines, Map<String, String> groupOf) {
   public static Selection resolve(
       Gocd gocd, List<String> pipelines, List<String> groups, PrintStream err) throws Stop {
     String path = "/go/api/dashboard";
-    Map<String, String> groupOf = PipelineGroups.of(gocd.must(gocd.api().dashboard(), path).tree());
+    Map<String, String> groupOf =
+        Dashboard.of(gocd.must(gocd.api().dashboard(), path).tree()).groupOf();
     Set<String> out = new LinkedHashSet<>(pipelines);
     groupOf.forEach(
         (pipeline, group) -> {

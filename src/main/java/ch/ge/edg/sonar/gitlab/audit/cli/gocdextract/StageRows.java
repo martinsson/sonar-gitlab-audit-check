@@ -3,10 +3,11 @@ package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 import ch.ge.edg.sonar.gitlab.audit.dora.Platforms;
 import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Stage;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -46,24 +47,24 @@ final class StageRows {
     this.zone = zone;
   }
 
-  List<String[]> of(String pipeline, JsonNode run) throws Stop {
-    int counter = run.path("counter").asInt();
+  List<String[]> of(String pipeline, Run run) throws Stop {
+    int counter = run.counter();
     List<String[]> rows = new ArrayList<>();
-    for (JsonNode s : run.path("stages")) {
-      boolean scheduled = s.path("scheduled").asBoolean(true);
-      Instant start = start(s);
+    for (Stage s : run.stages()) {
+      boolean scheduled = s.launched();
+      Instant start = s.start();
       Instant end = durations && scheduled ? end(pipeline, counter, s) : null;
       rows.add(
           new String[] {
             pipeline,
             String.valueOf(counter),
-            s.path("name").asText(),
-            s.path("counter").asText(),
-            Platforms.guess(pipeline, s.path("name").asText()),
+            s.name(),
+            String.valueOf(s.counter()),
+            Platforms.guess(pipeline, s.name()),
             scheduled ? "O" : "N",
-            scheduled ? s.path("result").asText() : "",
-            s.path("approval_type").asText(),
-            s.path("counter").asInt(1) > 1 ? "O" : "N",
+            scheduled ? s.result() : "",
+            s.approvalType(),
+            s.counter() > 1 ? "O" : "N",
             Times.format(start, zone),
             Times.format(end, zone),
             minutes(start, end)
@@ -72,39 +73,14 @@ final class StageRows {
     return rows;
   }
 
-  /** La planification du premier job. */
-  static @Nullable Instant start(JsonNode stage) {
-    Instant start = null;
-    for (JsonNode j : stage.path("jobs")) {
-      Instant at = Times.parse(j.path("scheduled_date"));
-      if (at != null && (start == null || at.isBefore(start))) start = at;
-    }
-    return start;
-  }
-
-  private @Nullable Instant end(String pipeline, int counter, JsonNode stage) throws Stop {
+  /** La dernière fois qu'un job du stage est passé à « Completed », d'après le détail du stage. */
+  private @Nullable Instant end(String pipeline, int counter, Stage stage) throws Stop {
     String path =
         Text.format(
-            "/go/api/stages/%s/%d/%s/%s",
-            GocdApi.enc(pipeline),
-            counter,
-            GocdApi.enc(stage.path("name").asText()),
-            stage.path("counter").asText("1"));
+            "/go/api/stages/%s/%d/%s/%d",
+            GocdApi.enc(pipeline), counter, GocdApi.enc(stage.name()), stage.counter());
     RestResponse r = gocd.checked(gocd.api().api(path));
-    return r.ok() ? completed(r.tree()) : null;
-  }
-
-  /** La dernière fois qu'un job du stage est passé à « Completed ». */
-  static @Nullable Instant completed(JsonNode stage) {
-    Instant end = null;
-    for (JsonNode j : stage.path("jobs")) {
-      for (JsonNode t : j.path("job_state_transitions")) {
-        Instant at = Times.parse(t.path("state_change_time"));
-        if (at == null || !"Completed".equals(t.path("state").asText())) continue;
-        if (end == null || at.isAfter(end)) end = at;
-      }
-    }
-    return end;
+    return r.ok() ? Stage.of(r.tree()).completed() : null;
   }
 
   /** Une décimale, virgule décimale ; vide si l'un des deux bouts manque. */

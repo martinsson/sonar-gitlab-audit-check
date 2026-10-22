@@ -1,6 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.testing;
 
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
+import ch.ge.edg.sonar.gitlab.audit.gocd.HistoryPage;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -40,6 +42,16 @@ public final class GocdFixtures {
     } catch (IOException e) {
       throw new IllegalArgumentException(json, e);
     }
+  }
+
+  /** A run, as GoCD would write it. */
+  public static Run runOf(String json) {
+    return Run.of(node(json));
+  }
+
+  /** The most recent run of a captured history page. */
+  public static Run latestRun(String historyFixture) {
+    return HistoryPage.of(node(fixture(historyFixture))).runs().get(0);
   }
 
   /** A capture, by file name without « .json ». */
