@@ -6,8 +6,8 @@ import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 class GocdApiTest {
@@ -73,8 +73,10 @@ class GocdApiTest {
                       "{\"_links\":{\"next\":{\"href\":\"%s\"}},\"pipelines\":[%s,%s]}"
                           .formatted(next, run(2, 200), run(1, 100))));
       GocdApi api = api(gocd);
-      GocdApi.History h = api.history("a b", r -> r.path("scheduled_date").asLong() < 150, 10);
-      assertThat(h.runs()).extracting(r -> r.path("counter").asInt()).containsExactly(4, 3, 2);
+      GocdApi.History h =
+          api.history("a b", r -> Instant.ofEpochMilli(100).equals(r.scheduledDate()), 10);
+      assertThat(h.runs()).extracting(Run::counter).containsExactly(4, 3, 2);
+      assertThat(api.raw("a b", 2).orElseThrow().path("scheduled_date").asLong()).isEqualTo(200);
       assertThat(h.pages()).isEqualTo(2);
       assertThat(h.complete()).isFalse();
       assertThat(h.first().ok()).isTrue();
@@ -124,8 +126,9 @@ class GocdApiTest {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       gocd.json("/go/api/pipelines/build/12", run(12, 1));
       GocdApi api = api(gocd);
-      JsonNode run = api.instance("build", 12).orElseThrow();
-      assertThat(run.path("counter").asInt()).isEqualTo(12);
+      Run run = api.instance("build", 12).orElseThrow();
+      assertThat(run.counter()).isEqualTo(12);
+      assertThat(api.raw("build", 12).orElseThrow().path("counter").asInt()).isEqualTo(12);
       api.instance("build", 12);
       assertThat(api.instance("build", 13)).isEmpty();
       assertThat(api.instance("build", 13)).isEmpty();

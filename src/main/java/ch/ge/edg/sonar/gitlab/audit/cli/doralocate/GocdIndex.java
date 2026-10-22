@@ -1,9 +1,12 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.Times;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Dashboard;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
-import ch.ge.edg.sonar.gitlab.audit.gocd.Materials;
-import ch.ge.edg.sonar.gitlab.audit.gocd.PipelineGroups;
+import ch.ge.edg.sonar.gitlab.audit.gocd.HistoryPage;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Material;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run.MaterialRevision;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
@@ -73,7 +76,7 @@ record GocdIndex(String builtAt, Map<String, Pipeline> pipelines) {
   static GocdIndex build(GocdApi gocd, String builtAt, ZoneId zone, PrintStream err) throws Stop {
     RestResponse dash = gocd.unlessRefused(gocd.dashboard());
     if (!dash.ok()) throw new Stop("/go/api/dashboard : " + dash.why());
-    Map<String, String> groupOf = PipelineGroups.of(dash.tree());
+    Map<String, String> groupOf = Dashboard.of(dash.tree()).groupOf();
     Map<String, Pipeline> pipelines = new LinkedHashMap<>();
     int n = 0;
     for (Map.Entry<String, String> e : groupOf.entrySet()) {
@@ -89,18 +92,18 @@ record GocdIndex(String builtAt, Map<String, Pipeline> pipelines) {
       throws Stop {
     String path = "/go/api/pipelines/" + GocdApi.enc(name) + "/history?page_size=" + RUNS;
     RestResponse r = gocd.unlessRefused(gocd.api(path));
-    JsonNode runs = r.tree().path("pipelines");
-    if (!r.ok() || runs.isEmpty()) return new Pipeline(group, List.of(), List.of(), "");
+    List<Run> runs = r.ok() ? HistoryPage.of(r.tree()).runs() : List.of();
+    if (runs.isEmpty()) return new Pipeline(group, List.of(), List.of(), "");
     Set<String> git = new LinkedHashSet<>();
     Set<String> upstream = new LinkedHashSet<>();
-    for (JsonNode run : runs) {
-      for (JsonNode mr : run.path("build_cause").path("material_revisions")) {
-        JsonNode m = mr.path("material");
-        if (Materials.isGit(m)) git.add(Materials.gitUrl(m));
-        if (Materials.isPipeline(m)) upstream.add(Materials.upstreamName(m));
+    for (Run run : runs) {
+      for (MaterialRevision mr : run.buildCause().materialRevisions()) {
+        Material m = mr.material();
+        if (m.isGit()) git.add(m.gitUrl());
+        if (m.isPipeline()) upstream.add(m.upstreamName());
       }
     }
-    String last = Times.format(Times.parse(runs.get(0).path("scheduled_date")), zone);
+    String last = Times.format(runs.get(0).scheduledDate(), zone);
     return new Pipeline(group, new ArrayList<>(git), new ArrayList<>(upstream), last);
   }
 

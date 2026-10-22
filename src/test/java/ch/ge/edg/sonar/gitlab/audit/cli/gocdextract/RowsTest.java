@@ -2,13 +2,14 @@ package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.gocdextract.GocdOnFake.gocd;
 import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.fixture;
-import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.node;
+import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.latestRun;
+import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.runOf;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -22,8 +23,8 @@ class RowsTest {
 
   private static final ZoneId ZURICH = ZoneId.of("Europe/Zurich");
 
-  private static JsonNode stages(String... stages) {
-    return node("{\"stages\":[" + String.join(",", stages) + "]}");
+  private static Run stages(String... stages) {
+    return runOf("{\"stages\":[" + String.join(",", stages) + "]}");
   }
 
   private static String stage(String result, boolean scheduled) {
@@ -55,9 +56,8 @@ class RowsTest {
 
   @Test
   void theCapturedFailedProdDeployRow() {
-    JsonNode run = node(fixture("go_api_pipelines_hello_deploy_prod_history_page_size_100"));
-    String[] cells =
-        RunRow.cells("hello-deploy-prod", "hello", run.path("pipelines").get(0), List.of(), ZURICH);
+    Run run = latestRun("go_api_pipelines_hello_deploy_prod_history_page_size_100");
+    String[] cells = RunRow.cells("hello-deploy-prod", "hello", run, List.of(), ZURICH);
     assertThat(cells)
         .containsExactly(
             "hello-deploy-prod",
@@ -96,7 +96,7 @@ class RowsTest {
             new Commit("up/3", "r", "a", Instant.parse("2026-01-01T06:00:00Z"), Set.of()),
             new Commit("up/2", "r", "n", null, Set.of("B-2")),
             new Commit("up/2", "r", "c", Instant.parse("2026-01-02T10:00:00Z"), Set.of("A-1")));
-    String[] cells = RunRow.cells("app-deploy-rec", "g", node(json), found, ZoneId.of("UTC"));
+    String[] cells = RunRow.cells("app-deploy-rec", "g", runOf(json), found, ZoneId.of("UTC"));
     assertThat(cells)
         .containsExactly(
             "app-deploy-rec",
@@ -138,10 +138,7 @@ class RowsTest {
       server.json(
           "/go/api/stages/hello-deploy-prod/1/deploy/1",
           fixture("go_api_stages_hello_deploy_prod_1_deploy_1"));
-      JsonNode run =
-          node(fixture("go_api_pipelines_hello_deploy_prod_history_page_size_100"))
-              .path("pipelines")
-              .get(0);
+      Run run = latestRun("go_api_pipelines_hello_deploy_prod_history_page_size_100");
       List<String[]> rows = new StageRows(gocd(server), true, ZURICH).of("hello-deploy-prod", run);
       assertThat(rows).hasSize(1);
       assertThat(rows.get(0))
@@ -181,7 +178,7 @@ class RowsTest {
              "approval_type":"manual","jobs":[]}]}
           """;
       List<String[]> rows =
-          new StageRows(gocd(server), true, ZoneId.of("UTC")).of("p q", node(json));
+          new StageRows(gocd(server), true, ZoneId.of("UTC")).of("p q", runOf(json));
       assertThat(rows.get(0))
           .containsExactly(
               "p q",
@@ -207,29 +204,12 @@ class RowsTest {
   void aRefusedTokenOnAStageStops() throws IOException {
     try (FakeHttpServer server = new FakeHttpServer()) {
       server.onPrefix("/go/api/stages/", r -> Response.status(401, "{}"));
-      JsonNode run = node("{\"counter\":1,\"stages\":[{\"name\":\"s\",\"counter\":\"1\"}]}");
+      Run run = runOf("{\"counter\":1,\"stages\":[{\"name\":\"s\",\"counter\":\"1\"}]}");
       StageRows rows = new StageRows(gocd(server), true, ZURICH);
       Assertions.assertThatThrownBy(() -> rows.of("p", run))
           .isInstanceOf(Stop.class)
           .hasMessage(server.url() + " : jeton refusé (401)");
     }
-  }
-
-  @Test
-  void theEndIsTheLastCompletedTransitionOfAnyJob() {
-    JsonNode stage =
-        node(
-            """
-            {"jobs":[
-              {"job_state_transitions":[{"state":"Completed","state_change_time":3000},
-                                        {"state":"Building","state_change_time":9000}]},
-              {"job_state_transitions":[{"state":"Completed","state_change_time":5000},
-                                        {"state":"Completed","state_change_time":4000},
-                                        {"state":"Completed"}]}]}
-            """);
-    assertThat(StageRows.completed(stage)).isEqualTo(Instant.ofEpochMilli(5000));
-    assertThat(StageRows.completed(node("{}"))).isNull();
-    assertThat(StageRows.start(node("{}"))).isNull();
   }
 
   @Test

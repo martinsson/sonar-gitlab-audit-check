@@ -33,7 +33,10 @@ public final class GocdApi {
 
   private final RestClient http;
   private final Map<String, String> acceptSeen = new LinkedHashMap<>();
-  private final Map<String, Optional<JsonNode>> instances = new HashMap<>();
+  private final Map<String, Optional<Fetched>> instances = new HashMap<>();
+
+  /** Un run lu, et sa réponse brute pour qui veut la garder telle quelle. */
+  private record Fetched(Run run, JsonNode json) {}
 
   private GocdApi(RestClient http) {
     this.http = http;
@@ -106,12 +109,21 @@ public final class GocdApi {
   }
 
   /** Un run, mis en cache : un run amont est souvent lu par plusieurs runs aval. */
-  public Optional<JsonNode> instance(String pipeline, int counter) {
+  public Optional<Run> instance(String pipeline, int counter) {
+    return fetched(pipeline, counter).map(Fetched::run);
+  }
+
+  /** La réponse brute d'un run, telle que GoCD l'a écrite : lue ou reprise du cache. */
+  public Optional<JsonNode> raw(String pipeline, int counter) {
+    return fetched(pipeline, counter).map(Fetched::json);
+  }
+
+  private Optional<Fetched> fetched(String pipeline, int counter) {
     String key = pipeline + "/" + counter;
-    Optional<JsonNode> cached = instances.get(key);
+    Optional<Fetched> cached = instances.get(key);
     if (cached != null) return cached;
     RestResponse r = api("/go/api/pipelines/" + enc(pipeline) + "/" + counter, "v1");
-    Optional<JsonNode> run = r.ok() ? r.json() : Optional.empty();
+    Optional<Fetched> run = r.json().filter(j -> r.ok()).map(j -> new Fetched(Run.of(j), j));
     instances.put(key, run);
     return run;
   }
@@ -125,8 +137,8 @@ public final class GocdApi {
    * run que {@code stop} refuse (ce run n'est pas gardé) ou jusqu'à {@code maxPages}. Chaque run lu
    * entre dans le cache des instances.
    */
-  public History history(String pipeline, Predicate<JsonNode> stop, int maxPages) {
-    List<JsonNode> runs = new ArrayList<>();
+  public History history(String pipeline, Predicate<Run> stop, int maxPages) {
+    List<Run> runs = new ArrayList<>();
     String next = "/go/api/pipelines/" + enc(pipeline) + "/history?page_size=100";
     RestResponse first = null;
     int pages = 0;
@@ -145,15 +157,17 @@ public final class GocdApi {
 
   private record Page(@Nullable String next, boolean exhausted) {}
 
-  private Page read(String pipeline, JsonNode page, Predicate<JsonNode> stop, List<JsonNode> runs) {
-    for (JsonNode run : page.path("pipelines")) {
+  private Page read(String pipeline, JsonNode json, Predicate<Run> stop, List<Run> runs) {
+    HistoryPage page = HistoryPage.of(json);
+    JsonNode raw = json.path("pipelines");
+    for (int i = 0; i < page.runs().size(); i++) {
+      Run run = page.runs().get(i);
       if (stop.test(run)) return new Page(null, false);
       runs.add(run);
-      instances.put(pipeline + "/" + run.path("counter").asInt(), Optional.of(run));
+      instances.put(pipeline + "/" + run.counter(), Optional.of(new Fetched(run, raw.get(i))));
     }
-    String href = page.path("_links").path("next").path("href").asText("");
-    boolean last = href.isEmpty() || page.path("pipelines").isEmpty();
-    return new Page(last ? null : href, last);
+    String next = page.next();
+    return new Page(next, next == null);
   }
 
   /**
@@ -163,7 +177,7 @@ public final class GocdApi {
    * @param complete vrai si GoCD n'a plus de page à donner
    * @param first la première réponse, pour dire pourquoi l'historique est vide
    */
-  public record History(List<JsonNode> runs, int pages, boolean complete, RestResponse first) {}
+  public record History(List<Run> runs, int pages, boolean complete, RestResponse first) {}
 
   public static String enc(String s) {
     return Query.segment(s);

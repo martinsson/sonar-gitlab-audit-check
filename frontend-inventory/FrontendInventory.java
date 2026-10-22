@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -14,6 +16,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -31,6 +34,7 @@ import java.util.regex.Pattern;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -134,52 +138,84 @@ public class FrontendInventory {
         new FrontendInventory(url, token, frontThreshold, maxDepth).run(Path.of(out), days, limit, threads);
     }
 
-    void run(Path out, int days, int limit, int threads) throws Exception {
+    void run(Path requested, int days, int limit, int threads) throws Exception {
         String since = OffsetDateTime.now(ZoneOffset.UTC).minusDays(days)
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
-        List<String[]> rows = new ArrayList<>();
-        rows.add(COLUMNS.stream().map(c -> c.replace("Nj", days + "j")).toArray(String[]::new));
-
-        // Collecter tous les projets d'abord
-        List<JsonNode> projects = new ArrayList<>();
-        int n = 0;
-        String next = baseUrl + "/projects?archived=false&statistics=true&simple=false"
-                + "&per_page=100&order_by=id&sort=asc&pagination=keyset";
-        while (next != null && n < limit) {
-            HttpResponse<String> resp = get(next);
-            if (resp.statusCode() != 200) throw new IOException("GET projects → " + resp.statusCode() + " " + resp.body());
-            for (JsonNode p : JSON.readTree(resp.body())) {
-                if (n++ >= limit) break;
-                projects.add(p);
-            }
-            next = nextLink(resp);
+        // Chaque ligne est écrite dès que son projet est fini : un arrêt en cours de route
+        // laisse un CSV partiel mais lisible.
+        Path out = freePath(requested);
+        try (Writer csv = Files.newBufferedWriter(out, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW)) {
+            csv.write("\uFEFF");
+            writeRow(csv, COLUMNS.stream().map(c -> c.replace("Nj", days + "j")).toArray(String[]::new));
+            System.err.println("Écriture au fil de l'eau dans : " + out.toAbsolutePath());
+            run(csv, since, limit, threads);
         }
-        System.err.println(n + " projets collectés, traitement parallèle avec " + threads + " threads");
+        System.err.println("Écrit : " + out.toAbsolutePath());
+    }
 
-        // Executor pour le parallélisme
+    void run(Writer csv, String since, int limit, int threads) throws Exception {
         ThreadFactory tf = r -> {
             Thread t = new Thread(r);
             t.setName("inventory-worker");
             t.setDaemon(true);
             return t;
         };
+        AtomicInteger listed = new AtomicInteger();
+        AtomicInteger done = new AtomicInteger();
+        AtomicBoolean listing = new AtomicBoolean(true);
         try (ExecutorService executor = Executors.newFixedThreadPool(threads, tf)) {
-            List<CompletableFuture<String[]>> futures = new ArrayList<>(projects.size());
-            for (JsonNode p : projects) {
-                futures.add(CompletableFuture.supplyAsync(() -> project(p, since), executor));
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            // Chaque page de projets part au traitement dès qu'elle arrive : sur une grosse instance,
+            // lister tous les projets d'abord laissait plusieurs minutes sans rien écrire.
+            String next = baseUrl + "/projects?archived=false&statistics=true&simple=false"
+                    + "&per_page=100&order_by=id&sort=asc&pagination=keyset";
+            while (next != null && listed.get() < limit) {
+                HttpResponse<String> resp = get(next);
+                if (resp.statusCode() != 200) throw new IOException("GET projects → " + resp.statusCode() + " " + resp.body());
+                for (JsonNode p : JSON.readTree(resp.body())) {
+                    if (listed.get() >= limit) break;
+                    listed.incrementAndGet();
+                    // Ordre d'achèvement, pas d'id : un projet lent ne retient pas les lignes déjà prêtes.
+                    futures.add(CompletableFuture.supplyAsync(() -> project(p, since), executor).thenAccept(row -> {
+                        synchronized (csv) {
+                            try {
+                                writeRow(csv, row);
+                                csv.flush();
+                            } catch (IOException e) {
+                                throw new UncheckedIOException(e);
+                            }
+                            progress(done.incrementAndGet(), listed.get(), listing.get());
+                        }
+                    }));
+                }
+                next = nextLink(resp);
+                synchronized (csv) {
+                    listing.set(next != null && listed.get() < limit);
+                    progress(done.get(), listed.get(), listing.get());
+                }
             }
-            // Attendre et collecter
-            for (int i = 0; i < futures.size(); i++) {
-                String[] row = futures.get(i).get();
-                rows.add(row);
-                System.err.printf("\r%d/%d projets", i + 1, futures.size());
-            }
+            CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
         }
         System.err.println();
+    }
 
-        writeCsv(out, rows);
-        System.err.println("Écrit : " + out.toAbsolutePath());
+    /** « 120/1300 projets (liste en cours) » : le total grandit tant que des pages arrivent. */
+    static void progress(int done, int listed, boolean listing) {
+        System.err.printf("\r%d/%d projets%s", done, listed, listing ? " (liste en cours)  " : "                  ");
+    }
+
+    /** frontend.csv s'il est libre, sinon frontend-1.csv, frontend-2.csv... : on n'écrase jamais un résultat. */
+    static Path freePath(Path requested) {
+        String name = requested.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        String base = dot > 0 ? name.substring(0, dot) : name;
+        String ext = dot > 0 ? name.substring(dot) : "";
+        Path candidate = requested;
+        for (int i = 1; Files.exists(candidate); i++) {
+            candidate = requested.resolveSibling(base + "-" + i + ext);
+        }
+        return candidate;
     }
 
     String[] project(JsonNode p, String since) {
@@ -452,20 +488,18 @@ public class FrontendInventory {
         return URLEncoder.encode(s, StandardCharsets.UTF_8);
     }
 
-    /** Point-virgule + BOM UTF-8 + CRLF : s'ouvre tel quel dans Excel. */
-    static void writeCsv(Path out, List<String[]> rows) throws IOException {
-        StringBuilder sb = new StringBuilder("﻿");
-        for (String[] r : rows) {
-            for (int i = 0; i < r.length; i++) {
-                if (i > 0) sb.append(';');
-                String v = r[i] == null ? "" : r[i];
-                if (v.contains(";") || v.contains("\"") || v.contains("\n") || v.contains("\r")) {
-                    v = "\"" + v.replace("\"", "\"\"") + "\"";
-                }
-                sb.append(v);
+    /** Point-virgule + CRLF (le BOM UTF-8 est écrit une fois en tête) : s'ouvre tel quel dans Excel. */
+    static void writeRow(Writer csv, String[] r) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < r.length; i++) {
+            if (i > 0) sb.append(';');
+            String v = r[i] == null ? "" : r[i];
+            if (v.contains(";") || v.contains("\"") || v.contains("\n") || v.contains("\r")) {
+                v = "\"" + v.replace("\"", "\"\"") + "\"";
             }
-            sb.append("\r\n");
+            sb.append(v);
         }
-        Files.writeString(out, sb.toString(), StandardCharsets.UTF_8);
+        sb.append("\r\n");
+        csv.write(sb.toString());
     }
 }

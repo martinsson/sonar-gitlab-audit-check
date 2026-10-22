@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -9,6 +10,7 @@ import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 
 /** Une extraction : pour chaque pipeline choisi, ses runs depuis une date, écrits run par run. */
 final class Extraction {
@@ -43,9 +45,9 @@ final class Extraction {
   public void run(Instant since) throws IOException, Stop {
     try (Output out = new Output(settings.outDir(), settings.comma(), settings.raw())) {
       for (String pipeline : selection.pipelines()) {
-        List<JsonNode> history = RunHistory.since(gocd, pipeline, since, err);
+        List<Run> history = RunHistory.since(gocd, pipeline, since, err);
         err.print(Text.format("%s : %d runs%n", pipeline, history.size()));
-        for (JsonNode run : history) write(pipeline, run, out);
+        for (Run run : history) write(pipeline, run, out);
       }
       err.print(
           Text.format(
@@ -54,13 +56,13 @@ final class Extraction {
     }
   }
 
-  private void write(String pipeline, JsonNode run, Output out) throws IOException, Stop {
-    out.raw(run);
+  private void write(String pipeline, Run run, Output out) throws IOException, Stop {
+    Optional<JsonNode> raw = gocd.api().raw(pipeline, run.counter());
+    if (raw.isPresent()) out.raw(raw.get());
     List<Commit> found = commits.of(pipeline, run);
     ZoneId zone = settings.zone();
     out.runs.row(RunRow.cells(pipeline, selection.group(pipeline), run, found, zone));
     for (String[] row : stages.of(pipeline, run)) out.stages.row(row);
-    int counter = run.path("counter").asInt();
-    for (Commit c : found) out.commits.row(c.cells(pipeline, counter, zone));
+    for (Commit c : found) out.commits.row(c.cells(pipeline, run.counter(), zone));
   }
 }

@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Stage;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -13,10 +14,10 @@ final class Outcome {
 
   private Outcome() {}
 
-  static String of(JsonNode run) {
+  static String of(Run run) {
     Set<String> results = new HashSet<>();
-    for (JsonNode s : run.path("stages")) {
-      if (s.path("scheduled").asBoolean(true)) results.add(s.path("result").asText(""));
+    for (Stage s : run.stages()) {
+      if (s.launched()) results.add(s.result());
     }
     if (results.contains("Failed")) return "échec";
     if (results.contains("Cancelled")) return "annulé";

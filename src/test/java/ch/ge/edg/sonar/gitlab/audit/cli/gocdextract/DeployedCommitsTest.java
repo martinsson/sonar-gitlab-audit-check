@@ -7,9 +7,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.JiraKeys;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
+import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
@@ -26,7 +26,7 @@ class DeployedCommitsTest {
 
   private static final String URL = GocdFixtures.HELLO;
 
-  private static List<JsonNode> prodRuns(GocdApi api) {
+  private static List<Run> prodRuns(GocdApi api) {
     return api.history("prod", r -> false, 10).runs();
   }
 
@@ -39,7 +39,7 @@ class DeployedCommitsTest {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       GocdFixtures.chain(gocd);
       GocdApi api = GocdFixtures.api(gocd);
-      List<JsonNode> prod = prodRuns(api);
+      List<Run> prod = prodRuns(api);
       DeployedCommits commits = new DeployedCommits(api, 30);
 
       List<Commit> second = commits.of("prod", prod.get(0));
@@ -61,7 +61,7 @@ class DeployedCommitsTest {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       GocdFixtures.chain(gocd);
       GocdApi api = GocdFixtures.api(gocd);
-      List<JsonNode> prod = prodRuns(api);
+      List<Run> prod = prodRuns(api);
       // recette/4, recette/3, build/7: the budget is spent before recette/5.
       assertThat(vias(new DeployedCommits(api, 3).of("prod", prod.get(0))))
           .containsExactly("c7@build/7");
@@ -87,7 +87,7 @@ class DeployedCommitsTest {
   void aMissingUpstreamRunEmbarksNothing() throws IOException {
     try (FakeHttpServer gocd = new FakeHttpServer()) {
       GocdApi api = GocdFixtures.api(gocd);
-      JsonNode run = GocdFixtures.node(run("prod", 1, 1, upstream(true, "recette", 99)));
+      Run run = GocdFixtures.runOf(run("prod", 1, 1, upstream(true, "recette", 99)));
       assertThat(new DeployedCommits(api, 30).of("prod", run)).isEmpty();
       assertThat(gocd.requests("/go/api/pipelines/recette/99")).hasSize(2);
     }
@@ -102,8 +102,8 @@ class DeployedCommitsTest {
       String odd =
           "{\"changed\":true,\"material\":{\"type\":\"Pipeline\"},"
               + "\"modifications\":[{\"revision\":\"nonsense\"},{\"revision\":\"up/x/s/1\"}]}";
-      JsonNode run =
-          GocdFixtures.node(
+      Run run =
+          GocdFixtures.runOf(
               run("build", 2, 1, git(false, URL, "c1", ""), svn, odd, upstream(false, "a", 1)));
       assertThat(new DeployedCommits(api, 30).of("build", run)).isEmpty();
       assertThat(gocd.requests()).isEmpty();
@@ -123,11 +123,11 @@ class DeployedCommitsTest {
             };
         gocd.json("/go/api/pipelines/p" + i + "/1", run("p" + i, 1, 1, materials));
       }
-      JsonNode p0 = GocdFixtures.node(run("p0", 1, 1, upstream(true, "p1", 1)));
+      Run p0 = GocdFixtures.runOf(run("p0", 1, 1, upstream(true, "p1", 1)));
       assertThat(vias(new DeployedCommits(GocdFixtures.api(gocd), 30).of("p0", p0)))
           .containsExactly("level6@p6/1");
 
-      JsonNode p1 = GocdFixtures.node(run("q", 1, 1, upstream(true, "p2", 1)));
+      Run p1 = GocdFixtures.runOf(run("q", 1, 1, upstream(true, "p2", 1)));
       // From one level lower, p7 sits at depth 6: read.
       assertThat(vias(new DeployedCommits(GocdFixtures.api(gocd), 30).of("q", p1)))
           .containsExactly("level6@p6/1", "level7@p7/1");
@@ -153,8 +153,8 @@ class DeployedCommitsTest {
 
   @Test
   void theUpstreamCounterOfARunIsTheFirstValidRevisionOfThatPipeline() {
-    JsonNode run =
-        GocdFixtures.node(
+    Run run =
+        GocdFixtures.runOf(
             run(
                 "prod",
                 1,
