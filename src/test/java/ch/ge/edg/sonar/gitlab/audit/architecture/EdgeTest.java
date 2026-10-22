@@ -6,6 +6,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.tngtech.archunit.core.domain.AccessTarget.CodeUnitAccessTarget;
 import com.tngtech.archunit.core.domain.JavaAccess;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -243,7 +244,9 @@ class EdgeTest {
           List.class.getName(),
           Set.class.getName(),
           Map.class.getName(),
-          ObjectMapper.class.getName());
+          ObjectMapper.class.getName(),
+          // Immutable by contract (each with* gives a new one), unlike ObjectMapper.
+          ObjectReader.class.getName());
 
   private static ArchCondition<JavaField> beAConstant() {
     return new ArchCondition<>("be final and of an immutable type") {
