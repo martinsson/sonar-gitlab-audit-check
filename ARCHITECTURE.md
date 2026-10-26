@@ -13,7 +13,7 @@ this file and the rules disagree, the rules decide.
  cli.shared       picocli option groups and converters several commands use (nothing else)
       │
  domain           matching (Sonar ↔ GitLab pairing, with .similarity and .report),
-                  exclusions, dora
+                  exclusions, dora (incl. the commits a GoCD run deployed)
       │
  exchange         the contract of the CSV files one command writes and another reads
       │
@@ -40,6 +40,7 @@ GitLab preset plus the wide pass) share `matching`.
 | `cli.cross` | CrossAudit | Crossing Sonar and GitLab, including the SonarToGitlab wide pass |
 | `cli.vues` | Vues | Views over the CSVs |
 | `cli.doralocate` | dora/DoraLocate | Where the DORA data lives: finds the Jira and GoCD sources of the projects |
+| `cli.doraproject` | dora/DoraProject | The four DORA measures of one project: a page, and an import for Middleware HQ |
 | `cli.gocdextract` | dora/GocdExtract | GoCD pipeline runs extracted for the DORA measures |
 | `cli.jiraextract` | dora/JiraExtract | Jira issues and their transitions extracted for the DORA measures |
 
