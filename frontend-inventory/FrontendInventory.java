@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.LinkedHashMap;
@@ -36,8 +37,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Inventaire des technos frontend de toute une instance GitLab.
  *
  * Pour chaque projet non archivé : les langages calculés par GitLab donnent la part
- * de code front. Si elle est notable, on cherche tous les package.json du dépôt,
- * sinon seulement celui de la racine. Les package.json disent la techno
+ * de code front. Si elle est notable, on cherche les package.json du dépôt jusqu'à
+ * une profondeur donnée, sinon seulement celui de la racine. Les package.json disent la techno
  * (Vue 2 / Vue 3, React, Angular...). Puis l'activité sur N jours (commits, MR,
  * lignes changées). La colonne a_verifier signale les cas que ces règles ne
  * savent pas trancher.
@@ -46,6 +47,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  *   export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxx
  *   jbang FrontendInventory.java [--out frontend.csv] [--days 90] [--limit N] [--threads 10] [--seuil-front 5]
+ *                                [--profondeur 3]
  */
 public class FrontendInventory {
 
@@ -60,33 +62,48 @@ public class FrontendInventory {
         FRAMEWORKS.put("angular", "AngularJS");
         FRAMEWORKS.put("svelte", "Svelte");
         FRAMEWORKS.put("jquery", "jQuery");
+        FRAMEWORKS.put("htmx", "htmx");
+        FRAMEWORKS.put("alpinejs", "AlpineJS");
+        FRAMEWORKS.put("@microsoft/blazor", "Blazor");
+        FRAMEWORKS.put("react-native", "React Native");
+        FRAMEWORKS.put("@ionic/core", "Ionic");
+        FRAMEWORKS.put("@prefresh/core", "Prepack");
     }
     // Méta-frameworks notés à part, ils ne changent pas la techno de base.
-    static final List<String> META = List.of("nuxt", "next", "@vue/cli-service", "vite", "react-scripts", "typescript");
+    static final List<String> META = List.of("nuxt", "next", "@vue/cli-service", "vite", "react-scripts", "typescript",
+            "@microsoft/aspnetcore.components.webassembly");
     // Langages GitLab (Linguist) qui comptent comme du front.
     static final Set<String> FRONT_LANGUAGES = Set.of("JavaScript", "TypeScript", "TSX", "JSX", "Vue", "Svelte",
             "HTML", "CSS", "SCSS", "Sass", "Less", "Stylus");
-    // Dossiers de dépendances commités : leurs package.json ne disent rien du projet.
-    static final Pattern VENDORED = Pattern.compile("(^|/)(node_modules|bower_components|vendor)/");
+    // Dossiers où l'on ne descend pas : dépendances commitées, sorties de build, sources Java.
+    // Leurs package.json ne disent rien du projet, et ce sont eux qui coûtent des appels.
+    static final Pattern PRUNED = Pattern.compile(
+            "(^|/)(node_modules|bower_components|vendor|target|build|dist)$|(^|/)src/(main/java|test)$");
+    // Garde-fou : appels /repository/tree au plus par projet, quelle que soit la profondeur.
+    static final int MAX_TREE_CALLS = 200;
 
     // "Nj" est remplacé par la fenêtre, ex. commits_90j.
     static final List<String> COLUMNS = List.of("id", "projet", "url", "branche", "derniere_activite",
-            "part_front_pct", "langages", "techno", "package_json", "vue", "react", "angular", "autres_front",
-            "outillage", "fichiers", "commits_Nj", "mr_Nj", "lignes_ajoutees_Nj", "lignes_supprimees_Nj",
-            "commits_total", "a_verifier", "erreur");
+            "commits_Nj", "mr_Nj", "lignes_ajoutees_Nj", "lignes_supprimees_Nj", "commits_total",
+            "part_front_pct", "langages",
+            "package_json", "vue", "react", "angular", "autres_front", "outillage",
+            "taille_depot_octets", "estimation_lignes",
+            "techno", "a_verifier", "erreur");
 
     final String baseUrl;
     final String token;
     final double frontThreshold;
+    final int maxDepth;
     final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(20))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    FrontendInventory(String baseUrl, String token, double frontThreshold) {
+    FrontendInventory(String baseUrl, String token, double frontThreshold, int maxDepth) {
         this.baseUrl = baseUrl.replaceAll("/+$", "") + "/api/v4";
         this.token = token;
         this.frontThreshold = frontThreshold;
+        this.maxDepth = maxDepth;
     }
 
     public static void main(String[] args) throws Exception {
@@ -95,6 +112,7 @@ public class FrontendInventory {
         int limit = Integer.MAX_VALUE;
         int threads = Runtime.getRuntime().availableProcessors();
         double frontThreshold = 5;
+        int maxDepth = 3;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--out" -> out = args[++i];
@@ -102,11 +120,14 @@ public class FrontendInventory {
                 case "--limit" -> limit = Integer.parseInt(args[++i]);
                 case "--threads" -> threads = Integer.parseInt(args[++i]);
                 case "--seuil-front" -> frontThreshold = Double.parseDouble(args[++i]);
+                case "--profondeur" -> maxDepth = Integer.parseInt(args[++i]);
                 case "-h", "--help" -> {
                     System.out.println("Usage: FrontendInventory [--out frontend.csv] [--days 90] [--limit N] [--threads N]"
-                            + " [--seuil-front 5]\n"
+                            + " [--seuil-front 5] [--profondeur 3]\n"
                             + "  --seuil-front : part de code front (%) à partir de laquelle on cherche les package.json"
-                            + " dans tout le dépôt\n"
+                            + " dans les sous-dossiers\n"
+                            + "  --profondeur : profondeur maximale des dossiers où chercher un package.json"
+                            + " (0 = racine seule)\n"
                             + "Env: GITLAB_URL, GITLAB_TOKEN");
                     return;
                 }
@@ -119,7 +140,7 @@ public class FrontendInventory {
             System.err.println("GITLAB_URL manquant");
             System.exit(2);
         }
-        new FrontendInventory(url, token, frontThreshold).run(Path.of(out), days, limit, threads);
+        new FrontendInventory(url, token, frontThreshold, maxDepth).run(Path.of(out), days, limit, threads);
     }
 
     void run(Path out, int days, int limit, int threads) throws Exception {
@@ -168,6 +189,161 @@ public class FrontendInventory {
 
         writeCsv(out, rows);
         System.err.println("Écrit : " + out.toAbsolutePath());
+
+        // frontend-front50.csv : projets >= 5% de front
+        List<String[]> front50 = new ArrayList<>();
+        front50.add(rows.get(0));
+        for (int i = 1; i < rows.size(); i++) {
+            String[] r = rows.get(i);
+            int partFrontIdx = COLUMNS.indexOf("part_front_pct");
+            if (r.length > partFrontIdx && !r[partFrontIdx].isEmpty()) {
+                try {
+                    if (Double.parseDouble(r[partFrontIdx]) >= 5) {
+                        front50.add(r);
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        writeCsv(out.resolveSibling("frontend-front50.csv"), front50);
+        System.err.println("Écrit : " + out.resolveSibling("frontend-front50.csv").toAbsolutePath());
+
+        // frontend-report.html
+        writeHtmlReport(rows);
+    }
+
+    void writeHtmlReport(List<String[]> rows) throws IOException {
+        // Collect stats
+        Map<String, Integer> techProjects = new LinkedHashMap<>();
+        Map<String, Integer> techActive = new LinkedHashMap<>();
+        Map<String, Long> techLines = new LinkedHashMap<>();
+        // Initialize with all known techs
+        for (String label : FRAMEWORKS.values()) {
+            techProjects.put(label, 0);
+            techActive.put(label, 0);
+            techLines.put(label, 0L);
+        }
+        for (String m : META) {
+            techProjects.put(m, 0);
+            techActive.put(m, 0);
+            techLines.put(m, 0L);
+        }
+
+        int totalProjects = rows.size() - 1;
+        int totalActive = 0;
+        long totalLines = 0;
+        long activeLines = 0;
+
+        int technoIdx = COLUMNS.indexOf("techno");
+        int outillageIdx = COLUMNS.indexOf("outillage");
+        int activeIdx = COLUMNS.indexOf("commits_Nj");
+        int linesIdx = COLUMNS.indexOf("estimation_lignes");
+        int partFrontIdx = COLUMNS.indexOf("part_front_pct");
+
+        for (int i = 1; i < rows.size(); i++) {
+            String[] r = rows.get(i);
+            boolean isActive = false;
+            if (r.length > activeIdx && !r[activeIdx].isEmpty()) {
+                try {
+                    isActive = Integer.parseInt(r[activeIdx]) > 0;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            long lines = 0;
+            if (r.length > linesIdx && !r[linesIdx].isEmpty()) {
+                try {
+                    lines = Long.parseLong(r[linesIdx]);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+
+            if (isActive) totalActive++;
+            totalLines += lines;
+            if (isActive) activeLines += lines;
+
+            // Check techno column
+            if (r.length > technoIdx && !r[technoIdx].isEmpty() && !r[technoIdx].equals("aucun") && !r[technoIdx].equals("node sans framework UI")) {
+                String[] techs = r[technoIdx].split("\\+");
+                for (String t : techs) {
+                    String tech = t.trim();
+                    if (techProjects.containsKey(tech)) {
+                        techProjects.put(tech, techProjects.get(tech) + 1);
+                        if (isActive) techActive.put(tech, techActive.get(tech) + 1);
+                        techLines.put(tech, techLines.get(tech) + lines);
+                    }
+                }
+            }
+
+            // Check outillage column
+            if (r.length > outillageIdx && !r[outillageIdx].isEmpty()) {
+                String[] tools = r[outillageIdx].split(",");
+                for (String tool : tools) {
+                    String tech = tool.trim().split(" ")[0]; // Remove version
+                    if (techProjects.containsKey(tech)) {
+                        techProjects.put(tech, techProjects.get(tech) + 1);
+                        if (isActive) techActive.put(tech, techActive.get(tech) + 1);
+                        techLines.put(tech, techLines.get(tech) + lines);
+                    }
+                }
+            }
+        }
+
+        // Build HTML
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!DOCTYPE html>\n");
+        sb.append("<html lang=\"fr\">\n");
+        sb.append("<head>\n");
+        sb.append("<meta charset=\"UTF-8\">\n");
+        sb.append("<title>Rapport Inventaire Frontend</title>\n");
+        sb.append("<style>\n");
+        sb.append("    body { font-family: Arial, sans-serif; margin: 20px; }\n");
+        sb.append("    table { border-collapse: collapse; width: 100%; margin-top: 20px; }\n");
+        sb.append("    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n");
+        sb.append("    th { background-color: #4CAF50; color: white; }\n");
+        sb.append("    tr:nth-child(even) { background-color: #f2f2f2; }\n");
+        sb.append("    h1 { color: #333; }\n");
+        sb.append("    .summary { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 5px; }\n");
+        sb.append("</style>\n");
+        sb.append("</head>\n");
+        sb.append("<body>\n");
+        sb.append("<h1>Rapport Inventaire Frontend</h1>\n");
+        sb.append("<div class=\"summary\">\n");
+        sb.append("<h2>Résumé</h2>\n");
+        sb.append("<p>Total des projets analysés : ").append(totalProjects).append("</p>\n");
+        sb.append("<p>Projets actifs (>= 1 commit 90j) : ").append(totalActive).append("</p>\n");
+        sb.append("<p>Total estimé des lignes (tous projets) : ").append(totalLines).append("</p>\n");
+        sb.append("<p>Total estimé des lignes (projets actifs) : ").append(activeLines).append("</p>\n");
+        sb.append("</div>\n");
+        sb.append("<h2>Détention des technologies</h2>\n");
+        sb.append("<table>\n");
+        sb.append("<tr>\n");
+        sb.append("<th>Métrique</th>\n");
+
+        // Headers
+        for (String tech : techProjects.keySet()) {
+            sb.append("<th>").append(tech).append("</th>");
+        }
+        sb.append("</tr>\n<tr>\n<th>Nb projets</th>");
+        for (int count : techProjects.values()) {
+            sb.append("<td>").append(count).append("</td>");
+        }
+        sb.append("</tr>\n<tr>\n<th>Nb projets actifs (>=1 commit 90j)</th>");
+        for (int count : techActive.values()) {
+            sb.append("<td>").append(count).append("</td>");
+        }
+        sb.append("</tr>\n<tr>\n<th>Nb total lignes (tous projets)</th>");
+        for (long count : techLines.values()) {
+            sb.append("<td>").append(count).append("</td>");
+        }
+        sb.append("</tr>\n<tr>\n<th>Nb total lignes (projets actifs)</th>");
+        for (long count : techLines.values()) {
+            sb.append("<td>").append(count).append("</td>");
+        }
+        sb.append("</tr>\n</table>\n</body>\n</html>");
+
+        Path htmlOut = Path.of("frontend-report.html");
+        Files.writeString(htmlOut, sb.toString(), StandardCharsets.UTF_8);
+        System.err.println("Écrit : " + htmlOut.toAbsolutePath());
     }
 
     String[] project(JsonNode p, String since) {
@@ -181,6 +357,9 @@ public class FrontendInventory {
         row.put("branche", branch);
         row.put("derniere_activite", p.path("last_activity_at").asText(""));
         row.put("commits_total", stats.has("commit_count") ? stats.path("commit_count").asText() : "");
+        long repoSize = stats.has("repository_size") ? stats.path("repository_size").asLong() : 0;
+        row.put("taille_depot_octets", String.valueOf(repoSize));
+        row.put("estimation_lignes", repoSize > 0 ? String.valueOf(repoSize / 40) : "");
         List<String> errors = new ArrayList<>();
         if (branch.isEmpty()) {
             row.put("techno", "aucun");
@@ -213,9 +392,10 @@ public class FrontendInventory {
                 .map(e -> e.getKey() + " " + String.format("%.1f", e.getValue())).toList()));
         row.put("part_front_pct", languages.isEmpty() ? "" : String.format("%.1f", frontShare));
 
+        List<String> warnings = new ArrayList<>();
         List<String> paths;
         if (frontShare >= frontThreshold) {
-            paths = packageJsonPaths(id, branch, row);
+            paths = packageJsonPaths(id, branch, warnings);
         } else {
             // Peu ou pas de front : on regarde seulement la racine, un appel.
             paths = List.of("package.json");
@@ -225,7 +405,6 @@ public class FrontendInventory {
         Map<String, Set<String>> versions = new LinkedHashMap<>();
         Map<String, Set<String>> tooling = new LinkedHashMap<>();
         List<String> found = new ArrayList<>();
-        List<String> warnings = new ArrayList<>();
         if (languages.isEmpty()) warnings.add("langages non calculés par GitLab");
         for (String path : paths) {
             HttpResponse<String> resp = get(baseUrl + "/projects/" + id + "/repository/files/" + enc(path)
@@ -310,26 +489,42 @@ public class FrontendInventory {
         return languages;
     }
 
-    /** Tous les package.json de la branche hors dépendances commitées. Remplit au passage "fichiers". */
-    List<String> packageJsonPaths(long id, String branch, Map<String, String> row) throws Exception {
+    /**
+     * Les package.json de la branche jusqu'à maxDepth (dossier racine = 0), parcours en largeur
+     * un dossier à la fois sans descendre dans PRUNED. Au-delà de MAX_TREE_CALLS appels on
+     * s'arrête et on le signale.
+     */
+    List<String> packageJsonPaths(long id, String branch, List<String> warnings) throws Exception {
         List<String> paths = new ArrayList<>();
-        int files = 0;
-        String next = baseUrl + "/projects/" + id + "/repository/tree?ref=" + enc(branch)
-                + "&recursive=true&per_page=100&pagination=keyset";
-        while (next != null) {
-            HttpResponse<String> resp = get(next);
-            if (resp.statusCode() != 200) throw new IOException("arborescence → " + resp.statusCode());
-            for (JsonNode e : JSON.readTree(resp.body())) {
-                if (!e.path("type").asText().equals("blob")) continue;
-                files++;
-                String path = e.path("path").asText();
-                if ((path.equals("package.json") || path.endsWith("/package.json")) && !VENDORED.matcher(path).find()) {
-                    paths.add(path);
+        ArrayDeque<String> dirs = new ArrayDeque<>(List.of(""));
+        int calls = 0;
+        while (!dirs.isEmpty()) {
+            String dir = dirs.poll();
+            int depth = dir.isEmpty() ? 0 : dir.split("/").length;
+            String next = baseUrl + "/projects/" + id + "/repository/tree?ref=" + enc(branch)
+                    + (dir.isEmpty() ? "" : "&path=" + enc(dir)) + "&per_page=100&pagination=keyset";
+            while (next != null) {
+                if (++calls > MAX_TREE_CALLS) {
+                    warnings.add("arborescence tronquée");
+                    return paths;
                 }
+                HttpResponse<String> resp = get(next);
+                if (resp.statusCode() != 200) throw new IOException("arborescence " + dir + " → " + resp.statusCode());
+                for (JsonNode e : JSON.readTree(resp.body())) {
+                    String path = e.path("path").asText();
+                    switch (e.path("type").asText()) {
+                        case "blob" -> {
+                            if (e.path("name").asText().equals("package.json")) paths.add(path);
+                        }
+                        case "tree" -> {
+                            if (depth < maxDepth && !PRUNED.matcher(path).find()) dirs.add(path);
+                        }
+                        default -> { }
+                    }
+                }
+                next = nextPage(next, resp);
             }
-            next = nextPage(next, resp);
         }
-        row.put("fichiers", String.valueOf(files));
         return paths;
     }
 
