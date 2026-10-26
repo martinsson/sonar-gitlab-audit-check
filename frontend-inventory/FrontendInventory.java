@@ -66,9 +66,16 @@ public class FrontendInventory {
         FRAMEWORKS.put("angular", "AngularJS");
         FRAMEWORKS.put("svelte", "Svelte");
         FRAMEWORKS.put("jquery", "jQuery");
+        FRAMEWORKS.put("htmx", "htmx");
+        FRAMEWORKS.put("alpinejs", "AlpineJS");
+        FRAMEWORKS.put("@microsoft/blazor", "Blazor");
+        FRAMEWORKS.put("react-native", "React Native");
+        FRAMEWORKS.put("@ionic/core", "Ionic");
+        FRAMEWORKS.put("@prefresh/core", "Prepack");
     }
     // Méta-frameworks notés à part, ils ne changent pas la techno de base.
-    static final List<String> META = List.of("nuxt", "next", "@vue/cli-service", "vite", "react-scripts", "typescript");
+    static final List<String> META = List.of("nuxt", "next", "@vue/cli-service", "vite", "react-scripts", "typescript",
+            "@microsoft/aspnetcore.components.webassembly");
     // Langages GitLab (Linguist) qui comptent comme du front.
     static final Set<String> FRONT_LANGUAGES = Set.of("JavaScript", "TypeScript", "TSX", "JSX", "Vue", "Svelte",
             "HTML", "CSS", "SCSS", "Sass", "Less", "Stylus");
@@ -81,9 +88,11 @@ public class FrontendInventory {
 
     // "Nj" est remplacé par la fenêtre, ex. commits_90j.
     static final List<String> COLUMNS = List.of("id", "projet", "url", "branche", "derniere_activite",
-            "part_front_pct", "langages", "techno", "package_json", "vue", "react", "angular", "autres_front",
-            "outillage", "commits_Nj", "mr_Nj", "lignes_ajoutees_Nj", "lignes_supprimees_Nj",
-            "commits_total", "a_verifier", "erreur");
+            "commits_Nj", "mr_Nj", "lignes_ajoutees_Nj", "lignes_supprimees_Nj", "commits_total",
+            "part_front_pct", "langages",
+            "package_json", "vue", "react", "angular", "autres_front", "outillage",
+            "taille_depot_octets", "estimation_lignes",
+            "techno", "a_verifier", "erreur");
 
     final String baseUrl;
     final String token;
@@ -142,16 +151,71 @@ public class FrontendInventory {
         String since = OffsetDateTime.now(ZoneOffset.UTC).minusDays(days)
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
-        // Chaque ligne est écrite dès que son projet est fini : un arrêt en cours de route
-        // laisse un CSV partiel mais lisible.
-        Path out = freePath(requested);
-        try (Writer csv = Files.newBufferedWriter(out, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW)) {
-            csv.write("\uFEFF");
-            writeRow(csv, COLUMNS.stream().map(c -> c.replace("Nj", days + "j")).toArray(String[]::new));
-            System.err.println("Écriture au fil de l'eau dans : " + out.toAbsolutePath());
-            run(csv, since, limit, threads);
+        List<String[]> rows = new ArrayList<>();
+        rows.add(COLUMNS.stream().map(c -> c.replace("Nj", days + "j")).toArray(String[]::new));
+
+        ThreadFactory tf = r -> {
+            Thread t = new Thread(r);
+            t.setName("inventory-worker");
+            t.setDaemon(true);
+            return t;
+        };
+        AtomicInteger listed = new AtomicInteger();
+        AtomicInteger done = new AtomicInteger();
+        AtomicBoolean listing = new AtomicBoolean(true);
+        Object rowLock = new Object();
+        try (ExecutorService executor = Executors.newFixedThreadPool(threads, tf)) {
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            String next = baseUrl + "/projects?archived=false&statistics=true&simple=false"
+                    + "&per_page=100&order_by=id&sort=asc&pagination=keyset";
+            while (next != null && listed.get() < limit) {
+                HttpResponse<String> resp = get(next);
+                if (resp.statusCode() != 200) throw new IOException("GET projects → " + resp.statusCode() + " " + resp.body());
+                for (JsonNode p : JSON.readTree(resp.body())) {
+                    if (listed.get() >= limit) break;
+                    listed.incrementAndGet();
+                    futures.add(CompletableFuture.supplyAsync(() -> project(p, since), executor).thenAccept(row -> {
+                        synchronized (rowLock) {
+                            rows.add(row);
+                        }
+                        progress(done.incrementAndGet(), listed.get(), listing.get());
+                    }));
+                }
+                next = nextLink(resp);
+                synchronized (rowLock) {
+                    listing.set(next != null && listed.get() < limit);
+                    progress(done.get(), listed.get(), listing.get());
+                }
+            }
+            CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
         }
+        System.err.println();
+
+        // Write main CSV
+        Path out = freePath(requested);
+        writeCsv(out, rows);
         System.err.println("Écrit : " + out.toAbsolutePath());
+
+        // frontend-front50.csv : projets >= 5% de front
+        List<String[]> front50 = new ArrayList<>();
+        front50.add(rows.get(0));
+        for (int i = 1; i < rows.size(); i++) {
+            String[] r = rows.get(i);
+            int partFrontIdx = COLUMNS.indexOf("part_front_pct");
+            if (r.length > partFrontIdx && !r[partFrontIdx].isEmpty()) {
+                try {
+                    if (Double.parseDouble(r[partFrontIdx]) >= 5) {
+                        front50.add(r);
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        writeCsv(out.resolveSibling("frontend-front50.csv"), front50);
+        System.err.println("Écrit : " + out.resolveSibling("frontend-front50.csv").toAbsolutePath());
+
+        // frontend-report.html
+        writeHtmlReport(rows);
     }
 
     void run(Writer csv, String since, int limit, int threads) throws Exception {
@@ -229,6 +293,9 @@ public class FrontendInventory {
         row.put("branche", branch);
         row.put("derniere_activite", p.path("last_activity_at").asText(""));
         row.put("commits_total", stats.has("commit_count") ? stats.path("commit_count").asText() : "");
+        long repoSize = stats.has("repository_size") ? stats.path("repository_size").asLong() : 0;
+        row.put("taille_depot_octets", String.valueOf(repoSize));
+        row.put("estimation_lignes", repoSize > 0 ? String.valueOf(repoSize / 40) : "");
         List<String> errors = new ArrayList<>();
         if (branch.isEmpty()) {
             row.put("techno", "aucun");
@@ -501,5 +568,148 @@ public class FrontendInventory {
         }
         sb.append("\r\n");
         csv.write(sb.toString());
+    }
+
+    /** Point-virgule + BOM UTF-8 + CRLF : s'ouvre tel quel dans Excel. */
+    static void writeCsv(Path out, List<String[]> rows) throws IOException {
+        StringBuilder sb = new StringBuilder("﻿");
+        for (String[] r : rows) {
+            for (int i = 0; i < r.length; i++) {
+                if (i > 0) sb.append(';');
+                String v = r[i] == null ? "" : r[i];
+                if (v.contains(";") || v.contains("\"") || v.contains("\n") || v.contains("\r")) {
+                    v = "\"" + v.replace("\"", "\"\"") + "\"";
+                }
+                sb.append(v);
+            }
+            sb.append("\r\n");
+        }
+        Files.writeString(out, sb.toString(), StandardCharsets.UTF_8);
+    }
+
+    void writeHtmlReport(List<String[]> rows) throws IOException {
+        Map<String, Integer> techProjects = new LinkedHashMap<>();
+        Map<String, Integer> techActive = new LinkedHashMap<>();
+        Map<String, Long> techLines = new LinkedHashMap<>();
+        for (String label : FRAMEWORKS.values()) {
+            techProjects.put(label, 0);
+            techActive.put(label, 0);
+            techLines.put(label, 0L);
+        }
+        for (String m : META) {
+            techProjects.put(m, 0);
+            techActive.put(m, 0);
+            techLines.put(m, 0L);
+        }
+
+        int totalProjects = rows.size() - 1;
+        int totalActive = 0;
+        long totalLines = 0;
+        long activeLines = 0;
+
+        int technoIdx = COLUMNS.indexOf("techno");
+        int outillageIdx = COLUMNS.indexOf("outillage");
+        int activeIdx = COLUMNS.indexOf("commits_Nj");
+        int linesIdx = COLUMNS.indexOf("estimation_lignes");
+
+        for (int i = 1; i < rows.size(); i++) {
+            String[] r = rows.get(i);
+            boolean isActive = false;
+            if (r.length > activeIdx && !r[activeIdx].isEmpty()) {
+                try {
+                    isActive = Integer.parseInt(r[activeIdx]) > 0;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+            long lines = 0;
+            if (r.length > linesIdx && !r[linesIdx].isEmpty()) {
+                try {
+                    lines = Long.parseLong(r[linesIdx]);
+                } catch (NumberFormatException ignored) {
+                }
+            }
+
+            if (isActive) totalActive++;
+            totalLines += lines;
+            if (isActive) activeLines += lines;
+
+            if (r.length > technoIdx && !r[technoIdx].isEmpty() && !r[technoIdx].equals("aucun") && !r[technoIdx].equals("node sans framework UI")) {
+                String[] techs = r[technoIdx].split("\\+");
+                for (String t : techs) {
+                    String tech = t.trim();
+                    if (techProjects.containsKey(tech)) {
+                        techProjects.put(tech, techProjects.get(tech) + 1);
+                        if (isActive) techActive.put(tech, techActive.get(tech) + 1);
+                        techLines.put(tech, techLines.get(tech) + lines);
+                    }
+                }
+            }
+
+            if (r.length > outillageIdx && !r[outillageIdx].isEmpty()) {
+                String[] tools = r[outillageIdx].split(",");
+                for (String tool : tools) {
+                    String tech = tool.trim().split(" ")[0];
+                    if (techProjects.containsKey(tech)) {
+                        techProjects.put(tech, techProjects.get(tech) + 1);
+                        if (isActive) techActive.put(tech, techActive.get(tech) + 1);
+                        techLines.put(tech, techLines.get(tech) + lines);
+                    }
+                }
+            }
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("<!DOCTYPE html>\n");
+        sb.append("<html lang=\"fr\">\n");
+        sb.append("<head>\n");
+        sb.append("<meta charset=\"UTF-8\">\n");
+        sb.append("<title>Rapport Inventaire Frontend</title>\n");
+        sb.append("<style>\n");
+        sb.append("    body { font-family: Arial, sans-serif; margin: 20px; }\n");
+        sb.append("    table { border-collapse: collapse; width: 100%; margin-top: 20px; }\n");
+        sb.append("    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n");
+        sb.append("    th { background-color: #4CAF50; color: white; }\n");
+        sb.append("    tr:nth-child(even) { background-color: #f2f2f2; }\n");
+        sb.append("    h1 { color: #333; }\n");
+        sb.append("    .summary { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 5px; }\n");
+        sb.append("</style>\n");
+        sb.append("</head>\n");
+        sb.append("<body>\n");
+        sb.append("<h1>Rapport Inventaire Frontend</h1>\n");
+        sb.append("<div class=\"summary\">\n");
+        sb.append("<h2>Résumé</h2>\n");
+        sb.append("<p>Total des projets analysés : ").append(totalProjects).append("</p>\n");
+        sb.append("<p>Projets actifs (>= 1 commit 90j) : ").append(totalActive).append("</p>\n");
+        sb.append("<p>Total estimé des lignes (tous projets) : ").append(totalLines).append("</p>\n");
+        sb.append("<p>Total estimé des lignes (projets actifs) : ").append(activeLines).append("</p>\n");
+        sb.append("</div>\n");
+        sb.append("<h2>Détention des technologies</h2>\n");
+        sb.append("<table>\n");
+        sb.append("<tr>\n");
+        sb.append("<th>Métrique</th>\n");
+        for (String tech : techProjects.keySet()) {
+            sb.append("<th>").append(tech).append("</th>");
+        }
+        sb.append("</tr>\n<tr>\n<th>Nb projets</th>");
+        for (int count : techProjects.values()) {
+            sb.append("<td>").append(count).append("</td>");
+        }
+        sb.append("</tr>\n<tr>\n<th>Nb projets actifs (>=1 commit 90j)</th>");
+        for (int count : techActive.values()) {
+            sb.append("<td>").append(count).append("</td>");
+        }
+        sb.append("</tr>\n<tr>\n<th>Nb total lignes (tous projets)</th>");
+        for (long count : techLines.values()) {
+            sb.append("<td>").append(count).append("</td>");
+        }
+        sb.append("</tr>\n<tr>\n<th>Nb total lignes (projets actifs)</th>");
+        for (long count : techLines.values()) {
+            sb.append("<td>").append(count).append("</td>");
+        }
+        sb.append("</tr>\n</table>\n</body>\n</html>");
+
+        Path htmlOut = Path.of("frontend-report.html");
+        Files.writeString(htmlOut, sb.toString(), StandardCharsets.UTF_8);
+        System.err.println("Écrit : " + htmlOut.toAbsolutePath());
     }
 }
