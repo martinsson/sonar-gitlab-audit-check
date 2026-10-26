@@ -51,7 +51,7 @@ final class Output implements AutoCloseable {
     Files.createDirectories(dir);
     runs = new Table(dir.resolve("gocd-runs.csv"), comma, RunRow.HEADER);
     stages = new Table(dir.resolve("gocd-stages.csv"), comma, StageRows.HEADER);
-    commits = new Table(dir.resolve("gocd-commits.csv"), comma, Commit.HEADER);
+    commits = new Table(dir.resolve("gocd-commits.csv"), comma, CommitRow.HEADER);
     raw = keepRaw ? new Jsonl(dir.resolve("gocd-runs.jsonl")) : null;
   }
 

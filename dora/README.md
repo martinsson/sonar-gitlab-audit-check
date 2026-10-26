@@ -1,12 +1,13 @@
 # DORA extraction: Jira and GoCD
 
-Three tools, PAT-authenticated, GET only. The scripts here are JBang entry
-points; the code is in `src/main/java/.../cli/` (`JiraExtract`, `GocdExtract`,
-`DoraLocate` and their subpackages), under every gate. Every CSV can also be
-written for a tool with `--comma`.
+Four tools, PAT-authenticated, GET only. The scripts here are JBang entry
+points; the code is in `src/main/java/.../cli/` (`DoraProject`, `JiraExtract`,
+`GocdExtract`, `DoraLocate` and their subpackages), under every gate. Every CSV
+can also be written for a tool with `--comma`.
 
 | Script | Input | Output |
 |---|---|---|
+| `DoraProject` | a GitLab project, its prod GoCD pipeline(s) and Jira project(s), each optional but GitLab | the four DORA measures: `dora-donnees.json`, `dora.html`, `middleware-import.sql` |
 | `DoraLocate` | a GitLab project | the Jira project(s) and GoCD pipelines that probably go with it, and the extraction commands |
 | `JiraExtract` | Jira project key(s) | `jira-tickets.csv`, `jira-transitions.csv`, `jira-versions.csv`, `jira-tickets.jsonl` |
 | `GocdExtract` | pipeline name(s) or group(s) | `gocd-runs.csv`, `gocd-stages.csv`, `gocd-commits.csv`, `gocd-runs.jsonl` |
@@ -26,6 +27,76 @@ jbang dora/DoraLocate.java --gitlab-project group/sub/project
 jbang dora/JiraExtract.java --project ABC --out-dir extraction/project/jira
 jbang dora/GocdExtract.java --pipeline project-build,project-deploy-prod --out-dir extraction/project/gocd
 ```
+
+## DoraProject: the four measures for one project, now
+
+```bash
+jbang dora/DoraProject.java --gitlab-project group/sub/project \
+    --gocd-pipeline project-deploy-prod --jira ABC
+open extraction/project/dora/dora.html
+```
+
+It reads, over `--days` (90 by default):
+
+- **GitLab**: the merge requests merged into the default branch, each with its
+  commits (one call per MR, the `--max-mrs` most recent).
+- **GoCD** (`--gocd-pipeline`, the pipeline(s) whose successful run *is* a
+  production deploy): every run, and the project's commits it deployed, walking
+  the upstream pipelines exactly as `GocdExtract` does. Without GoCD, every merge
+  into the default branch counts as a deploy, as Middleware does without CI.
+- **Jira** (`--jira`): the issues created in the period whose type is one of
+  `--incident-types` (`Incident,Bug` by default; the types seen are printed, to
+  adjust). `--incident-jql` replaces the search: every issue it returns is an
+  incident.
+
+It writes three files in `--out-dir` (`extraction/<project>/dora` by default):
+
+- `dora-donnees.json`: what was read. `--from dora-donnees.json` rebuilds the
+  two others with no call at all.
+- `dora.html`: a self-contained page, no script and nothing external: the four
+  measures, the rules applied, then the deploys, merge requests and incidents
+  they are made of. The JSON is embedded too.
+- `middleware-import.sql`: the deploys and incidents for Middleware HQ.
+
+The rules, also printed on the page:
+
+| Measure | Rule |
+|---|---|
+| Deployment frequency | successful deploys per week |
+| Lead time for changes | median, from a commit's author date to the first successful deploy that carried it (without GoCD: from an MR's first commit to its merge). A failed run retried without a new material carries nothing in GoCD's eyes: its commits go to the next successful run of the same pipeline |
+| Change failure rate | deploys, successful or not, followed by at least one incident before the next deploy, over all deploys: Middleware's own rule, so both give the same figure |
+| Time to restore | median, from an incident's creation to its Jira resolution date |
+
+### Importing into Middleware HQ
+
+Middleware (open source, `middlewarehq/middleware`) has no import nor webhook
+in its released versions: it reads deploys from GitHub Actions only and
+incidents from revert MRs only (a `deployments-webhook` branch exists upstream,
+unmerged since July 2025). Its database has room for other sources, so the
+script writes there, in the most standard way available:
+
+1. Link the GitLab project in Middleware as usual (Integrations → GitLab, then
+   add the repository to a team). Middleware reads the MRs itself; the script
+   refuses to run until the repository is there.
+2. Run the script against Middleware's database, as often as needed (every row
+   is inserted or updated, nothing deleted):
+
+   ```bash
+   psql "postgresql://postgres:postgres@localhost:5434/mhq-oss" -f middleware-import.sql
+   # or, with the Docker image: docker exec -i middleware psql -U postgres -d mhq-oss < middleware-import.sql
+   ```
+
+What it writes: one deployment workflow per GoCD pipeline and one run per GoCD
+run, and the repository's teams switched to workflow deploys; one incident
+service per Jira project, attached to those teams, and one incident per issue.
+Middleware reads a workflow's provider as an enum that knows only
+`GITHUB_ACTIONS` and `CIRCLE_CI`, and syncs only the first: the workflow
+declares `CIRCLE_CI`, its id (`gocd:<pipeline>`) and `meta` say where it comes
+from. No Middleware sync touches these rows.
+
+Checked against Middleware's schema (commit 844eb42) on PostgreSQL 16, read
+back by Middleware's own analytics server: same deploy count, change failure
+rate and time to restore as the page.
 
 ## DoraLocate: an exploratory aid
 
