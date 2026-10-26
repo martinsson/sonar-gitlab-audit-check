@@ -1,11 +1,10 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
+package ch.ge.edg.sonar.gitlab.audit.dora;
 
 import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.git;
 import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.run;
 import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.upstream;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.dora.JiraKeys;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
@@ -14,7 +13,6 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -30,7 +28,7 @@ class DeployedCommitsTest {
     return api.history("prod", r -> false, 10).runs();
   }
 
-  private static List<String> vias(List<Commit> commits) {
+  private static List<String> vias(List<DeployedCommit> commits) {
     return commits.stream().map(c -> c.revision() + "@" + c.via()).toList();
   }
 
@@ -42,7 +40,7 @@ class DeployedCommitsTest {
       List<Run> prod = prodRuns(api);
       DeployedCommits commits = new DeployedCommits(api, 30);
 
-      List<Commit> second = commits.of("prod", prod.get(0));
+      List<DeployedCommit> second = commits.of("prod", prod.get(0));
       assertThat(vias(second)).containsExactly("c7@build/7", "c9@build/9");
       assertThat(second.get(0).repo()).isEqualTo(URL);
       assertThat(second.get(0).at()).isEqualTo(Instant.ofEpochMilli(1700000000000L));
@@ -166,15 +164,5 @@ class DeployedCommitsTest {
     assertThat(DeployedCommits.upstreamCounter(Optional.of(run), "recette")).isEqualTo(4);
     assertThat(DeployedCommits.upstreamCounter(Optional.of(run), "build")).isEqualTo(-1);
     assertThat(DeployedCommits.upstreamCounter(Optional.empty(), "recette")).isEqualTo(-1);
-  }
-
-  @Test
-  void aCommitRowWritesItsDateInTheGivenZoneAndItsKeysJoined() {
-    Commit c = new Commit("build/7", URL, "c7", Instant.parse("2026-01-02T03:04:05Z"), Set.of());
-    assertThat(c.cells("prod", 2, java.time.ZoneId.of("Europe/Zurich")))
-        .containsExactly("prod", "2", "build/7", URL, "c7", "2026-01-02 04:04:05", "");
-    Commit k = new Commit("direct", URL, "c8", null, JiraKeys.in("BB-1 AA-2"));
-    assertThat(k.cells("p", 1, java.time.ZoneOffset.UTC)[5]).isEmpty();
-    assertThat(k.cells("p", 1, java.time.ZoneOffset.UTC)[6]).isEqualTo("BB-1|AA-2");
   }
 }

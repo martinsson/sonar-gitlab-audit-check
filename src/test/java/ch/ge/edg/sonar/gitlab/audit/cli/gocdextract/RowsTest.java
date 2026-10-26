@@ -6,6 +6,9 @@ import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.latestRun;
 import static ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures.runOf;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.dora.DeployedCommit;
+import ch.ge.edg.sonar.gitlab.audit.dora.JiraKeys;
+import ch.ge.edg.sonar.gitlab.audit.dora.RunOutcome;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
@@ -33,24 +36,25 @@ class RowsTest {
 
   @Test
   void aFailedStageBeatsACancelledOneWhichBeatsOneStillRunning() {
-    assertThat(Outcome.of(stages(stage("Passed", true), stage("Failed", true)))).isEqualTo("échec");
-    assertThat(Outcome.of(stages(stage("Cancelled", true), stage("Failed", true))))
+    assertThat(RunOutcome.of(stages(stage("Passed", true), stage("Failed", true))).label())
         .isEqualTo("échec");
-    assertThat(Outcome.of(stages(stage("Cancelled", true), stage("Unknown", true))))
+    assertThat(RunOutcome.of(stages(stage("Cancelled", true), stage("Failed", true))).label())
+        .isEqualTo("échec");
+    assertThat(RunOutcome.of(stages(stage("Cancelled", true), stage("Unknown", true))).label())
         .isEqualTo("annulé");
-    assertThat(Outcome.of(stages(stage("Passed", true), stage("Unknown", true))))
+    assertThat(RunOutcome.of(stages(stage("Passed", true), stage("Unknown", true))).label())
         .isEqualTo("en cours");
-    assertThat(Outcome.of(stages("{\"scheduled\":true}"))).isEqualTo("en cours");
-    assertThat(Outcome.of(stages(stage("Passed", true), "{\"result\":\"Passed\"}")))
+    assertThat(RunOutcome.of(stages("{\"scheduled\":true}")).label()).isEqualTo("en cours");
+    assertThat(RunOutcome.of(stages(stage("Passed", true), "{\"result\":\"Passed\"}")).label())
         .isEqualTo("succès");
-    assertThat(Outcome.of(stages())).isEqualTo("succès");
+    assertThat(RunOutcome.of(stages()).label()).isEqualTo("succès");
   }
 
   @Test
   void aStageThatNeverRanDoesNotCount() {
-    assertThat(Outcome.of(stages(stage("Passed", true), stage("Failed", false))))
+    assertThat(RunOutcome.of(stages(stage("Passed", true), stage("Failed", false))).label())
         .isEqualTo("succès");
-    assertThat(Outcome.of(stages(stage("Passed", true), stage("Unknown", false))))
+    assertThat(RunOutcome.of(stages(stage("Passed", true), stage("Unknown", false))).label())
         .isEqualTo("succès");
   }
 
@@ -90,12 +94,14 @@ class RowsTest {
            {"material":{"type":"Pipeline"},"modifications":[{"revision":"up/3/s/1"},{"revision":"up/2/s/1"}]}]},
          "stages":[{"name":"build","result":"Passed"},{"name":"prod","result":"Unknown","scheduled":false}]}
         """;
-    List<Commit> found =
+    List<DeployedCommit> found =
         List.of(
-            new Commit("up/3", "r", "b", Instant.parse("2026-01-02T08:00:00Z"), Set.of("A-1")),
-            new Commit("up/3", "r", "a", Instant.parse("2026-01-01T06:00:00Z"), Set.of()),
-            new Commit("up/2", "r", "n", null, Set.of("B-2")),
-            new Commit("up/2", "r", "c", Instant.parse("2026-01-02T10:00:00Z"), Set.of("A-1")));
+            new DeployedCommit(
+                "up/3", "r", "b", Instant.parse("2026-01-02T08:00:00Z"), Set.of("A-1")),
+            new DeployedCommit("up/3", "r", "a", Instant.parse("2026-01-01T06:00:00Z"), Set.of()),
+            new DeployedCommit("up/2", "r", "n", null, Set.of("B-2")),
+            new DeployedCommit(
+                "up/2", "r", "c", Instant.parse("2026-01-02T10:00:00Z"), Set.of("A-1")));
     String[] cells = RunRow.cells("app-deploy-rec", "g", runOf(json), found, ZoneId.of("UTC"));
     assertThat(cells)
         .containsExactly(
@@ -119,7 +125,7 @@ class RowsTest {
 
   @Test
   void aSpanWithoutDatesIsEmpty() {
-    RunRow.Span s = RunRow.Span.of(List.of(new Commit("v", "r", "x", null, Set.of())));
+    RunRow.Span s = RunRow.Span.of(List.of(new DeployedCommit("v", "r", "x", null, Set.of())));
     assertThat(s.first()).isNull();
     assertThat(s.last()).isNull();
     assertThat(s.keys()).isEmpty();
@@ -127,7 +133,8 @@ class RowsTest {
     RunRow.Span same =
         RunRow.Span.of(
             List.of(
-                new Commit("v", "r", "x", t, Set.of()), new Commit("v", "r", "y", t, Set.of())));
+                new DeployedCommit("v", "r", "x", t, Set.of()),
+                new DeployedCommit("v", "r", "y", t, Set.of())));
     assertThat(same.first()).isEqualTo(t);
     assertThat(same.last()).isEqualTo(t);
   }
@@ -219,5 +226,17 @@ class RowsTest {
     assertThat(StageRows.minutes(t, t.plusSeconds(3))).isEqualTo("0,1");
     assertThat(StageRows.minutes(t, null)).isEmpty();
     assertThat(StageRows.minutes(null, t)).isEmpty();
+  }
+
+  @Test
+  void aCommitRowWritesItsDateInTheGivenZoneAndItsKeysJoined() {
+    String url = "https://github.com/octocat/Hello-World.git";
+    DeployedCommit c =
+        new DeployedCommit("build/7", url, "c7", Instant.parse("2026-01-02T03:04:05Z"), Set.of());
+    assertThat(CommitRow.cells(c, "prod", 2, ZURICH))
+        .containsExactly("prod", "2", "build/7", url, "c7", "2026-01-02 04:04:05", "");
+    DeployedCommit k = new DeployedCommit("direct", url, "c8", null, JiraKeys.in("BB-1 AA-2"));
+    assertThat(CommitRow.cells(k, "p", 1, java.time.ZoneOffset.UTC)[5]).isEmpty();
+    assertThat(CommitRow.cells(k, "p", 1, java.time.ZoneOffset.UTC)[6]).isEqualTo("BB-1|AA-2");
   }
 }

@@ -1,6 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
+import ch.ge.edg.sonar.gitlab.audit.dora.DeployedCommit;
 import ch.ge.edg.sonar.gitlab.audit.dora.Platforms;
+import ch.ge.edg.sonar.gitlab.audit.dora.RunOutcome;
 import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Material;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
@@ -40,7 +42,8 @@ final class RunRow {
 
   private RunRow() {}
 
-  static String[] cells(String pipeline, String group, Run run, List<Commit> found, ZoneId zone) {
+  static String[] cells(
+      String pipeline, String group, Run run, List<DeployedCommit> found, ZoneId zone) {
     BuildCause cause = run.buildCause();
     Instant scheduled = run.scheduledDate();
     Span span = Span.of(found);
@@ -52,7 +55,7 @@ final class RunRow {
       run.label(),
       Times.format(scheduled, zone),
       cause.triggerForced() ? "forcé" : "automatique",
-      Outcome.of(run),
+      RunOutcome.of(run).label(),
       String.join("|", stages(run)),
       String.join("|", repos(cause)),
       String.join("|", upstream(cause)),
@@ -96,11 +99,11 @@ final class RunRow {
   /** Le premier et le dernier commit embarqués, et toutes les clés Jira qu'ils citent. */
   record Span(@Nullable Instant first, @Nullable Instant last, Set<String> keys) {
 
-    static Span of(List<Commit> found) {
+    static Span of(List<DeployedCommit> found) {
       Instant first = null;
       Instant last = null;
       Set<String> keys = new LinkedHashSet<>();
-      for (Commit c : found) {
+      for (DeployedCommit c : found) {
         Instant at = c.at();
         if (at != null && (first == null || at.isBefore(first))) first = at;
         if (at != null && (last == null || at.isAfter(last))) last = at;

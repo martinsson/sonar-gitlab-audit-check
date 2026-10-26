@@ -1,6 +1,5 @@
-package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
+package ch.ge.edg.sonar.gitlab.audit.dora;
 
-import ch.ge.edg.sonar.gitlab.audit.dora.JiraKeys;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Material;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
@@ -14,7 +13,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Les commits qu'un run a embarqués.
+ * Les commits qu'un run GoCD a embarqués.
  *
  * <p>Directs : ses matériaux git marqués « changed ». Par l'amont : si le run précédent du même
  * pipeline avait pris build/9 et celui-ci build/12, les commits des builds 10, 11 et 12, et ainsi
@@ -26,7 +25,7 @@ import java.util.Optional;
  * Les runs amont qui ne sont pas déjà en cache coûtent un appel : {@code maxUpstream} borne ces
  * appels pour un même run, et la plage lue à chaque niveau.
  */
-final class DeployedCommits {
+public final class DeployedCommits {
 
   /** prod ← preprod ← recette ← intégration ← build ← git, et un peu de marge. */
   static final int MAX_DEPTH = 6;
@@ -39,7 +38,7 @@ final class DeployedCommits {
     this.maxUpstream = maxUpstream;
   }
 
-  public List<Commit> of(String pipeline, Run run) {
+  public List<DeployedCommit> of(String pipeline, Run run) {
     Walk walk = new Walk();
     walk.collect(pipeline, run, "direct", 0);
     return new ArrayList<>(walk.found.values());
@@ -69,7 +68,7 @@ final class DeployedCommits {
   /** Un parcours, pour un run : ses commits trouvés et ce qui reste d'appels permis. */
   private final class Walk {
 
-    final Map<String, Commit> found = new LinkedHashMap<>();
+    final Map<String, DeployedCommit> found = new LinkedHashMap<>();
     int budget = maxUpstream;
 
     void collect(String pipeline, Run run, String via, int depth) {
@@ -87,7 +86,8 @@ final class DeployedCommits {
       for (Modification mod : mr.modifications()) {
         found.putIfAbsent(
             mod.revision(),
-            new Commit(via, repo, mod.revision(), mod.modifiedTime(), JiraKeys.in(mod.comment())));
+            new DeployedCommit(
+                via, repo, mod.revision(), mod.modifiedTime(), JiraKeys.in(mod.comment())));
       }
     }
 

@@ -1,5 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
+import ch.ge.edg.sonar.gitlab.audit.dora.DeployedCommit;
+import ch.ge.edg.sonar.gitlab.audit.dora.DeployedCommits;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
@@ -59,10 +61,11 @@ final class Extraction {
   private void write(String pipeline, Run run, Output out) throws IOException, Stop {
     Optional<JsonNode> raw = gocd.api().raw(pipeline, run.counter());
     if (raw.isPresent()) out.raw(raw.get());
-    List<Commit> found = commits.of(pipeline, run);
+    List<DeployedCommit> found = commits.of(pipeline, run);
     ZoneId zone = settings.zone();
     out.runs.row(RunRow.cells(pipeline, selection.group(pipeline), run, found, zone));
     for (String[] row : stages.of(pipeline, run)) out.stages.row(row);
-    for (Commit c : found) out.commits.row(c.cells(pipeline, run.counter(), zone));
+    for (DeployedCommit c : found)
+      out.commits.row(CommitRow.cells(c, pipeline, run.counter(), zone));
   }
 }
