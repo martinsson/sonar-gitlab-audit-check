@@ -1,6 +1,5 @@
-# Les scripts bash gardent LF même sous Windows avec core.autocrlf=true : un \r en fin de ligne
-# casse bash ($'\r': command not found). Le .cmd garde CRLF, que cmd.exe attend.
-verify text eol=lf
-.githooks/* text eol=lf
-*.sh text eol=lf
+# LF partout, même sous Windows avec core.autocrlf=true : un \r casse bash ($'\r': command not found),
+# et les tests comparent des fichiers (snapshots, fixtures) écrits en LF. Seul le .cmd garde CRLF,
+# que cmd.exe attend.
+* text=auto eol=lf
 *.cmd text eol=crlf
