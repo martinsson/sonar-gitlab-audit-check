@@ -23,6 +23,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.concurrent.CompletableFuture;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -68,14 +69,12 @@ public class FrontendInventory {
         FRAMEWORKS.put("jquery", "jQuery");
         FRAMEWORKS.put("htmx", "htmx");
         FRAMEWORKS.put("alpinejs", "AlpineJS");
-        FRAMEWORKS.put("@microsoft/blazor", "Blazor");
         FRAMEWORKS.put("react-native", "React Native");
         FRAMEWORKS.put("@ionic/core", "Ionic");
-        FRAMEWORKS.put("@prefresh/core", "Prepack");
+        FRAMEWORKS.put("preact", "Preact");
     }
     // Méta-frameworks notés à part, ils ne changent pas la techno de base.
-    static final List<String> META = List.of("nuxt", "next", "@vue/cli-service", "vite", "react-scripts", "typescript",
-            "@microsoft/aspnetcore.components.webassembly");
+    static final List<String> META = List.of("nuxt", "next", "@vue/cli-service", "vite", "react-scripts", "typescript");
     // Langages GitLab (Linguist) qui comptent comme du front.
     static final Set<String> FRONT_LANGUAGES = Set.of("JavaScript", "TypeScript", "TSX", "JSX", "Vue", "Svelte",
             "HTML", "CSS", "SCSS", "Sass", "Less", "Stylus");
@@ -150,75 +149,36 @@ public class FrontendInventory {
     void run(Path requested, int days, int limit, int threads) throws Exception {
         String since = OffsetDateTime.now(ZoneOffset.UTC).minusDays(days)
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+        String[] header = COLUMNS.stream().map(c -> c.replace("Nj", days + "j")).toArray(String[]::new);
 
+        // Chaque ligne est écrite dès que son projet est fini : un arrêt en cours de route
+        // laisse un CSV partiel mais lisible. Les lignes restent aussi en mémoire pour les rapports de fin.
         List<String[]> rows = new ArrayList<>();
-        rows.add(COLUMNS.stream().map(c -> c.replace("Nj", days + "j")).toArray(String[]::new));
-
-        ThreadFactory tf = r -> {
-            Thread t = new Thread(r);
-            t.setName("inventory-worker");
-            t.setDaemon(true);
-            return t;
-        };
-        AtomicInteger listed = new AtomicInteger();
-        AtomicInteger done = new AtomicInteger();
-        AtomicBoolean listing = new AtomicBoolean(true);
-        Object rowLock = new Object();
-        try (ExecutorService executor = Executors.newFixedThreadPool(threads, tf)) {
-            List<CompletableFuture<Void>> futures = new ArrayList<>();
-            String next = baseUrl + "/projects?archived=false&statistics=true&simple=false"
-                    + "&per_page=100&order_by=id&sort=asc&pagination=keyset";
-            while (next != null && listed.get() < limit) {
-                HttpResponse<String> resp = get(next);
-                if (resp.statusCode() != 200) throw new IOException("GET projects → " + resp.statusCode() + " " + resp.body());
-                for (JsonNode p : JSON.readTree(resp.body())) {
-                    if (listed.get() >= limit) break;
-                    listed.incrementAndGet();
-                    futures.add(CompletableFuture.supplyAsync(() -> project(p, since), executor).thenAccept(row -> {
-                        synchronized (rowLock) {
-                            rows.add(row);
-                        }
-                        progress(done.incrementAndGet(), listed.get(), listing.get());
-                    }));
-                }
-                next = nextLink(resp);
-                synchronized (rowLock) {
-                    listing.set(next != null && listed.get() < limit);
-                    progress(done.get(), listed.get(), listing.get());
-                }
-            }
-            CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
-        }
-        System.err.println();
-
-        // Write main CSV
         Path out = freePath(requested);
-        writeCsv(out, rows);
+        try (Writer csv = Files.newBufferedWriter(out, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW)) {
+            csv.write("﻿");
+            writeRow(csv, header);
+            System.err.println("Écriture au fil de l'eau dans : " + out.toAbsolutePath());
+            run(csv, rows, since, limit, threads);
+        }
         System.err.println("Écrit : " + out.toAbsolutePath());
 
-        // frontend-front50.csv : projets >= 5% de front
-        List<String[]> front50 = new ArrayList<>();
-        front50.add(rows.get(0));
-        for (int i = 1; i < rows.size(); i++) {
-            String[] r = rows.get(i);
-            int partFrontIdx = COLUMNS.indexOf("part_front_pct");
-            if (r.length > partFrontIdx && !r[partFrontIdx].isEmpty()) {
-                try {
-                    if (Double.parseDouble(r[partFrontIdx]) >= 5) {
-                        front50.add(r);
-                    }
-                } catch (NumberFormatException ignored) {
-                }
+        Path front = freePath(sibling(out, "-front.csv"));
+        try (Writer csv = Files.newBufferedWriter(front, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW)) {
+            csv.write("﻿");
+            writeRow(csv, header);
+            for (String[] r : rows) {
+                if (frontShare(r) >= frontThreshold) writeRow(csv, r);
             }
         }
-        writeCsv(out.resolveSibling("frontend-front50.csv"), front50);
-        System.err.println("Écrit : " + out.resolveSibling("frontend-front50.csv").toAbsolutePath());
+        System.err.println("Écrit : " + front.toAbsolutePath());
 
-        // frontend-report.html
-        writeHtmlReport(rows);
+        Path html = freePath(sibling(out, "-rapport.html"));
+        Files.writeString(html, report(rows, days), StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
+        System.err.println("Écrit : " + html.toAbsolutePath());
     }
 
-    void run(Writer csv, String since, int limit, int threads) throws Exception {
+    void run(Writer csv, List<String[]> rows, String since, int limit, int threads) throws Exception {
         ThreadFactory tf = r -> {
             Thread t = new Thread(r);
             t.setName("inventory-worker");
@@ -245,6 +205,7 @@ public class FrontendInventory {
                         synchronized (csv) {
                             try {
                                 writeRow(csv, row);
+                                rows.add(row);
                                 csv.flush();
                             } catch (IOException e) {
                                 throw new UncheckedIOException(e);
@@ -570,146 +531,121 @@ public class FrontendInventory {
         csv.write(sb.toString());
     }
 
-    /** Point-virgule + BOM UTF-8 + CRLF : s'ouvre tel quel dans Excel. */
-    static void writeCsv(Path out, List<String[]> rows) throws IOException {
-        StringBuilder sb = new StringBuilder("﻿");
-        for (String[] r : rows) {
-            for (int i = 0; i < r.length; i++) {
-                if (i > 0) sb.append(';');
-                String v = r[i] == null ? "" : r[i];
-                if (v.contains(";") || v.contains("\"") || v.contains("\n") || v.contains("\r")) {
-                    v = "\"" + v.replace("\"", "\"\"") + "\"";
-                }
-                sb.append(v);
-            }
-            sb.append("\r\n");
-        }
-        Files.writeString(out, sb.toString(), StandardCharsets.UTF_8);
+    /** frontend.csv → frontend-front.csv : les rapports de fin portent le nom du CSV principal. */
+    static Path sibling(Path out, String suffix) {
+        String name = out.getFileName().toString();
+        int dot = name.lastIndexOf('.');
+        return out.resolveSibling((dot > 0 ? name.substring(0, dot) : name) + suffix);
     }
 
-    void writeHtmlReport(List<String[]> rows) throws IOException {
-        Map<String, Integer> techProjects = new LinkedHashMap<>();
-        Map<String, Integer> techActive = new LinkedHashMap<>();
-        Map<String, Long> techLines = new LinkedHashMap<>();
-        for (String label : FRAMEWORKS.values()) {
-            techProjects.put(label, 0);
-            techActive.put(label, 0);
-            techLines.put(label, 0L);
-        }
-        for (String m : META) {
-            techProjects.put(m, 0);
-            techActive.put(m, 0);
-            techLines.put(m, 0L);
-        }
+    static String col(String[] r, String column) {
+        return r[COLUMNS.indexOf(column)];
+    }
 
-        int totalProjects = rows.size() - 1;
-        int totalActive = 0;
-        long totalLines = 0;
-        long activeLines = 0;
+    static long number(String[] r, String column) {
+        String v = col(r, column);
+        return v.isEmpty() ? 0 : Long.parseLong(v);
+    }
 
-        int technoIdx = COLUMNS.indexOf("techno");
-        int outillageIdx = COLUMNS.indexOf("outillage");
-        int activeIdx = COLUMNS.indexOf("commits_Nj");
-        int linesIdx = COLUMNS.indexOf("estimation_lignes");
+    /**
+     * part_front_pct relue depuis la ligne, -1 si GitLab n'a pas calculé les langages. Elle est écrite
+     * dans la locale de la machine pour Excel : « 12,5 » en français, d'où la virgule acceptée.
+     */
+    static double frontShare(String[] r) {
+        String v = col(r, "part_front_pct");
+        return v.isEmpty() ? -1 : Double.parseDouble(v.replace(',', '.'));
+    }
 
-        for (int i = 1; i < rows.size(); i++) {
-            String[] r = rows.get(i);
-            boolean isActive = false;
-            if (r.length > activeIdx && !r[activeIdx].isEmpty()) {
-                try {
-                    isActive = Integer.parseInt(r[activeIdx]) > 0;
-                } catch (NumberFormatException ignored) {
-                }
-            }
-            long lines = 0;
-            if (r.length > linesIdx && !r[linesIdx].isEmpty()) {
-                try {
-                    lines = Long.parseLong(r[linesIdx]);
-                } catch (NumberFormatException ignored) {
-                }
-            }
+    /** Une ligne du rapport HTML : ce que totalisent les projets d'une techno. */
+    static final class Tally {
+        int projects, active;
+        long lines, activeLines, changed;
 
-            if (isActive) totalActive++;
-            totalLines += lines;
-            if (isActive) activeLines += lines;
-
-            if (r.length > technoIdx && !r[technoIdx].isEmpty() && !r[technoIdx].equals("aucun") && !r[technoIdx].equals("node sans framework UI")) {
-                String[] techs = r[technoIdx].split("\\+");
-                for (String t : techs) {
-                    String tech = t.trim();
-                    if (techProjects.containsKey(tech)) {
-                        techProjects.put(tech, techProjects.get(tech) + 1);
-                        if (isActive) techActive.put(tech, techActive.get(tech) + 1);
-                        techLines.put(tech, techLines.get(tech) + lines);
-                    }
-                }
-            }
-
-            if (r.length > outillageIdx && !r[outillageIdx].isEmpty()) {
-                String[] tools = r[outillageIdx].split(",");
-                for (String tool : tools) {
-                    String tech = tool.trim().split(" ")[0];
-                    if (techProjects.containsKey(tech)) {
-                        techProjects.put(tech, techProjects.get(tech) + 1);
-                        if (isActive) techActive.put(tech, techActive.get(tech) + 1);
-                        techLines.put(tech, techLines.get(tech) + lines);
-                    }
-                }
+        void add(String[] r) {
+            boolean isActive = number(r, "commits_Nj") > 0;
+            long l = number(r, "estimation_lignes");
+            projects++;
+            lines += l;
+            changed += number(r, "lignes_ajoutees_Nj") + number(r, "lignes_supprimees_Nj");
+            if (isActive) {
+                active++;
+                activeLines += l;
             }
         }
+    }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("<!DOCTYPE html>\n");
-        sb.append("<html lang=\"fr\">\n");
-        sb.append("<head>\n");
-        sb.append("<meta charset=\"UTF-8\">\n");
-        sb.append("<title>Rapport Inventaire Frontend</title>\n");
-        sb.append("<style>\n");
-        sb.append("    body { font-family: Arial, sans-serif; margin: 20px; }\n");
-        sb.append("    table { border-collapse: collapse; width: 100%; margin-top: 20px; }\n");
-        sb.append("    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }\n");
-        sb.append("    th { background-color: #4CAF50; color: white; }\n");
-        sb.append("    tr:nth-child(even) { background-color: #f2f2f2; }\n");
-        sb.append("    h1 { color: #333; }\n");
-        sb.append("    .summary { margin: 20px 0; padding: 15px; background: #f9f9f9; border-radius: 5px; }\n");
-        sb.append("</style>\n");
-        sb.append("</head>\n");
-        sb.append("<body>\n");
-        sb.append("<h1>Rapport Inventaire Frontend</h1>\n");
-        sb.append("<div class=\"summary\">\n");
-        sb.append("<h2>Résumé</h2>\n");
-        sb.append("<p>Total des projets analysés : ").append(totalProjects).append("</p>\n");
-        sb.append("<p>Projets actifs (>= 1 commit 90j) : ").append(totalActive).append("</p>\n");
-        sb.append("<p>Total estimé des lignes (tous projets) : ").append(totalLines).append("</p>\n");
-        sb.append("<p>Total estimé des lignes (projets actifs) : ").append(activeLines).append("</p>\n");
-        sb.append("</div>\n");
-        sb.append("<h2>Détention des technologies</h2>\n");
-        sb.append("<table>\n");
-        sb.append("<tr>\n");
-        sb.append("<th>Métrique</th>\n");
-        for (String tech : techProjects.keySet()) {
-            sb.append("<th>").append(tech).append("</th>");
+    /**
+     * Totaux par valeur de la colonne techno (« Vue 2 + React » compte pour Vue 2 et pour React)
+     * et par outil de la colonne outillage. Un projet est actif s'il a au moins un commit sur la fenêtre.
+     */
+    static String report(List<String[]> rows, int days) {
+        Tally all = new Tally();
+        Map<String, Tally> byTechno = new LinkedHashMap<>();
+        Map<String, Tally> byTool = new LinkedHashMap<>();
+        for (String[] r : rows) {
+            all.add(r);
+            for (String t : col(r, "techno").split(" \\+ ")) {
+                if (!t.isBlank()) byTechno.computeIfAbsent(t, k -> new Tally()).add(r);
+            }
+            // « vite ^4.0.0 / ^5.1.0, typescript ~5.2.0 » → vite, typescript
+            for (String t : col(r, "outillage").split(", ")) {
+                if (!t.isBlank()) byTool.computeIfAbsent(t.split(" ")[0], k -> new Tally()).add(r);
+            }
         }
-        sb.append("</tr>\n<tr>\n<th>Nb projets</th>");
-        for (int count : techProjects.values()) {
-            sb.append("<td>").append(count).append("</td>");
-        }
-        sb.append("</tr>\n<tr>\n<th>Nb projets actifs (>=1 commit 90j)</th>");
-        for (int count : techActive.values()) {
-            sb.append("<td>").append(count).append("</td>");
-        }
-        sb.append("</tr>\n<tr>\n<th>Nb total lignes (tous projets)</th>");
-        for (long count : techLines.values()) {
-            sb.append("<td>").append(count).append("</td>");
-        }
-        sb.append("</tr>\n<tr>\n<th>Nb total lignes (projets actifs)</th>");
-        for (long count : techLines.values()) {
-            sb.append("<td>").append(count).append("</td>");
-        }
-        sb.append("</tr>\n</table>\n</body>\n</html>");
+        StringBuilder sb = new StringBuilder("""
+                <!DOCTYPE html>
+                <html lang="fr">
+                <head>
+                <meta charset="UTF-8">
+                <title>Inventaire frontend</title>
+                <style>
+                  body { font-family: system-ui, sans-serif; margin: 24px; color: #222; }
+                  table { border-collapse: collapse; margin: 12px 0 28px; }
+                  th, td { border: 1px solid #ccc; padding: 6px 10px; }
+                  th { background: #f0f0f0; text-align: left; }
+                  td { text-align: right; font-variant-numeric: tabular-nums; }
+                  td:first-child { text-align: left; }
+                  tr.total td { font-weight: bold; }
+                  p.note { color: #666; font-size: 0.9em; max-width: 60em; }
+                </style>
+                </head>
+                <body>
+                <h1>Inventaire frontend</h1>
+                """);
+        sb.append("<h2>Par techno</h2>\n");
+        table(sb, "Techno", byTechno, all, days);
+        sb.append("<h2>Par outillage</h2>\n");
+        table(sb, "Outil", byTool, all, days);
+        sb.append("<p class=\"note\">Actif : au moins un commit sur la branche par défaut dans les ").append(days)
+                .append(" derniers jours. Un projet à plusieurs technos compte dans chacune, la ligne Total ne")
+                .append(" le compte qu'une fois. Lignes estimées : taille du dépôt GitLab / 40, historique git")
+                .append(" et fichiers binaires compris, donc un ordre de grandeur, pas un comptage. Lignes")
+                .append(" modifiées : ajoutées + supprimées sur la fenêtre, hors commits de merge.</p>\n");
+        sb.append("</body>\n</html>\n");
+        return sb.toString();
+    }
 
-        Path htmlOut = Path.of("frontend-report.html");
-        Files.writeString(htmlOut, sb.toString(), StandardCharsets.UTF_8);
-        System.err.println("Écrit : " + htmlOut.toAbsolutePath());
+    static void table(StringBuilder sb, String first, Map<String, Tally> rows, Tally total, int days) {
+        sb.append("<table>\n<tr><th>").append(first).append("</th><th>Projets</th><th>Projets actifs</th>")
+                .append("<th>Lignes estimées</th><th>Lignes estimées (actifs)</th><th>Lignes modifiées ")
+                .append(days).append("j</th></tr>\n");
+        rows.entrySet().stream()
+                .sorted(Map.Entry.<String, Tally>comparingByValue(Comparator.comparingInt(t -> -t.projects))
+                        .thenComparing(Map.Entry.comparingByKey()))
+                .forEach(e -> tableRow(sb, "", e.getKey(), e.getValue()));
+        tableRow(sb, " class=\"total\"", "Total", total);
+        sb.append("</table>\n");
+    }
+
+    static void tableRow(StringBuilder sb, String attributes, String name, Tally t) {
+        sb.append("<tr").append(attributes).append("><td>").append(html(name)).append("</td>");
+        for (long v : new long[] {t.projects, t.active, t.lines, t.activeLines, t.changed}) {
+            sb.append("<td>").append(String.format("%,d", v)).append("</td>");
+        }
+        sb.append("</tr>\n");
+    }
+
+    static String html(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 }
