@@ -10,6 +10,7 @@ import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -24,7 +25,7 @@ class CrossAuditOptionsTest {
   private static String[] files(Path dir) throws IOException {
     try (Stream<Path> s = Files.walk(dir)) {
       return s.filter(Files::isRegularFile)
-          .map(p -> dir.relativize(p).toString())
+          .map(p -> dir.relativize(p).toString().replace(File.separatorChar, '/'))
           .sorted()
           .toArray(String[]::new);
     }

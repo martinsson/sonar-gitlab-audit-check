@@ -3,9 +3,9 @@ package ch.ge.edg.sonar.gitlab.audit.matching;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -28,7 +28,7 @@ class NamespaceMappingTest {
   @Test
   void anUnreadableFileReportsTheError() throws Exception {
     Path f = Files.writeString(dir.resolve("locked.yaml"), "ZZMAP-LOCKED: x\n");
-    Files.setPosixFilePermissions(f, Set.of());
+    Native.unreadable(f);
     assertThat(NamespaceMapping.load(dir, f).warnings())
         .containsExactly("Erreur lecture mapping : " + f);
   }

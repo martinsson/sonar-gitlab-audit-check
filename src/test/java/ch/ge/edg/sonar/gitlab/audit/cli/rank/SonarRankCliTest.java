@@ -4,6 +4,7 @@ import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
+import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -63,7 +64,7 @@ class SonarRankCliTest {
   }
 
   String normalized(String s) {
-    return s.replace(dir.toAbsolutePath().toString(), "<dir>");
+    return Native.marked(s, dir, "<dir>");
   }
 
   String classement() throws IOException {

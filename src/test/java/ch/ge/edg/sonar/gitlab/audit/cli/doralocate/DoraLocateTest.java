@@ -254,9 +254,7 @@ class DoraLocateTest {
         Response.json(
             "{\"active\":true,\"properties\":{\"project_keys\":[\"ABC\"],\"project_key\":\"ABC\"}}");
     assertThat(locate(jira, null).out())
-        .contains(
-            "  Intégration Jira active dans GitLab : clé(s) [\"ABC\"] ABC "
-                + System.lineSeparator());
+        .contains("  Intégration Jira active dans GitLab : clé(s) [\"ABC\"] ABC \n");
   }
 
   @Test

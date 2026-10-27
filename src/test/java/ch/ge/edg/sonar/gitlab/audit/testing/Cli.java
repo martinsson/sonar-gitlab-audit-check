@@ -22,7 +22,7 @@ import java.util.function.Function;
  */
 public final class Cli {
 
-  /** What a run produced. */
+  /** What a run produced, with \n line ends whatever the platform. */
   public record Result(int exitCode, String out, String err) {}
 
   /**
@@ -57,7 +57,9 @@ public final class Cli {
     Host host = host(stream(out), stream(err), clock, workDir);
     int code = host.commandLine(command.apply(host)).execute(args);
     return new Result(
-        code, out.toString(StandardCharsets.UTF_8), err.toString(StandardCharsets.UTF_8));
+        code,
+        Native.lines(out.toString(StandardCharsets.UTF_8)),
+        Native.lines(err.toString(StandardCharsets.UTF_8)));
   }
 
   /** A host of fixed values that prints nowhere: for a command that is only parsed. */

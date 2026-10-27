@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
+import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -57,7 +58,7 @@ abstract class SonarAuditCheckTestBase {
 
   /** Output with its URL, dates and temp dir replaced by stable tokens. */
   String stable(String text) {
-    return fake.normalize(text).replace(tmp.toString(), "<TMP>");
+    return Native.marked(fake.normalize(text), tmp, "<TMP>");
   }
 
   /** An Excel-style CSV: BOM, semicolons, CRLF; returned normalized, without BOM and with LF. */

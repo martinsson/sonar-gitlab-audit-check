@@ -6,12 +6,12 @@ import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -182,7 +182,7 @@ class SonarCaptureTest {
     Path replay = Files.createDirectories(tmp.resolve("r"));
     Path f = replay.resolve(Capture.name("api/x"));
     Files.writeString(f, "{}");
-    Files.setPosixFilePermissions(f, PosixFilePermissions.fromString("---------"));
+    Native.unreadable(f);
     Sonar sq =
         new Sonar(
             new SonarConnection(null, null, null, 5, false),

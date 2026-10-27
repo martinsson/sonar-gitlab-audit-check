@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.console;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -52,7 +53,7 @@ class ConsoleTest {
     c.out().printf("%s%n", "c");
     c.err().println("e");
     c.flush();
-    assertThat(out.toString(StandardCharsets.UTF_8)).isEqualTo("a\nb\nc\n");
-    assertThat(err.toString(StandardCharsets.UTF_8)).isEqualTo("e\n");
+    assertThat(Native.lines(out.toString(StandardCharsets.UTF_8))).isEqualTo("a\nb\nc\n");
+    assertThat(Native.lines(err.toString(StandardCharsets.UTF_8))).isEqualTo("e\n");
   }
 }

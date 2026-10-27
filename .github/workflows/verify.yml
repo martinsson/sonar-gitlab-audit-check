@@ -47,6 +47,37 @@ jobs:
           name: verify-log
           path: target/verify.log
 
+  windows:
+    # The same fast gates on Windows, in a French locale, so that tests stay platform independent:
+    # paths, line endings, default charset and number formats all differ there.
+    name: verify-windows
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "26"
+          cache: maven
+      - name: ./verify
+        env:
+          RATCHET_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          JAVA_TOOL_OPTIONS: -Duser.language=fr -Duser.country=CH
+        run: ./verify
+      - name: Keep the log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-windows-log
+          path: target/verify.log
+
   full:
     name: verify-full
     if: github.event_name != 'pull_request'

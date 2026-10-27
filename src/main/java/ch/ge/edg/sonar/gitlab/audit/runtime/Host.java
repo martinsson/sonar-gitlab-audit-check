@@ -17,6 +17,8 @@ import java.util.Map;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import picocli.CommandLine;
+import picocli.CommandLine.Help;
+import picocli.CommandLine.Help.Ansi;
 
 /**
  * Le monde extérieur tel qu'une commande le reçoit : ses flux, son environnement, son horloge (et
@@ -121,9 +123,18 @@ public record Host(
     return new Console(out, err, Console.colors(colorMode, terminal.colors(env)));
   }
 
-  /** La ligne de commande picocli de {@code command}, qui écrit aide et erreurs sur nos flux. */
+  /**
+   * La ligne de commande picocli de {@code command}, qui écrit aide et erreurs sur nos flux, en
+   * couleurs selon la même règle que la console ({@link Terminal#colors}). Laissé à lui-même,
+   * picocli décide seul et autrement : sous Git Bash il colore l'aide même redirigée dans un
+   * fichier, dès que TERM est défini.
+   */
   public CommandLine commandLine(Object command) {
-    return new CommandLine(command).setOut(writer(out)).setErr(writer(err));
+    Ansi ansi = terminal.colors(env) ? Ansi.ON : Ansi.OFF;
+    return new CommandLine(command)
+        .setOut(writer(out))
+        .setErr(writer(err))
+        .setColorScheme(Help.defaultColorScheme(ansi));
   }
 
   private static PrintWriter writer(PrintStream stream) {

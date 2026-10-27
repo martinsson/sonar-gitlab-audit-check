@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import java.net.ServerSocket;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,7 @@ class SonarAuditCheckConnectivityTest extends SonarAuditCheckTestBase {
         Cli.run(SonarAuditCheck::new, "--url", url + "/", "--token", "t", "--color", "never");
 
     assertThat(r.exitCode()).isEqualTo(1);
-    assertThat(r.out().replace(url, "<URL>"))
+    assertThat(Native.refused(r.out()).replace(url, "<URL>"))
         .isEqualTo(
             """
 
