@@ -2,12 +2,8 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.testing.Printed;
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -123,9 +119,8 @@ class GitlabActivityAuditHelpersTest {
   }
 
   private static String printed(Consumer<Screen> r) {
-    ByteArrayOutputStream buf = new ByteArrayOutputStream();
-    PrintStream out = new PrintStream(buf, true, StandardCharsets.UTF_8);
-    r.accept(new Screen(new Console(out, out, false)));
-    return buf.toString(StandardCharsets.UTF_8);
+    Printed printed = Printed.plain();
+    r.accept(new Screen(printed.console()));
+    return printed.text();
   }
 }

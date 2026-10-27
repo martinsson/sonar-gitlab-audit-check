@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 import static ch.ge.edg.sonar.gitlab.audit.testing.JiraFixtures.json;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +18,7 @@ class FieldSelectionTest {
   private final PrintStream err = new PrintStream(errBytes, true, StandardCharsets.UTF_8);
 
   private String err() {
-    return errBytes.toString(StandardCharsets.UTF_8);
+    return Native.lines(errBytes.toString(StandardCharsets.UTF_8));
   }
 
   private static String field(String id, String name, boolean custom, String schemaCustom) {

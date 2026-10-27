@@ -5,6 +5,7 @@ import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.file.Path;
@@ -143,7 +144,7 @@ final class GitlabAuditFake implements AutoCloseable {
   /** Output with the random port and the temp directory replaced by fixed marks. */
   String normalize(String text, Path tmp) {
     String s = text.replace(server.url(), URL_MARK);
-    if (tmp != null) s = s.replace(tmp.toAbsolutePath().toString(), "<TMP>");
+    if (tmp != null) s = Native.marked(s, tmp, "<TMP>");
     return s;
   }
 

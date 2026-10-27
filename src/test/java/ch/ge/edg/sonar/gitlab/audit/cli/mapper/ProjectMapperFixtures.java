@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.mapper;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
+import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -69,15 +70,7 @@ final class ProjectMapperFixtures {
 
   /** Output with the temporary directory replaced, so that it can be compared across runs. */
   static String stable(String text, Path dir) {
-    String real;
-    try {
-      real = dir.toRealPath().toString();
-    } catch (IOException e) {
-      real = dir.toString();
-    }
-    return text.replace(dir.toAbsolutePath().toString(), "<tmp>")
-        .replace(real, "<tmp>")
-        .replace(System.lineSeparator(), "\n");
+    return Native.marked(Native.lines(text), dir, "<tmp>");
   }
 
   /** An Excel-format CSV (BOM, semicolons, CRLF) shown as plain lines, the BOM made visible. */

@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
+import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -74,7 +75,7 @@ class DoraProjectTest {
         FakeHttpServer jira = Fakes.jira()) {
       Cli.Result r = run(args(gitlab(gitlab), gocd(gocd, "prod"), jira(jira)));
       assertThat(r.exitCode()).as(r.err()).isZero();
-      expectSelfie(r.out().replace(dir.toString(), "<dir>")).toMatchDisk("stdout");
+      expectSelfie(Native.marked(r.out(), dir, "<dir>")).toMatchDisk("stdout");
       assertThat(r.err())
           .contains("Projet GitLab : octocat/Hello-World (id 42)")
           .contains("3 merge requests fusionnées sur main")
@@ -111,7 +112,7 @@ class DoraProjectTest {
     try (FakeHttpServer gitlab = Fakes.gitlab()) {
       Cli.Result r = run(gitlab(gitlab));
       assertThat(r.exitCode()).as(r.err()).isZero();
-      expectSelfie(r.out().replace(dir.toString(), "<dir>")).toMatchDisk("stdout");
+      expectSelfie(Native.marked(r.out(), dir, "<dir>")).toMatchDisk("stdout");
       String sql = file("middleware-import.sql");
       assertThat(sql)
           .contains("-- Pas de GoCD : Middleware compte les merge requests fusionnées (PR_MERGE).")

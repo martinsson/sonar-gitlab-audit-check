@@ -24,7 +24,7 @@ final class GitlabStreams implements GitlabListener {
 
   @Override
   public void pagingInterrupted(String page, String status) {
-    out.append("    Pagination interrompue page %s : %s%n".formatted(page, status));
+    out.append("    Pagination interrompue page %s : %s\n".formatted(page, status));
   }
 
   @Override

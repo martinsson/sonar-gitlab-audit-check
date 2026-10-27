@@ -32,6 +32,6 @@ public final class Printed {
 
   /** What was written so far, with \n line ends. */
   public String text() {
-    return bytes.toString(StandardCharsets.UTF_8).replace(System.lineSeparator(), "\n");
+    return Native.lines(bytes.toString(StandardCharsets.UTF_8));
   }
 }
