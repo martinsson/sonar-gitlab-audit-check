@@ -61,7 +61,8 @@ you cannot reach from a colleague's capture.
 Nobody pushes to `main`. A change goes on a branch, then a pull request (GitHub)
 or a merge request (GitLab). It merges itself, without human review, once the
 **`verify`** job is green: `./verify`, the same gates as the pre-push hook, in
-about a minute.
+about a minute. On Windows, `.\verify` in PowerShell or cmd runs `verify.cmd`,
+which hands the bash script to Git Bash.
 
 Every night, and on demand (`gh workflow run verify`), **`verify-full`** runs
 `./verify --full` on `main`: Docker integration tests, mutation testing and
