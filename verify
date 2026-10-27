@@ -166,11 +166,11 @@ progress() {
     case "$line" in
       "[INFO] --- "*)
         step=$(gate_name "$line")
-        [ -z "$step" ] || [ "$step" = "$gate" ] && continue
+        if [ -z "$step" ] || [ "$step" = "$gate" ]; then continue; fi
         gate=$step
         ;;
       "[INFO] Running "*)
-        [ "$tty" -eq 1 ] && [ "$gate" = tests ] || continue
+        if [ "$tty" -eq 0 ] || [ "$gate" != tests ]; then continue; fi
         step="tests: ${line##*.}"
         ;;
       *) continue ;;
