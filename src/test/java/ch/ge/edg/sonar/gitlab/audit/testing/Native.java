@@ -45,6 +45,14 @@ public final class Native {
   }
 
   /**
+   * The refused connection as macOS and Linux word it: Windows adds the failed call, {@code
+   * Connection refused: getsockopt}.
+   */
+  public static String refused(String text) {
+    return text.replaceAll("Connection refused: \\w+", "Connection refused");
+  }
+
+  /**
    * Makes {@code file} unreadable by its owner: no permission bits where the file system has them,
    * a deny-read entry in front of its access list elsewhere (Windows).
    */

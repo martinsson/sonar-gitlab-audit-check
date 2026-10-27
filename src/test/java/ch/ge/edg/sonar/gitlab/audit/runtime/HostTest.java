@@ -13,6 +13,7 @@ import java.time.Clock;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
+import picocli.CommandLine;
 import picocli.CommandLine.Command;
 
 /**
@@ -89,6 +90,13 @@ class HostTest {
   }
 
   @Test
+  void theHelpIsColouredByTheSameRuleAsTheConsole() {
+    assertThat(help(new Terminal(true, false), Map.of())).contains("\033[1mnothing");
+    assertThat(help(Terminal.NONE, Map.of("TERM", "xterm"))).doesNotContain("\033[");
+    assertThat(help(new Terminal(true, true), Map.of())).doesNotContain("\033[");
+  }
+
+  @Test
   void theSystemHostReplacesBothStreamsAndHasNoTerminal() {
     for (String cs : new String[] {"UTF-8", "IBM850"}) {
       @Nullable String saved = System.getProperty(Host.FORCED_CHARSET);
@@ -112,6 +120,22 @@ class HostTest {
 
   @Command(name = "nothing")
   static final class Nothing {}
+
+  private static String help(Terminal terminal, Map<String, String> env) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    Host host =
+        new Host(
+            new PrintStream(out, true, StandardCharsets.UTF_8),
+            System.err,
+            env,
+            Clock.systemUTC(),
+            pause -> {},
+            Path.of(""),
+            terminal);
+    CommandLine commandLine = host.commandLine(new Nothing());
+    commandLine.usage(commandLine.getOut());
+    return out.toString(StandardCharsets.UTF_8);
+  }
 
   private static Host host(Terminal terminal) {
     PrintStream nowhere =
