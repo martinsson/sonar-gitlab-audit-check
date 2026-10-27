@@ -11,10 +11,20 @@ jbang FrontendInventory.java --days 30 --out f.csv --limit 50
 jbang FrontendInventory.java --seuil-front 10 --threads 4 --profondeur 4
 ```
 
-Le CSV est au format Excel (point-virgule, BOM UTF-8). Un fichier existant n'est jamais
-écrasé : si `frontend.csv` existe, la sortie va dans `frontend-1.csv`, puis `frontend-2.csv`...
-Chaque ligne est écrite dès que son projet est traité, dans l'ordre où ils se terminent :
-après un arrêt ou une erreur, le fichier contient déjà les projets finis.
+Trois fichiers sortent, nommés d'après `--out` :
+
+| Fichier | Contenu |
+|---|---|
+| `frontend.csv` | tous les projets |
+| `frontend-front.csv` | les projets dont la part de front atteint `--seuil-front` (5 % par défaut) |
+| `frontend-rapport.html` | par techno et par outil : nombre de projets, projets actifs, lignes estimées, lignes modifiées sur la fenêtre |
+
+Les CSV sont au format Excel (point-virgule, BOM UTF-8). Un fichier existant n'est jamais
+écrasé : si `frontend.csv` existe, la sortie va dans `frontend-1.csv` (et `frontend-1-front.csv`,
+`frontend-1-rapport.html`), puis `frontend-2.csv`...
+Chaque ligne de `frontend.csv` est écrite dès que son projet est traité, dans l'ordre où ils se
+terminent : après un arrêt ou une erreur, le fichier contient déjà les projets finis. Les deux
+autres fichiers sont écrits à la fin.
 
 ## Méthode
 
@@ -37,7 +47,10 @@ après un arrêt ou une erreur, le fichier contient déjà les projets finis.
   - sinon la liste des frameworks trouvés, ex. `Vue 2`, `Vue 3 + React`
   - la version majeure vient de la plage déclarée (`^2.6.14` → 2), pas du lockfile
 - **Activité** sur la fenêtre : commits de la branche par défaut, MR créées
-  (tous états), lignes ajoutées et supprimées hors commits de merge.
+  (tous états), lignes ajoutées et supprimées hors commits de merge. Un projet est
+  actif s'il a au moins un commit sur la fenêtre.
+- **Rapport HTML** : il part de la colonne `techno` ; un projet `Vue 3 + React` compte
+  dans Vue 3 et dans React, la ligne Total ne le compte qu'une fois.
 
 ## Colonnes
 
@@ -48,10 +61,12 @@ après un arrêt ou une erreur, le fichier contient déjà les projets finis.
 | `techno` | `aucun`, `node sans framework UI`, ou les frameworks trouvés |
 | `package_json` | chemins des `package.json` lus, ex. `front/package.json, admin/package.json` |
 | `vue`, `react`, `angular` | plages de version déclarées, séparées par ` / ` s'il y en a plusieurs |
-| `autres_front` | Svelte, jQuery |
+| `autres_front` | Svelte, jQuery, htmx, AlpineJS, React Native, Ionic, Preact |
 | `outillage` | nuxt, next, vite, @vue/cli-service, react-scripts, typescript |
 | `commits_Nj`, `mr_Nj`, `lignes_ajoutees_Nj`, `lignes_supprimees_Nj` | activité sur la fenêtre |
 | `commits_total` | `commit_count` des statistiques GitLab (vide sans le rôle Reporter) |
+| `taille_depot_octets` | `repository_size` des statistiques GitLab (historique git compris) |
+| `estimation_lignes` | `taille_depot_octets` / 40 : un ordre de grandeur, pas un comptage |
 | `a_verifier` | cas que les règles ne tranchent pas, à regarder à la main (ci-dessous) |
 | `erreur` | ce qui n'a pas pu être lu pour ce projet |
 
