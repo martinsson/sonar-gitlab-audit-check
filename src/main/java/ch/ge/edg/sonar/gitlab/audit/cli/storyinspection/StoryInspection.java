@@ -22,7 +22,7 @@ import picocli.CommandLine.Option;
  *
  * <pre>
  * export JIRA_URL=https://prod.etat-ge.ch/csbugtrack
- * export JIRA_TOKEN=jira-token
+ * export JIRA_TOKEN=<your-jira-token>
  * jbang StoryInspection.java --projectKey VA --points 1,2,3,4,5,6
  * jbang StoryInspection.java --projectKey VA --points 1-15 --out rapport.md
  * jbang StoryInspection.java --projectKey VA --replay-dir ./jira-dump --out rapport.md
