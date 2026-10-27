@@ -123,6 +123,63 @@ record_baseline() {
   git status --short config/baseline
 }
 
+# "[INFO] --- spotless:3.10.4:check (spotless-check) @ project ---" -> "format (Spotless)". Maven 3.8
+# names plugins in full (maven-checkstyle-plugin); goals that check nothing return nothing.
+gate_name() {
+  local mojo plugin goal
+  mojo=${1#*--- }
+  plugin=${mojo%%:*}
+  plugin=${plugin#maven-}
+  plugin=${plugin%-plugin}
+  plugin=${plugin%-maven}
+  goal=${mojo#*:*:}
+  goal=${goal%% *}
+  case "$plugin:$goal" in
+    enforcer:enforce) echo "build rules (Enforcer)" ;;
+    spotless:check) echo "format (Spotless)" ;;
+    checkstyle:check) echo "structure (Checkstyle)" ;;
+    compiler:compile) echo "compile (Error Prone, NullAway)" ;;
+    compiler:testCompile) echo "compile tests" ;;
+    pmd:pmd | pmd:check) echo "static analysis (PMD)" ;;
+    pmd:cpd | pmd:cpd-check) echo "copy-paste detection (CPD)" ;;
+    surefire:test) echo "tests" ;;
+    jacoco:check) echo "coverage (JaCoCo)" ;;
+    failsafe:integration-test) echo "integration tests (Docker)" ;;
+    pitest:mutationCoverage) echo "mutation testing (PIT)" ;;
+  esac
+}
+
+# Says which gate is running, on stderr so the pre-push hook shows it too. On a terminal one line is
+# rewritten in place and also names the test class; in CI or a redirected run each gate gets a line.
+say() {
+  if [ -t 2 ]; then
+    printf '\r\033[K%4ds  %s' "$SECONDS" "$1" >&2
+  else
+    printf '%4ds  %s\n' "$SECONDS" "$1" >&2
+  fi
+}
+
+progress() {
+  local tty=0 line step gate=""
+  [ -t 2 ] && tty=1
+  while IFS= read -r line; do
+    case "$line" in
+      "[INFO] --- "*)
+        step=$(gate_name "$line")
+        [ -z "$step" ] || [ "$step" = "$gate" ] && continue
+        gate=$step
+        ;;
+      "[INFO] Running "*)
+        [ "$tty" -eq 1 ] && [ "$gate" = tests ] || continue
+        step="tests: ${line##*.}"
+        ;;
+      *) continue ;;
+    esac
+    say "$step"
+  done
+  return 0
+}
+
 # The shell scripts get a linter too, when shellcheck is installed (it is on GitHub runners).
 lint_scripts() {
   command -v shellcheck >/dev/null || return 0
@@ -182,14 +239,18 @@ esac
 args=(verify)
 [ "$mode" = full ] && args+=(-Pfull)
 
-"$MVN" "${args[@]}" >"$log" 2>&1
-build=$?
+SECONDS=0
+"$MVN" "${args[@]}" 2>&1 | tee "$log" | progress
+build=${PIPESTATUS[0]}
 # A PMD older than the JDK cannot read its class files. PMD only logs that, turns type resolution
 # off and passes, so type-based rules quietly stop working. Treat it as the failure it is.
 grep -q -E 'Unsupported class file major version|Parsing failed in ParseLock' "$log" && build=1
+say "ratchet (no gate got looser)"
 checks_out=$(ratchet)
 checks_status=$?
+say "shell scripts (ShellCheck)"
 lint_out=$(lint_scripts)
+[ -t 2 ] && printf '\r\033[K' >&2
 [ -n "$lint_out" ] && checks_out="${checks_out:+$checks_out
 }$lint_out" && checks_status=1
 
