@@ -5,6 +5,7 @@ import java.io.UncheckedIOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -19,7 +20,8 @@ import org.jspecify.annotations.Nullable;
  * <p>Routes match on the path (without the query string); the first route whose path equals the
  * request path wins, then the first whose prefix matches. Unrouted requests get a 404. Every
  * request is recorded so tests can assert on what was asked. One connection, one request: the
- * response always says {@code Connection: close}.
+ * response always says {@code Connection: close}. Once {@link #close()} returns, nothing listens on
+ * the port any more, so a test can use the closed server's URL as an unreachable instance.
  */
 public final class FakeHttpServer implements AutoCloseable {
 
@@ -145,12 +147,23 @@ public final class FakeHttpServer implements AutoCloseable {
     }
   }
 
+  /**
+   * Stops listening, and waits for the accepting thread to end. Closing the socket alone is not
+   * enough: on Linux the kernel keeps the listening socket until that thread wakes up, and a
+   * connection made in between is accepted and answered. On a loaded machine that takes long enough
+   * for the next request of the test.
+   */
   @Override
   public void close() {
     try {
       socket.close();
+      if (!acceptor.join(Duration.ofSeconds(5))) {
+        throw new IllegalStateException("the fake server still accepts after 5 s");
+      }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
     }
   }
 }
