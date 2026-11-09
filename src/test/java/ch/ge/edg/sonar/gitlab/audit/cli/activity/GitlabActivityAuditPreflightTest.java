@@ -92,19 +92,19 @@ class GitlabActivityAuditPreflightTest extends GitlabActivityAuditTestBase {
 
   @Test
   void aRefusedTokenStopsWithExitOne() {
-    fake.user(req -> Response.status(401, "{\"message\":\"401 Unauthorized\"}"));
-    Cli.Result r = fake.run();
+    fake.currentUser(req -> Response.status(401, "{\"message\":\"401 Unauthorized\"}"));
+    Cli.Result r = run();
     assertThat(r.exitCode()).isEqualTo(1);
     expectSelfie(out(r)).toMatchDisk();
-    assertThat(fake.server.requests("/api/v4/user").getFirst().header("PRIVATE-TOKEN"))
+    assertThat(fake.server().requests("/api/v4/user").getFirst().header("PRIVATE-TOKEN"))
         .isEqualTo("glpat-test");
-    assertThat(fake.server.requests("/api/v4/metadata")).isEmpty();
+    assertThat(fake.server().requests("/api/v4/metadata")).isEmpty();
   }
 
   @Test
   void anEmptyGroupStopsWithExitOneAfterSayingSo() {
     fake.enterprise(false).group("team-a");
-    Cli.Result r = fake.run("--group", "team-a");
+    Cli.Result r = run("--group", "team-a");
     assertThat(r.exitCode()).isEqualTo(1);
     expectSelfie(out(r)).toMatchDisk();
   }
@@ -112,7 +112,7 @@ class GitlabActivityAuditPreflightTest extends GitlabActivityAuditTestBase {
   @Test
   void anEnterpriseInstanceIsAnnounced() {
     fake.enterprise(true).group("team-a");
-    Cli.Result r = fake.run("--group", "team-a");
+    Cli.Result r = run("--group", "team-a");
     assertThat(fake.normalize(r.out(), tmp))
         .contains("api/v4/metadata                  [OK]  GitLab 17.0.0 · Enterprise\n");
   }
@@ -120,7 +120,7 @@ class GitlabActivityAuditPreflightTest extends GitlabActivityAuditTestBase {
   @Test
   void anUnknownPlanIsAssumedCommunity() {
     fake.group("team-a");
-    Cli.Result r = fake.run("--group", "team-a");
+    Cli.Result r = run("--group", "team-a");
     assertThat(fake.normalize(r.out(), tmp))
         .contains(
             "api/v4/metadata                  [ABSENT]  HTTP 404 — plan inconnu, on suppose"
@@ -129,12 +129,12 @@ class GitlabActivityAuditPreflightTest extends GitlabActivityAuditTestBase {
 
   @Test
   void colorsCanBeForced() {
-    fake.user(req -> Response.status(403, "{}"));
+    fake.currentUser(req -> Response.status(403, "{}"));
     Cli.Result r =
         Cli.run(
             GitlabActivityAudit::new,
             "--url",
-            fake.server.url(),
+            fake.server().url(),
             "--token",
             "t",
             "--color",

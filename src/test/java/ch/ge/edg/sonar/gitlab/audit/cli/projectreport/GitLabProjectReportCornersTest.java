@@ -1,9 +1,9 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.API;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.mr;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.note;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.API;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.mr;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.note;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
@@ -153,14 +153,13 @@ class GitLabProjectReportCornersTest extends GitLabProjectReportHarness {
             commit("Carol", "carol@example.com", MON, fx.ago(3, 0), new int[] {1, 1}),
             commit("Dave", "dave@example.com", MON, fx.ago(4, 0), new int[] {1, 1}),
             commit("Erin", "erin@example.com", MON, fx.ago(5, 0), new int[] {1, 1}));
-    server.on(
-        API + ID + "/repository/commits", q -> GitLabProjectReportFakeGitlab.paged(q, items, 2));
+    fake.pages(API + ID + "/repository/commits", items, 2);
     contributors(0);
     mrs(List.of(mr(1, "opened", "alice", fx.ago(1, 0))));
 
     Cli.Result r = run("--max-commits", "4");
 
-    assertThat(server.requests(API + ID + "/repository/commits"))
+    assertThat(fake.server().requests(API + ID + "/repository/commits"))
         .extracting(q -> q.param("page"))
         .containsExactly("1", "2");
     assertThat(r.out())

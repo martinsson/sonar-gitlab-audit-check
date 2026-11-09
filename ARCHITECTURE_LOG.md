@@ -21,7 +21,6 @@ compromises, gate changes and reviewer disagreements made along the way, for lat
 - Sub-packages for `cli.activity` (45 classes): needs `VisibilityTest` to change from "only the command is
   public" to "only its own slice references it".
 - The five `Settings` records that bundle option groups for parameter limits; `projectreport.Sections`.
-- One GitLab fake for the tests (`GitlabAuditFake`, `GitLabProjectReportFakeGitlab`).
 - Checkstyle class-coupling shaped some splits (`PreflightReport`, split test classes): judge them as gate
   compromises.
 
@@ -208,7 +207,7 @@ Exceptions left: none new.
 - Final CodeScene (main): line-weighted 9.84 (was 9.78), 10 files < 9.5, worst CiConfig 8.28 (untouched), RestClient 8.41 (new). Tests: mean 9.77, 7 files < 9, worst JiraExtractTest 8.03.
 - Lead mistake: during iteration 3's integration one command ran in the owner's main checkout (cwd reset after a `cd` in an earlier call): a commit 6ca8361 (my ARCHITECTURE.md error-model text + the untracked REVIEW_VS_QUALITY_LOG.md) landed on the owner's local `main`, never pushed. Found by the final architect (the doc on origin still described SourceException). Undone with `git reset --mixed ed54a40` + checkout of ARCHITECTURE.md (only my own changes; status verified clean before). Since then every command starts with an explicit `cd <worktree> &&`.
 - Final reviews (architect, clean coder): both "partly"; agreed top item = three response types with three meanings of ok(). Iteration 9a (opus): one response type, connections in clients, 401 rule once, duplicates. 9b (sonnet): rule leaks (constants invisible to ArchUnit, SharedOptionsTest too lax, TransportTest gaps, no empty-import guard), doc, cheap cleanups.
-- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags, merge the two GitLab fakes.
+- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags.
 
 ## Iteration 9b
 - Exchange column names are `Columns.named(...)` (non-constant), so javac no longer inlines them; activity CsvFiles uses them. No behaviour change.
@@ -337,3 +336,13 @@ Exceptions left: test fixtures `JiraFixtures` and `GocdFixtures` keep a private 
 Behaviour changes: none. Pure move; no `.ss` changed.
 Gate config changes: none.
 Exceptions left: `Gitlab.paged` still takes JsonNode (the pagination is a client concern, not moved).
+
+## Iteration 10e: one GitLab fake
+What changed (tests only, no src/main change):
+- `testing.GitlabFake` (public) replaces `cli.activity.GitlabAuditFake` and `cli.projectreport.GitLabProjectReportFakeGitlab`. Shared: the HTTP server, exact and prefix routes, failure injection (`fail`), the current user, metadata, group/instance/by-path project listings, paged lists (`pages`, GitLab's per_page and X-Next-Page, page size capped at the server's maximum), commits with or without X-Total, file tree, raw files, output normalisation. Data is serialised with `Gitlab.WRITER`; by-path lookup reads with `Gitlab.READER`.
+- Command data stays in two small package-private fixtures built on the fake: `cli.activity.ActivityFixtures` (2099/2000 dates, project and commit shapes of the activity audit, built with `JsonNodeFactory`) and `cli.projectreport.ProjectReportFixtures` (the fixed "now" clock, relative dates, merge request and note shapes). Each command's `run` stays in its own base or harness.
+- Callers migrated: 12 activity test classes, the projectreport harness and 5 projectreport test classes.
+Behaviour changes: none intended. Two observable details of the fake, neither read by the clients: commit pages of the activity fake now also carry X-Next-Page, and the projectreport commit pages carry X-Total. Neither header is read on those paths.
+Snapshots: no .ss changed.
+Gate config: none.
+Exceptions left: none.

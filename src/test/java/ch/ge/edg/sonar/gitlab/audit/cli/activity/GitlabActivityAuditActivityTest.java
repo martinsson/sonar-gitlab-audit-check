@@ -1,11 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.FUTURE;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.PAST;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.daily;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.merge;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.FUTURE;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.PAST;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.daily;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.merge;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.project;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,7 +39,7 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
   private Cli.Result runGroup(String... extra) {
     List<String> args = new ArrayList<>(List.of("--group", "team-a", "--csv", csv().toString()));
     args.addAll(List.of(extra));
-    return fake.run(args.toArray(String[]::new));
+    return run(args.toArray(String[]::new));
   }
 
   @Test
@@ -65,8 +65,8 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(csv())).toMatchDisk("csv");
-    assertThat(fake.server.requests("/api/v4/projects/2/repository/commits")).isEmpty();
-    assertThat(fake.server.requests("/api/graphql")).hasSize(1);
+    assertThat(fake.server().requests("/api/v4/projects/2/repository/commits")).isEmpty();
+    assertThat(fake.server().requests("/api/graphql")).hasSize(1);
   }
 
   @Test
@@ -119,7 +119,7 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
     data.append("}}");
     AtomicInteger calls = new AtomicInteger();
     fake.enterprise(false)
-        .group("team-a", projects.toArray(ObjectNode[]::new))
+        .group("team-a", projects.toArray())
         .route(
             "/api/graphql",
             req ->
@@ -133,8 +133,8 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
         .contains("    dont aucun commit dans la fenêtre : 50\n")
         .contains("  Comptés par pagination REST     : 1 projet\n")
         .contains("  Activité non mesurable          : 1\n");
-    assertThat(fake.server.requests("/api/v4/projects/150/repository/commits")).hasSize(1);
-    assertThat(fake.server.requests("/api/v4/projects/149/repository/commits")).isEmpty();
+    assertThat(fake.server().requests("/api/v4/projects/150/repository/commits")).hasSize(1);
+    assertThat(fake.server().requests("/api/v4/projects/149/repository/commits")).isEmpty();
   }
 
   @Test
@@ -144,7 +144,7 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
         .commits(1, daily("a", "alice", 6));
     Cli.Result r = runGroup("--graphql=false");
     assertOk(r);
-    assertThat(fake.server.requests("/api/graphql")).isEmpty();
+    assertThat(fake.server().requests("/api/graphql")).isEmpty();
     assertThat(r.out()).doesNotContain("GraphQL indisponible");
     assertThat(r.out()).contains("  4 appels API (4 GET, 0 GraphQL, 0 429 réessayés).\n");
   }
@@ -165,7 +165,7 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(csv())).toMatchDisk("csv");
-    assertThat(fake.server.requests("/api/v4/projects/2/repository/commits")).isEmpty();
+    assertThat(fake.server().requests("/api/v4/projects/2/repository/commits")).isEmpty();
   }
 
   @Test
@@ -205,17 +205,17 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
         .group("team-a", project(1, "team-a/alpha"), sleepy[0], sleepy[1], sleepy[2], sleepy[3])
         .commits(1, daily("a", "alice", 6))
         .commits(10, daily("x", "dave", 2))
-        .commitsWithoutTotal(11, daily("y", "erin", 3).toArray(ObjectNode[]::new))
+        .commitsWithoutTotal(11, daily("y", "erin", 3))
         .route("/api/v4/projects/12/repository/commits", req -> Response.status(403, "{}"));
     Cli.Result r = runGroup();
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(csv())).toMatchDisk("csv");
-    List<Request> counts = fake.server.requests("/api/v4/projects/10/repository/commits");
+    List<Request> counts = fake.server().requests("/api/v4/projects/10/repository/commits");
     assertThat(counts.getFirst().param("per_page")).isEqualTo("1");
     assertThat(counts.getFirst().param("ref_name")).isEqualTo("main");
     assertThat(counts.getFirst().param("since")).isNotBlank();
-    assertThat(fake.server.requests("/api/v4/projects/11/repository/commits"))
+    assertThat(fake.server().requests("/api/v4/projects/11/repository/commits"))
         .extracting(q -> q.param("per_page"))
         .containsExactly("1", "100");
   }
@@ -226,11 +226,11 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
     for (int i = 0; i < 5; i++) {
       sleepy[i] = project(10 + i, "team-a/sleepy-" + i).put("last_activity_at", PAST);
     }
-    fake.enterprise(false).group("team-a", sleepy);
+    fake.enterprise(false).group("team-a", (Object[]) sleepy);
     Cli.Result one = runGroup("--validation-sample", "2", "--seed", "7");
     assertThat(one.out())
         .contains("Échantillon de contrôle sous la coupe : 2 projets, 0 faux négatif");
-    assertThat(fake.server.requests())
+    assertThat(fake.server().requests())
         .filteredOn(q -> q.path().endsWith("/repository/commits"))
         .extracting(Request::path)
         .containsExactlyInAnyOrder(
@@ -251,16 +251,17 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
         .group("team-a", project(1, "team-a/alpha"), project(2, "team-a/robots"))
         .commits(
             1,
-            commit("h1", "alice", FUTURE),
-            commit("h2", "alice", FUTURE).put("title", "Revert \"change h1\""),
-            noEmail,
-            merge(commit("m1", "bob", "2099-01-02T10:00:00Z")),
-            commit("r1", "renovate", FUTURE),
-            commit("r2", "bob", FUTURE).put("title", "  revert: drop it"),
-            commit("r3", "bob", FUTURE).put("title", "fix the revert script"),
-            commit("r4", "bob", FUTURE).put("title", "reverted things"),
-            undated)
-        .commits(2, commit("b1", "renovate", FUTURE), commit("b2", "dependabot", FUTURE));
+            List.of(
+                commit("h1", "alice", FUTURE),
+                commit("h2", "alice", FUTURE).put("title", "Revert \"change h1\""),
+                noEmail,
+                merge(commit("m1", "bob", "2099-01-02T10:00:00Z")),
+                commit("r1", "renovate", FUTURE),
+                commit("r2", "bob", FUTURE).put("title", "  revert: drop it"),
+                commit("r3", "bob", FUTURE).put("title", "fix the revert script"),
+                commit("r4", "bob", FUTURE).put("title", "reverted things"),
+                undated))
+        .commits(2, List.of(commit("b1", "renovate", FUTURE), commit("b2", "dependabot", FUTURE)));
     Cli.Result r = runGroup("--floor", "1");
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk("stdout");
@@ -271,7 +272,7 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
   void aCustomBotPatternReplacesTheDefault() {
     fake.enterprise(false)
         .group("team-a", project(1, "team-a/alpha"))
-        .commits(1, commit("a1", "alice", FUTURE), commit("r1", "renovate", FUTURE));
+        .commits(1, List.of(commit("a1", "alice", FUTURE), commit("r1", "renovate", FUTURE)));
     runGroup("--bot-pattern", "(?i)alice", "--floor", "0");
     assertThat(file(csv())).contains("\"2099-01-01T10:00Z\";\"1\";\"1\";\"1\"");
   }
@@ -291,10 +292,10 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(csv())).toMatchDisk("csv");
-    assertThat(fake.server.requests("/api/v4/projects/1/repository/commits"))
+    assertThat(fake.server().requests("/api/v4/projects/1/repository/commits"))
         .extracting(q -> q.param("page"))
         .containsExactly("1", "2");
-    assertThat(fake.server.requests("/api/v4/projects/3/repository/commits"))
+    assertThat(fake.server().requests("/api/v4/projects/3/repository/commits"))
         .extracting(q -> q.param("page"))
         .containsExactly("1", "2");
   }
@@ -344,7 +345,7 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
       ps[i] = project(1 + i, "team-a/p" + i);
       fake.commits(1 + i, daily("c" + i, "dev" + i, 6 + i));
     }
-    fake.enterprise(false).group("team-a", ps);
+    fake.enterprise(false).group("team-a", (Object[]) ps);
     Cli.Result r = runGroup("--top", "2");
     assertThat(r.out())
         .contains("  Distribution des commits (déciles) : D1=10 D3=9 D5=8 D7=7 D9=6\n")
@@ -359,7 +360,7 @@ class GitlabActivityAuditActivityTest extends GitlabActivityAuditTestBase {
       ps[i] = project(1 + i, "team-a/p" + i);
       fake.commits(1 + i, daily("c" + i, "dev" + i, 70));
     }
-    fake.enterprise(false).group("team-a", ps);
+    fake.enterprise(false).group("team-a", (Object[]) ps);
     Cli.Result r = runGroup("--top", "1");
     assertThat(r.out()).contains("  Plancher déduit des données     : 60 commits sur 90 jours\n");
   }
