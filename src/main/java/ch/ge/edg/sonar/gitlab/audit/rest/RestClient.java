@@ -11,7 +11,7 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Le seul client HTTP de l'outil : Jira, GoCD, GitLab et Sonar passent tous par lui. Les en-têtes
- * fixes (authentification, Accept) viennent de {@link Settings}, la cadence de {@link Retries} : un
+ * fixes (authentification, Accept) viennent de {@link Endpoint}, la cadence de {@link Retries} : un
  * 429 attend Retry-After et recommence, un 5xx de proxy et une coupure réseau recommencent si la
  * politique le dit. Chaque réponse finale passe par la {@link Capture}, qui l'enregistre ou la
  * rejoue.
@@ -35,32 +35,40 @@ public final class RestClient {
   }
 
   /**
-   * Ce qui ne change pas d'une requête à l'autre.
+   * Où et comment on appelle l'instance : ce qui ne change pas d'une requête à l'autre.
    *
    * @param base racine de l'instance, sans barre finale
    * @param headers en-têtes posés sur chaque requête
-   * @param followRedirects faux quand un 302 vers une page de login est précisément ce qu'on veut
-   *     voir
+   * @param retries la cadence des nouveaux essais
    */
-  public record Settings(
-      String base,
-      Map<String, String> headers,
-      int timeoutSeconds,
-      boolean insecure,
-      boolean followRedirects,
-      Retries retries) {
+  public record Endpoint(String base, Map<String, String> headers, Retries retries) {
 
-    public Settings {
+    public Endpoint {
       base = base.trim().replaceAll("/+$", "");
       headers = Map.copyOf(headers);
     }
 
-    public static Settings of(String base, Map<String, String> headers, boolean insecure) {
-      return new Settings(base, headers, 30, insecure, false, Retries.DEFAULT);
+    public static Endpoint of(String base, Map<String, String> headers) {
+      return new Endpoint(base, headers, Retries.DEFAULT);
     }
   }
 
-  private final Settings settings;
+  /**
+   * Comment la requête part sur le réseau : délai, TLS, redirections.
+   *
+   * @param timeoutSeconds délai de connexion et de réponse
+   * @param insecure TLS sans vérification du certificat
+   * @param followRedirects faux quand un 302 vers une page de login est précisément ce qu'on veut
+   *     voir
+   */
+  public record Transport(int timeoutSeconds, boolean insecure, boolean followRedirects) {
+
+    public static Transport of(boolean insecure) {
+      return new Transport(30, insecure, false);
+    }
+  }
+
+  private final Endpoint endpoint;
   private final @Nullable Wire wire;
   private final Capture capture;
   private final Sleeper sleeper;
@@ -75,18 +83,21 @@ public final class RestClient {
   /**
    * Un client.
    *
+   * @param endpoint la racine, les en-têtes fixes et la cadence des nouveaux essais
+   * @param transport délai, TLS et redirections des échanges
    * @param capture où écrire chaque réponse, ou d'où la rejouer
    */
-  public RestClient(Settings settings, Capture capture, Sleeper sleeper) throws IOException {
-    this.settings = settings;
+  public RestClient(Endpoint endpoint, Transport transport, Capture capture, Sleeper sleeper)
+      throws IOException {
+    this.endpoint = endpoint;
     this.capture = capture;
     this.sleeper = sleeper;
     capture.prepare();
-    this.wire = capture.replaying() ? null : new Wire(settings);
+    this.wire = capture.replaying() ? null : new Wire(transport);
   }
 
   public String base() {
-    return settings.base();
+    return endpoint.base();
   }
 
   /** Les essais faits, nouveaux essais et rejeux compris. */
@@ -131,7 +142,7 @@ public final class RestClient {
    */
   public RestResponse send(
       String method, String path, @Nullable String body, Map<String, String> extra) {
-    String url = path.startsWith("http") ? path : settings.base() + path;
+    String url = path.startsWith("http") ? path : endpoint.base() + path;
     String request = request(url);
     String name = Capture.name(method, request, body);
     Optional<RestResponse> replayed = capture.replay(name, request);
@@ -139,7 +150,7 @@ public final class RestClient {
       calls.incrementAndGet();
       return replayed.get();
     }
-    Map<String, String> headers = new LinkedHashMap<>(settings.headers());
+    Map<String, String> headers = new LinkedHashMap<>(endpoint.headers());
     headers.putAll(extra);
     RestResponse r = withRetries(method, url, body, headers);
     capture.dump(name, request, r);
@@ -148,7 +159,7 @@ public final class RestClient {
 
   /** La requête relative à la racine de l'instance : ce qui nomme une capture. */
   private String request(String url) {
-    String base = settings.base();
+    String base = endpoint.base();
     String rest =
         !base.isEmpty() && url.startsWith(base)
             ? url.substring(base.length())
@@ -158,7 +169,7 @@ public final class RestClient {
 
   private RestResponse withRetries(
       String method, String url, @Nullable String body, Map<String, String> headers) {
-    RetryBudget budget = new RetryBudget(settings.retries());
+    RetryBudget budget = new RetryBudget(endpoint.retries());
     while (true) {
       RestResponse r = attempt(method, url, body, headers);
       Optional<Duration> pause = pauseBefore(r, budget);

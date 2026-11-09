@@ -18,7 +18,6 @@ compromises, gate changes and reviewer disagreements made along the way, for lat
 
 - Sub-packages for `cli.activity` (45 classes): needs `VisibilityTest` to change from "only the command is
   public" to "only its own slice references it".
-- The five `Settings` records that bundle option groups for parameter limits; `projectreport.Sections`.
 - Checkstyle class-coupling shaped some splits (`PreflightReport`, split test classes): judge them as gate
   compromises.
 
@@ -205,7 +204,7 @@ Exceptions left: none new.
 - Final CodeScene (main): line-weighted 9.84 (was 9.78), 10 files < 9.5, worst CiConfig 8.28 (untouched), RestClient 8.41 (new). Tests: mean 9.77, 7 files < 9, worst JiraExtractTest 8.03.
 - Lead mistake: during iteration 3's integration one command ran in the owner's main checkout (cwd reset after a `cd` in an earlier call): a commit 6ca8361 (my ARCHITECTURE.md error-model text + the untracked REVIEW_VS_QUALITY_LOG.md) landed on the owner's local `main`, never pushed. Found by the final architect (the doc on origin still described SourceException). Undone with `git reset --mixed ed54a40` + checkout of ARCHITECTURE.md (only my own changes; status verified clean before). Since then every command starts with an explicit `cd <worktree> &&`.
 - Final reviews (architect, clean coder): both "partly"; agreed top item = three response types with three meanings of ok(). Iteration 9a (opus): one response type, connections in clients, 401 rule once, duplicates. 9b (sonnet): rule leaks (constants invisible to ArchUnit, SharedOptionsTest too lax, TransportTest gaps, no empty-import guard), doc, cheap cleanups.
-- Not planned (recorded for later): activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags.
+- Not planned (recorded for later): activity sub-packages (needs VisibilityTest → "only own slice references it").
 
 ## Iteration 9b
 - Exchange column names are `Columns.named(...)` (non-constant), so javac no longer inlines them; activity CsvFiles uses them. No behaviour change.
@@ -398,3 +397,31 @@ Exceptions left:
 - The JSON date helper exists twice (`Gitlab.instant`, `JiraApi.instant`), four lines each.
 - `Times.parse(JsonNode)`'s number branch is kept in both helpers although neither API sends numbers
   for dates. Kept on purpose: identical behaviour was the rule for this slice.
+
+## Iteration 10g: Settings records
+Each `Settings` record judged by its readers (grep of constructors and accessors), one verdict per record:
+- `ActivityAudit.Settings`: keep, renamed `ActivityOptions`. `run()` reads all four picocli groups
+  (connection, scope, funnel, output), so splitting by reader only moves the bag into the constructor,
+  which is already at ParameterNumber 5. The name now matches the option classes it groups.
+- `projectreport.Settings`: split. `Budget` (days, maxCommits, maxMrs, sample) is what the report is
+  willing to read; `BotPolicy` (includeBots, pattern) has one reader, `ProjectApi`.
+- `gocdextract.Extraction.Settings`: split. `OutputTarget` (dir, comma, raw) goes to `run()`, which opens
+  the writer. `Reading` (maxUpstream, durations, zone) goes to the constructor and the row writers, which
+  also need the zone.
+- `rank.RankSettings`: keep, renamed `Thresholds`. All five fields are cut-offs (stale age, abandoned age,
+  smallest ncloc, top share of a stratum, signal floor). Each reader uses a subset, but each consumer
+  constructor would exceed ParameterNumber without the record.
+- `RestClient.Settings`: split. `Endpoint` (base, headers, retries) is what RestClient reads; `Transport`
+  (timeoutSeconds, insecure, followRedirects) is what `Wire` reads. Factories keep the old defaults (30 s,
+  no redirects, `Retries.DEFAULT`).
+- `projectreport.Sections`: keep. Folding it into `ProjectReport` (the alternative) puts ProjectReport at
+  ClassDataAbstractionCoupling 8 (max 7). Sections is the unit that builds and runs the three measuring
+  sections. `Measured` stays as the result record that `Findings` reads.
+Behaviour changes: none. Snapshots: none changed. Gate config: none.
+Exceptions left: none. The CDAC limit shaped the Sections decision; it was not worked around.
+Not done: `ActivityAudit` could take a `Host` instead of Clock, Sleeper and workDir, which would drop
+the constructor's parameter count without a bag. That changes the test seams, so it is left for a later session.
+Harness: rebasing onto origin/main (#38, #39) conflicted in `RestClient` retry code (upstream RetryBudget).
+Resolved by keeping upstream's block and renaming `settings` to `endpoint`. A second rebase onto #42
+conflicted in `GitLabProjectReport` and `ProjectApi` (BOT_PATTERN and isBot moved to `Contributors`):
+resolved with `Contributors.*`. The log conflicted too: main's file kept, this section appended at the end.

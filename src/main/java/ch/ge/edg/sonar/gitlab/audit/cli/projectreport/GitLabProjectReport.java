@@ -120,23 +120,17 @@ public class GitLabProjectReport implements Callable<Integer> {
       // ne vérifie pas contre un bouchon.
       out.println(out.color("  Aucun jeton : lecture anonyme, projets publics seulement.", YELLOW));
     }
-    String bots =
+    String pattern =
         botPattern == null || botPattern.isBlank() ? Contributors.BOT_PATTERN : botPattern;
-    Settings settings =
-        new Settings(
-            days,
-            maxCommits,
-            maxMrs,
-            sample,
-            includeBots,
-            Pattern.compile(bots, Pattern.CASE_INSENSITIVE));
+    Budget budget = new Budget(days, maxCommits, maxMrs, sample);
+    BotPolicy bots = new BotPolicy(includeBots, Pattern.compile(pattern, Pattern.CASE_INSENSITIVE));
     Gitlab client =
         new Gitlab(
             gitlab.connectionOrAnonymous("https://gitlab.com"),
             GitlabWarnings.onOutput(out),
             host.sleeper());
 
-    return new ProjectReport(client, settings, out, new Dates(host.clock()))
+    return new ProjectReport(client, budget, bots, out, new Dates(host.clock()))
         .run(ProjectPath.normalize(path));
   }
 }

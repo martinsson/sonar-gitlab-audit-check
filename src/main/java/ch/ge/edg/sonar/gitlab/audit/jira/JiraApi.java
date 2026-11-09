@@ -4,7 +4,8 @@ import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Endpoint;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Transport;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
@@ -44,7 +45,8 @@ public final class JiraApi {
         new HashMap<>(AuthHeaders.bearer(Stop.require(token, "JIRA_TOKEN")));
     headers.put("Accept", "application/json");
     return new JiraApi(
-        new RestClient(Settings.of(base, headers, insecure), Capture.none(), sleeper));
+        new RestClient(
+            Endpoint.of(base, headers), Transport.of(insecure), Capture.none(), sleeper));
   }
 
   public String base() {

@@ -2,8 +2,9 @@ package ch.ge.edg.sonar.gitlab.audit.gitlab;
 
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Endpoint;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Retries;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Transport;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
@@ -29,8 +30,8 @@ final class GitlabHttp {
   GitlabHttp(Gitlab.Connection c, GitlabListener listener, Sleeper sleeper) throws IOException {
     this.client =
         new RestClient(
-            new Settings(
-                c.url(), headers(c.token()), c.timeoutSeconds(), c.insecure(), true, RETRIES),
+            new Endpoint(c.url(), headers(c.token()), RETRIES),
+            new Transport(c.timeoutSeconds(), c.insecure(), true),
             new Capture(c.dumpDir(), null, listener::captureNotWritten),
             sleeper);
   }

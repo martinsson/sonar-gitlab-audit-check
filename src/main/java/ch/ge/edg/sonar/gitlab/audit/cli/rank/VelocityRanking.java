@@ -17,19 +17,19 @@ final class VelocityRanking {
   private VelocityRanking() {}
 
   /** Les classés d'abord, du pire au moins pire, puis les écartés dans l'ordre d'entrée. */
-  static List<Scored> rank(List<InventoryRow> active, RankSettings settings) {
+  static List<Scored> rank(List<InventoryRow> active, Thresholds thresholds) {
     List<Scored> all = active.stream().map(Scored::new).toList();
 
     // Une exclusion ne pénalise pas le score : elle retire du classement.
     for (Scored s : all) {
-      if (s.row.ncloc() < settings.minNcloc()) s.exclusion = Exclusion.TOO_SMALL;
+      if (s.row.ncloc() < thresholds.minNcloc()) s.exclusion = Exclusion.TOO_SMALL;
       else if (s.row.noNewCode()) s.exclusion = Exclusion.NO_NEW_CODE;
     }
 
     for (Scored s : all) {
       if (!s.ranked()) continue;
       measure(s);
-      if (s.severities.size() < settings.minSignals()) s.exclusion = Exclusion.TOO_FEW_SIGNALS;
+      if (s.severities.size() < thresholds.minSignals()) s.exclusion = Exclusion.TOO_FEW_SIGNALS;
     }
     List<Scored> candidates = all.stream().filter(Scored::ranked).toList();
 
@@ -41,7 +41,7 @@ final class VelocityRanking {
         candidates.stream()
             .sorted(Comparator.comparingDouble((Scored s) -> s.score).reversed())
             .collect(Collectors.toCollection(ArrayList::new));
-    shortlist(ranked, byBucket, settings.topPercent());
+    shortlist(ranked, byBucket, thresholds.topPercent());
 
     List<Scored> result = new ArrayList<>(ranked);
     all.stream().filter(s -> !s.ranked()).forEach(result::add);
