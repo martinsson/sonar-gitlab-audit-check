@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
-/** Une ligne de pratiques.csv. */
-class PracticesCsvTest {
+/** Une ligne d'inventaire.csv et une ligne de pratiques.csv, cellules inconnues comprises. */
+class CsvFilesTest {
 
   private static AuditedProject audited(String json) throws Exception {
     return AuditedProject.entering(GitlabProject.of(Gitlab.READER.readTree(json)));
@@ -22,6 +22,12 @@ class PracticesCsvTest {
 
   private static <T> String row(List<Column<T>> columns, T row) {
     return columns.stream().map(c -> c.cell().apply(row)).collect(Collectors.joining("|"));
+  }
+
+  @Test
+  void anEmptyProjRowKeepsUnknownsBlank() throws Exception {
+    assertThat(row(CsvFiles.inventory(90), audited("{}")))
+        .isEqualTo("0||||||||false|false|false||||||||||||false||false|false|");
   }
 
   @Test
