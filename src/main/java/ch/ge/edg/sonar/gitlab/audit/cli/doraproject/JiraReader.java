@@ -1,6 +1,5 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.doraproject;
 
-import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
@@ -85,7 +84,7 @@ final class JiraReader {
 
   private Optional<Snapshot.Incident> incident(JsonNode issue) {
     JsonNode f = issue.path("fields");
-    Instant created = Times.parse(f.path("created"));
+    Instant created = JiraApi.instant(f.path("created"));
     if (created == null) return Optional.empty();
     String key = issue.path("key").asText();
     return Optional.of(
@@ -94,7 +93,7 @@ final class JiraReader {
             f.path("summary").asText(""),
             f.path("issuetype").path("name").asText(""),
             created,
-            Times.parse(f.path("resolutiondate")),
+            JiraApi.instant(f.path("resolutiondate")),
             jira.base().replaceAll("/+$", "") + "/browse/" + key));
   }
 }

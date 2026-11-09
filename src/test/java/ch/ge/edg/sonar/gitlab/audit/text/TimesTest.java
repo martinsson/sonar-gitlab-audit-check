@@ -1,22 +1,16 @@
-package ch.ge.edg.sonar.gitlab.audit.dora;
+package ch.ge.edg.sonar.gitlab.audit.text;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.MissingNode;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.Test;
 
 class TimesTest {
 
-  private static final JsonNodeFactory F = new ObjectMapper().getNodeFactory();
-
   @Test
-  void gocdEpochIsoAndJiraFormats() {
-    assertThat(Times.parse(F.numberNode(1_000L))).isEqualTo(Instant.ofEpochMilli(1_000));
-    assertThat(Times.parse(F.textNode("2026-03-04T10:15:30Z")))
+  void isoAndJiraFormatsParse() {
+    assertThat(Times.parse("2026-03-04T10:15:30Z"))
         .isEqualTo(Instant.parse("2026-03-04T10:15:30Z"));
     assertThat(Times.parse("2026-03-04T10:15:30.000+0100"))
         .isEqualTo(Instant.parse("2026-03-04T09:15:30Z"));
@@ -24,9 +18,6 @@ class TimesTest {
 
   @Test
   void absentOrUnreadableIsNull() {
-    assertThat(Times.parse(F.nullNode())).isNull();
-    assertThat(Times.parse(MissingNode.getInstance())).isNull();
-    assertThat(Times.parse((com.fasterxml.jackson.databind.JsonNode) null)).isNull();
     assertThat(Times.parse(" ")).isNull();
     assertThat(Times.parse((String) null)).isNull();
     assertThat(Times.parse("yesterday")).isNull();

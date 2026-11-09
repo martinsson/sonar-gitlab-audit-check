@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.dora;
+package ch.ge.edg.sonar.gitlab.audit.csv;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

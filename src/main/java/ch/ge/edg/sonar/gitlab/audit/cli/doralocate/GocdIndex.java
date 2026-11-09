@@ -1,6 +1,5 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 
-import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Dashboard;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.gocd.HistoryPage;
@@ -10,6 +9,7 @@ import ch.ge.edg.sonar.gitlab.audit.gocd.Run.MaterialRevision;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
+import ch.ge.edg.sonar.gitlab.audit.text.Times;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;

@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
-import ch.ge.edg.sonar.gitlab.audit.dora.Jsonl;
-import ch.ge.edg.sonar.gitlab.audit.dora.Times;
+import ch.ge.edg.sonar.gitlab.audit.csv.Jsonl;
+import ch.ge.edg.sonar.gitlab.audit.text.Times;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.util.List;

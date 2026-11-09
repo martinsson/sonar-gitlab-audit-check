@@ -8,8 +8,10 @@ import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
+import ch.ge.edg.sonar.gitlab.audit.text.Times;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -130,6 +132,16 @@ public final class JiraApi {
       out.put(s.path("id").asText(), s.path("statusCategory").path("key").asText(""));
     }
     return out;
+  }
+
+  /**
+   * Une date d'une réponse Jira : le format Jira ou l'ISO-8601 ; absente ou illisible, null. Un
+   * nombre y est lu comme un epoch en millisecondes, comme il l'a toujours été.
+   */
+  public static @Nullable Instant instant(@Nullable JsonNode n) {
+    if (n == null || n.isMissingNode() || n.isNull()) return null;
+    if (n.isNumber()) return Instant.ofEpochMilli(n.asLong());
+    return Times.parse(n.asText(""));
   }
 
   public static String enc(String s) {
