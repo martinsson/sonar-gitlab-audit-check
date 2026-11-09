@@ -504,3 +504,20 @@ Gate changes: none. No checkstyle, pom or ratchet config changed, and no suppres
 Behaviour changes: none. No `.ss` file changed.
 Exceptions left: the nullable `stale` in Replay (above). The HelpersTest grab bag (above).
 Checks: no undo of a production split was measured in Checkstyle. The keep verdicts rest on the reasons in the table, not on a measured CDAC count, except for the test regrouping, where the 10 and 5 counts are the `new` types in the fixtures.
+
+## Iteration 10: lead notes (PRs #38–#46, 2026-11-09/10)
+- The whole "Not done" backlog, nine slices, one PR each, each implemented by a haiku worker in its own
+  worktree; the lead reviewed every diff, rebased and pushed. No slice needed a retry or a stronger model.
+- Behaviour changes, all deliberate and logged in their sections: only 10b (URL shapes that the two
+  RepoPath parsers read differently: query/fragment, leading slashes, `.git//`). No snapshot changed in
+  the whole iteration.
+- Gate changes: 10a (`STATIC_FIELDS_ARE_CONSTANTS` no longer allows ObjectMapper, allows ObjectWriter:
+  stricter); 10f (contributors added to the domain layer rules); 10h (VisibilityTest: by command instead
+  of by package, plus "a public class is used from another package of its command"). Nothing loosened,
+  no Ratchet-Override.
+- For the next review: 10i kept nearly every limit-shaped split with a stated reason, and changed no
+  gate. Checkstyle still shaped two designs this iteration (10d enum instead of sealed variants, 10g's
+  kept Sections). `cli.activity.model` (10h) holds helpers (Api, CellFormat) because everything can see
+  it, a possible new grab-bag. CodeScene scores of 10c were not re-measured (no local CodeScene).
+- Friction: every slice edits this file's "Not done" list and appends a section, so each merge made the
+  next PR conflict. One file per iteration would remove most rebases of this batch.
