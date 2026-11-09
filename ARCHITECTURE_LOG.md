@@ -25,7 +25,6 @@ compromises, gate changes and reviewer disagreements made along the way, for lat
 - `matching.Replay` returns an outcome per row (today it bumps counters), and named rule tests for
   `matching` next to its snapshots.
 - One GitLab fake for the tests (`GitlabAuditFake`, `GitLabProjectReportFakeGitlab`).
-- CodeScene hotspots: `CiConfig` 8.28, `RestClient.pauseBefore` 8.41.
 - `Gitlab.MAPPER` / `Sonar.MAPPER`: `ObjectReader`/`ObjectWriter` constants instead of a rule exemption.
 - Checkstyle class-coupling shaped some splits (`PreflightReport`, split test classes): judge them as gate
   compromises.
@@ -213,7 +212,7 @@ Exceptions left: none new.
 - Final CodeScene (main): line-weighted 9.84 (was 9.78), 10 files < 9.5, worst CiConfig 8.28 (untouched), RestClient 8.41 (new). Tests: mean 9.77, 7 files < 9, worst JiraExtractTest 8.03.
 - Lead mistake: during iteration 3's integration one command ran in the owner's main checkout (cwd reset after a `cd` in an earlier call): a commit 6ca8361 (my ARCHITECTURE.md error-model text + the untracked REVIEW_VS_QUALITY_LOG.md) landed on the owner's local `main`, never pushed. Found by the final architect (the doc on origin still described SourceException). Undone with `git reset --mixed ed54a40` + checkout of ARCHITECTURE.md (only my own changes; status verified clean before). Since then every command starts with an explicit `cd <worktree> &&`.
 - Final reviews (architect, clean coder): both "partly"; agreed top item = three response types with three meanings of ok(). Iteration 9a (opus): one response type, connections in clients, 401 rule once, duplicates. 9b (sonnet): rule leaks (constants invisible to ArchUnit, SharedOptionsTest too lax, TransportTest gaps, no empty-import guard), doc, cheap cleanups.
-- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), contributor identity out of Gitlab into a domain, activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags, Replay returning outcomes + matching rule tests, merge the two GitLab fakes, CiConfig 8.28, RestClient.pauseBefore 8.41, ObjectMapper statics → ObjectReader/Writer constants.
+- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), contributor identity out of Gitlab into a domain, activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags, Replay returning outcomes + matching rule tests, merge the two GitLab fakes, ObjectMapper statics → ObjectReader/Writer constants.
 
 ## Iteration 9b
 - Exchange column names are `Columns.named(...)` (non-constant), so javac no longer inlines them; activity CsvFiles uses them. No behaviour change.
@@ -262,3 +261,40 @@ Behaviour changes (deliberate):
 Gate change: EdgeTest.STATIC_FIELDS_ARE_CONSTANTS lists ObjectReader as immutable (it is, by contract;
 ObjectMapper, already listed, is not). Answers the "ObjectReader constants" item above for new code.
 Not done: probes/GocdProbe.java (diagnostic JBang script, outside src/) still walks JsonNode.
+
+## Iteration 10c: CodeScene hotspots
+
+Pure refactor of the two files CodeScene scored lowest. Scores not re-measured (no local CodeScene);
+the smells below are the ones its rules name, removed by reading each method.
+
+`cli.activity.CiConfig` (was 8.28, worst file):
+- `lint`: nested ifs and an `instanceof && (a || b || c)` condition. Split: `mergedCi` / `mergedYaml`
+  (the merged_yaml lookup and its fallback to `content`), `LINT_REFUSED` set of statuses.
+- `read`: nested `if (lintRefusedStatus == 0)`. Now one conditional expression; the GitLab raw fetch moved to
+  `readWithIncludes`.
+- `chaseFiles(block, projId, incRef, chase, depth)`: five parameters, and a string cache key built by
+  concatenation. Replaced by the `RepoFile(projectId, path, ref)` record (a file at a ref in a project), used
+  as the key of `seen` and `includeCache`. `chaseEntry` resolves the project and ref once per `project:` entry,
+  then loops over the `file:` names inline.
+- `resolveProjectPathCached`: the numeric-id and API branches moved to one expression; the API lookup is
+  `fetchProjectId`, with early returns.
+- `ref` default: named `HEAD`, `includeRef` for the optional `ref:`.
+- Raw fetch of `.gitlab-ci.yml` and of includes share `requestRaw(RepoFile)` (one URL shape, one place).
+- Behaviour: none. Same requests in the same order, same URL for numeric ids (`enc` leaves digits alone), same
+  cache semantics (a refused include caches "" as before). Covered by the activity snapshots.
+
+`rest.RestClient` (was 8.41, `pauseBefore`):
+- `pauseBefore(r, int[] spent)`: an `int[3]` of counters and three `&&` conditions. Replaced by the private
+  `RetryBudget` class (one counter per cause, `take*` methods that check and count in one place). An int array
+  indexed by magic numbers is primitive obsession, and the `&&` checks were the complex conditionals.
+- `pauseBefore` now dispatches on the response with early returns to `throttlePause`, `serverErrorPause`,
+  `cutPause`, and the predicates `isServerError`, `isNetworkCut` (named, not inline `||` / `instanceof && !`).
+- `withRetries`: the attempt moved to `attempt`, the pause test to `waitFor` (`isZero() || pauseFor`), so the loop
+  reads as attempt, decide, wait.
+- Behaviour: none. Same counters (`throttled`, `retried`, `calls`), same pauses (Retry-After capped at 60 s,
+  1 s then 2 s for 5xx, zero for cuts), an interrupted sleep still returns "interrompu", a 429 past budget still
+  falls through to a final answer.
+
+Not changed: `RestClient.send` (4 parameters, within Checkstyle's limit of 5).
+
+Gate config: none changed. No snapshot changed. No suppression added. Exceptions left: none.

@@ -47,6 +47,14 @@ final class CiConfig {
   /** Un include ne dépasse pas trois niveaux chez nous ; la borne évite les cycles. */
   private static final int MAX_INCLUDE_DEPTH = 3;
 
+  /** Le statut qui refuse ci/lint : le droit se donne au jeton, pas au projet. */
+  private static final Set<Integer> LINT_REFUSED = Set.of(401, 403, 404);
+
+  /** `ref:` absent : GitLab prend la tête du dépôt inclus. */
+  private static final String HEAD = "HEAD";
+
+  private static final String CI_FILE = ".gitlab-ci.yml";
+
   /**
    * Découpe le YAML en entrées `- project: …`, chacune jusqu'à la suivante. Sans ce découpage, un
    * motif unique recolle les champs de trois includes différents — le défaut corrigé ici.
@@ -61,13 +69,19 @@ final class CiConfig {
       Pattern.compile(
           "(?:file:\\s*|^\\s*-\\s*)(['\"]?[\\w./-]+\\.ya?ml['\"]?)\\s*$", Pattern.MULTILINE);
 
+  /** Un fichier d'un projet GitLab, à une révision : ce qu'un `include` désigne. */
+  private record RepoFile(String projectId, String path, String ref) {}
+
+  /** Une chasse aux includes : le YAML recollé, et les fichiers déjà lus pour ne pas boucler. */
+  private record Chase(StringBuilder sink, Set<RepoFile> seen) {}
+
   private final Gitlab gitlab;
 
   /** Cache de résolution project_path -> ID, rempli au fur et à mesure. */
   private final Map<String, String> projPathToId = new ConcurrentHashMap<>();
 
   /** Contenu brut des templates inclus. Quelques templates servent tout le parc. */
-  private final Map<String, String> includeCache = new ConcurrentHashMap<>();
+  private final Map<RepoFile, String> includeCache = new ConcurrentHashMap<>();
 
   /** ci/lint refusé une fois l'est pour tout le parc : le droit est sur le jeton. */
   private volatile int lintRefusedStatus;
@@ -86,19 +100,8 @@ final class CiConfig {
 
   /** Le YAML de CI du projet, ou null quand ni ci/lint ni le fichier brut ne le donnent. */
   @Nullable Ci read(GitlabProject p) {
-    if (lintRefusedStatus == 0) {
-      Ci merged = lint(p);
-      if (merged != null) return merged;
-    }
-    RestResponse raw =
-        gitlab.get(
-            "projects/" + p.id() + "/repository/files/" + enc(".gitlab-ci.yml") + "/raw",
-            Map.of("ref", p.defaultBranch()));
-    String body = raw.body();
-    if (!raw.is(200)) return null;
-    StringBuilder all = new StringBuilder(body);
-    chaseIncludes(body, new Chase(all, new HashSet<>()), 0);
-    return new Ci(all.toString(), FALLBACK);
+    Ci merged = lintRefusedStatus == 0 ? lint(p) : null;
+    return merged != null ? merged : readWithIncludes(p);
   }
 
   private @Nullable Ci lint(GitlabProject p) {
@@ -109,23 +112,38 @@ final class CiConfig {
                 "ref", p.defaultBranch(),
                 "content_ref", p.defaultBranch(),
                 "include_merged_yaml", "true"));
-    if (lint.is(200)) {
-      JsonNode j = lint.tree();
-      String merged = j.path("merged_yaml").asText(null);
-      if (isBlank(merged)) merged = j.path("content").path("merged_yaml").asText(null);
-      if (merged != null && !merged.isBlank()) {
-        return new Ci(merged, LINT);
-      }
-      // 200 sans merged_yaml : configuration invalide, ou version
-      // de GitLab qui ne le renvoie pas. Les deux se replient.
-    } else if (lint instanceof RestResponse.Answered a
-        && (a.status() == 401 || a.status() == 403 || a.status() == 404)) {
-      // Refusé une fois, refusé partout : le droit se donne au
-      // jeton, pas au projet. Insister coûterait un appel perdu
+    if (lint.is(200)) return mergedCi(lint.tree());
+    if (lint instanceof RestResponse.Answered a && LINT_REFUSED.contains(a.status())) {
+      // Refusé une fois, refusé partout. Insister coûterait un appel perdu
       // par projet du parc.
       lintRefusedStatus = a.status();
     }
     return null;
+  }
+
+  /**
+   * Le merged_yaml d'une réponse ci/lint. Un 200 sans merged_yaml (configuration invalide, ou
+   * version de GitLab qui ne le renvoie pas) se replie sur la chasse.
+   */
+  private static @Nullable Ci mergedCi(JsonNode lint) {
+    String merged = mergedYaml(lint);
+    return merged == null || merged.isBlank() ? null : new Ci(merged, LINT);
+  }
+
+  /** Le merged_yaml à la racine, ou sous `content` selon la version de GitLab. */
+  private static @Nullable String mergedYaml(JsonNode lint) {
+    String top = lint.path("merged_yaml").asText(null);
+    return isBlank(top) ? lint.path("content").path("merged_yaml").asText(null) : top;
+  }
+
+  private @Nullable Ci readWithIncludes(GitlabProject p) {
+    RepoFile ciFile = new RepoFile(String.valueOf(p.id()), CI_FILE, p.defaultBranch());
+    RestResponse raw = requestRaw(ciFile);
+    if (!raw.is(200)) return null;
+    String body = raw.body();
+    StringBuilder all = new StringBuilder(body);
+    chaseIncludes(body, new Chase(all, new HashSet<>()), 0);
+    return new Ci(all.toString(), FALLBACK);
   }
 
   /**
@@ -142,46 +160,47 @@ final class CiConfig {
     if (depth >= MAX_INCLUDE_DEPTH) return;
     Matcher entry = INCLUDE_ENTRY.matcher(yaml);
     while (entry.find()) {
-      String block = entry.group();
-      String projPath = unquote(firstMatch(INCLUDE_PROJECT, block));
-      if (projPath == null) continue;
-      String maybeRef = unquote(firstMatch(INCLUDE_REF, block));
-      // `ref:` est facultatif : sans lui GitLab prend la tête du dépôt
-      // inclus. L'ancien motif l'exigeait, donc ne voyait pas ces
-      // includes-là du tout.
-      String incRef = maybeRef == null ? "HEAD" : maybeRef;
-      String projId = resolveProjectPathCached(projPath);
-      if (projId != null) chaseFiles(block, projId, incRef, chase, depth);
+      chaseEntry(entry.group(), chase, depth);
     }
   }
 
-  /** Une chasse aux includes : le YAML recollé, et les fichiers déjà lus pour ne pas boucler. */
-  private record Chase(StringBuilder sink, Set<String> seen) {}
-
-  /**
-   * `file:` accepte une liste : un template Sonar et un template build dans la même entrée, ce que
-   * l'ancien motif ne voyait pas.
-   */
-  private void chaseFiles(String block, String projId, String incRef, Chase chase, int depth) {
+  /** Une entrée `- project: …` : son projet résolu, puis chacun de ses fichiers. */
+  private void chaseEntry(String block, Chase chase, int depth) {
+    String projPath = unquote(firstMatch(INCLUDE_PROJECT, block));
+    if (projPath == null) return;
+    String projId = resolveProjectPathCached(projPath);
+    if (projId == null) return;
+    String ref = includeRef(block);
+    // `file:` accepte une liste : un template Sonar et un template build dans la même entrée.
     Matcher files = INCLUDE_FILE.matcher(block);
     while (files.find()) {
-      String incFile = unquote(files.group(1));
-      if (incFile == null) continue;
-      String cacheKey = projId + ":" + incFile + ":" + incRef;
-      if (!chase.seen().add(cacheKey)) continue;
-      String body = includeCache.computeIfAbsent(cacheKey, k -> fetchRaw(projId, incFile, incRef));
-      if (body.isEmpty()) continue;
-      chase.sink().append('\n').append(body);
-      chaseIncludes(body, chase, depth + 1);
+      String file = unquote(files.group(1));
+      if (file != null) chaseFile(new RepoFile(projId, file, ref), chase, depth);
     }
   }
 
-  private String fetchRaw(String projId, String file, String ref) {
-    RestResponse fr =
-        gitlab.get(
-            "projects/" + enc(projId) + "/repository/files/" + enc(file) + "/raw",
-            Map.of("ref", ref));
+  private void chaseFile(RepoFile file, Chase chase, int depth) {
+    if (!chase.seen().add(file)) return;
+    String body = includeCache.computeIfAbsent(file, this::fetchRaw);
+    if (body.isEmpty()) return;
+    chase.sink().append('\n').append(body);
+    chaseIncludes(body, chase, depth + 1);
+  }
+
+  private static String includeRef(String block) {
+    String ref = unquote(firstMatch(INCLUDE_REF, block));
+    return ref == null ? HEAD : ref;
+  }
+
+  private String fetchRaw(RepoFile file) {
+    RestResponse fr = requestRaw(file);
     return fr.is(200) ? fr.body() : "";
+  }
+
+  private RestResponse requestRaw(RepoFile file) {
+    return gitlab.get(
+        "projects/" + enc(file.projectId()) + "/repository/files/" + enc(file.path()) + "/raw",
+        Map.of("ref", file.ref()));
   }
 
   /**
@@ -191,21 +210,18 @@ final class CiConfig {
   private @Nullable String resolveProjectPathCached(String projPath) {
     String cached = projPathToId.get(projPath);
     if (cached != null) return cached.isEmpty() ? null : cached;
-    if (isNumericId(projPath)) {
-      projPathToId.put(projPath, projPath);
-      return projPath;
-    }
+    String id = isNumericId(projPath) ? projPath : fetchProjectId(projPath);
+    projPathToId.put(projPath, id == null ? "" : id);
+    return id;
+  }
+
+  /** L'ID numérique d'un projet désigné par son chemin ; vide si GitLab ne le donne pas. */
+  private @Nullable String fetchProjectId(String projPath) {
     RestResponse proj = gitlab.get("projects/" + enc(projPath), Map.of("per_page", "1"));
-    if (proj.is(200)) {
-      JsonNode node = proj.tree();
-      if (node.hasNonNull("id")) {
-        String id = String.valueOf(node.path("id").asLong());
-        projPathToId.put(projPath, id);
-        return id;
-      }
-    }
-    projPathToId.put(projPath, "");
-    return null;
+    if (!proj.is(200)) return null;
+    JsonNode node = proj.tree();
+    if (!node.hasNonNull("id")) return null;
+    return String.valueOf(node.path("id").asLong());
   }
 
   /** Un include peut désigner le projet par son ID numérique plutôt que par son chemin. */
