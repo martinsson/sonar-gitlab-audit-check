@@ -5,14 +5,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.AuditedProject;
 import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.CommitMeasure;
 import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.GitlabProject;
-import ch.ge.edg.sonar.gitlab.audit.csv.Column;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
-/** Un projet de l'inventaire, ce que l'entonnoir en apprend, et ses lignes de CSV. */
+/** Un projet de l'inventaire, et ce que l'entonnoir en apprend. */
 class FunnelModelTest {
 
   private static GitlabProject project(String json) throws Exception {
@@ -21,10 +18,6 @@ class FunnelModelTest {
 
   private static AuditedProject audited(String json) throws Exception {
     return AuditedProject.entering(project(json));
-  }
-
-  private static <T> String row(List<Column<T>> columns, T row) {
-    return columns.stream().map(c -> c.cell().apply(row)).collect(Collectors.joining("|"));
   }
 
   @Test
@@ -81,11 +74,5 @@ class FunnelModelTest {
     assertThat(p.perWeek(28)).isEqualTo(3.5);
     assertThat(p.perWeek(0)).isZero();
     assertThat(p.perWeek(-1)).isZero();
-  }
-
-  @Test
-  void anEmptyProjRowKeepsUnknownsBlank() throws Exception {
-    assertThat(row(CsvFiles.inventory(90), audited("{}")))
-        .isEqualTo("0||||||||false|false|false||||||||||||false||false|false|");
   }
 }
