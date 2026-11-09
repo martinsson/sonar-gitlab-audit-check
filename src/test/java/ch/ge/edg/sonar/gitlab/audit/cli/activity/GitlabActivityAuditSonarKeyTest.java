@@ -1,8 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.FUTURE;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.FUTURE;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.project;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -22,7 +22,7 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
   /** A selected project: one commit, and these names at the root of its tree. */
   private void add(long id, String... root) {
     projects.add(project(id, "team-a/k" + id));
-    fake.commits(id, commit("sha" + id, "dev" + id, FUTURE)).tree(id, root);
+    fake.commits(id, List.of(commit("sha" + id, "dev" + id, FUTURE))).tree(id, root);
   }
 
   private void lint(long id, String yaml) {
@@ -32,7 +32,7 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
   }
 
   private Cli.Result deep(String... extra) {
-    fake.enterprise(false).group("team-a", projects.toArray(ObjectNode[]::new));
+    fake.enterprise(false).group("team-a", projects.toArray());
     List<String> args =
         new ArrayList<>(
             List.of(
@@ -49,7 +49,7 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
                 "--validation-sample",
                 "0"));
     args.addAll(List.of(extra));
-    return fake.run(args.toArray(String[]::new));
+    return run(args.toArray(String[]::new));
   }
 
   private void everyKeySource() {
@@ -118,12 +118,12 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(tmp.resolve("pratiques.csv"))).toMatchDisk("pratiques");
     expectSelfie(file(tmp.resolve(".sonar-keys.json"))).toMatchDisk("cache");
-    Request lint = fake.server.requests("/api/v4/projects/1/ci/lint").getFirst();
+    Request lint = fake.server().requests("/api/v4/projects/1/ci/lint").getFirst();
     assertThat(lint.target())
         .isEqualTo("/api/v4/projects/1/ci/lint?ref=main&content_ref=main&include_merged_yaml=true");
-    assertThat(fake.server.requests("/api/v4/projects/11/repository/files/.gitlab-ci.yml/raw"))
+    assertThat(fake.server().requests("/api/v4/projects/11/repository/files/.gitlab-ci.yml/raw"))
         .hasSize(1);
-    assertThat(fake.server.requests("/api/v4/projects/12/ci/lint")).isEmpty();
+    assertThat(fake.server().requests("/api/v4/projects/12/ci/lint")).isEmpty();
   }
 
   @Test
@@ -158,8 +158,8 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(tmp.resolve("pratiques.csv"))).toMatchDisk("pratiques");
-    assertThat(fake.server.requests()).filteredOn(q -> q.path().endsWith("/ci/lint")).hasSize(1);
-    assertThat(fake.server.requests())
+    assertThat(fake.server().requests()).filteredOn(q -> q.path().endsWith("/ci/lint")).hasSize(1);
+    assertThat(fake.server().requests())
         .filteredOn(q -> q.path().contains("/repository/files/"))
         .extracting(Request::target)
         .containsExactly(
@@ -171,8 +171,8 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
             "/api/v4/projects/42/repository/files/common.yml/raw?ref=HEAD",
             "/api/v4/projects/2/repository/files/beta.yml/raw?ref=HEAD",
             "/api/v4/projects/2/repository/files/.gitlab-ci.yml/raw?ref=main");
-    assertThat(fake.server.requests("/api/v4/projects/shared%2Fci-templates")).hasSize(1);
-    assertThat(fake.server.requests("/api/v4/projects/shared%2Fmissing")).hasSize(1);
+    assertThat(fake.server().requests("/api/v4/projects/shared%2Fci-templates")).hasSize(1);
+    assertThat(fake.server().requests("/api/v4/projects/shared%2Fmissing")).hasSize(1);
   }
 
   private void templates() {
@@ -217,12 +217,12 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
     String cache = file(tmp.resolve(".sonar-keys.json"));
     String firstPratiques = file(tmp.resolve("pratiques.csv"));
 
-    Cli.Result again = fake.run(argsAgain());
+    Cli.Result again = run(argsAgain());
 
     assertOk(again);
     assertThat(again.out())
         .contains("\n  CI lue : 0 par ci/lint, 0 par repli, 1 depuis le cache.\n");
-    assertThat(fake.server.requests("/api/v4/projects/1/ci/lint")).hasSize(1);
+    assertThat(fake.server().requests("/api/v4/projects/1/ci/lint")).hasSize(1);
     assertThat(file(tmp.resolve("pratiques.csv"))).isEqualTo(firstPratiques);
     assertThat(file(tmp.resolve(".sonar-keys.json"))).isEqualTo(cache);
     expectSelfie(cache).toMatchDisk();
@@ -240,7 +240,7 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
     projects.add(project(2, "team-a/k2"));
     ObjectNode anonymous = commit("x", "dev", FUTURE);
     anonymous.remove("id");
-    fake.commits(1, commit("rest-sha", "dev", FUTURE)).commits(2, anonymous);
+    fake.commits(1, List.of(commit("rest-sha", "dev", FUTURE))).commits(2, List.of(anonymous));
     fake.tree(1, ".gitlab-ci.yml").tree(2, ".gitlab-ci.yml");
     lint(1, "x: 1\n");
     lint(2, "y: 2\n");
@@ -248,8 +248,8 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
         "/api/graphql",
         "{\"data\":{\"p0\":{\"repository\":{\"tree\":{\"lastCommit\":{\"sha\":\"gql-sha\","
             + "\"committedDate\":\"2099-01-01T10:00:00Z\"}}}},\"p1\":null}}");
-    fake.enterprise(false).group("team-a", projects.toArray(ObjectNode[]::new));
-    fake.run("--group", "team-a", "--deep", "--out-dir", tmp.toString(), "--floor", "0");
+    fake.enterprise(false).group("team-a", projects.toArray());
+    run("--group", "team-a", "--deep", "--out-dir", tmp.toString(), "--floor", "0");
     assertThat(file(tmp.resolve(".sonar-keys.json")))
         .contains("\"1@gql-sha\"")
         .contains("\"2@act:2099-01-01T10:00Z\"");

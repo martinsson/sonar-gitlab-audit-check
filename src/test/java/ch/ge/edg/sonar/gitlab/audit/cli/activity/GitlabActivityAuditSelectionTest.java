@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.project;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -26,7 +26,7 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
     else ((ObjectNode) p.get("statistics")).put("commit_count", history);
     projects.add(p);
     List<ObjectNode> commits = new ArrayList<>();
-    OffsetDateTime day = OffsetDateTime.parse(GitlabAuditFake.FUTURE);
+    OffsetDateTime day = OffsetDateTime.parse(ActivityFixtures.FUTURE);
     for (int i = 0; i < n; i++) {
       commits.add(
           commit(id + "-" + i, "dev" + id + "-" + (i % authors), day.minusDays(i).toString()));
@@ -54,18 +54,18 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
     add(15, "team-d/d3", 10L, 6, 2);
   }
 
-  private Cli.Result run(String... extra) {
-    fake.enterprise(false).group("team", projects.toArray(ObjectNode[]::new));
+  private Cli.Result runDefault(String... extra) {
+    fake.enterprise(false).group("team", projects.toArray());
     List<String> args =
         new ArrayList<>(List.of("--group", "team", "--out-dir", tmp.toString(), "--graphql=false"));
     args.addAll(List.of(extra));
-    return fake.run(args.toArray(String[]::new));
+    return super.run(args.toArray(String[]::new));
   }
 
   @Test
   void quotasMixStrataNamespacesSoloAuthorsAndAWitness() {
     park();
-    Cli.Result r = run("--top", "10");
+    Cli.Result r = runDefault("--top", "10");
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(tmp.resolve("inventaire.csv"))).toMatchDisk("csv");
@@ -74,7 +74,7 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
   @Test
   void anotherSeedDrawsAnotherWitness() {
     park();
-    Cli.Result r = run("--top", "10", "--seed", "1");
+    Cli.Result r = runDefault("--top", "10", "--seed", "1");
     assertOk(r);
     expectSelfie(file(tmp.resolve("inventaire.csv"))).toMatchDisk();
   }
@@ -82,7 +82,7 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
   @Test
   void aLargeBudgetTakesEveryoneAndTheRestGoesBackToTheRanking() {
     park();
-    Cli.Result r = run("--top", "40");
+    Cli.Result r = runDefault("--top", "40");
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(tmp.resolve("inventaire.csv"))).toMatchDisk("csv");
@@ -92,7 +92,7 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
   @SuspectedBug("--top 1 should select one project, not one per tranche (three)")
   void aBudgetOfOneStillFillsEveryTrancheAndSelectsThree() {
     park();
-    Cli.Result r = run("--top", "1", "--floor", "0");
+    Cli.Result r = runDefault("--top", "1", "--floor", "0");
     assertOk(r);
     assertThat(r.out())
         .contains("  Budget                          : 1\n")
@@ -104,7 +104,7 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
   @Test
   void theRemainderRespectsTheNamespaceCap() {
     for (int i = 0; i < 8; i++) add(1 + i, "team-a/p" + i, 50L, 10 + i, 2);
-    Cli.Result r = run("--top", "20", "--validation-sample", "0");
+    Cli.Result r = runDefault("--top", "20", "--validation-sample", "0");
     assertOk(r);
     String inv = file(tmp.resolve("inventaire.csv"));
     assertThat(r.out())
@@ -119,7 +119,7 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
   @SuspectedBug("the single-author and witness slices should respect the per-namespace cap")
   void soloAuthorsAndTheWitnessGoPastTheNamespaceCap() {
     for (int i = 0; i < 10; i++) add(1 + i, "team-a/p" + i, 50L, 10 + i, i % 2 == 0 ? 1 : 2);
-    Cli.Result r = run("--top", "20", "--validation-sample", "0");
+    Cli.Result r = runDefault("--top", "20", "--validation-sample", "0");
     assertOk(r);
     assertThat(r.out())
         .contains("  Sélectionnés                    : 8\n")
@@ -133,7 +133,7 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
   @SuspectedBug("the single-author and witness slices should stay within the --top budget")
   void soloAuthorsAndTheWitnessGoPastABudgetOfTwo() {
     for (int i = 0; i < 6; i++) add(1 + i, "team-" + i + "/p", 50L, 10 + i, i % 2 == 0 ? 1 : 2);
-    Cli.Result r = run("--top", "2", "--validation-sample", "0");
+    Cli.Result r = runDefault("--top", "2", "--validation-sample", "0");
     assertOk(r);
     assertThat(r.out())
         .contains("  Budget                          : 2\n")
@@ -146,7 +146,7 @@ class GitlabActivityAuditSelectionTest extends GitlabActivityAuditTestBase {
   void aZeroWindowGivesNoWeeklyRate() {
     add(1, "team-a/alpha", 50L, 6, 1);
     Path csv = tmp.resolve("inventaire.csv");
-    Cli.Result r = run("--since", "0", "--floor", "0");
+    Cli.Result r = runDefault("--since", "0", "--floor", "0");
     assertOk(r);
     assertThat(file(csv)).contains(";\"0.00\";\"false\";");
   }

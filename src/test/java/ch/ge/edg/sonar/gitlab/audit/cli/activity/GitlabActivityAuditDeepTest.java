@@ -1,17 +1,18 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.FUTURE;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.daily;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.merge;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.stats;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.FUTURE;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.daily;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.merge;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.project;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.stats;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.GitlabFake;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +36,7 @@ class GitlabActivityAuditDeepTest extends GitlabActivityAuditTestBase {
                 "--concurrency",
                 "1"));
     args.addAll(List.of(extra));
-    return fake.run(args.toArray(String[]::new));
+    return run(args.toArray(String[]::new));
   }
 
   /** 25 human commits with stats, plus a bot, a merge and a commit without stats. */
@@ -113,7 +114,7 @@ class GitlabActivityAuditDeepTest extends GitlabActivityAuditTestBase {
             witness);
     enterpriseAlpha();
     fake.commits(2, daily("b", "bob", 4)).commits(3, daily("c", "carol", 3));
-    fake.commits(4, commit("w1", "dave", FUTURE), commit("w2", "erin", FUTURE));
+    fake.commits(4, List.of(commit("w1", "dave", FUTURE), commit("w2", "erin", FUTURE)));
 
     Cli.Result r = deep("--top", "10");
 
@@ -121,7 +122,7 @@ class GitlabActivityAuditDeepTest extends GitlabActivityAuditTestBase {
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(tmp.resolve("pratiques.csv"))).toMatchDisk("pratiques");
     expectSelfie(file(tmp.resolve("inventaire.csv"))).toMatchDisk("inventaire");
-    assertThat(fake.server.requests("/api/v4/projects/1/merge_requests/3/approvals")).hasSize(1);
+    assertThat(fake.server().requests("/api/v4/projects/1/merge_requests/3/approvals")).hasSize(1);
   }
 
   @Test
@@ -129,24 +130,25 @@ class GitlabActivityAuditDeepTest extends GitlabActivityAuditTestBase {
     fake.enterprise(true).group("team-a", project(1, "team-a/alpha"));
     enterpriseAlpha();
     deep();
-    Request mrs = fake.server.requests("/api/v4/projects/1/merge_requests").getFirst();
+    Request mrs = fake.server().requests("/api/v4/projects/1/merge_requests").getFirst();
     assertThat(mrs.param("state")).isEqualTo("merged");
     assertThat(mrs.param("target_branch")).isEqualTo("main");
     assertThat(mrs.param("updated_after")).isNotBlank();
     assertThat(mrs.param("page")).isEqualTo("1");
-    Request pl = fake.server.requests("/api/v4/projects/1/pipelines").getFirst();
+    Request pl = fake.server().requests("/api/v4/projects/1/pipelines").getFirst();
     assertThat(pl.param("ref")).isEqualTo("main");
     assertThat(pl.param("per_page")).isEqualTo("100");
-    Request dora = fake.server.requests("/api/v4/projects/1/dora/metrics").getFirst();
+    Request dora = fake.server().requests("/api/v4/projects/1/dora/metrics").getFirst();
     assertThat(dora.param("metric")).isEqualTo("deployment_frequency");
     assertThat(dora.param("interval")).isEqualTo("monthly");
     assertThat(dora.param("start_date")).matches("\\d{4}-\\d{2}-\\d{2}");
-    assertThat(fake.server.requests("/api/v4/projects/1/environments").getFirst().param("per_page"))
+    assertThat(
+            fake.server().requests("/api/v4/projects/1/environments").getFirst().param("per_page"))
         .isEqualTo("1");
-    assertThat(fake.server.requests("/api/v4/projects/1/repository/commits"))
+    assertThat(fake.server().requests("/api/v4/projects/1/repository/commits"))
         .filteredOn(q -> "true".equals(q.param("with_stats")))
         .hasSize(1);
-    assertThat(fake.server.requests("/api/v4/projects/1/repository/tree").getFirst().param("ref"))
+    assertThat(fake.server().requests("/api/v4/projects/1/repository/tree").getFirst().param("ref"))
         .isEqualTo("main");
   }
 
@@ -160,16 +162,15 @@ class GitlabActivityAuditDeepTest extends GitlabActivityAuditTestBase {
             r ->
                 "true".equals(r.param("with_stats"))
                     ? Response.status(403, "{}")
-                    : Response.json(
-                        GitlabAuditFake.array(daily("h", "alice", 25).toArray(ObjectNode[]::new))));
+                    : Response.json(GitlabFake.toJson(daily("h", "alice", 25))));
 
     Cli.Result r = deep();
 
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(tmp.resolve("pratiques.csv"))).toMatchDisk("pratiques");
-    assertThat(fake.server.requests("/api/v4/projects/1/dora/metrics")).isEmpty();
-    assertThat(fake.server.requests()).noneMatch(q -> q.path().endsWith("/approvals"));
+    assertThat(fake.server().requests("/api/v4/projects/1/dora/metrics")).isEmpty();
+    assertThat(fake.server().requests()).noneMatch(q -> q.path().endsWith("/approvals"));
   }
 
   @Test
@@ -195,11 +196,13 @@ class GitlabActivityAuditDeepTest extends GitlabActivityAuditTestBase {
     Cli.Result r = deep();
 
     assertOk(r);
-    assertThat(fake.server.requests("/api/v4/projects/1/merge_requests"))
+    assertThat(fake.server().requests("/api/v4/projects/1/merge_requests"))
         .extracting(q -> q.param("page"))
         .containsExactly("1", "2", "3");
-    assertThat(fake.server.requests()).filteredOn(q -> q.path().endsWith("/approvals")).hasSize(10);
-    assertThat(fake.server.requests("/api/v4/projects/1/dora/metrics")).isEmpty();
+    assertThat(fake.server().requests())
+        .filteredOn(q -> q.path().endsWith("/approvals"))
+        .hasSize(10);
+    assertThat(fake.server().requests("/api/v4/projects/1/dora/metrics")).isEmpty();
     expectSelfie(file(tmp.resolve("pratiques.csv"))).toMatchDisk();
   }
 
@@ -222,7 +225,7 @@ class GitlabActivityAuditDeepTest extends GitlabActivityAuditTestBase {
         .commits(1, daily("h", "alice", 3))
         .json("/api/v4/projects/1/dora/metrics", "{\"not\":\"an array\"}");
     deep();
-    assertThat(fake.server.requests("/api/v4/projects/1/dora/metrics")).hasSize(1);
+    assertThat(fake.server().requests("/api/v4/projects/1/dora/metrics")).hasSize(1);
     expectSelfie(file(tmp.resolve("pratiques.csv"))).toMatchDisk();
   }
 

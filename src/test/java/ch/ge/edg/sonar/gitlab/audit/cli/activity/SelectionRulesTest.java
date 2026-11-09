@@ -18,7 +18,7 @@ class SelectionRulesTest extends FunnelRulesTestBase {
   private static final String[] BASE = {"--graphql=false", "--validation-sample=0", "--floor", "1"};
 
   private Cli.Result select(String... extra) {
-    return run(args(extra));
+    return runFunnel(args(extra));
   }
 
   /**

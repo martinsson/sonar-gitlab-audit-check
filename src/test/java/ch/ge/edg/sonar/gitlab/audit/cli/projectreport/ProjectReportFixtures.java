@@ -1,32 +1,27 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
-import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
-import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import java.io.UncheckedIOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Builds the GitLab responses {@link GitLabProjectReport} reads, as JSON, and serves them from a
- * {@link FakeHttpServer}. Dates the report measures against now are given as "so long ago",
- * relative to the instant this fixture was built; dates whose wall-clock time matters (authored
- * dates: weekday, hour of the author) are absolute.
+ * The GitLab objects the GitLabProjectReport tests describe: project, commits, merge requests,
+ * notes. Dates the report measures against now are given as "so long ago", relative to {@link
+ * #NOW}; dates whose wall-clock time matters (authored dates: weekday, hour of the author) are
+ * absolute.
  *
  * <p>"Now" is a fixed instant, shared with the report through {@link #clock()}: the report counts
  * calendar days, so a fixture relative to the real clock would count one more or one less day
- * depending on the hour of the run.
+ * depending on the hour of the run. Served by {@link
+ * ch.ge.edg.sonar.gitlab.audit.testing.GitlabFake}.
  */
-final class GitLabProjectReportFakeGitlab {
+final class ProjectReportFixtures {
 
   static final String API = "/api/v4/projects/";
 
@@ -48,14 +43,6 @@ final class GitLabProjectReportFakeGitlab {
   /** The calendar date (UTC) the report prints for {@link #ago}. */
   String dateAgo(int days, int hours) {
     return now.minusDays(days).minusHours(hours).toLocalDate().toString();
-  }
-
-  static String json(Object o) {
-    try {
-      return Gitlab.WRITER.writeValueAsString(o);
-    } catch (JsonProcessingException e) {
-      throw new UncheckedIOException(e);
-    }
   }
 
   /** Alternating key/value pairs, nulls kept (GitLab sends them). */
@@ -157,14 +144,5 @@ final class GitLabProjectReportFakeGitlab {
         created,
         "author",
         author == null ? null : user(author));
-  }
-
-  /** Serves {@code items} by pages of {@code perPage}, with X-Next-Page as GitLab does. */
-  static Response paged(FakeHttpServer.Request req, List<?> items, int perPage) {
-    int page = Integer.parseInt(req.param("page"));
-    int from = Math.min(items.size(), (page - 1) * perPage);
-    int to = Math.min(items.size(), from + perPage);
-    Response r = Response.json(json(new ArrayList<>(items.subList(from, to))));
-    return to < items.size() ? r.withHeader("X-Next-Page", String.valueOf(page + 1)) : r;
   }
 }

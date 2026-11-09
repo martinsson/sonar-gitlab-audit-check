@@ -1,11 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.API;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.merge;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.mr;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.note;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.user;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.API;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.merge;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.mr;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.note;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.user;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -119,25 +119,27 @@ class GitLabProjectReportRichTest extends GitLabProjectReportHarness {
 
     run("--days", "30");
 
-    FakeHttpServer.Request project = server.requests(projectRoute()).getFirst();
+    FakeHttpServer.Request project = fake.server().requests(projectRoute()).getFirst();
     assertThat(project.param("statistics")).isEqualTo("true");
     assertThat(project.header("PRIVATE-TOKEN")).isEqualTo("glpat-test");
-    FakeHttpServer.Request commits = server.requests(API + ID + "/repository/commits").getFirst();
+    FakeHttpServer.Request commits =
+        fake.server().requests(API + ID + "/repository/commits").getFirst();
     assertThat(commits.param("ref_name")).isEqualTo("main");
     assertThat(commits.param("with_stats")).isEqualTo("true");
     assertThat(commits.param("since")).startsWith(fx.dateAgo(30, 0) + "T");
     assertThat(commits.param("per_page")).isEqualTo("100");
-    FakeHttpServer.Request mrs = server.requests(API + ID + "/merge_requests").getFirst();
+    FakeHttpServer.Request mrs = fake.server().requests(API + ID + "/merge_requests").getFirst();
     assertThat(mrs.param("scope")).isEqualTo("all");
     assertThat(mrs.param("state")).isEqualTo("all");
     assertThat(mrs.param("created_after")).startsWith(fx.dateAgo(30, 0) + "T");
     assertThat(mrs.param("order_by")).isEqualTo("created_at");
     assertThat(mrs.param("sort")).isEqualTo("desc");
     FakeHttpServer.Request contrib =
-        server.requests(API + ID + "/repository/contributors").getFirst();
+        fake.server().requests(API + ID + "/repository/contributors").getFirst();
     assertThat(contrib.param("order_by")).isEqualTo("commits");
     assertThat(contrib.param("sort")).isEqualTo("desc");
-    FakeHttpServer.Request notes = server.requests(API + ID + "/merge_requests/1/notes").getFirst();
+    FakeHttpServer.Request notes =
+        fake.server().requests(API + ID + "/merge_requests/1/notes").getFirst();
     assertThat(notes.param("sort")).isEqualTo("asc");
     assertThat(notes.param("order_by")).isEqualTo("created_at");
   }
@@ -148,9 +150,9 @@ class GitLabProjectReportRichTest extends GitLabProjectReportHarness {
 
     Cli.Result r = run("--sample", "2");
 
-    assertThat(server.requests(API + ID + "/merge_requests/1/notes")).hasSize(1);
-    assertThat(server.requests(API + ID + "/merge_requests/2/notes")).hasSize(1);
-    assertThat(server.requests(API + ID + "/merge_requests/3/notes")).isEmpty();
+    assertThat(fake.server().requests(API + ID + "/merge_requests/1/notes")).hasSize(1);
+    assertThat(fake.server().requests(API + ID + "/merge_requests/2/notes")).hasSize(1);
+    assertThat(fake.server().requests(API + ID + "/merge_requests/3/notes")).isEmpty();
     expectSelfie(normalized(r.out())).toMatchDisk();
   }
 
@@ -160,7 +162,8 @@ class GitLabProjectReportRichTest extends GitLabProjectReportHarness {
 
     Cli.Result r = run("--sample", "0");
 
-    assertThat(server.requests().stream().filter(q -> q.path().endsWith("/notes"))).isEmpty();
+    assertThat(fake.server().requests().stream().filter(q -> q.path().endsWith("/notes")))
+        .isEmpty();
     assertThat(r.out()).doesNotContain("Échantillon de revue");
   }
 
