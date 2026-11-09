@@ -4,8 +4,9 @@ import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Endpoint;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Retries;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Transport;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
@@ -93,8 +94,8 @@ public final class Sonar {
     if (token != null) headers.put("Authorization", "Bearer " + token);
     this.client =
         new RestClient(
-            new Settings(
-                base, headers, connection.timeoutSeconds(), connection.insecure(), true, RETRIES),
+            new Endpoint(base, headers, RETRIES),
+            new Transport(connection.timeoutSeconds(), connection.insecure(), true),
             capture,
             sleeper);
   }
