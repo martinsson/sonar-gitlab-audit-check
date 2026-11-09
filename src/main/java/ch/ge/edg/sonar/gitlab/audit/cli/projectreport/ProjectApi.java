@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.enc;
 import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 
+import ch.ge.edg.sonar.gitlab.audit.contributors.Contributors;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import java.time.LocalDateTime;
@@ -93,6 +94,6 @@ final class ProjectApi {
   }
 
   private boolean isBot(Commit x) {
-    return Gitlab.isBot(settings.bots(), x.authorEmail(), x.authorName());
+    return Contributors.isBot(settings.bots(), x.authorEmail(), x.authorName());
   }
 }

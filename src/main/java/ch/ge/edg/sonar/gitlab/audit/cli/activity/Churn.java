@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
 
+import ch.ge.edg.sonar.gitlab.audit.contributors.Contributors;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -42,8 +43,8 @@ final class Churn {
   }
 
   private void add(JsonNode c) {
-    if (Gitlab.isBot(funnel.bots(), text(c, "author_email"), text(c, "author_name"))) return;
-    if (Gitlab.isMerge(c)) return;
+    if (Contributors.isBot(funnel.bots(), text(c, "author_email"), text(c, "author_name"))) return;
+    if (Contributors.isMerge(Api.parentIds(c))) return;
     JsonNode st = c.path("stats");
     if (st.isMissingNode()) return;
     lines += st.path("additions").asLong(0) + st.path("deletions").asLong(0);

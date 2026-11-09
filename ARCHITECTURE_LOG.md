@@ -18,7 +18,6 @@ compromises, gate changes and reviewer disagreements made along the way, for lat
 
 - Re-cut `dora` (a grab-bag: `Jsonl` belongs next to `csv`, `Times` in `text`, `RepoPath` duplicates
   `matching.Keys.linkedPaths`).
-- Contributor identity (`Gitlab.BOT_PATTERN`, `isBot`, `identity`, `isMerge`) into a domain package.
 - Sub-packages for `cli.activity` (45 classes): needs `VisibilityTest` to change from "only the command is
   public" to "only its own slice references it".
 - The five `Settings` records that bundle option groups for parameter limits; `projectreport.Sections`.
@@ -209,7 +208,7 @@ Exceptions left: none new.
 - Final CodeScene (main): line-weighted 9.84 (was 9.78), 10 files < 9.5, worst CiConfig 8.28 (untouched), RestClient 8.41 (new). Tests: mean 9.77, 7 files < 9, worst JiraExtractTest 8.03.
 - Lead mistake: during iteration 3's integration one command ran in the owner's main checkout (cwd reset after a `cd` in an earlier call): a commit 6ca8361 (my ARCHITECTURE.md error-model text + the untracked REVIEW_VS_QUALITY_LOG.md) landed on the owner's local `main`, never pushed. Found by the final architect (the doc on origin still described SourceException). Undone with `git reset --mixed ed54a40` + checkout of ARCHITECTURE.md (only my own changes; status verified clean before). Since then every command starts with an explicit `cd <worktree> &&`.
 - Final reviews (architect, clean coder): both "partly"; agreed top item = three response types with three meanings of ok(). Iteration 9a (opus): one response type, connections in clients, 401 rule once, duplicates. 9b (sonnet): rule leaks (constants invisible to ArchUnit, SharedOptionsTest too lax, TransportTest gaps, no empty-import guard), doc, cheap cleanups.
-- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), contributor identity out of Gitlab into a domain, activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags, merge the two GitLab fakes.
+- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags, merge the two GitLab fakes.
 
 ## Iteration 9b
 - Exchange column names are `Columns.named(...)` (non-constant), so javac no longer inlines them; activity CsvFiles uses them. No behaviour change.
@@ -324,3 +323,17 @@ Exceptions left: test fixtures `JiraFixtures` and `GocdFixtures` keep a private 
 - Rules noticed but not pinned (questionable): a manual pair whose key vanished is reported as stale but counted in no total (already `@SuspectedBug` in `ProjectMapperReuseSuspectedBugsTest`; `ReplayRulesTest` pins only the stale report, not the totals). The orphan test pins that a previous row whose left project left the audit is kept as-is, which the code comment calls intended.
 - `./verify --mutants` on the changed classes: 29 of 29 PIT mutants killed (Replay 24, Reuse 5), none surviving.
 - Gate config: none. Exceptions left: none.
+
+## Iteration 10f: contributor identity
+- `Gitlab.BOT_PATTERN`, `isBot`, `identity` and `isMerge` moved to one final class `contributors.Contributors`, a new
+  domain package (one class: the four rules are one concept, "who contributed"; no sub-types needed). Its tests
+  moved to `ContributorsTest`; `GitlabConventionsTest` keeps the parse, enc, reader and capture-name tests.
+- The domain takes no JsonNode: `isMerge` takes the parent ids. The one JsonNode adapter is `cli.activity.Api.parentIds`,
+  used by Churn and CommitTally (the two activity callers that hold a JsonNode); its test is `ApiTest`.
+  projectreport's `Commit` already held a list and calls `Contributors.isMerge` directly.
+- Architecture rules: `contributors` added to the Domain layer (LayersTest), to the non-vacuous layer list
+  (ImportIsNotVacuousTest) and to the domain slices that must not depend on each other (SlicesTest).
+  ARCHITECTURE.md's domain line lists it.
+Behaviour changes: none. Pure move; no `.ss` changed.
+Gate config changes: none.
+Exceptions left: `Gitlab.paged` still takes JsonNode (the pagination is a client concern, not moved).
