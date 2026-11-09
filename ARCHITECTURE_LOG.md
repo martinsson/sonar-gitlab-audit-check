@@ -16,8 +16,6 @@ compromises, gate changes and reviewer disagreements made along the way, for lat
 
 ## Not done, for a later session
 
-- Sub-packages for `cli.activity` (45 classes): needs `VisibilityTest` to change from "only the command is
-  public" to "only its own slice references it".
 - Checkstyle class-coupling shaped some splits (`PreflightReport`, split test classes): judge them as gate
   compromises.
 
@@ -204,7 +202,6 @@ Exceptions left: none new.
 - Final CodeScene (main): line-weighted 9.84 (was 9.78), 10 files < 9.5, worst CiConfig 8.28 (untouched), RestClient 8.41 (new). Tests: mean 9.77, 7 files < 9, worst JiraExtractTest 8.03.
 - Lead mistake: during iteration 3's integration one command ran in the owner's main checkout (cwd reset after a `cd` in an earlier call): a commit 6ca8361 (my ARCHITECTURE.md error-model text + the untracked REVIEW_VS_QUALITY_LOG.md) landed on the owner's local `main`, never pushed. Found by the final architect (the doc on origin still described SourceException). Undone with `git reset --mixed ed54a40` + checkout of ARCHITECTURE.md (only my own changes; status verified clean before). Since then every command starts with an explicit `cd <worktree> &&`.
 - Final reviews (architect, clean coder): both "partly"; agreed top item = three response types with three meanings of ok(). Iteration 9a (opus): one response type, connections in clients, 401 rule once, duplicates. 9b (sonnet): rule leaks (constants invisible to ArchUnit, SharedOptionsTest too lax, TransportTest gaps, no empty-import guard), doc, cheap cleanups.
-- Not planned (recorded for later): activity sub-packages (needs VisibilityTest → "only own slice references it").
 
 ## Iteration 9b
 - Exchange column names are `Columns.named(...)` (non-constant), so javac no longer inlines them; activity CsvFiles uses them. No behaviour change.
@@ -425,3 +422,63 @@ Harness: rebasing onto origin/main (#38, #39) conflicted in `RestClient` retry c
 Resolved by keeping upstream's block and renaming `settings` to `endpoint`. A second rebase onto #42
 conflicted in `GitLabProjectReport` and `ProjectApi` (BOT_PATTERN and isBot moved to `Contributors`):
 resolved with `Contributors.*`. The log conflicted too: main's file kept, this section appended at the end.
+
+## Iteration 10h: cli.activity sub-packages
+
+Proposed layout (decided from the reference graph of the 44 classes before any move). Arrows read "uses".
+
+| Package | Classes | Uses |
+|---|---|---|
+| `cli.activity` (root) | GitlabActivityAudit (@Command), ActivityAudit (+ActivityOptions), FunnelStages, DeepPass, DeepReport | every package below |
+| `cli.activity.model` | GitlabProject, AuditedProject, Fate, CommitMeasure, Funnel, FunnelOptions, FunnelResult, Assessed, Practices, CiFacts, Api, CellFormat | domain, infrastructure only |
+| `cli.activity.inventory` | Inventory, ScopeOptions | model |
+| `cli.activity.commits` | CommitPager, CommitTally, Churn, CommitActivity, GraphqlDates, RecencyGate | model |
+| `cli.activity.selection` | ActivityFloor, Selection | model, commits |
+| `cli.activity.preflight` | Preflight, PreflightReport | model, report (ProbeVerdict, Screen) |
+| `cli.activity.practices` | PracticeProbes, CiConfig, SonarKeys, SonarProbe, SonarCache, Pom, CodeReviewProbe, Pipelines, Delivery | model, commits, preflight (Preflight.Instance) |
+| `cli.activity.report` | Screen, ProbeVerdict, OutputOptions, CsvFiles, FunnelReport, Summary | model, inventory, commits, selection, preflight |
+
+Acyclic order, bottom up: model, then inventory and commits, then selection, then preflight, then practices, then report, then the root. The root is not used by any sub-package, so it stays outside the cycle rule.
+
+Choices that follow from the graph:
+- The shared vocabulary goes to `model`: every stage reads `GitlabProject`, `AuditedProject`, `Fate`, `Funnel` and `Practices`, and `Practices` holds `CiFacts`, so `CiFacts` goes too. `Api` and `CellFormat` are the JSON and value helpers every stage uses.
+- `DeepReport` stays in the root with `DeepPass`. It prints practices (`CiConfig`, `Pipelines`), so in `report` it would close a cycle report -> practices -> preflight -> report.
+- `ProbeVerdict` goes to `report`, next to `Screen`, whose `line` takes it. `preflight` uses `report`, never the reverse.
+- `ScopeOptions` sits with its only consumer `Inventory`; `OutputOptions` with `Summary`, which reads its `Outputs`; `FunnelOptions` with `Funnel`, which holds it.
+- `Api.commitPage` takes a `GitlabProject`, while `GitlabProject.of` calls `Api.text`: a cycle inside `model`. `commitPage` moves to `CommitPager`, its only caller; `Api` keeps the JSON helpers.
+- `RecencyGate` is a commit-count cut, so it goes to `commits` with the pager it calls.
+
+Known constraint for the rules: SlicesTest analyses test classes too. So a command-level test (one that drives `GitlabActivityAudit`) must stay in the root, or it would close a cycle root -> practices -> root. Only unit tests move next to their class. Helper tests that cover several classes are split.
+
+Visibility rules (VisibilityTest), as built:
+- `ONLY_THE_COMMAND_IS_USED_FROM_OUTSIDE_ITS_COMMAND` (ArchUnit): a class in `cli.<command>..` (not `cli.shared`, not the @Command class) is depended on only from inside `cli.<command>..`.
+- `aPublicClassOfACommandIsUsedFromAnotherPackageOfIt` (JUnit): a public class of a command is used by another package of that command. It is a scan of all classes, not an ArchTest, for two reasons seen while building it: a use of a nested type (`Preflight.Instance`) must count as a use of its outer class, and a compile-time constant is inlined, so ArchUnit sees no dependency for it. The old rule "a non-command class is not public" is gone: a sub-package class is public only where a sibling package names it.
+
+What changed:
+- Layout (44 classes; `cli.activity` keeps the command, `ActivityAudit` (its `ActivityOptions`), `FunnelStages`, `DeepPass`, `DeepReport`):
+  `model` (GitlabProject, AuditedProject, Fate, CommitMeasure, Funnel, FunnelOptions, FunnelResult, Assessed, Practices, CiFacts, Api, CellFormat), `inventory` (Inventory, ScopeOptions), `commits` (CommitPager, CommitTally, Churn, CommitActivity, GraphqlDates, RecencyGate), `selection` (ActivityFloor, Selection), `preflight` (Preflight, PreflightReport), `practices` (PracticeProbes, CiConfig, SonarKeys, SonarProbe, SonarCache, Pom, CodeReviewProbe, Pipelines, Delivery), `report` (Screen, ProbeVerdict, OutputOptions, CsvFiles, FunnelReport, Summary).
+  `SlicesTest.NO_PACKAGE_CYCLES` passes with no new ignore, and so do LayersTest, SlicesTest and EdgeTest unchanged.
+- Moved with `git mv`, history kept. Unit tests moved next to their class: ApiTest and FrenchLocaleTest to `model`, FunnelModelTest, PracticesCsvTest and ExchangeContractTest to `report`, GitlabActivityAuditModelTest to `practices` (no `.ss` involved). `GitlabActivityAuditHelpersTest` covered five classes, so it was split: `model/CellFormatTest` (its history), `model/ApiTest` (text), `commits/CommitTallyTest` (revert pattern), `selection/ActivityFloorTest`, `report/ProbeVerdictTest`, `report/ScreenTest`. Command-level tests (they drive `GitlabActivityAudit` through the fake) stay in the root: a sub-package test that reaches the root would close root -> practices -> root, because SlicesTest counts test classes too.
+- Two code moves, both for the cycle or the rule, same expressions:
+  1. `Api.commitPage` becomes `CommitPager.commitPage` (private). It took a `GitlabProject`, and `GitlabProject.of` calls `Api.text`, so `model` would have looped.
+  2. The route names `CiConfig.LINT` and `CiConfig.FALLBACK` move to `Practices.Sonar`, next to `CACHE`, the other value of `Sonar.ciRoute`. The rule could not see that `DeepReport` uses them (inlined constants), so `CiConfig` looked unused; the names also belong with the record that holds the route.
+- Visibility: javac drove the members, the rule drove the classes. Top-level types of the sub-packages were made public, then reverted where no other package names them: `commits.CommitPager`, `commits.CommitTally`, `practices.SonarProbe`, `CodeReviewProbe`, `Delivery`, `Pipelines`, `CiConfig`, `SonarKeys`, `Pom`. Members were checked by name with a grep over the other packages; the unused ones (picocli option fields in ScopeOptions and OutputOptions, `SonarCache.keyFor`/`loadedCount`, `Screen.RESET`/`GREEN`, `FunnelOptions.botPattern`) went back to package-private. `GitlabProject.Dates` stays public: its accessors are used across packages.
+- ARCHITECTURE.md: the visibility sentence describes a command as its package plus sub-packages; the `cli.activity` row lists the stage packages.
+
+Behaviour changes: none. Snapshots: no `.ss` changed.
+Gate config changes: none. The architecture test `VisibilityTest` changed (its rule is the one the brief names); no gate, checkstyle, PMD or pom config.
+Exceptions left: PIT not run (no logic changed). Constants used across sub-packages stay invisible to rule 1 (inlined), as they are to ArchUnit everywhere; javac still refuses an access the package does not allow.
+
+Proof that the rules bite (temporary breaks, reverted):
+- Rule 2: `public final class SonarKeys` (used only in `practices`): `aPublicClassOfACommandIsUsedFromAnotherPackageOfIt` failed, listing `...practices.SonarKeys`.
+- Rule 1: a temporary class in `cli.shared` referring to `cli.activity.model.Api.class`: `ONLY_THE_COMMAND_IS_USED_FROM_OUTSIDE_ITS_COMMAND` failed with "TmpProbe uses ...Api, which is not the @Command class of ...cli.activity".
+
+Harness:
+- Spotless (`format`) runs inside `test-compile` before javac: the first compile stopped on format violations in the moved files. Fixed with `spotless:apply`, the formatter `./verify --fix` uses. The message lists each file with its diff; clear, but it comes before any javac error.
+- Checkstyle `AnonInnerLength`: "Anonymous inner class length is 22 lines (max allowed is 20)" on the first VisibilityTest. Clear; fixed with named nested condition classes.
+- javac "is not public in ...; cannot be accessed from outside package": clear, and it drove the visibility edits. "cannot find symbol" on static imports took three rounds: my move script dropped same-package static imports (`Api.text`, `SonarKeys.firstMatch`, `Screen.DIM`, `ActivityFixtures.*` in tests); restored from the `git grep` of the baseline. The cause was my script, not a gate.
+- ArchUnit `SlicesTest.NO_PACKAGE_CYCLES`: passed first time with the layout above.
+- The first rule-2 version (ArchTest) listed 9 classes, including `CiConfig` (inlined constants) and `Preflight` (nested use): a rule false positive, not a gate problem. Replaced by the scan test; its failure message lists the names.
+- `./verify`: passed (format, Checkstyle, Error Prone, NullAway, PMD, tests, coverage, ratchet, ShellCheck).
+- Sandbox: some shell commands were refused because they "name git in a form too complex to verify" (for loops, heredocs). Not a gate; worked around with single commands and scripts in the scratchpad.
+- Verify runs: 3 of 8. One before the rebase, one after a clean build, one on the rebased tree (all green; the last is the one that counts).
