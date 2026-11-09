@@ -16,8 +16,7 @@ compromises, gate changes and reviewer disagreements made along the way, for lat
 
 ## Not done, for a later session
 
-- Checkstyle class-coupling shaped some splits (`PreflightReport`, split test classes): judge them as gate
-  compromises.
+- Nothing left.
 
 
 ## Timeline
@@ -482,3 +481,26 @@ Harness:
 - `./verify`: passed (format, Checkstyle, Error Prone, NullAway, PMD, tests, coverage, ratchet, ShellCheck).
 - Sandbox: some shell commands were refused because they "name git in a form too complex to verify" (for loops, heredocs). Not a gate; worked around with single commands and scripts in the scratchpad.
 - Verify runs: 3 of 8. One before the rebase, one after a clean build, one on the rebased tree (all green; the last is the one that counts).
+
+## Iteration 10i: gate compromises
+
+Judged each split that Checkstyle's limits shaped. Verdict per candidate, and the reason:
+
+| Candidate | Verdict | Why |
+|---|---|---|
+| `cli.activity.preflight` Preflight / PreflightReport | keep | Preflight computes a `Result` (probes, advice, instance); PreflightReport prints it. That is the stage rule of ARCHITECTURE.md ("each stage computes, then a printer prints"), not only a limit. The 7a reason is weak: ActivityAudit has one `new` of it, and merging would still be one `new`. |
+| Test split FunnelModelTest / PracticesCsvTest | undo, by regrouping | The two CSV-row tests were apart only because of the coupling limit, and the inventory row sat with the GitlabProject tests. Now CsvFilesTest holds both row tests (`7c36a32`, rename kept with history); FunnelModelTest keeps GitlabProject and AuditedProject. Merging all three into one class would have 10 distinct `new` types (GitlabProject, Dates, Repository, Counted, Volume, Assessed, Practices, Deployment, Sonar, CiFacts), over the limit of 7. CsvFilesTest has 5. No gate change. |
+| Test split sonaraudit helpers (HelpersTest, ProjectRecordsTest, MeasureRecordsTest, PresentationTest) | keep | Split by subject: pure helpers, records' accessors, console helpers. HelpersTest is still a grab bag of small helpers, but that is not a limit effect. |
+| Test split GitlabActivityAuditHelpersTest into five (10h) | keep | One test class per class it tests. The split followed the moves to sub-packages, and each part is one subject. |
+| `cli.shared.StyleOptions` (colour + comma) | keep | The four commands that use it (Vues, CrossAudit, ProjectMapper, SonarRank) read both options together, and the activity OutputOptions groups the same two. Undoing it gives each command two mixins: more `new` and more fan-out for no gain in clarity. |
+| `cli.mapper.MethodOptions` | keep | It holds the matching options and the parsing that builds the Spec (`spec`, `method`, `nameSpec`), which ProjectMapperSpecTest drives directly. Only ProjectMapper uses it, but undoing it moves the spec building into the command. |
+| `cli.mapper.MapperReport` | keep | The console printer of ProjectMapper, the same shape as CrossReport, SonarToGitlabReport and FunnelReport. Undoing it puts the prints and their colour constants into `call()`. |
+| `cli.cross.WidePass` | keep | Names the wide pass and carries the options it needs. Without it, CrossAudit's helpers would take the five option values plus the pass inputs, over ParameterNumber. A parameter object that names a concept, as ARCHITECTURE.md allows. |
+| `matching.similarity.NameMatcher.Side` (5c) | keep | Side is a document list with the blocking index that points into it: they always travel together. `ranked` would have fit in five parameters, so the record is not forced by the limit, but it is the pair the method works on. |
+| `projectreport.Measured` / `Sections` (5c, 10g) | keep | As decided in 10g: Measured is what Findings reads; Sections runs the three measuring sections. Folding Sections into ProjectReport reaches ClassDataAbstractionCoupling 8. |
+| `matching.Replay` enum instead of sealed variants (10d) | keep | All six steps carry the same payload (the match and an optional stale reason), so the step is a tag. Sealed variants would be six records with one shape. The CDAC reason is real, and this reason stands without it too. Trade-off, not changed: `stale` is nullable, while ARCHITECTURE.md says absence is a type. |
+
+Gate changes: none. No checkstyle, pom or ratchet config changed, and no suppression was added. No candidate needed a limit raised or a test exclusion to stay compliant.
+Behaviour changes: none. No `.ss` file changed.
+Exceptions left: the nullable `stale` in Replay (above). The HelpersTest grab bag (above).
+Checks: no undo of a production split was measured in Checkstyle. The keep verdicts rest on the reasons in the table, not on a measured CDAC count, except for the test regrouping, where the 10 and 5 counts are the `new` types in the fixtures.
