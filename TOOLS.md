@@ -65,9 +65,16 @@ about a minute. On Windows, `.\verify` in PowerShell or cmd runs `verify.cmd`,
 which hands the bash script to Git Bash.
 
 Every night, and on demand (`gh workflow run verify`), **`verify-full`** runs
-`./verify --full` on `main`: Docker integration tests, mutation testing and
-copy-paste detection, about 15 minutes. It does not block anything. A red run
-is fixed by the next pull request.
+`./verify --full` on `main`: Docker integration tests and copy-paste
+detection. It does not block anything. A red run is fixed by the next pull
+request.
+
+**Mutation testing (PIT) is not in CI**: it used up the CI budget. Run it
+locally, beside your work: `./verify --mutants` mutates only the production
+classes changed since `origin/main` (committed or not) and takes under a minute
+for a small change. It never fails and blocks nothing; surviving mutants are in
+`target/pit-reports/index.html`. The whole code base:
+`./mvnw -Ppit test-compile pitest:mutationCoverage`.
 
 It cannot run on each merge: an auto-merge is made with the workflow token, and
 GitHub starts no workflow for that token's events.

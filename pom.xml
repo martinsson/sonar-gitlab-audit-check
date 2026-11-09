@@ -378,7 +378,7 @@
   </build>
 
   <profiles>
-    <!-- Activated by the full flag of the verify script (mvn -Pfull): slow gates (integration tests, mutation testing, copy-paste detection) -->
+    <!-- Activated by the full flag of the verify script (mvn -Pfull): slow gates (integration tests, copy-paste detection). Mutation testing is the separate pit profile. -->
     <profile>
       <id>full</id>
       <build>
@@ -417,7 +417,20 @@
               </execution>
             </executions>
           </plugin>
+        </plugins>
+      </build>
+    </profile>
 
+    <!-- Mutation testing, run locally and never in CI: mvn -Ppit test-compile pitest:mutationCoverage
+         (all classes), or the mutants option of ./verify (only the classes changed since origin/main). -->
+    <profile>
+      <id>pit</id>
+      <properties>
+        <pit.classes>ch.ge.edg.sonar.gitlab.audit.*</pit.classes>
+        <pit.threads>4</pit.threads>
+      </properties>
+      <build>
+        <plugins>
           <plugin>
             <groupId>org.pitest</groupId>
             <artifactId>pitest-maven</artifactId>
@@ -430,9 +443,7 @@
               </dependency>
             </dependencies>
             <configuration>
-              <targetClasses>
-                <param>ch.ge.edg.sonar.gitlab.audit.*</param>
-              </targetClasses>
+              <targetClasses>${pit.classes}</targetClasses>
               <targetTests>
                 <param>ch.ge.edg.sonar.gitlab.audit.*</param>
               </targetTests>
@@ -443,21 +454,13 @@
                 <param>ch.ge.edg.sonar.gitlab.audit.architecture.*</param>
               </excludedTestClasses>
               <mutationThreshold>${mutation.score.minimum}</mutationThreshold>
+              <threads>${pit.threads}</threads>
               <timestampedReports>false</timestampedReports>
               <outputFormats>
                 <outputFormat>HTML</outputFormat>
                 <outputFormat>XML</outputFormat>
               </outputFormats>
             </configuration>
-            <executions>
-              <execution>
-                <id>mutation-testing</id>
-                <phase>verify</phase>
-                <goals>
-                  <goal>mutationCoverage</goal>
-                </goals>
-              </execution>
-            </executions>
           </plugin>
         </plugins>
       </build>

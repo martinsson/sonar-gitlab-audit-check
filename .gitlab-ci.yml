@@ -47,7 +47,7 @@ verify-full:
   script: ./verify --full
   artifacts:
     when: on_failure
-    paths: [target/verify.log, target/pit-reports/, target/site/jacoco/]
+    paths: [target/verify.log, target/site/jacoco/]
 
 # Sets each merge request to merge itself when its pipeline succeeds: no human review, the gates
 # are the review. Needs a project access token (Developer, scope api) in GITLAB_AUTOMERGE_TOKEN;
