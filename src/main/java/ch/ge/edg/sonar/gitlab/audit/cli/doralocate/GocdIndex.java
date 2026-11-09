@@ -12,6 +12,9 @@ import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.PrintStream;
 import java.time.ZoneId;
@@ -33,7 +36,10 @@ import java.util.Set;
  */
 record GocdIndex(String builtAt, Map<String, Pipeline> pipelines) {
 
-  static final ObjectMapper JSON = new ObjectMapper();
+  /** Le fichier d'index, lu et écrit en JSON. */
+  static final ObjectReader READER = new ObjectMapper().reader();
+
+  static final ObjectWriter PRETTY = new ObjectMapper().writerWithDefaultPrettyPrinter();
 
   /** Les runs lus par pipeline : assez pour voir ses matériaux, peu pour un index de tout GoCD. */
   static final int RUNS = 10;
@@ -109,7 +115,7 @@ record GocdIndex(String builtAt, Map<String, Pipeline> pipelines) {
 
   /** Le format du fichier : celui des scripts JBang d'origine, pour relire un index existant. */
   ObjectNode toJson() {
-    ObjectNode root = JSON.createObjectNode();
+    ObjectNode root = JsonNodeFactory.instance.objectNode();
     root.put("built_at", builtAt);
     ObjectNode all = root.putObject("pipelines");
     pipelines.forEach(

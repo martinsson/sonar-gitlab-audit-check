@@ -29,7 +29,8 @@ final class IndexFile {
   GocdIndex loadOrBuild(GocdApi gocd, boolean refresh) throws Stop {
     Instant now = ctx.clock().instant();
     try {
-      if (!refresh && fresh(now)) return GocdIndex.fromJson(GocdIndex.JSON.readTree(file.toFile()));
+      if (!refresh && fresh(now))
+        return GocdIndex.fromJson(GocdIndex.READER.readTree(Files.readAllBytes(file)));
     } catch (IOException e) {
       ctx.err().println("Index illisible, reconstruit : " + e.getMessage());
     }
@@ -37,7 +38,7 @@ final class IndexFile {
     try {
       Path parent = file.toAbsolutePath().getParent();
       if (parent != null) Files.createDirectories(parent);
-      GocdIndex.JSON.writerWithDefaultPrettyPrinter().writeValue(file.toFile(), index.toJson());
+      GocdIndex.PRETTY.writeValue(file.toFile(), index.toJson());
     } catch (IOException e) {
       ctx.err().println("Index non écrit : " + e.getMessage());
     }

@@ -8,6 +8,8 @@ import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.OffsetDateTime;
@@ -37,8 +39,18 @@ import org.jspecify.annotations.Nullable;
  */
 public final class Gitlab {
 
-  public static final ObjectMapper MAPPER =
-      new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  /** Les réponses GitLab : un champ inconnu est ignoré. */
+  public static final ObjectReader READER = mapper().reader();
+
+  /** Les requêtes GitLab, en JSON compact. */
+  public static final ObjectWriter WRITER = mapper().writer();
+
+  /** Le JSON lisible, pour un fichier de cache. */
+  public static final ObjectWriter PRETTY = mapper().writerWithDefaultPrettyPrinter();
+
+  private static ObjectMapper mapper() {
+    return new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  }
 
   // ----------------------------------------------------------------------
   // Pages
@@ -104,7 +116,7 @@ public final class Gitlab {
   public RestResponse graphql(String q) {
     String payload;
     try {
-      payload = MAPPER.writeValueAsString(Map.of("query", q));
+      payload = WRITER.writeValueAsString(Map.of("query", q));
     } catch (IOException e) {
       return RestResponse.unreachable(e.toString());
     }

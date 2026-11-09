@@ -25,7 +25,6 @@ compromises, gate changes and reviewer disagreements made along the way, for lat
 - `matching.Replay` returns an outcome per row (today it bumps counters), and named rule tests for
   `matching` next to its snapshots.
 - One GitLab fake for the tests (`GitlabAuditFake`, `GitLabProjectReportFakeGitlab`).
-- `Gitlab.MAPPER` / `Sonar.MAPPER`: `ObjectReader`/`ObjectWriter` constants instead of a rule exemption.
 - Checkstyle class-coupling shaped some splits (`PreflightReport`, split test classes): judge them as gate
   compromises.
 
@@ -212,7 +211,7 @@ Exceptions left: none new.
 - Final CodeScene (main): line-weighted 9.84 (was 9.78), 10 files < 9.5, worst CiConfig 8.28 (untouched), RestClient 8.41 (new). Tests: mean 9.77, 7 files < 9, worst JiraExtractTest 8.03.
 - Lead mistake: during iteration 3's integration one command ran in the owner's main checkout (cwd reset after a `cd` in an earlier call): a commit 6ca8361 (my ARCHITECTURE.md error-model text + the untracked REVIEW_VS_QUALITY_LOG.md) landed on the owner's local `main`, never pushed. Found by the final architect (the doc on origin still described SourceException). Undone with `git reset --mixed ed54a40` + checkout of ARCHITECTURE.md (only my own changes; status verified clean before). Since then every command starts with an explicit `cd <worktree> &&`.
 - Final reviews (architect, clean coder): both "partly"; agreed top item = three response types with three meanings of ok(). Iteration 9a (opus): one response type, connections in clients, 401 rule once, duplicates. 9b (sonnet): rule leaks (constants invisible to ArchUnit, SharedOptionsTest too lax, TransportTest gaps, no empty-import guard), doc, cheap cleanups.
-- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), contributor identity out of Gitlab into a domain, activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags, Replay returning outcomes + matching rule tests, merge the two GitLab fakes, ObjectMapper statics → ObjectReader/Writer constants.
+- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), contributor identity out of Gitlab into a domain, activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags, Replay returning outcomes + matching rule tests, merge the two GitLab fakes.
 
 ## Iteration 9b
 - Exchange column names are `Columns.named(...)` (non-constant), so javac no longer inlines them; activity CsvFiles uses them. No behaviour change.
@@ -298,3 +297,22 @@ the smells below are the ones its rules name, removed by reading each method.
 Not changed: `RestClient.send` (4 parameters, within Checkstyle's limit of 5).
 
 Gate config: none changed. No snapshot changed. No suppression added. Exceptions left: none.
+## Iteration 10a: ObjectReader/ObjectWriter constants
+
+What changed:
+- No static `ObjectMapper` is left in src/main. Each owner keeps `ObjectReader`/`ObjectWriter`
+  constants built once from a mapper with the same configuration as before: `Gitlab.READER`,
+  `WRITER` and `PRETTY` (FAIL_ON_UNKNOWN_PROPERTIES off), `RestResponse.READER`, `Jsonl.WRITER`,
+  `ReplayDump.READER`, `GocdIndex.READER`/`PRETTY`, `SnapshotFile.WRITER`/`READER`.
+- `createObjectNode()` / `createArrayNode()` are `JsonNodeFactory.instance`, the factory the mapper uses.
+- `Sonar.MAPPER` is gone: nothing in main read it. Its only user was the test fake
+  `SonarAuditCheckFake`, which now has its own writer.
+- Callers outside the owner use the reader or writer: MergeRequest, SonarCache, IndexFile, the tests.
+Behaviour changes: none intended. No `.ss` file changed.
+- `SnapshotFile` replaces `INDENT_OUTPUT` with `writerWithDefaultPrettyPrinter()`. Checked in jshell:
+  same bytes on a sample with an Instant, empty array and object, and nesting. No test pins that output.
+Gate change: `EdgeTest.STATIC_FIELDS_ARE_CONSTANTS` drops `ObjectMapper` from the immutable types and
+adds `ObjectWriter` (immutable by contract, like `ObjectReader`). Javadoc updated. Checked: a static
+`ObjectMapper` put in `dora/Jsonl` fails the rule ("Jsonl.BAD is not a constant"); reverted.
+Exceptions left: test fixtures `JiraFixtures` and `GocdFixtures` keep a private static `ObjectMapper`
+(test code, outside the rule). `Report` builds its mapper per call, not static.

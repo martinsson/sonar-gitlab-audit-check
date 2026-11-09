@@ -5,8 +5,8 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.fields;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.tngtech.archunit.core.domain.AccessTarget.CodeUnitAccessTarget;
 import com.tngtech.archunit.core.domain.JavaAccess;
 import com.tngtech.archunit.core.domain.JavaClass;
@@ -116,8 +116,9 @@ class EdgeTest {
    * and their boxes, String, Pattern, DateTimeFormatter, the java.time values, BigDecimal, enums,
    * records made of these, and the List / Set / Map interfaces — built with List.of, Map.of, copyOf
    * or toList(), which the rule cannot see and review keeps honest. Arrays are never constants.
-   * Jackson's ObjectMapper is allowed by name: configured once in its initialiser and only read
-   * afterwards, which Jackson documents as thread-safe.
+   * Jackson's ObjectReader and ObjectWriter are allowed by name: immutable by contract, each with*
+   * gives a new one. A static ObjectMapper is not allowed: it is mutable, so build the reader and
+   * writer from it once, in the initialiser.
    */
   @ArchTest
   static final ArchRule STATIC_FIELDS_ARE_CONSTANTS =
@@ -244,9 +245,9 @@ class EdgeTest {
           List.class.getName(),
           Set.class.getName(),
           Map.class.getName(),
-          ObjectMapper.class.getName(),
-          // Immutable by contract (each with* gives a new one), unlike ObjectMapper.
-          ObjectReader.class.getName());
+          // Immutable by contract: each with* gives a new one. Built once from a mapper.
+          ObjectReader.class.getName(),
+          ObjectWriter.class.getName());
 
   private static ArchCondition<JavaField> beAConstant() {
     return new ArchCondition<>("be final and of an immutable type") {

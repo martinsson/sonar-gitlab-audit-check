@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.dora;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -14,7 +15,7 @@ import java.nio.file.Path;
  */
 public final class Jsonl implements AutoCloseable {
 
-  private static final ObjectMapper JSON = new ObjectMapper();
+  private static final ObjectWriter WRITER = new ObjectMapper().writer();
 
   private final BufferedWriter out;
   private int rows;
@@ -24,7 +25,7 @@ public final class Jsonl implements AutoCloseable {
   }
 
   public void write(JsonNode node) throws IOException {
-    out.write(JSON.writeValueAsString(node));
+    out.write(WRITER.writeValueAsString(node));
     out.write('\n');
     rows++;
   }

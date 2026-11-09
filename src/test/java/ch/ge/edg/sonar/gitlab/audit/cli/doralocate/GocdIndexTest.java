@@ -14,7 +14,7 @@ class GocdIndexTest {
 
   static JsonNode json(String s) {
     try {
-      return GocdIndex.JSON.readTree(s);
+      return GocdIndex.READER.readTree(s);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

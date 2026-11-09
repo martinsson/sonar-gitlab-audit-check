@@ -8,8 +8,6 @@ import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Retries;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -35,9 +33,6 @@ import org.jspecify.annotations.Nullable;
  * Capture}).
  */
 public final class Sonar {
-
-  public static final ObjectMapper MAPPER =
-      new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
   /** Appels concurrents par défaut : assez pour que l'attente se recouvre. */
   public static final int DEFAULT_CONCURRENCY = 8;

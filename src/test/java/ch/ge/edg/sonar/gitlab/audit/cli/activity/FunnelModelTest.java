@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 class FunnelModelTest {
 
   private static GitlabProject project(String json) throws Exception {
-    return GitlabProject.of(Gitlab.MAPPER.readTree(json));
+    return GitlabProject.of(Gitlab.READER.readTree(json));
   }
 
   private static AuditedProject audited(String json) throws Exception {

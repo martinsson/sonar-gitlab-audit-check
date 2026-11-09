@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -71,7 +72,7 @@ final class SonarCache {
     Path f = file;
     if (f == null || !Files.exists(f)) return;
     try {
-      JsonNode root = Gitlab.MAPPER.readTree(Files.readString(f, StandardCharsets.UTF_8));
+      JsonNode root = Gitlab.READER.readTree(Files.readString(f, StandardCharsets.UTF_8));
       if (root.path("version").asInt(0) != VERSION) return;
       root.path("entries")
           .fields()
@@ -112,17 +113,14 @@ final class SonarCache {
   void save() {
     Path f = file;
     if (f == null || entries.isEmpty()) return;
-    var root = Gitlab.MAPPER.createObjectNode();
+    var root = JsonNodeFactory.instance.objectNode();
     root.put("version", VERSION);
     var es = root.putObject("entries");
     entries.forEach((k, facts) -> write(es.putObject(k), facts));
     try {
       Path dir = f.toAbsolutePath().getParent();
       if (dir != null) Files.createDirectories(dir);
-      Files.writeString(
-          f,
-          Gitlab.MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(root),
-          StandardCharsets.UTF_8);
+      Files.writeString(f, Gitlab.PRETTY.writeValueAsString(root), StandardCharsets.UTF_8);
     } catch (IOException e) {
       err.println("  (cache non écrit : " + e.getMessage() + ")");
     }

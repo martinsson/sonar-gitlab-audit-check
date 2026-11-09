@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 class PracticesCsvTest {
 
   private static AuditedProject audited(String json) throws Exception {
-    return AuditedProject.entering(GitlabProject.of(Gitlab.MAPPER.readTree(json)));
+    return AuditedProject.entering(GitlabProject.of(Gitlab.READER.readTree(json)));
   }
 
   private static <T> String row(List<Column<T>> columns, T row) {

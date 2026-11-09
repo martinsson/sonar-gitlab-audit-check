@@ -54,7 +54,7 @@ class GitlabActivityAuditHelpersTest {
 
   @Test
   void textReadsAFieldAsTextOrEmpty() throws Exception {
-    var n = Gitlab.MAPPER.readTree("{\"a\":\"x\",\"b\":3,\"c\":null}");
+    var n = Gitlab.READER.readTree("{\"a\":\"x\",\"b\":3,\"c\":null}");
     assertThat(Api.text(n, "a")).isEqualTo("x");
     assertThat(Api.text(n, "b")).isEqualTo("3");
     assertThat(Api.text(n, "c")).isEmpty();

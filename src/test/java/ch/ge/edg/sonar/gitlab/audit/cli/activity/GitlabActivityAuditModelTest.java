@@ -14,7 +14,7 @@ class GitlabActivityAuditModelTest {
   @TempDir Path tmp;
 
   private static AuditedProject audited(String json) throws Exception {
-    return AuditedProject.entering(GitlabProject.of(Gitlab.MAPPER.readTree(json)));
+    return AuditedProject.entering(GitlabProject.of(Gitlab.READER.readTree(json)));
   }
 
   @Test
