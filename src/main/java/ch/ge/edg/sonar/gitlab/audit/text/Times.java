@@ -1,7 +1,5 @@
-package ch.ge.edg.sonar.gitlab.audit.dora;
+package ch.ge.edg.sonar.gitlab.audit.text;
 
-import ch.ge.edg.sonar.gitlab.audit.text.Text;
-import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
@@ -11,7 +9,10 @@ import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import org.jspecify.annotations.Nullable;
 
-/** Les dates telles que Jira et GoCD les écrivent, et telles qu'Excel les lit. */
+/**
+ * Les dates telles que Jira et GoCD les écrivent, et telles qu'Excel les lit. Les nœuds JSON se
+ * lisent chez le client qui les écrit (GitLab, Jira), pas ici : ce paquet n'a pas de JSON.
+ */
 public final class Times {
 
   private static final DateTimeFormatter OUT =
@@ -21,13 +22,7 @@ public final class Times {
 
   private Times() {}
 
-  /** Epoch en millisecondes (GoCD), ISO-8601, ou le format Jira 2025-03-04T10:15:30.000+0100. */
-  public static @Nullable Instant parse(@Nullable JsonNode n) {
-    if (n == null || n.isMissingNode() || n.isNull()) return null;
-    if (n.isNumber()) return Instant.ofEpochMilli(n.asLong());
-    return parse(n.asText(""));
-  }
-
+  /** ISO-8601 avec décalage, ou le format Jira 2025-03-04T10:15:30.000+0100 ; sinon null. */
   public static @Nullable Instant parse(@Nullable String s) {
     if (s == null || s.isBlank()) return null;
     Instant iso = parseWith(s, null);

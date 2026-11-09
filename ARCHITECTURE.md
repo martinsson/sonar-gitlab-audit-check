@@ -29,6 +29,12 @@ groups to `cli.shared`, logic to a domain package. Two commands may share one do
 really work on the same concepts. ProjectMapper (the generic matcher) and CrossAudit (the Sonar ↔
 GitLab preset plus the wide pass) share `matching`.
 
+The GitLab path a git URL designates (`gitlab.RepoPath`) is one function, in the clients layer:
+`matching` (`Keys.linkedPaths`) and the dora commands both read URLs through it, so only the GitLab
+client knows GitLab's URL forms. What is not DORA lives in infrastructure: `text.Times` (dates), `csv.Jsonl` (JSON lines). Reading a
+date out of a JSON node is the client's job, next to the response (`Gitlab.instant`,
+`JiraApi.instant`).
+
 ## Commands
 
 | Package | Root script | Holds |

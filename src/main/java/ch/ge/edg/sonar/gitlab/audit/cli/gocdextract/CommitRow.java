@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.DeployedCommit;
-import ch.ge.edg.sonar.gitlab.audit.dora.Times;
+import ch.ge.edg.sonar.gitlab.audit.text.Times;
 import java.time.ZoneId;
 import java.util.List;
 

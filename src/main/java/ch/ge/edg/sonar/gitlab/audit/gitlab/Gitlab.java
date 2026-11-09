@@ -4,6 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
 import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
+import ch.ge.edg.sonar.gitlab.audit.text.Times;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -48,6 +50,16 @@ public final class Gitlab {
 
   private static ObjectMapper mapper() {
     return new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  }
+
+  /**
+   * Une date d'une réponse GitLab : ISO-8601 avec décalage ; absente ou illisible, null. Un nombre
+   * y est lu comme un epoch en millisecondes, comme il l'a toujours été.
+   */
+  public static @Nullable Instant instant(@Nullable JsonNode n) {
+    if (n == null || n.isMissingNode() || n.isNull()) return null;
+    if (n.isNumber()) return Instant.ofEpochMilli(n.asLong());
+    return Times.parse(n.asText(""));
   }
 
   // ----------------------------------------------------------------------

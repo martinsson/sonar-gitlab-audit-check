@@ -1,4 +1,4 @@
-package ch.ge.edg.sonar.gitlab.audit.dora;
+package ch.ge.edg.sonar.gitlab.audit.csv;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

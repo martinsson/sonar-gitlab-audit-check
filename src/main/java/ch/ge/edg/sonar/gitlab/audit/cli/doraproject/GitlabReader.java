@@ -1,8 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.doraproject;
 
-import ch.ge.edg.sonar.gitlab.audit.dora.RepoPath;
-import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.gitlab.RepoPath;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -44,7 +43,7 @@ final class GitlabReader {
 
   /** Le projet désigné par « groupe/projet », son URL ou son id ; introuvable, rien n'a de sens. */
   Project project(String ref) throws Stop {
-    String path = "projects/" + Gitlab.enc(RepoPath.keepCase(ref));
+    String path = "projects/" + Gitlab.enc(RepoPath.of(ref));
     RestResponse r = Stop.unlessRefused(gitlab.get(path, Map.of()), gitlab.base);
     if (!r.ok()) throw new Stop("/api/v4/" + path + " : " + r.statusLine());
     JsonNode p = r.tree();
@@ -68,7 +67,7 @@ final class GitlabReader {
             "sort", "desc");
     List<JsonNode> merged = new ArrayList<>();
     for (JsonNode mr : gitlab.paged("projects/" + p.id() + "/merge_requests", params)) {
-      Instant at = Times.parse(mr.path("merged_at"));
+      Instant at = Gitlab.instant(mr.path("merged_at"));
       if (at != null && !at.isBefore(from)) merged.add(mr);
     }
     merged.sort(
@@ -95,7 +94,7 @@ final class GitlabReader {
     Instant first = null;
     for (JsonNode c : commits) {
       shas.add(c.path("id").asText());
-      Instant at = Times.parse(c.path("authored_date"));
+      Instant at = Gitlab.instant(c.path("authored_date"));
       if (at != null && (first == null || at.isBefore(first))) first = at;
     }
     for (String field : List.of("merge_commit_sha", "squash_commit_sha", "sha")) {
@@ -106,8 +105,8 @@ final class GitlabReader {
         iid,
         mr.path("title").asText(),
         mr.path("author").path("username").asText(),
-        required(Times.parse(mr.path("created_at"))),
-        required(Times.parse(mr.path("merged_at"))),
+        required(Gitlab.instant(mr.path("created_at"))),
+        required(Gitlab.instant(mr.path("merged_at"))),
         first,
         List.copyOf(shas),
         mr.path("web_url").asText());

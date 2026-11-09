@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.doralocate;
 
-import ch.ge.edg.sonar.gitlab.audit.dora.RepoPath;
+import ch.ge.edg.sonar.gitlab.audit.gitlab.RepoPath;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;

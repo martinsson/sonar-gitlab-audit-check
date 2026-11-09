@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
-import ch.ge.edg.sonar.gitlab.audit.dora.Jsonl;
+import ch.ge.edg.sonar.gitlab.audit.csv.Jsonl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.opencsv.CSVWriter;
 import java.io.IOException;

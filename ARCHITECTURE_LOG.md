@@ -16,8 +16,6 @@ compromises, gate changes and reviewer disagreements made along the way, for lat
 
 ## Not done, for a later session
 
-- Re-cut `dora` (a grab-bag: `Jsonl` belongs next to `csv`, `Times` in `text`, `RepoPath` duplicates
-  `matching.Keys.linkedPaths`).
 - Sub-packages for `cli.activity` (45 classes): needs `VisibilityTest` to change from "only the command is
   public" to "only its own slice references it".
 - The five `Settings` records that bundle option groups for parameter limits; `projectreport.Sections`.
@@ -207,7 +205,7 @@ Exceptions left: none new.
 - Final CodeScene (main): line-weighted 9.84 (was 9.78), 10 files < 9.5, worst CiConfig 8.28 (untouched), RestClient 8.41 (new). Tests: mean 9.77, 7 files < 9, worst JiraExtractTest 8.03.
 - Lead mistake: during iteration 3's integration one command ran in the owner's main checkout (cwd reset after a `cd` in an earlier call): a commit 6ca8361 (my ARCHITECTURE.md error-model text + the untracked REVIEW_VS_QUALITY_LOG.md) landed on the owner's local `main`, never pushed. Found by the final architect (the doc on origin still described SourceException). Undone with `git reset --mixed ed54a40` + checkout of ARCHITECTURE.md (only my own changes; status verified clean before). Since then every command starts with an explicit `cd <worktree> &&`.
 - Final reviews (architect, clean coder): both "partly"; agreed top item = three response types with three meanings of ok(). Iteration 9a (opus): one response type, connections in clients, 401 rule once, duplicates. 9b (sonnet): rule leaks (constants invisible to ArchUnit, SharedOptionsTest too lax, TransportTest gaps, no empty-import guard), doc, cheap cleanups.
-- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags.
+- Not planned (recorded for later): activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags.
 
 ## Iteration 9b
 - Exchange column names are `Columns.named(...)` (non-constant), so javac no longer inlines them; activity CsvFiles uses them. No behaviour change.
@@ -346,3 +344,57 @@ Behaviour changes: none intended. Two observable details of the fake, neither re
 Snapshots: no .ss changed.
 Gate config: none.
 Exceptions left: none.
+
+## Iteration 10b: dora re-cut
+
+What changed:
+- `dora.Jsonl` → `csv.Jsonl` (test moved). JSON lines are written next to the CSV writer.
+- `dora.Times` → `text.Times` (test moved). Its `JsonNode` overload is gone: `text` stays free of JSON.
+  Reading a date out of a node is the client's job, next to the response: `Gitlab.instant(JsonNode)`
+  (merge requests, commits) and `JiraApi.instant(JsonNode)` (issues, histories). Both keep the old
+  logic: absent or JSON null gives null, a number is epoch milliseconds, text goes through `Times.parse`.
+  The two are four lines each; clients don't depend on each other, so neither can call the other.
+- `dora.RepoPath` → `gitlab.RepoPath`, with ONE function `of(url)` that keeps the case. The old
+  `of` (lowercased) and `keepCase` are gone; comparing callers lowercase (`matches` does, and
+  `Keys.linkedPaths`). `matches` stays on top of `of`.
+  Where it lives: the clients layer. Domain may use clients (LayersTest), and the GitLab client
+  depends on no domain package, so no cycle. `text` was the other candidate; rejected, because the
+  function knows GitLab's URL forms (`/-/`, the `path_with_namespace` GitLab compares against).
+- `Keys.linkedPaths` splits the list, then calls `RepoPath.of`, lowercases, and keeps the list rules
+  (an entry must contain `/` and no `://`, no duplicates). A bare id is a valid `RepoPath` input and
+  is not a link, so the `/` rule stays in `Keys`.
+- Callers: GitlabReader, GitlabProject use `RepoPath.of` (was `keepCase`); the others only change
+  import. `dora` now holds DeployedCommit(s), JiraKeys, Platforms, RunOutcome.
+- Architecture: no layer and no rule changed (dora stays domain; csv, text, gitlab already sit in their
+  layers). ARCHITECTURE.md gained a paragraph on where the shared pieces sit.
+
+Behaviour changes (the inputs on which the two old implementations, and dora's `keepCase`, differed;
+each is pinned in `gitlab.RepoPathTest` or `matching.KeysTest`):
+
+| input | old linkedPaths | old keepCase (dora) | new |
+|---|---|---|---|
+| `https://h/g/p?x=1#y` | `g/p` | `g/p?x=1#y` | `g/p` |
+| `git@h:G/P?x` | `g/p` | `G/P?x` | `G/P` |
+| `https://h/g/p?ref=/-/x` | `g/p` | `g/p?ref=` | `g/p` |
+| `x-y://h/g/p` | `g/p` | `x-y://h/g/p` | `g/p` |
+| `https://h/g/p.git//` | `g/p.git` | `g/p` | `g/p` |
+| `/g/p` | `/g/p` | `g/p` | `g/p` |
+| `git@h:/g/p.git` | `/g/p` | `g/p` | `g/p` |
+| `git@h/g/p` | `git@h/g/p` | `g/p` | `g/p` |
+
+- Query and fragment are cut first, before `/-/`, so `?ref=/-/x` no longer cuts at the `/-/` inside
+  the query.
+- The scheme rule is the general one (`x-y://`, `x+y://`), not dora's narrower `[A-Za-z+]+`.
+- Leading slashes and `//` before `.git` no longer leave a path that matches no GitLab project.
+- dora effect: a project reference or a URL with `?…` or `#…` now asks GitLab for `g/p`, not for a path
+  that carries the query (not checked against a live instance); `RepoPath.matches` reads such URLs the
+  same way.
+- Unchanged, on purpose: an id (`1234`) is kept by `of` and dropped by `linkedPaths` (no `/`); the
+  split of `linkedPaths` on spaced pipes ` | ` is untouched.
+
+No snapshot changed: the changed inputs are not in any `.ss` fixture.
+Gate config: none changed. No suppression added.
+Exceptions left:
+- The JSON date helper exists twice (`Gitlab.instant`, `JiraApi.instant`), four lines each.
+- `Times.parse(JsonNode)`'s number branch is kept in both helpers although neither API sends numbers
+  for dates. Kept on purpose: identical behaviour was the rule for this slice.
