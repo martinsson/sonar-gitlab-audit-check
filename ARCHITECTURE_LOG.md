@@ -322,4 +322,5 @@ Exceptions left: test fixtures `JiraFixtures` and `GocdFixtures` keep a private 
 - Tests: `ReplayRulesTest` (12 tests in 6 nested groups: manual, rejected, exact/derived, recomputed, `--reapparier`, new and orphan rows), built from tiny fictional tables in code, one test per rule of the `Replay` javadoc.
 - Behaviour changes: none. No `.ss` changed.
 - Rules noticed but not pinned (questionable): a manual pair whose key vanished is reported as stale but counted in no total (already `@SuspectedBug` in `ProjectMapperReuseSuspectedBugsTest`; `ReplayRulesTest` pins only the stale report, not the totals). The orphan test pins that a previous row whose left project left the audit is kept as-is, which the code comment calls intended.
+- `./verify --mutants` on the changed classes: 29 of 29 PIT mutants killed (Replay 24, Reuse 5), none surviving.
 - Gate config: none. Exceptions left: none.
