@@ -21,13 +21,13 @@ final class PeopleSection {
 
   private final Report report;
   private final ProjectApi api;
-  private final Settings settings;
+  private final Budget budget;
   private final Dates dates;
 
-  PeopleSection(Report report, ProjectApi api, Settings settings, Dates dates) {
+  PeopleSection(Report report, ProjectApi api, Budget budget, Dates dates) {
     this.report = report;
     this.api = api;
-    this.settings = settings;
+    this.budget = budget;
     this.dates = dates;
   }
 
@@ -119,7 +119,7 @@ final class PeopleSection {
    * santé.
    */
   private long activeRecently(List<Commit> cs, int persons) {
-    int recentDays = Math.min(90, settings.days());
+    int recentDays = Math.min(90, budget.days());
     LocalDateTime recent = dates.now().minusDays(recentDays);
     long activeRecently =
         cs.stream()

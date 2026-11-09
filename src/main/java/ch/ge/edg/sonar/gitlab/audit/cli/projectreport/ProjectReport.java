@@ -18,7 +18,7 @@ import java.util.Optional;
 final class ProjectReport {
 
   private final ProjectApi api;
-  private final Settings settings;
+  private final Budget budget;
   private final Report report;
   private final PrintStream err;
   private final Dates dates;
@@ -26,9 +26,9 @@ final class ProjectReport {
   /**
    * {@code dates} : l'instant de référence, lu une fois avant le rapport, et le fuseau des dates.
    */
-  public ProjectReport(Gitlab gitlab, Settings settings, Console out, Dates dates) {
-    this.api = new ProjectApi(gitlab, settings);
-    this.settings = settings;
+  public ProjectReport(Gitlab gitlab, Budget budget, BotPolicy bots, Console out, Dates dates) {
+    this.api = new ProjectApi(gitlab, budget, bots);
+    this.budget = budget;
     this.report = new Report(out);
     this.err = out.err();
     this.dates = dates;
@@ -36,7 +36,7 @@ final class ProjectReport {
 
   /** 0 quand le rapport est complet, 2 quand le projet est introuvable. */
   public int run(String projectPath) {
-    LocalDateTime since = dates.now().minusDays(settings.days());
+    LocalDateTime since = dates.now().minusDays(budget.days());
 
     Optional<Project> found = fetchProject(projectPath);
     if (found.isEmpty()) return 2;
@@ -44,7 +44,7 @@ final class ProjectReport {
 
     new IdentitySection(report, dates).print(project);
     new Findings(report, dates)
-        .print(new Sections(report, api, settings, dates).measure(project, since));
+        .print(new Sections(report, api, budget, dates).measure(project, since));
 
     report.println();
     report.println(report.paint(Text.format("  %d appels API.", api.calls()), DIM));
