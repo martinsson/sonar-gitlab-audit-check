@@ -25,13 +25,13 @@ import java.util.Optional;
 final class ActivityAudit {
 
   /** Les options de la commande, groupées comme elles se lisent. */
-  record Settings(
+  record ActivityOptions(
       GitlabConnectionOptions gitlab,
       ScopeOptions scope,
       FunnelOptions funnel,
       OutputOptions output) {}
 
-  private final Settings settings;
+  private final ActivityOptions settings;
   private final Screen screen;
   private final Console out;
   private final Clock clock;
@@ -47,7 +47,8 @@ final class ActivityAudit {
    * @param sleeper l'attente que demande un 429
    * @param workDir où chercher exclusions.txt quand --exclusions n'est pas donné
    */
-  ActivityAudit(Settings settings, Screen screen, Clock clock, Sleeper sleeper, Path workDir) {
+  ActivityAudit(
+      ActivityOptions settings, Screen screen, Clock clock, Sleeper sleeper, Path workDir) {
     this.settings = settings;
     this.screen = screen;
     this.out = screen.out();
