@@ -173,7 +173,7 @@ class ProjectReportUnitTest {
   @Test
   void mergeRequestsAreReadInTwoPartsFromOneFlatObject() throws Exception {
     MergeRequest m =
-        Gitlab.MAPPER.readValue(
+        Gitlab.READER.readValue(
             """
             {"iid": 7, "state": "merged", "squash": true, "user_notes_count": 2,
              "author": {"username": "alice"}, "merge_user": {"username": "bob"}}""",

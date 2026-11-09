@@ -1,11 +1,12 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
-import ch.ge.edg.sonar.gitlab.audit.sonar.Sonar;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -31,6 +32,8 @@ import org.jspecify.annotations.Nullable;
  * them back into stable tokens so whole outputs can be compared.
  */
 final class SonarAuditCheckFake implements AutoCloseable {
+
+  private static final ObjectWriter JSON = new ObjectMapper().writer();
 
   static final String SAMPLE = "alpha-service";
 
@@ -163,7 +166,7 @@ final class SonarAuditCheckFake implements AutoCloseable {
 
   static String json(Object value) {
     try {
-      return Sonar.MAPPER.writeValueAsString(value);
+      return JSON.writeValueAsString(value);
     } catch (JsonProcessingException e) {
       throw new UncheckedIOException(e);
     }

@@ -52,7 +52,7 @@ final class GitLabProjectReportFakeGitlab {
 
   static String json(Object o) {
     try {
-      return Gitlab.MAPPER.writeValueAsString(o);
+      return Gitlab.WRITER.writeValueAsString(o);
     } catch (JsonProcessingException e) {
       throw new UncheckedIOException(e);
     }

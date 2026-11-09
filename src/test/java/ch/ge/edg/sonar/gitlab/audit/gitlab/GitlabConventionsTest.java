@@ -141,11 +141,11 @@ class GitlabConventionsTest {
   @Test
   void mapperIgnoresUnknownProperties() throws Exception {
     record One(int a) {}
-    assertThat(Gitlab.MAPPER.readValue("{\"a\":1,\"b\":2}", One.class)).isEqualTo(new One(1));
+    assertThat(Gitlab.READER.readValue("{\"a\":1,\"b\":2}", One.class)).isEqualTo(new One(1));
   }
 
   private static JsonNode json(String s) throws Exception {
-    return Gitlab.MAPPER.readTree(s);
+    return Gitlab.READER.readTree(s);
   }
 
   @Test

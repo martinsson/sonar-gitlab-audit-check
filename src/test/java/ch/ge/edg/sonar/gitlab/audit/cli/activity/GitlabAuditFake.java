@@ -7,6 +7,7 @@ import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
 import ch.ge.edg.sonar.gitlab.audit.testing.Native;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -113,7 +114,7 @@ final class GitlabAuditFake implements AutoCloseable {
 
   GitlabAuditFake tree(long id, String... names) {
     List<ObjectNode> entries = new ArrayList<>();
-    for (String n : names) entries.add(Gitlab.MAPPER.createObjectNode().put("name", n));
+    for (String n : names) entries.add(JsonNodeFactory.instance.objectNode().put("name", n));
     server.json(
         "/api/v4/projects/" + id + "/repository/tree", array(entries.toArray(ObjectNode[]::new)));
     return this;
@@ -153,14 +154,14 @@ final class GitlabAuditFake implements AutoCloseable {
   // ----------------------------------------------------------------------
 
   static String array(ObjectNode... nodes) {
-    ArrayNode a = Gitlab.MAPPER.createArrayNode();
+    ArrayNode a = JsonNodeFactory.instance.arrayNode();
     for (ObjectNode n : nodes) a.add(n);
     return a.toString();
   }
 
   /** An active, unarchived project in the namespace of its path, 50 commits in its history. */
   static ObjectNode project(long id, String path) {
-    ObjectNode p = Gitlab.MAPPER.createObjectNode();
+    ObjectNode p = JsonNodeFactory.instance.objectNode();
     p.put("id", id);
     p.put("path_with_namespace", path);
     p.put("name", path.substring(path.lastIndexOf('/') + 1).toUpperCase(java.util.Locale.ROOT));
@@ -177,7 +178,7 @@ final class GitlabAuditFake implements AutoCloseable {
 
   /** A single-parent commit on {@code date}. */
   static ObjectNode commit(String sha, String author, String date) {
-    ObjectNode c = Gitlab.MAPPER.createObjectNode();
+    ObjectNode c = JsonNodeFactory.instance.objectNode();
     c.put("id", sha);
     c.put("author_email", author + "@example.org");
     c.put("author_name", author);

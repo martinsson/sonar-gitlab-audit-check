@@ -6,10 +6,10 @@ import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +28,7 @@ class GitlabActivityAuditSonarKeyTest extends GitlabActivityAuditTestBase {
   private void lint(long id, String yaml) {
     fake.json(
         "/api/v4/projects/" + id + "/ci/lint",
-        Gitlab.MAPPER.createObjectNode().put("merged_yaml", yaml).toString());
+        JsonNodeFactory.instance.objectNode().put("merged_yaml", yaml).toString());
   }
 
   private Cli.Result deep(String... extra) {
