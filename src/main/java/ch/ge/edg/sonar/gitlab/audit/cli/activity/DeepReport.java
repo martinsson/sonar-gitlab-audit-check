@@ -1,12 +1,16 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.dec;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.median;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.pct;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.CellFormat.plural;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.model.CellFormat.dec;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.model.CellFormat.median;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.model.CellFormat.pct;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.model.CellFormat.plural;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.report.Screen.DIM;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.report.Screen.YELLOW;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.Assessed;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.Fate;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.Practices;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.Screen;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import java.util.List;
 import java.util.Map;
@@ -49,8 +53,8 @@ final class DeepReport {
             .filter(Objects::nonNull)
             .collect(Collectors.groupingBy(r -> r, Collectors.counting()));
     long cached = byRoute.getOrDefault(Practices.Sonar.CACHE, 0L);
-    long lint = byRoute.getOrDefault(CiConfig.LINT, 0L);
-    long back = byRoute.getOrDefault(CiConfig.FALLBACK, 0L);
+    long lint = byRoute.getOrDefault(Practices.Sonar.LINT, 0L);
+    long back = byRoute.getOrDefault(Practices.Sonar.FALLBACK, 0L);
     if (cached + lint + back > 0) {
       screen
           .out()

@@ -8,7 +8,7 @@ this file and the rules disagree, the rules decide.
 ## Layers
 
 ```
- cli.<command>    one package per tool: the @Command class, its options, its logic and output
+ cli.<command>    one package per tool: the @Command class, its options, its logic and output (sub-packages for its stages)
       │
  cli.shared       picocli option groups and converters several commands use (nothing else)
       │
@@ -40,7 +40,7 @@ date out of a JSON node is the client's job, next to the response (`Gitlab.insta
 | Package | Root script | Holds |
 |---|---|---|
 | `cli.sonaraudit` | SonarAuditCheck | Sonar inventory, history, trends |
-| `cli.activity` | GitlabActivityAudit | GitLab funnel: inventory → activity → selection → practices |
+| `cli.activity` | GitlabActivityAudit | GitLab funnel, one sub-package per stage: `model` (shared records), `inventory`, `commits`, `selection`, `preflight`, `practices`, `report`. The root holds the command and the stage order |
 | `cli.projectreport` | GitLabProjectReport | One project up close |
 | `cli.rank` | SonarRank | Ranking of the Sonar inventory |
 | `cli.mapper` | ProjectMapper | The matcher on its own |
@@ -51,7 +51,10 @@ date out of a JSON node is the client's job, next to the response (`Gitlab.insta
 | `cli.gocdextract` | dora/GocdExtract | GoCD pipeline runs extracted for the DORA measures |
 | `cli.jiraextract` | dora/JiraExtract | Jira issues and their transitions extracted for the DORA measures |
 
-In a command package only the `@Command` class is public.
+A command is its package and that package's sub-packages (`cli.activity`, `cli.activity.model`, ...).
+Only its `@Command` class is used from outside it. Inside, a public class is used by another package
+of the same command: a sub-package's public class exists because a sibling package needs it, and
+anything else stays package-private (`VisibilityTest`).
 
 ## The outside world comes in at the edge
 
