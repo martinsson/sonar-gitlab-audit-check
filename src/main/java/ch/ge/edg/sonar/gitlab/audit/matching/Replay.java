@@ -22,6 +22,8 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>{@code --reapparier} recalcule aussi exact et derived, jamais manuel ni rejete : ce sont les
  * seules lignes qui ont coûté un humain. Pour les oublier aussi, on supprime le fichier.
+ *
+ * <p>Chaque ligne de gauche donne un {@link Replayed} ; le bilan se compte dans {@link Reuse}.
  */
 final class Replay {
 
@@ -30,6 +32,29 @@ final class Replay {
 
   /** L'appariement rejoué, et ce que la reprise a fait. */
   record Outcome(Result result, Reuse stats) {}
+
+  /**
+   * Ce que la reprise a fait d'une ligne de gauche : la ligne d'appariement, ce qui a été fait, et
+   * {@code stale} — la paire d'avant dont la clé de droite n'existe plus, sinon null.
+   */
+  record Replayed(Step step, Match match, @Nullable String stale) {
+
+    /** Ce qu'une ligne est devenue. */
+    enum Step {
+      /** Une ligne de gauche que le fichier ne connaissait pas. */
+      ADDED,
+      /** Une paire exact ou derived gardée : sa clé de droite existe encore. */
+      KEPT,
+      /** Une paire saisie à la main, tenue même contre le calcul. */
+      MANUAL,
+      /** Une ligne rejetée à la main : pas de paire, et le calcul ne la reproposera pas. */
+      REJECTED,
+      /** Une ligne recalculée (suggestion, none, ou exact/derived sous --reapparier). */
+      RECOMPUTED,
+      /** Une paire saisie à la main dont la clé n'existe plus : signalée, ni tenue ni comptée. */
+      STALE_MANUAL
+    }
+  }
 
   /** Une ligne du fichier : sa confiance, sa clé de droite, et la ligne qu'elle désigne encore. */
   private record Previous(
@@ -40,12 +65,6 @@ final class Replay {
   private final String rightColumn;
   private final boolean recomputeAll;
   private final Map<String, String> idByLabel = new HashMap<>();
-  private int kept;
-  private int manual;
-  private int rejected;
-  private int recomputed;
-  private int added;
-  private final List<String> stale = new ArrayList<>();
 
   private Replay(Result fresh, boolean recomputeAll) {
     this.fresh = fresh;
@@ -67,18 +86,16 @@ final class Replay {
       String k = r.str(lk);
       if (!k.isEmpty()) byLeft.put(k, r);
     }
-    List<Match> out = new ArrayList<>();
+    List<Replayed> rows = new ArrayList<>();
     Set<String> seen = new HashSet<>();
     for (Match m : fresh.matches()) {
       String left = m.left().str(leftKey);
       seen.add(left);
       Csv.Row prev = byLeft.get(left);
-      if (prev == null) {
-        added++;
-        out.add(m);
-      } else {
-        out.add(replay(m, left, previous(prev)));
-      }
+      rows.add(
+          prev == null
+              ? new Replayed(Replayed.Step.ADDED, m, null)
+              : replay(m, left, previous(prev)));
     }
     List<String[]> orphans = new ArrayList<>();
     for (var e : byLeft.entrySet()) {
@@ -87,9 +104,8 @@ final class Replay {
       orphans.add(
           new String[] {e.getKey(), r.str(rightColumn), r.str("methode"), r.str("confiance")});
     }
-    return new Outcome(
-        fresh.withMatches(out),
-        new Reuse(kept, manual, rejected, recomputed, added, stale, orphans));
+    List<Match> matches = rows.stream().map(Replayed::match).toList();
+    return new Outcome(fresh.withMatches(matches), Reuse.of(rows, orphans));
   }
 
   private Previous previous(Csv.Row prev) {
@@ -102,45 +118,49 @@ final class Replay {
         j == null ? null : fresh.right().rows().get(j));
   }
 
-  private Match replay(Match m, String left, Previous p) {
+  private Replayed replay(Match m, String left, Previous p) {
     Confidence c = p.confidence();
     if (c == Confidence.REJETE) {
-      rejected++;
-      return m.with(
-          new Choice(null, null, REJECTED_LABEL, Confidence.REJETE, p.key()), m.guess(), m.free());
+      Match rejected =
+          m.with(
+              new Choice(null, null, REJECTED_LABEL, Confidence.REJETE, p.key()),
+              m.guess(),
+              m.free());
+      return new Replayed(Replayed.Step.REJECTED, rejected, null);
     }
     if (c == Confidence.MANUEL) return manual(m, left, p);
-    if ((c == Confidence.EXACT || c == Confidence.DERIVED) && !recomputeAll)
+    if ((c == Confidence.EXACT || c == Confidence.DERIVED) && !recomputeAll) {
       return sure(m, left, p);
-    recomputed++;
-    return m;
+    }
+    return new Replayed(Replayed.Step.RECOMPUTED, m, null);
   }
 
-  private Match manual(Match m, String left, Previous p) {
+  private Replayed manual(Match m, String left, Previous p) {
     Csv.Row right = p.right();
     if (right == null) {
       // Saisie à la main vers une clé qui n'existe plus : on ne peut
       // pas la tenir, et on ne la remplace pas en silence.
-      stale.add(left + " → " + (p.key().isEmpty() ? "" : p.key() + " ") + "(manuel)");
-      return m;
+      return new Replayed(
+          Replayed.Step.STALE_MANUAL,
+          m,
+          left + " → " + (p.key().isEmpty() ? "" : p.key() + " ") + "(manuel)");
     }
-    manual++;
-    return m.with(
-        new Choice(right, "manuel", MANUAL_LABEL, Confidence.MANUEL), m.guess(), m.free());
+    Match manual =
+        m.with(new Choice(right, "manuel", MANUAL_LABEL, Confidence.MANUEL), m.guess(), m.free());
+    return new Replayed(Replayed.Step.MANUAL, manual, null);
   }
 
-  private Match sure(Match m, String left, Previous p) {
+  private Replayed sure(Match m, String left, Previous p) {
     Csv.Row right = p.right();
     if (right == null) {
-      stale.add(left + " → " + p.key());
-      recomputed++;
-      return m;
+      return new Replayed(Replayed.Step.RECOMPUTED, m, left + " → " + p.key());
     }
-    kept++;
     String label = p.row().str("methode");
-    return m.with(
-        new Choice(right, idByLabel.getOrDefault(label, "fichier"), label, p.confidence()),
-        m.guess(),
-        m.free());
+    Match kept =
+        m.with(
+            new Choice(right, idByLabel.getOrDefault(label, "fichier"), label, p.confidence()),
+            m.guess(),
+            m.free());
+    return new Replayed(Replayed.Step.KEPT, kept, null);
   }
 }

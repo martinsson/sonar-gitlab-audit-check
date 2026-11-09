@@ -22,8 +22,6 @@ compromises, gate changes and reviewer disagreements made along the way, for lat
 - Sub-packages for `cli.activity` (45 classes): needs `VisibilityTest` to change from "only the command is
   public" to "only its own slice references it".
 - The five `Settings` records that bundle option groups for parameter limits; `projectreport.Sections`.
-- `matching.Replay` returns an outcome per row (today it bumps counters), and named rule tests for
-  `matching` next to its snapshots.
 - One GitLab fake for the tests (`GitlabAuditFake`, `GitLabProjectReportFakeGitlab`).
 - Checkstyle class-coupling shaped some splits (`PreflightReport`, split test classes): judge them as gate
   compromises.
@@ -211,7 +209,7 @@ Exceptions left: none new.
 - Final CodeScene (main): line-weighted 9.84 (was 9.78), 10 files < 9.5, worst CiConfig 8.28 (untouched), RestClient 8.41 (new). Tests: mean 9.77, 7 files < 9, worst JiraExtractTest 8.03.
 - Lead mistake: during iteration 3's integration one command ran in the owner's main checkout (cwd reset after a `cd` in an earlier call): a commit 6ca8361 (my ARCHITECTURE.md error-model text + the untracked REVIEW_VS_QUALITY_LOG.md) landed on the owner's local `main`, never pushed. Found by the final architect (the doc on origin still described SourceException). Undone with `git reset --mixed ed54a40` + checkout of ARCHITECTURE.md (only my own changes; status verified clean before). Since then every command starts with an explicit `cd <worktree> &&`.
 - Final reviews (architect, clean coder): both "partly"; agreed top item = three response types with three meanings of ok(). Iteration 9a (opus): one response type, connections in clients, 401 rule once, duplicates. 9b (sonnet): rule leaks (constants invisible to ArchUnit, SharedOptionsTest too lax, TransportTest gaps, no empty-import guard), doc, cheap cleanups.
-- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), contributor identity out of Gitlab into a domain, activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags, Replay returning outcomes + matching rule tests, merge the two GitLab fakes.
+- Not planned (recorded for later): re-cut dora (grab-bag: Jsonl, Times, RepoPath ≈ Keys.linkedPaths), contributor identity out of Gitlab into a domain, activity sub-packages (needs VisibilityTest → "only own slice references it"), the five `Settings` bags, merge the two GitLab fakes.
 
 ## Iteration 9b
 - Exchange column names are `Columns.named(...)` (non-constant), so javac no longer inlines them; activity CsvFiles uses them. No behaviour change.
@@ -316,3 +314,12 @@ adds `ObjectWriter` (immutable by contract, like `ObjectReader`). Javadoc update
 `ObjectMapper` put in `dora/Jsonl` fails the rule ("Jsonl.BAD is not a constant"); reverted.
 Exceptions left: test fixtures `JiraFixtures` and `GocdFixtures` keep a private static `ObjectMapper`
 (test code, outside the rule). `Report` builds its mapper per call, not static.
+
+## Iteration 10d: Replay outcomes and matching rule tests
+
+- What changed: `Replay` no longer keeps counters or a `stale` list. Each left row yields a `Replay.Replayed(step, match, stale)` (enum `Step`: ADDED, KEPT, MANUAL, REJECTED, RECOMPUTED, STALE_MANUAL). `Reuse.of(rows, orphans)` counts the steps and collects the stale reasons, in row order. `Replay.Outcome` keeps its shape (result + stats); `MappingFile` and `MappingFilePrinter` are unchanged.
+- Why an enum-tagged record, not a sealed interface: a sealed hierarchy of six record variants pushed `Replay` to ClassDataAbstractionCoupling 9 (max 7), since every `new` counts. One record with a step tag keeps it at 4. No gate changed.
+- Tests: `ReplayRulesTest` (12 tests in 6 nested groups: manual, rejected, exact/derived, recomputed, `--reapparier`, new and orphan rows), built from tiny fictional tables in code, one test per rule of the `Replay` javadoc.
+- Behaviour changes: none. No `.ss` changed.
+- Rules noticed but not pinned (questionable): a manual pair whose key vanished is reported as stale but counted in no total (already `@SuspectedBug` in `ProjectMapperReuseSuspectedBugsTest`; `ReplayRulesTest` pins only the stale report, not the totals). The orphan test pins that a previous row whose left project left the audit is kept as-is, which the code comment calls intended.
+- Gate config: none. Exceptions left: none.
