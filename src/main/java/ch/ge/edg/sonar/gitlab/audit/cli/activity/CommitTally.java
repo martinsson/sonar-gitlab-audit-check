@@ -3,7 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Api.text;
 import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.parse;
 
-import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.contributors.Contributors;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;
@@ -49,14 +49,14 @@ final class CommitTally {
     if (first == null) first = text(c, "id");
     String email = text(c, "author_email");
     String name = text(c, "author_name");
-    if (Gitlab.isBot(bots, email, name)) {
+    if (Contributors.isBot(bots, email, name)) {
       bot++;
       return;
     }
     human++;
     if (REVERT.matcher(text(c, "title")).find()) reverts++;
-    authors.add(Gitlab.identity(email, name));
-    if (Gitlab.isMerge(c)) merges++;
+    authors.add(Contributors.identity(email, name));
+    if (Contributors.isMerge(Api.parentIds(c))) merges++;
     OffsetDateTime d = parse(text(c, "committed_date"));
     if (d != null) {
       days.add(ChronoUnit.DAYS.between(windowStart, d));

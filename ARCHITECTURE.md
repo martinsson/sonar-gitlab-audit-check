@@ -13,7 +13,8 @@ this file and the rules disagree, the rules decide.
  cli.shared       picocli option groups and converters several commands use (nothing else)
       │
  domain           matching (Sonar ↔ GitLab pairing, with .similarity and .report),
-                  exclusions, dora (incl. the commits a GoCD run deployed)
+                  exclusions, dora (incl. the commits a GoCD run deployed),
+                  contributors (bots, one person across identities, merge commits)
       │
  exchange         the contract of the CSV files one command writes and another reads
       │

@@ -4,7 +4,6 @@ import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
 import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
-import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -17,12 +16,10 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -30,12 +27,13 @@ import org.jspecify.annotations.Nullable;
  * groupe entier, et GitLabProjectReport, qui lit un projet en détail.
  *
  * <p>Les deux avaient été écrits séparément, et étaient tombés d'accord sans se concerter sur les
- * trois pièges qui comptent — les bots, les commits de fusion, une pagination plafonnée qui doit se
- * lire comme un plancher. Deux accords fortuits ne survivent pas à la première correction apportée
- * d'un seul côté : d'où ce fichier, qui rend l'accord explicite.
+ * pièges qui comptent — les bots, les commits de fusion, une pagination plafonnée qui doit se lire
+ * comme un plancher. Deux accords fortuits ne survivent pas à la première correction apportée d'un
+ * seul côté : d'où ce fichier, qui rend l'accord explicite.
  *
  * <p>Ce qui reste chez chaque outil : ce qu'il mesure, et ce qu'il en conclut. Ce qui vient ici :
- * parler à l'API, et les trois conventions ci-dessous.
+ * parler à l'API, et la pagination plafonnée. Qui compte comme contributeur (bots, identités,
+ * fusions) vit dans {@code contributors.Contributors}.
  */
 public final class Gitlab {
 
@@ -205,58 +203,6 @@ public final class Gitlab {
     p.put("per_page", "100");
     p.put("page", page);
     return p;
-  }
-
-  // ----------------------------------------------------------------------
-  // Les trois conventions
-  // ----------------------------------------------------------------------
-
-  /**
-   * Non filtrés, Renovate et consorts finissent premiers contributeurs et faussent tout : cadence,
-   * concentration, taille des commits.
-   *
-   * <p>Le motif est l'union de ceux que les deux outils s'étaient donnés séparément. Il reste
-   * étroit à dessein : « bot » collé à d'autres lettres attraperait Abbot ou Talbot, d'où les
-   * bornes autour du mot nu. Les identités écartées se rapportent, elles ne se cachent pas.
-   */
-  public static final String BOT_PATTERN =
-      "(?i)(renovate|dependabot|semantic-release|\\[bot\\]|bot@|gitlab-ci-token"
-          + "|jenkins|sonarqube|automation)"
-          + "|(^|[^\\p{L}])bots?([^\\p{L}]|$)"
-          + "|(^|[^\\p{L}])project_\\d+_bot";
-
-  public static boolean isBot(Pattern bots, @Nullable String email, @Nullable String name) {
-    return bots.matcher(Text.orEmpty(email) + " " + Text.orEmpty(name)).find();
-  }
-
-  /**
-   * Deux adresses pour la même personne fragmentent le compte d'auteurs. On normalise sur la partie
-   * locale de l'adresse, à défaut sur le nom. Le résultat vaut à ±1 : il alimente un jugement de
-   * bus factor, il lui suffit d'être juste entre 1 et 5.
-   */
-  public static String identity(@Nullable String email, @Nullable String name) {
-    String raw =
-        (email != null && email.contains("@")) ? email.substring(0, email.indexOf('@')) : name;
-    if (raw == null || raw.isBlank()) return "?";
-    // Les deux branches doivent atterrir dans le même espace de noms : sinon
-    // « Dev 0 » (commit sans adresse) et « dev0@example.com » comptent pour
-    // deux personnes, et le bus factor double silencieusement.
-    String norm = raw.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
-    return norm.isEmpty() ? "?" : norm;
-  }
-
-  /**
-   * Un commit à plus d'un parent est une fusion. Il ne porte aucun travail propre — ses lignes sont
-   * celles des commits qu'il réunit — et sa date est celle du clic sur « fusionner », par quelqu'un
-   * qui n'a pas écrit le code. Mesuré sur gitlab-org/cli : les compter changeait le contributeur
-   * principal, de la personne qui écrit à celle qui fusionne.
-   */
-  public static boolean isMerge(@Nullable JsonNode commit) {
-    return commit != null && commit.path("parent_ids").size() > 1;
-  }
-
-  public static boolean isMerge(@Nullable List<String> parentIds) {
-    return parentIds != null && parentIds.size() > 1;
   }
 
   // ----------------------------------------------------------------------

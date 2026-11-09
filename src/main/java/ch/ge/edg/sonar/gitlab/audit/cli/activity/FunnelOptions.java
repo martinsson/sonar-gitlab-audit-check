@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.contributors.Contributors;
 import picocli.CommandLine.Option;
 
 /** Les réglages de l'entonnoir : fenêtre, budget, plancher, tirages, et le coût des appels. */
@@ -60,9 +60,9 @@ final class FunnelOptions {
   @Option(
       names = "--bot-pattern",
       order = 19,
-      defaultValue = Gitlab.BOT_PATTERN,
+      defaultValue = Contributors.BOT_PATTERN,
       description = "regex identifiant les auteurs automatiques")
-  String botPattern = Gitlab.BOT_PATTERN;
+  String botPattern = Contributors.BOT_PATTERN;
 
   @Option(
       names = "--max-commit-pages",

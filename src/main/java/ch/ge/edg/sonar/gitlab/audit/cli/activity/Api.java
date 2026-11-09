@@ -3,6 +3,8 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 
@@ -13,6 +15,13 @@ final class Api {
 
   static String text(@Nullable JsonNode n, String field) {
     return n == null ? "" : n.path(field).asText("");
+  }
+
+  /** Les identifiants des parents d'un commit ; le domaine ne voit que cette liste. */
+  static List<String> parentIds(JsonNode commit) {
+    List<String> ids = new ArrayList<>();
+    commit.path("parent_ids").forEach(p -> ids.add(p.asText()));
+    return ids;
   }
 
   /** Les commits de la branche par défaut depuis le début de la fenêtre, une page de cent. */
