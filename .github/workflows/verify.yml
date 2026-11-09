@@ -1,6 +1,6 @@
 # The fast gates of ./verify on every pull request: main only accepts pull requests where this job
 # is green (repository ruleset), and auto-merge.yml merges them then, without human review. The
-# full run (Docker integration tests, mutation testing, copy-paste detection, ~15 min) runs on main
+# full run (Docker integration tests, copy-paste detection; no mutation testing, see QUALITY_LOG.md) runs on main
 # every night and on demand: a red one is fixed by the next pull request. Not on each merge: a merge
 # made by auto-merge comes from the workflow token, and GitHub starts no workflow for its events.
 name: verify
@@ -92,7 +92,7 @@ jobs:
           distribution: temurin
           java-version: "26"
           cache: maven
-      - name: ./verify --full (Docker integration tests, mutation testing, copy-paste detection)
+      - name: ./verify --full (Docker integration tests, copy-paste detection)
         env:
           RATCHET_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: ./verify --full
@@ -103,5 +103,4 @@ jobs:
           name: verify-full-reports
           path: |
             target/verify.log
-            target/pit-reports/
             target/site/jacoco/
