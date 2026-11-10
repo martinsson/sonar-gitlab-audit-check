@@ -98,3 +98,33 @@ values, through one shared helper, rather than by catching exceptions.
 - Records group fields by meaning; their size is whatever the meaning gives. A parameter object
   names a domain concept, or it does not exist.
 - Inside `matching`, only `matching.report` prints.
+
+## Open questions for the owner
+
+Decisions the code cannot make. Each is pinned by a test marked `@SuspectedBug` (or says why
+not); answer one, then fix the code and remove the marker. Delete the entry when it is settled.
+
+1. `--top N`: should the budget cap the whole selection? Today `--top 1` selects 3 (one per tranche),
+   and the solo-author and witness slices go past `--top 2`.
+2. Should the solo-author and witness slices respect the per-namespace cap?
+3. ProjectMapper reuse totals: where does a manual row whose key vanished count? Today in none.
+4. Should a manual pair withdraw a name suggestion of the same right row to another left row?
+5. `namespace-mapping.yaml` / `--namespace-mapping` is loaded and warns when missing, but no matching
+   method uses it: make it a key method, or delete the option and the file?
+6. Activity funnel rules noticed but not pinned: unmeasurable projects still feed zeros into the
+   floor's distribution; a control-sample project whose commit count is refused (non-200) counts as
+   "no leak".
+7. Design residues to look at in the next review: `matching.Replay` is an enum whose `stale` is
+   nullable (absence is not a type there); `cli.activity.model` holds helpers (`Api`, `CellFormat`)
+   because everything can see it, a possible grab bag; `HelpersTest` in `cli.sonaraudit` is one.
+
+## Reporting a batch of work
+
+There is no committed log of decisions. For a refactoring or quality batch, the lead agent keeps
+the per-iteration notes in its session memory or scratchpad: decisions, compromises, behaviour
+changes (with the snapshot that moved), gate changes (with the reason), reviewer disagreements,
+rules noticed but not pinned. Sub-agents report to the lead in whatever form the lead asks for.
+When the pull request is made, the lead puts those notes in the PR description, or in a comment or
+attachment on the PR, for a human to read afterwards. A question that outlives the PR goes in the
+section above; a rule that must hold goes in a test. History before this convention: the file
+`ARCHITECTURE_LOG.md`, in git history before this change.
