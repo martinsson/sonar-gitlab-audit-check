@@ -15,6 +15,9 @@ either instance.
 | `viz/projet.html` | One project, Sonar or GitLab, with everything the audit knows about it |
 | `GitLabProjectReport` | How one project you already picked is worked on |
 
+Developing: `./verify` runs every gate, `./verify --test FooTest` one test in seconds, `./mvnw` is the Maven
+wrapper (picks JDK 25 itself); see the inner loop in `TOOLS.md`.
+
 Further reading: `COLUMNS.md` (every CSV column), `TOOLS.md` (running without
 JBang, Windows, captures, tests, the less-used tools), `ANALYSIS.md` and
 `GITLAB_ANALYSIS.md` (the method on each side), `KNOWLEDGE.md` (what the
