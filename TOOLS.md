@@ -78,6 +78,13 @@ On Windows use Git Bash (`.\verify` does); `mvnw.cmd` does not select a JDK.
 Checkstyle, PMD, CPD and JaCoCo skipped. Error Prone and NullAway still run, as they are the
 compiler. It is feedback while you work, not permission to push: the pre-push hook runs `./verify`.
 
+## Notes on a batch of work
+
+Decisions, compromises, behaviour changes, gate changes and reviewer disagreements are not written to
+a file in the repository. The lead agent keeps them in its session memory or scratchpad and puts them
+in the pull request (description, or a comment or attachment) when it opens it. Open questions that
+outlive the PR go in `ARCHITECTURE.md` ("Open questions for the owner"). Details there.
+
 ## CI: every change lands on main through a green pipeline
 
 Nobody pushes to `main`. A change goes on a branch, then a pull request (GitHub)
