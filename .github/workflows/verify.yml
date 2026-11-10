@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "26"
+          java-version: "25"
           cache: maven
       - name: ./verify
         env:
@@ -64,7 +64,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "26"
+          java-version: "25"
           cache: maven
       - name: ./verify
         env:
@@ -90,7 +90,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "26"
+          java-version: "25"
           cache: maven
       - name: ./verify --full (Docker integration tests, copy-paste detection)
         env:

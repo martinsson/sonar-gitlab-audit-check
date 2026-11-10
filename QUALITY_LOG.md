@@ -5,9 +5,12 @@ question. One entry per choice: what, why, and what the alternative would have b
 
 ## Environment
 
-- **Maven must run on JDK 26.** The pom targets `release 26`; Maven on JDK 25 fails with
-  "release version 26 not supported". Used `JAVA_HOME=~/.jbang/cache/jdks/26` (the JDK JBang
-  downloads for the scripts' `//JAVA 26`).
+- **Target Java 25, the current LTS (was 26, a non-LTS).** `maven.compiler.release`, CI images,
+  `setup-java`, the JBang `//JAVA` lines and the docs now say 25. Nothing in the code needed
+  Java 26 features. ArchUnit 1.4.2, Error Prone 2.50, NullAway, PMD 7.28, Checkstyle, google-java-format
+  and JaCoCo 0.8.15 all read Java 25 class files; no dependency blocked the move. Maven must run
+  on JDK 25+; `./verify` and `./mvnw` borrow JBang's JDK 25 (`jbang jdk home 25`) when the default
+  JDK is older.
 - **A lenient copy of the pom while writing tests.** The code had ~240 Error Prone / NullAway
   errors, so nothing compiled under the real pom and no test could run. The tests were written
   against a local, untracked `pom-lenient.xml` (the real pom minus Error Prone, `-Werror`,

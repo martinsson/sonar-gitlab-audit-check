@@ -11,14 +11,14 @@
   <description>Read-only audit of a SonarQube portfolio and the GitLab projects behind it</description>
 
   <properties>
-    <maven.compiler.release>26</maven.compiler.release>
+    <maven.compiler.release>25</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <!-- Verified on JDK 21 and 25. Bump with `mvn versions:display-dependency-updates versions:display-plugin-updates`. -->
+    <!-- Verified on JDK 25. Bump with `mvn versions:display-dependency-updates versions:display-plugin-updates`. -->
     <junit.version>5.11.4</junit.version>
     <assertj.version>3.27.3</assertj.version>
     <jqwik.version>1.9.2</jqwik.version>
-    <!-- 1.4.2: the first ArchUnit whose bundled ASM reads Java 26 class files (1.4.1 imports
+    <!-- 1.4.2: the first ArchUnit whose bundled ASM reads Java 25+ class files (1.4.1 imports
          nothing from them, silently). -->
     <archunit.version>1.4.2</archunit.version>
     <selfie.version>2.4.2</selfie.version>
