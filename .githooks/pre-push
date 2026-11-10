@@ -2,16 +2,40 @@
 # Runs the fast gates (./verify) before anything leaves the machine. Docker integration tests and
 # mutation testing are for ./verify --full and ./verify --mutants. Skip once with
 # `git push --no-verify`: the pull request checks still run everything.
+#
+# ./verify checks the working tree, so the hook only runs it when the working tree IS what is being
+# pushed: every pushed ref points at HEAD, no rebase, merge, cherry-pick or revert is half done,
+# and no tracked file has uncommitted changes. Otherwise it refuses, since a green ./verify would
+# say nothing about the pushed commits.
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-# Deleting a remote branch pushes nothing to check.
+refuse() {
+  echo "pre-push: $1" >&2
+  echo "pre-push: nothing was checked or pushed." >&2
+  exit 1
+}
+
+for state in rebase-merge rebase-apply MERGE_HEAD CHERRY_PICK_HEAD REVERT_HEAD; do
+  if [ -e "$(git rev-parse --git-path "$state")" ]; then
+    refuse "a rebase, merge, cherry-pick or revert is in progress ($state). Finish it (or abort it), then push."
+  fi
+done
+
+head=$(git rev-parse HEAD)
 pushing=0
-while read -r _local_ref local_sha _remote_ref _remote_sha; do
-  [[ "$local_sha" =~ ^0+$ ]] || pushing=1
+# stdin, per githooks(5): <local ref> <local sha> <remote ref> <remote sha> per pushed ref.
+while read -r local_ref local_sha _remote_ref _remote_sha; do
+  # Deleting a remote branch pushes nothing to check.
+  [[ "$local_sha" =~ ^0+$ ]] && continue
+  pushing=1
+  pushed=$(git rev-parse --verify -q "$local_sha^{commit}") || pushed=$local_sha
+  if [ "$pushed" != "$head" ]; then
+    refuse "you are pushing $local_ref ($pushed) but HEAD is $head. ./verify checks the checked-out tree, so check out what you push (git switch <branch>), or push from a worktree of it."
+  fi
 done
 [ "$pushing" -eq 0 ] && exit 0
 
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
-  echo "pre-push: uncommitted changes are checked too, but they are not part of this push" >&2
+  refuse "uncommitted changes in tracked files: ./verify would check them, not the commits you push. Commit or discard them (git status)."
 fi
 exec ./verify
