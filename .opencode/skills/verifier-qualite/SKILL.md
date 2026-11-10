@@ -27,9 +27,14 @@ metadata:
 
 ## JDK
 
-Le build vise Java 25 (LTS). Si Maven tourne sur un JDK plus ancien, `./verify` emprunte celui de JBang
-(`jbang jdk home 25`). Une erreur `release version 25 not supported` hors de `./verify` se règle
-avec `export JAVA_HOME=$(jbang jdk home 25)`.
+Le build vise Java 25 (LTS). Utiliser `./mvnw` (jamais `mvn` seul) et `./verify` : tous deux choisissent
+un JDK 25 (`.mvn/use-jdk.sh` : JAVA_HOME, `java_home`, SDKMAN, JBang) ou s'arrêtent avec un message clair.
+
+## Boucle courte
+
+`./verify --test FooTest` (ou `FooTest#methode`) compile et lance seulement ce test, sans les gates de
+format, structure, PMD ni couverture : quelques secondes. À utiliser pendant le travail ; `./verify`
+complet avant tout push.
 
 ## Règles
 
