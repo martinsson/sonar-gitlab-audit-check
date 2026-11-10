@@ -46,10 +46,12 @@ public final class Native {
 
   /**
    * The refused connection as macOS and Linux word it: Windows adds the failed call, {@code
-   * Connection refused: getsockopt}.
+   * Connection refused: getsockopt}, and JDK 25's HTTP client gives the exception no message at
+   * all.
    */
   public static String refused(String text) {
-    return text.replaceAll("Connection refused: \\w+", "Connection refused");
+    return text.replaceAll("Connection refused: \\w+", "Connection refused")
+        .replaceAll("ConnectException(?!:)", "ConnectException: Connection refused");
   }
 
   /**

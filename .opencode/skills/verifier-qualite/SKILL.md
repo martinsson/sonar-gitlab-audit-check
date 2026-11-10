@@ -27,9 +27,9 @@ metadata:
 
 ## JDK
 
-Le build vise Java 26. Si Maven tourne sur un JDK plus ancien, `./verify` emprunte celui de JBang
-(`jbang jdk home 26`). Une erreur `release version 26 not supported` hors de `./verify` se règle
-avec `export JAVA_HOME=$(jbang jdk home 26)`.
+Le build vise Java 25 (LTS). Si Maven tourne sur un JDK plus ancien, `./verify` emprunte celui de JBang
+(`jbang jdk home 25`). Une erreur `release version 25 not supported` hors de `./verify` se règle
+avec `export JAVA_HOME=$(jbang jdk home 25)`.
 
 ## Règles
 

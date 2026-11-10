@@ -5,7 +5,7 @@ and the tools used less often. Options are in each tool's `--help`.
 
 ## Running without JBang
 
-Any JDK 26+ and Maven. The code is a Maven project under `src/main/java`
+Any JDK 25+ (the current LTS) and Maven. The code is a Maven project under `src/main/java`
 (package `ch.ge.edg.sonar.gitlab.audit`); the `.java` files at the root are
 only JBang entry points that point at it with `//SOURCES`. `JbangScriptsTest`
 keeps it that way for every JBang script in the repository: at most 20 lines,
