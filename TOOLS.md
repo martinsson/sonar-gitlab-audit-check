@@ -86,6 +86,10 @@ or a merge request (GitLab). It merges itself, without human review, once the
 about a minute. On Windows, `.\verify` in PowerShell or cmd runs `verify.cmd`,
 which hands the bash script to Git Bash.
 
+The pre-push hook runs `./verify` on the checked-out tree, so it refuses (and says why) unless that tree
+is what you push: a rebase, merge, cherry-pick or revert in progress, tracked files with uncommitted
+changes, or a pushed ref that is not `HEAD` all stop the push. Check out the branch, or push from a worktree of it.
+
 Every night, and on demand (`gh workflow run verify`), **`verify-full`** runs
 `./verify --full` on `main`: Docker integration tests and copy-paste
 detection. It does not block anything. A red run is fixed by the next pull

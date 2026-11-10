@@ -21,7 +21,9 @@ metadata:
 
 - **Installation.** Le premier `./verify` hors CI installe les hooks (`core.hooksPath=.githooks`).
 - **pre-commit.** Formate les fichiers Java indexés, sans jamais bloquer.
-- **pre-push.** Lance `./verify` et bloque si c'est rouge.
+- **pre-push.** Lance `./verify` et bloque si c'est rouge. Refuse aussi si un rebase/merge/cherry-pick est
+  en cours, si des fichiers suivis ont des modifications non commitées, ou si la réf poussée n'est pas `HEAD`
+  (`./verify` contrôle l'arbre extrait, pas les commits poussés).
 - **Jamais `--no-verify`.** La CI rattrape un push qui l'utilise, mais seulement après coup.
 - **Vérifier qu'ils sont en place.** `git config core.hooksPath` doit répondre `.githooks`.
 
