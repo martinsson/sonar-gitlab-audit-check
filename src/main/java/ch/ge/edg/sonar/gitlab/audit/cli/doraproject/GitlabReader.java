@@ -6,6 +6,7 @@ import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.PrintStream;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -110,6 +111,48 @@ final class GitlabReader {
         first,
         List.copyOf(shas),
         mr.path("web_url").asText());
+  }
+
+  /**
+   * Les commits de la branche par défaut depuis {@code from}, du plus récent au plus ancien, comme
+   * GitLab les liste.
+   */
+  List<Snapshot.MainCommit> mainCommits(Project p, Instant from) {
+    Map<String, String> params = Map.of("ref_name", p.defaultBranch(), "since", from.toString());
+    List<Snapshot.MainCommit> out = new ArrayList<>();
+    for (JsonNode c : gitlab.paged("projects/" + p.id() + "/repository/commits", params)) {
+      out.add(
+          new Snapshot.MainCommit(
+              c.path("id").asText(),
+              c.path("title").asText(""),
+              Gitlab.instant(c.path("authored_date")),
+              Gitlab.instant(c.path("committed_date"))));
+    }
+    return out;
+  }
+
+  /**
+   * Les pushs sur la branche par défaut depuis la veille de {@code from} : GitLab ne filtre les
+   * événements qu'au jour près, et seulement après une date.
+   */
+  List<Snapshot.Push> pushes(Project p, Instant from) {
+    String after = from.minus(Duration.ofDays(1)).toString().substring(0, 10);
+    Map<String, String> params = Map.of("action", "pushed", "after", after);
+    List<Snapshot.Push> out = new ArrayList<>();
+    for (JsonNode e : gitlab.paged("projects/" + p.id() + "/events", params)) {
+      JsonNode push = e.path("push_data");
+      Instant at = Gitlab.instant(e.path("created_at"));
+      String to = push.path("commit_to").asText("");
+      boolean main =
+          "branch".equals(push.path("ref_type").asText())
+              && p.defaultBranch().equals(push.path("ref").asText());
+      if (at == null || !main || to.isEmpty()) continue;
+      String fromSha = push.path("commit_from").asText("");
+      out.add(
+          new Snapshot.Push(
+              at, fromSha.isEmpty() ? null : fromSha, to, push.path("commit_count").asInt()));
+    }
+    return out;
   }
 
   /** Une date que GitLab donne toujours ; filtrée en amont pour merged_at. */

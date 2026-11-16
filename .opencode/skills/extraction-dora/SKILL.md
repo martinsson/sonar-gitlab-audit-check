@@ -90,6 +90,16 @@ Fichiers produits :
 - **Définitions par projet.** Ce qu'est une mise en prod et ce qu'est un incident se décident
   projet par projet, avec l'utilisateur. Proposer une définition, compter ce qu'elle retient, et
   attendre son choix.
+- **Runs GoCD sans commit du projet.** `DoraProject --deploy-mapping` choisit la règle : `auto`
+  (défaut) passe à `reachable` (« atteint main ») quand aucun run ne porte de commit du projet. La
+  page dit d'où vient l'heure d'arrivée sur main de chaque fonctionnalité (MR, push, date de
+  commit approchée).
+
+## 5. DevLake
+
+`DoraProject` écrit aussi `devlake-import.sql`. La pile, l'import et les écarts de formules sont
+dans `devlake/README.md`. L'outil écrit un fichier, il n'appelle pas DevLake : c'est l'utilisateur
+qui l'applique à sa base.
 
 Si une API répond autrement qu'attendu (404 sur la recherche Jira, champ absent), le signaler avec
 l'endpoint et le code HTTP plutôt que de contourner : le code se corrige ensuite, en suivant

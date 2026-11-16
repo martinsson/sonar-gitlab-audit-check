@@ -42,13 +42,29 @@ final class Extraction {
     }
   }
 
+  /** Le choix de --deploy-mapping. */
+  enum Mapping {
+    /** Les matériaux GoCD, sauf s'ils ne portent aucun commit du projet. */
+    AUTO,
+    MATERIALS,
+    REACHABLE
+  }
+
   private final Request request;
+  private final Mapping mapping;
   private final Connections connections;
   private final Console console;
   private final Sleeper sleeper;
 
-  Extraction(Request request, Connections connections, Console console, Sleeper sleeper) {
+  /**
+   * Une extraction à faire.
+   *
+   * @param mapping la règle qui rattache les commits aux runs GoCD
+   */
+  Extraction(
+      Request request, Mapping mapping, Connections connections, Console console, Sleeper sleeper) {
     this.request = request;
+    this.mapping = mapping;
     this.connections = connections;
     this.console = console;
     this.sleeper = sleeper;
@@ -73,17 +89,46 @@ final class Extraction {
         request.jiraProjects().isEmpty()
             ? List.of()
             : new JiraReader(connections.jira(sleeper), err).incidents(jql(), types());
+    Snapshot.DeploySource source = gocd ? source(deployments, err) : Snapshot.DeploySource.MERGE;
+    boolean reachable = source == Snapshot.DeploySource.REACHABLE;
+    List<Snapshot.MainCommit> mainCommits = reachable ? gitlab.mainCommits(p, from) : List.of();
+    List<Snapshot.Push> pushes = reachable ? gitlab.pushes(p, from) : List.of();
+    if (reachable) {
+      err.println(
+          mainCommits.size()
+              + " commits sur "
+              + p.defaultBranch()
+              + ", "
+              + pushes.size()
+              + " pushs");
+    }
     Snapshot.Project project =
         new Snapshot.Project(
             p.id(),
             p.path(),
             p.webUrl(),
             p.defaultBranch(),
-            gocd ? Snapshot.DeploySource.GOCD : Snapshot.DeploySource.MERGE,
+            source,
             request.pipelines(),
             request.jiraProjects(),
             incidentRule());
-    return new Snapshot(project, from, to, mrs, deployments, incidents);
+    return new Snapshot(project, from, to, mrs, deployments, incidents, mainCommits, pushes);
+  }
+
+  /** La règle demandée ; en automatique, « atteint main » quand aucun run ne porte de commit. */
+  private Snapshot.DeploySource source(List<Snapshot.Deployment> deployments, PrintStream err) {
+    return switch (mapping) {
+      case MATERIALS -> Snapshot.DeploySource.GOCD;
+      case REACHABLE -> Snapshot.DeploySource.REACHABLE;
+      case AUTO -> {
+        if (deployments.isEmpty() || deployments.stream().anyMatch(d -> !d.commits().isEmpty())) {
+          yield Snapshot.DeploySource.GOCD;
+        }
+        err.println(
+            "Aucun run GoCD ne porte de commit du projet : règle « atteint main » appliquée");
+        yield Snapshot.DeploySource.REACHABLE;
+      }
+    };
   }
 
   private String jql() {

@@ -7,7 +7,7 @@ can also be written for a tool with `--comma`.
 
 | Script | Input | Output |
 |---|---|---|
-| `DoraProject` | a GitLab project, its prod GoCD pipeline(s) and Jira project(s), each optional but GitLab | the four DORA measures: `dora-donnees.json`, `dora.html`, `middleware-import.sql` |
+| `DoraProject` | a GitLab project, its prod GoCD pipeline(s) and Jira project(s), each optional but GitLab | the four DORA measures: `dora-donnees.json`, `dora.html`, `middleware-import.sql`, `devlake-import.sql` |
 | `DoraLocate` | a GitLab project | the Jira project(s) and GoCD pipelines that probably go with it, and the extraction commands |
 | `JiraExtract` | Jira project key(s) | `jira-tickets.csv`, `jira-transitions.csv`, `jira-versions.csv`, `jira-tickets.jsonl` |
 | `GocdExtract` | pipeline name(s) or group(s) | `gocd-runs.csv`, `gocd-stages.csv`, `gocd-commits.csv`, `gocd-runs.jsonl` |
@@ -44,19 +44,29 @@ It reads, over `--days` (90 by default):
   production deploy): every run, and the project's commits it deployed, walking
   the upstream pipelines exactly as `GocdExtract` does. Without GoCD, every merge
   into the default branch counts as a deploy, as Middleware does without CI.
+- **GitLab again**, only when the GoCD materials carry no commit of the project:
+  the default branch's commits and the push events on it, for the « reached
+  main » rule below (`--deploy-mapping`).
 - **Jira** (`--jira`): the issues created in the period whose type is one of
   `--incident-types` (`Incident,Bug` by default; the types seen are printed, to
   adjust). `--incident-jql` replaces the search: every issue it returns is an
   incident.
 
-It writes three files in `--out-dir` (`extraction/<project>/dora` by default):
+It writes four files in `--out-dir` (`extraction/<project>/dora` by default):
 
 - `dora-donnees.json`: what was read. `--from dora-donnees.json` rebuilds the
-  two others with no call at all.
-- `dora.html`: a self-contained page, no script and nothing external: the four
-  measures, the rules applied, then the deploys, merge requests and incidents
-  they are made of. The JSON is embedded too.
+  others with no call at all.
+- `dora.html`: a self-contained page, no script and nothing external.
+  - At the top, the four measures, each with its DORA 2023 band (elite, high,
+    medium, low; the thresholds of DevLake's dashboard).
+  - The rules applied, ours beside DevLake's.
+  - Then the deploys, features, merge requests and incidents they are made of.
+  - The JSON is embedded too.
 - `middleware-import.sql`: the deploys and incidents for Middleware HQ.
+- `devlake-import.sql`: the same, with our deploy ↔ commit mapping, for Apache
+  DevLake (`--devlake-project`, by default the path's last segment). The
+  stack, the import and how DevLake's formulas differ from ours are in
+  `devlake/README.md`.
 
 The rules, also printed on the page:
 
@@ -66,6 +76,28 @@ The rules, also printed on the page:
 | Lead time for changes | median, from a commit's author date to the first successful deploy that carried it (without GoCD: from an MR's first commit to its merge). A failed run retried without a new material carries nothing in GoCD's eyes: its commits go to the next successful run of the same pipeline |
 | Change failure rate | deploys, successful or not, followed by at least one incident before the next deploy, over all deploys: Middleware's own rule, so both give the same figure |
 | Time to restore | median, from an incident's creation to its Jira resolution date |
+
+**Which commits a GoCD run deployed** (`--deploy-mapping`):
+
+- `materials`: what the run embarked, upstream pipelines included, as above.
+- `reachable`: « reached main », for when GoCD's materials do not name the
+  project's commits. Merges are fast-forward, so no commit records when a change
+  reached main. It is taken from the `merged_at` of the change's merge request;
+  failing that, from the push to main that brought it (GitLab events); failing
+  that, from its committer date (rewritten by a rebase: an approximation). A
+  feature (a merge request; failing that, the commits citing one Jira key;
+  failing that, a push) is delivered by the first successful prod run
+  scheduled at or after its last commit reached main. Its lead time runs from
+  its first commit's author date to that run (`Features.java`).
+- `auto`, the default: `reachable` when no run carries a commit of the
+  project, `materials` otherwise. The page says which was applied.
+
+### Importing into Apache DevLake
+
+See `devlake/README.md`: the stack (Podman or Docker Compose, Helm on
+OpenShift), the import, and where DevLake's formulas differ from ours. As
+with Middleware, the tool writes a file and you apply it to the DevLake
+database you run. GitLab, Jira and GoCD are still only read.
 
 ### Importing into Middleware HQ
 

@@ -11,17 +11,19 @@ import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Callable;
 import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
 /**
  * Les mesures DORA d'un projet, maintenant : à partir du projet GitLab, et s'ils sont donnés, du
  * projet Jira de ses incidents et des pipelines GoCD qui le mettent en production. Écrit les
- * données lues, une page HTML qui les montre, et un script SQL qui les importe dans Middleware HQ.
- * GET seulement. La démarche est décrite dans dora/README.md.
+ * données lues, une page HTML qui les montre, et deux scripts SQL qui les importent dans Middleware
+ * HQ et dans Apache DevLake. GET seulement. La démarche est décrite dans dora/README.md.
  */
 @Command(
     name = "DoraProject",
@@ -29,7 +31,8 @@ import picocli.CommandLine.Option;
     sortOptions = false,
     description = {
       "Mesures DORA d'un projet GitLab, avec ses déploiements GoCD et ses incidents Jira.",
-      "Écrit dora-donnees.json, dora.html et middleware-import.sql dans --out-dir."
+      "Écrit dora-donnees.json, dora.html, middleware-import.sql et devlake-import.sql",
+      "dans --out-dir."
     })
 public class DoraProject implements Callable<Integer> {
 
@@ -78,6 +81,22 @@ public class DoraProject implements Callable<Integer> {
   int maxUpstream;
 
   @Option(
+      names = "--deploy-mapping",
+      defaultValue = "auto",
+      converter = MappingConverter.class,
+      description = {
+        "Rattachement des commits aux runs GoCD : materials (ce que le run a embarqué),",
+        "reachable (premier run réussi après l'arrivée du commit sur main), auto (reachable",
+        "si aucun run ne porte de commit du projet ; défaut)"
+      })
+  Extraction.Mapping deployMapping = Extraction.Mapping.AUTO;
+
+  @Option(
+      names = "--devlake-project",
+      description = "Projet DevLake de devlake-import.sql (défaut : le dernier segment du chemin)")
+  @Nullable String devlakeProject;
+
+  @Option(
       names = "--out-dir",
       description = "Dossier de sortie (défaut : extraction/<projet>/dora)")
   @Nullable Path outDir;
@@ -86,6 +105,14 @@ public class DoraProject implements Callable<Integer> {
       names = "--from",
       description = "Refait la page et l'import depuis un dora-donnees.json, sans rien extraire")
   @Nullable Path from;
+
+  /** auto, materials ou reachable, sans égard à la casse. */
+  static final class MappingConverter implements ITypeConverter<Extraction.Mapping> {
+    @Override
+    public Extraction.Mapping convert(String value) {
+      return Extraction.Mapping.valueOf(value.trim().toUpperCase(Locale.ROOT));
+    }
+  }
 
   @Mixin Connections connections = new Connections();
 
@@ -123,7 +150,7 @@ public class DoraProject implements Callable<Integer> {
     Extraction.Request request =
         new Extraction.Request(
             ref, pipelines, jiraProjects, incidentTypes, incidentJql, days, maxMrs, maxUpstream);
-    return new Extraction(request, connections, console, host.sleeper())
+    return new Extraction(request, deployMapping, connections, console, host.sleeper())
         .run(host.clock().instant());
   }
 
@@ -147,6 +174,9 @@ public class DoraProject implements Callable<Integer> {
         StandardCharsets.UTF_8);
     Files.writeString(
         dir.resolve(MiddlewareSql.NAME), MiddlewareSql.render(s), StandardCharsets.UTF_8);
+    String name = devlakeProject != null ? devlakeProject : DevlakeSql.defaultProject(s);
+    Files.writeString(
+        dir.resolve(DevlakeSql.NAME), DevlakeSql.render(s, name), StandardCharsets.UTF_8);
     Summary.print(s, dir, out);
   }
 }
