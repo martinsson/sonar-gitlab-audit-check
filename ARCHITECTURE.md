@@ -47,7 +47,7 @@ date out of a JSON node is the client's job, next to the response (`Gitlab.insta
 | `cli.cross` | CrossAudit | Crossing Sonar and GitLab, including the SonarToGitlab wide pass |
 | `cli.vues` | Vues | Views over the CSVs |
 | `cli.doralocate` | dora/DoraLocate | Where the DORA data lives: finds the Jira and GoCD sources of the projects |
-| `cli.doraproject` | dora/DoraProject | The four DORA measures of one project: a page, and an import for Middleware HQ |
+| `cli.doraproject` | dora/DoraProject | The four DORA measures of one project: a page, and imports for Middleware HQ and Apache DevLake |
 | `cli.gocdextract` | dora/GocdExtract | GoCD pipeline runs extracted for the DORA measures |
 | `cli.jiraextract` | dora/JiraExtract | Jira issues and their transitions extracted for the DORA measures |
 

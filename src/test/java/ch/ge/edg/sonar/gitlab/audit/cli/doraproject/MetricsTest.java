@@ -41,7 +41,8 @@ class MetricsTest {
       List<Snapshot.Incident> incidents) {
     Snapshot.Project p =
         new Snapshot.Project("1", "g/p", "w", "main", source, List.of("prod"), jira, "");
-    return new Snapshot(p, T0, T0.plus(Duration.ofDays(14)), mrs, deployments, incidents);
+    return new Snapshot(
+        p, T0, T0.plus(Duration.ofDays(14)), mrs, deployments, incidents, List.of(), List.of());
   }
 
   @Test
@@ -184,7 +185,7 @@ class MetricsTest {
     Snapshot.Project p =
         new Snapshot.Project(
             "1", "g/p", "w", "main", Snapshot.DeploySource.GOCD, List.of(), List.of(), "");
-    Snapshot s = new Snapshot(p, T0, h(3), List.of(), List.of(), List.of());
+    Snapshot s = new Snapshot(p, T0, h(3), List.of(), List.of(), List.of(), List.of(), List.of());
     assertThat(Metrics.of(s).days()).isEqualTo(1);
   }
 }
