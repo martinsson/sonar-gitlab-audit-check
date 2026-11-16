@@ -1,0 +1,107 @@
+# Values for the official Apache DevLake chart (repo https://apache.github.io/incubator-devlake-helm-chart,
+# chart `devlake/devlake` version 1.0.2, DevLake v1.0.2) on OpenShift, restricted-v2 SCC.
+# Commands in devlake/README.md. Every DevLake image here was started in this repository's
+# prototype as an arbitrary UID with group 0, the way restricted-v2 runs them.
+#
+# Secrets are not in this file. Create them first (names below):
+#   oc create secret generic devlake-encryption --from-literal=ENCRYPTION_SECRET="$(openssl rand -base64 2000 | tr -dc 'A-Z' | fold -w 128 | head -n 1)"
+#   oc create secret generic devlake-mysql-auth --from-literal=MYSQL_PASSWORD=… --from-literal=MYSQL_ROOT_PASSWORD=…
+
+imageTag: v1.0.2
+
+# The UI is reached through the Ingress below; OpenShift's router turns it into a Route.
+service:
+  type: ClusterIP
+
+ingress:
+  enabled: true
+  # Set the host the cluster's wildcard domain allows, e.g. devlake.apps.<cluster domain>.
+  hostname: devlake.apps.example.com
+  # Empty: the cluster's default ingress class, the OpenShift router.
+  className: ""
+  # TLS terminated at the router with its default certificate. Give tlsSecretName to use your own.
+  enableHttps: true
+  tlsSecretName: ""
+  annotations:
+    route.openshift.io/termination: edge
+
+option:
+  connectionSecretName: devlake-mysql-auth
+  # The secret above is created by hand: no password in the values.
+  autoCreateSecret: false
+
+# No fixed runAsUser, runAsGroup or fsGroup anywhere: restricted-v2 assigns them from the
+# namespace's range. Containers drop every capability and cannot escalate.
+mysql:
+  image:
+    repository: docker.io/library/mysql
+    tag: 8.0.40
+  username: merico
+  # Unused: the passwords come from devlake-mysql-auth (autoCreateSecret: false).
+  password: ""
+  rootPassword: ""
+  storage:
+    type: pvc
+    # Empty: the cluster's default storage class.
+    class: ""
+    size: 20Gi
+  securityContext: {}
+  containerSecurityContext: &restricted
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    capabilities:
+      drop: [ALL]
+    seccompProfile:
+      type: RuntimeDefault
+
+lake:
+  image:
+    repository: docker.io/apache/devlake
+    pullPolicy: IfNotPresent
+  encryptionSecret:
+    secretName: devlake-encryption
+    autoCreateSecret: false
+  envs:
+    # The Python plugins run through poetry under /app/.local, readable by the image's own user
+    # only: under an arbitrary UID they stop the server at start. None of them is needed here
+    # (GitLab, Jira, webhook and dora are Go plugins).
+    DISABLED_REMOTE_PLUGINS: "true"
+  # The image's /app/logs belongs to its own user: give the pod a writable one.
+  volumes:
+    - name: logs
+      emptyDir: {}
+  volumeMounts:
+    - name: logs
+      mountPath: /app/logs
+  securityContext: {}
+  containerSecurityContext: *restricted
+
+ui:
+  image:
+    repository: docker.io/apache/devlake-config-ui
+    pullPolicy: IfNotPresent
+  securityContext: {}
+  containerSecurityContext: *restricted
+
+grafana:
+  image:
+    repository: docker.io/apache/devlake-dashboard
+    tag: v1.0.2
+  # The Grafana sub-chart pins UID/GID/fsGroup 472, which restricted-v2 refuses. Helm cannot unset a
+  # sub-chart default from here (a null is ignored): openshift-post-render.sh removes them.
+  securityContext:
+    runAsNonRoot: true
+  # Its chown init container runs as root: not allowed, and not needed with the SCC's fsGroup.
+  initChownData:
+    enabled: false
+  persistence:
+    enabled: true
+    size: 4Gi
+    # storageClassName: <class>   # omitted: the cluster's default storage class
+  envFromSecrets:
+    - name: devlake-mysql-auth
+
+alpine:
+  image:
+    repository: docker.io/library/alpine
+    tag: "3.20"
