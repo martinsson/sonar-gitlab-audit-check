@@ -84,6 +84,10 @@ Ouvrir `viz/index.html` (parc) ou `viz/projet.html` (un projet) et y déposer le
 lus dans le navigateur, jamais envoyés. L'export « page autonome » contient des noms et des
 chiffres : vérifier qui le reçoit.
 
+Le rapport hebdomadaire (job `pages`, `ci/build-pages.sh`) fait la même chaîne sans LLM dans la CI
+GitLab du client et publie ces pages sur GitLab Pages, réservé aux membres du projet. Mise en place :
+`TOOLS.md`, « Weekly report on GitLab Pages ».
+
 ## Rendre compte
 
 Donner les chiffres que la console affiche : projets visibles et réels côté Sonar, entonnoir côté
