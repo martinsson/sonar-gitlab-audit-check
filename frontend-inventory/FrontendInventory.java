@@ -1,11 +1,14 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 25+
 //DEPS com.fasterxml.jackson.core:jackson-databind:2.17.2
+//SOURCES ../src/main/java/ch/ge/edg/sonar/gitlab/audit/text/FrontLines.java
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ch.ge.edg.sonar.gitlab.audit.text.FrontLines;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.net.URI;
@@ -33,6 +36,7 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -44,15 +48,19 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Pour chaque projet non archivé : les langages calculés par GitLab donnent la part
  * de code front. Si elle est notable, on cherche les package.json du dépôt jusqu'à
  * une profondeur donnée, sinon seulement celui de la racine. Les package.json disent la techno
- * (Vue 2 / Vue 3, React, Angular...). Puis l'activité sur N jours (commits, MR,
+ * (Vue 2 / Vue 3, React, Angular...). Pour les projets à framework UI, les lignes front
+ * sont comptées dans l'archive de la branche par défaut (l'arbre au dernier commit, sans
+ * historique), limitée aux dossiers des package.json. Puis l'activité sur N jours (commits, MR,
  * lignes changées). La colonne a_verifier signale les cas que ces règles ne
  * savent pas trancher.
  *
- * Lecture seule, que des GET. Autonome : ne dépend d'aucun autre fichier du dépôt.
+ * Lecture seule, que des GET. Seul lien avec le reste du dépôt : le comptage des lignes,
+ * src/main/java/ch/ge/edg/sonar/gitlab/audit/text/FrontLines.java (JDK seul, testé par ./verify).
  *
  *   export GITLAB_URL=https://gitlab.example.com GITLAB_TOKEN=glpat-xxxx
  *   jbang FrontendInventory.java [--out frontend.csv] [--days 90] [--limit N] [--threads 10] [--seuil-front 5]
- *                                [--profondeur 3]
+ *                                [--profondeur 3] [--sans-comptage] [--max-archive-mo 200]
+ *                                [--archives-simultanees 2]
  */
 public class FrontendInventory {
 
@@ -84,29 +92,42 @@ public class FrontendInventory {
             "(^|/)(node_modules|bower_components|vendor|target|build|dist)$|(^|/)src/(main/java|test)$");
     // Garde-fou : appels /repository/tree au plus par projet, quelle que soit la profondeur.
     static final int MAX_TREE_CALLS = 200;
+    // Techno sans framework UI : on ne compte pas ses lignes, ce n'est pas du front applicatif.
+    static final Set<String> NOT_UI = Set.of("aucun", "node sans framework UI");
 
     // "Nj" est remplacé par la fenêtre, ex. commits_90j.
     static final List<String> COLUMNS = List.of("id", "projet", "url", "branche", "derniere_activite",
             "commits_Nj", "mr_Nj", "lignes_ajoutees_Nj", "lignes_supprimees_Nj", "commits_total",
             "part_front_pct", "langages",
             "package_json", "vue", "react", "angular", "autres_front", "outillage",
-            "taille_depot_octets", "estimation_lignes",
+            "taille_depot_octets",
+            "lignes_front", "fichiers_front", "lignes_front_par_ext", "perimetre_lignes", "methode_lignes",
+            "fichiers_ecartes",
             "techno", "a_verifier", "erreur");
 
     final String baseUrl;
     final String token;
     final double frontThreshold;
     final int maxDepth;
+    final boolean countLines;
+    final long maxArchiveBytes;
+    // L'archive est la requête la plus lourde pour GitLab (Gitaly la construit) et souvent
+    // limitée en débit : on en télécharge peu à la fois, quel que soit --threads.
+    final Semaphore archives;
     final HttpClient http = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(20))
             .followRedirects(HttpClient.Redirect.NORMAL)
             .build();
 
-    FrontendInventory(String baseUrl, String token, double frontThreshold, int maxDepth) {
+    FrontendInventory(String baseUrl, String token, double frontThreshold, int maxDepth,
+                      boolean countLines, long maxArchiveBytes, int parallelArchives) {
         this.baseUrl = baseUrl.replaceAll("/+$", "") + "/api/v4";
         this.token = token;
         this.frontThreshold = frontThreshold;
         this.maxDepth = maxDepth;
+        this.countLines = countLines;
+        this.maxArchiveBytes = maxArchiveBytes;
+        this.archives = new Semaphore(parallelArchives);
     }
 
     public static void main(String[] args) throws Exception {
@@ -116,6 +137,9 @@ public class FrontendInventory {
         int threads = Runtime.getRuntime().availableProcessors();
         double frontThreshold = 5;
         int maxDepth = 3;
+        boolean countLines = true;
+        long maxArchiveMb = 200;
+        int parallelArchives = 2;
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--out" -> out = args[++i];
@@ -124,13 +148,20 @@ public class FrontendInventory {
                 case "--threads" -> threads = Integer.parseInt(args[++i]);
                 case "--seuil-front" -> frontThreshold = Double.parseDouble(args[++i]);
                 case "--profondeur" -> maxDepth = Integer.parseInt(args[++i]);
+                case "--sans-comptage" -> countLines = false;
+                case "--max-archive-mo" -> maxArchiveMb = Long.parseLong(args[++i]);
+                case "--archives-simultanees" -> parallelArchives = Integer.parseInt(args[++i]);
                 case "-h", "--help" -> {
                     System.out.println("Usage: FrontendInventory [--out frontend.csv] [--days 90] [--limit N] [--threads N]"
-                            + " [--seuil-front 5] [--profondeur 3]\n"
+                            + " [--seuil-front 5] [--profondeur 3] [--sans-comptage] [--max-archive-mo 200]"
+                            + " [--archives-simultanees 2]\n"
                             + "  --seuil-front : part de code front (%) à partir de laquelle on cherche les package.json"
                             + " dans les sous-dossiers\n"
                             + "  --profondeur : profondeur maximale des dossiers où chercher un package.json"
                             + " (0 = racine seule)\n"
+                            + "  --sans-comptage : ne télécharge pas les archives, colonnes lignes_front vides\n"
+                            + "  --max-archive-mo : au-delà (compressé, par dossier), le comptage s'arrête et le dit\n"
+                            + "  --archives-simultanees : archives téléchargées en même temps, tous threads confondus\n"
                             + "Env: GITLAB_URL, GITLAB_TOKEN");
                     return;
                 }
@@ -143,7 +174,8 @@ public class FrontendInventory {
             System.err.println("GITLAB_URL manquant");
             System.exit(2);
         }
-        new FrontendInventory(url, token, frontThreshold, maxDepth).run(Path.of(out), days, limit, threads);
+        new FrontendInventory(url, token, frontThreshold, maxDepth, countLines, maxArchiveMb * 1024 * 1024,
+                parallelArchives).run(Path.of(out), days, limit, threads);
     }
 
     void run(Path requested, int days, int limit, int threads) throws Exception {
@@ -256,17 +288,29 @@ public class FrontendInventory {
         row.put("commits_total", stats.has("commit_count") ? stats.path("commit_count").asText() : "");
         long repoSize = stats.has("repository_size") ? stats.path("repository_size").asLong() : 0;
         row.put("taille_depot_octets", String.valueOf(repoSize));
-        row.put("estimation_lignes", repoSize > 0 ? String.valueOf(repoSize / 40) : "");
         List<String> errors = new ArrayList<>();
         if (branch.isEmpty()) {
             row.put("techno", "aucun");
             errors.add("dépôt vide");
         } else {
             // Séparés : un package.json illisible n'empêche pas de mesurer l'activité.
+            List<String> packageJsons = List.of();
             try {
-                front(id, branch, row);
+                packageJsons = front(id, branch, row);
             } catch (Exception e) {
                 errors.add(e.getMessage());
+            }
+            if (!countLines) {
+                row.put("methode_lignes", "non mesuré (--sans-comptage)");
+            } else if (packageJsons.isEmpty() || NOT_UI.contains(row.getOrDefault("techno", ""))) {
+                row.put("methode_lignes", "non mesuré (pas de framework UI)");
+            } else {
+                try {
+                    lines(id, branch, packageJsons, row);
+                } catch (Exception e) {
+                    row.put("methode_lignes", "erreur");
+                    errors.add("comptage des lignes : " + e.getMessage());
+                }
             }
             try {
                 activity(id, branch, since, row);
@@ -278,8 +322,11 @@ public class FrontendInventory {
         return COLUMNS.stream().map(c -> row.getOrDefault(c, "")).toArray(String[]::new);
     }
 
-    /** Remplit langages / techno / package_json / vue / react / angular / autres_front / outillage / a_verifier. */
-    void front(long id, String branch, Map<String, String> row) throws Exception {
+    /**
+     * Remplit langages / techno / package_json / vue / react / angular / autres_front / outillage / a_verifier.
+     * Rend les package.json trouvés.
+     */
+    List<String> front(long id, String branch, Map<String, String> row) throws Exception {
         List<String> toCheck = new ArrayList<>();
         Map<String, Double> languages = languages(id);
         double frontShare = languages.entrySet().stream()
@@ -375,6 +422,55 @@ public class FrontendInventory {
             warnings.add("fichiers .vue sans dépendance vue");
         }
         row.put("a_verifier", String.join(", ", warnings));
+        return found;
+    }
+
+    /**
+     * Les lignes front du dernier commit de la branche, dans les dossiers des package.json : une archive
+     * par dossier, lue en flux, rien n'est écrit sur disque. Un package.json à la racine couvre tout le dépôt.
+     */
+    void lines(long id, String branch, List<String> packageJsons, Map<String, String> row) throws Exception {
+        List<String> roots = frontRoots(packageJsons);
+        FrontLines.Count total = FrontLines.Count.EMPTY;
+        for (String root : roots) {
+            String url = baseUrl + "/projects/" + id + "/repository/archive.tar.gz?sha=" + enc(branch)
+                    + (root.isEmpty() ? "" : "&path=" + enc(root));
+            archives.acquire();
+            try {
+                HttpResponse<InputStream> resp = getStream(url);
+                try (InputStream body = resp.body()) {
+                    if (resp.statusCode() != 200) {
+                        throw new IOException("archive " + (root.isEmpty() ? "" : root + " ") + "→ " + resp.statusCode());
+                    }
+                    total = total.plus(FrontLines.count(body, maxArchiveBytes));
+                }
+            } finally {
+                archives.release();
+            }
+        }
+        row.put("lignes_front", String.valueOf(total.lines()));
+        row.put("fichiers_front", String.valueOf(total.files()));
+        row.put("lignes_front_par_ext", total.byExtensionText());
+        row.put("perimetre_lignes", String.join(", ", roots.stream().map(r -> r.isEmpty() ? "(racine)" : r + "/").toList()));
+        row.put("fichiers_ecartes", total.skippedText());
+        row.put("methode_lignes", total.truncated()
+                ? "archive HEAD, tronquée à " + (maxArchiveBytes / 1024 / 1024) + " Mo"
+                : "archive HEAD");
+    }
+
+    /**
+     * Les dossiers des package.json, sans ceux qui sont dans un autre : front/package.json et
+     * front/admin/package.json → front. Un package.json à la racine → "" (tout le dépôt).
+     */
+    static List<String> frontRoots(List<String> packageJsons) {
+        List<String> dirs = packageJsons.stream()
+                .map(p -> p.contains("/") ? p.substring(0, p.lastIndexOf('/')) : "")
+                .distinct().sorted().toList();
+        List<String> roots = new ArrayList<>();
+        for (String d : dirs) {
+            if (roots.stream().noneMatch(r -> r.isEmpty() || d.equals(r) || d.startsWith(r + "/"))) roots.add(d);
+        }
+        return roots;
     }
 
     /** Langage → % du code (octets), tel que GitLab le calcule. Vide si pas encore calculé ou illisible. */
@@ -494,6 +590,23 @@ public class FrontendInventory {
         }
     }
 
+    /** Comme get, en flux : une archive peut peser des centaines de Mo. Plus patient sur les 429. */
+    HttpResponse<InputStream> getStream(String url) throws IOException, InterruptedException {
+        for (int attempt = 0; ; attempt++) {
+            HttpRequest.Builder rb = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofMinutes(10)).GET();
+            if (token != null && !token.isBlank()) rb.header("PRIVATE-TOKEN", token);
+            HttpResponse<InputStream> resp = http.send(rb.build(), HttpResponse.BodyHandlers.ofInputStream());
+            if ((resp.statusCode() == 429 || resp.statusCode() >= 500) && attempt < 8) {
+                resp.body().close();
+                long wait = Math.min(60, resp.headers().firstValue("Retry-After")
+                        .filter(v -> v.matches("\\d+")).map(Long::parseLong).orElse(2L << attempt));
+                Thread.sleep(wait * 1000);
+                continue;
+            }
+            return resp;
+        }
+    }
+
     static final Pattern NEXT_LINK = Pattern.compile("<([^>]+)>;\\s*rel=\"next\"");
 
     static String nextLink(HttpResponse<?> resp) {
@@ -563,7 +676,7 @@ public class FrontendInventory {
 
         void add(String[] r) {
             boolean isActive = number(r, "commits_Nj") > 0;
-            long l = number(r, "estimation_lignes");
+            long l = number(r, "lignes_front");
             projects++;
             lines += l;
             changed += number(r, "lignes_ajoutees_Nj") + number(r, "lignes_supprimees_Nj");
@@ -618,16 +731,18 @@ public class FrontendInventory {
         table(sb, "Outil", byTool, all, days);
         sb.append("<p class=\"note\">Actif : au moins un commit sur la branche par défaut dans les ").append(days)
                 .append(" derniers jours. Un projet à plusieurs technos compte dans chacune, la ligne Total ne")
-                .append(" le compte qu'une fois. Lignes estimées : taille du dépôt GitLab / 40, historique git")
-                .append(" et fichiers binaires compris, donc un ordre de grandeur, pas un comptage. Lignes")
-                .append(" modifiées : ajoutées + supprimées sur la fenêtre, hors commits de merge.</p>\n");
+                .append(" le compte qu'une fois. Lignes front : lignes non vides des fichiers front (.js .ts .vue")
+                .append(" .css .html...) au dernier commit de la branche par défaut, dans les dossiers des")
+                .append(" package.json, hors node_modules, dist, build, fichiers minifiés et binaires ; comptées")
+                .append(" seulement pour les projets à framework UI (colonne methode_lignes). Lignes modifiées :")
+                .append(" ajoutées + supprimées sur la fenêtre, tous langages, hors commits de merge.</p>\n");
         sb.append("</body>\n</html>\n");
         return sb.toString();
     }
 
     static void table(StringBuilder sb, String first, Map<String, Tally> rows, Tally total, int days) {
         sb.append("<table>\n<tr><th>").append(first).append("</th><th>Projets</th><th>Projets actifs</th>")
-                .append("<th>Lignes estimées</th><th>Lignes estimées (actifs)</th><th>Lignes modifiées ")
+                .append("<th>Lignes front</th><th>Lignes front (actifs)</th><th>Lignes modifiées ")
                 .append(days).append("j</th></tr>\n");
         rows.entrySet().stream()
                 .sorted(Map.Entry.<String, Tally>comparingByValue(Comparator.comparingInt(t -> -t.projects))
