@@ -34,6 +34,15 @@ const Page = {
     document.getElementById('search').addEventListener('input', e => this.search(e.target.value));
     addEventListener('hashchange', () => this.fromHash());
     this.render();
+    Viz.autoload().then(m => {
+      if (!m) return;
+      // Les URL des instances viennent du manifeste, sauf si on en a saisi d'autres.
+      for (const [id, url] of [['sonar-url', m.sonar_url], ['gitlab-url', m.gitlab_url]]) {
+        const input = document.getElementById(id);
+        if (url && !input.value) input.value = url;
+      }
+      this.renderProject();
+    });
   },
 
   render() {
