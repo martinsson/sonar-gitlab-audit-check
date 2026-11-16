@@ -56,6 +56,68 @@ silently, so drift never shows up as an error), to keep samples of the
 unhealthy projects whose payloads break naive parsing, and to rank an instance
 you cannot reach from a colleague's capture.
 
+## Weekly report on GitLab Pages
+
+The usual run, on a schedule, in the client's GitLab: the job `pages` (`ci/audit-pages.yml`) runs
+`ci/build-pages.sh`, which builds the tools with `./mvnw`, runs SonarAuditCheck, GitlabActivityAudit
+`--deep`, CrossAudit and Vues, then publishes `viz/` with that run's CSVs. No LLM, no OpenCode. The
+pages find the CSVs through `data/manifest.json` and load them on opening, as if they had been
+dropped; they say when the data was generated and link each CSV for download. Opened from disk,
+they still wait for dropped files.
+
+**Pages visibility first.** The page holds project names and quality figures for the whole
+estate. Before the first run: Settings → General → Visibility, project features, permissions →
+Pages: **Only project members** (or Everyone with access, if the instance is internal and that
+is the audience). On an instance without Pages access control, do not set this job up. Keep the
+project private and "Public pipelines" off (Settings → CI/CD → General pipelines): the job log
+and artifacts hold the same names. Never commit `public/` or the CSVs.
+
+**Variables** (Settings → CI/CD → Variables):
+
+| Variable | Value |
+|---|---|
+| `SONAR_URL`, `GITLAB_URL` | The two instances |
+| `SONAR_TOKEN` | User token (`squ_…`) of the audit account. **Masked**, protected |
+| `GITLAB_TOKEN` | Personal or project access token, `read_api`. **Masked**, protected |
+| `AUDIT_GROUP` | Optional: one group instead of the whole instance |
+| `AUDIT_SINCE`, `AUDIT_TOP` | Optional: `--since` and `--top` of GitlabActivityAudit |
+| `AUDIT_EXCLUSIONS` | Optional, type **File**: the content of `exclusions.txt` |
+| `AUDIT_APPARIEMENT` | Optional, type **File**: hand-made pairs, see below |
+| `AUDIT_SONAR_ARGS`, `AUDIT_GITLAB_ARGS` | Optional: more options, e.g. `--insecure` |
+
+Protected variables reach only protected branches: the schedule runs on `main`, which is one. The
+script never prints the tokens; keep `set -x` out of it.
+
+**The schedule.** Build → Pipeline schedules → New schedule: cron `0 6 * * 1` (Monday 06:00),
+your time zone, target branch `main`, variable `AUDIT_PAGES` = `true`. Only schedules with that
+variable run the audit, so other schedules are left alone. To refresh by hand: Build → Pipelines →
+Run pipeline on `main`. Either pipeline runs `pages` only, not `verify`. The URL is under Deploy →
+Pages. A whole instance with `--deep` can take hours: the job allows 4 h, and the runner's own
+limit may be lower; `AUDIT_GROUP` or a smaller `AUDIT_TOP` shortens it.
+
+**Hand-made pairs.** `appariement.csv` is replayed by CrossAudit on each run
+([README](README.md#correcting-the-pairs-by-hand)); it is client data, so it is not committed.
+Each run starts from:
+
+1. `AUDIT_APPARIEMENT`, when set. It wins, every week, until it is removed.
+2. Otherwise the `appariement.csv` the last successful `pages` job published (fetched with the job
+   token; with the default "Keep artifacts from most recent successful jobs", they outlive
+   `expire_in`).
+3. Otherwise nothing: CrossAudit starts a new one.
+
+To correct a pair: download `appariement.csv` from the page, set `confiance` to `manuel` (with the
+right `droite_key`) or `rejete`, and paste it into `AUDIT_APPARIEMENT`. Only the rows you changed
+are needed, with the columns `gauche_path;droite_key;confiance`; the others are recomputed. Then run
+the pipeline by hand to see the result. Variables have a size limit, so keep that file short.
+
+**Locally**, the same script, then a web server (the pages cannot fetch from `file://`):
+
+```bash
+export SONAR_URL=… SONAR_TOKEN=… GITLAB_URL=… GITLAB_TOKEN=…
+AUDIT_GROUP=my/group ci/build-pages.sh   # → public/, working files in target/pages-audit
+python3 -m http.server -d public         # http://localhost:8000
+```
+
 ## Developing: the inner loop
 
 Build with the Maven wrapper, `./mvnw`, never plain `mvn`: the machine's default JDK is often older
@@ -128,7 +190,8 @@ forks run the checks but never merge themselves: on a public repository, that
 would let anyone land code that merely passes the tests.
 
 **GitLab.** `.gitlab-ci.yml`, with the same two jobs, plus `auto-merge`.
-`verify-full` runs only on the default branch. Blocking
+`verify-full` runs only on the default branch. Scheduled and manual pipelines run only the weekly
+report (`ci/audit-pages.yml`, [above](#weekly-report-on-gitlab-pages)). Blocking
 needs these project settings, which a file cannot set:
 
 - Settings → Repository → Protected branches: `main`, allowed to merge:
