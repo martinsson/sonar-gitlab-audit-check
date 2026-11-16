@@ -18,6 +18,7 @@ header.dragging { outline: 2px dashed var(--muted); }
 h1 { margin: 0 0 4px; font-size: 22px; }
 h2 { margin: 0 0 8px; font-size: 17px; }
 p, .help { color: var(--muted); margin: 0 0 12px; }
+#generated { color: var(--fg); }
 a { color: inherit; }
 input[type=text], input[type=url] { font: inherit; padding: 4px 8px; border: 1px solid var(--line);
   border-radius: 4px; background: var(--card); color: var(--fg); }
@@ -53,6 +54,7 @@ code { font-family: ui-monospace, monospace; font-size: 12px; }
   <p>Un projet, Sonar ou GitLab, et tout ce que l'audit sait de lui. Déposer ici, ou choisir, les CSV
      de l'audit : ils sont lus dans le navigateur, rien n'est envoyé.
      <a href="index.html">Graphiques de l'ensemble</a></p>
+  <p id="generated" hidden></p>
   <input type="file" id="files" multiple accept=".csv">
   <div id="files-loaded"></div>
   <div class="row">
