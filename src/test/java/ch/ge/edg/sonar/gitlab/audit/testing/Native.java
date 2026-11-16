@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.Assumptions;
 
 /**
  * What differs between platforms, made the same for the tests. What the tool prints natively — line
@@ -56,13 +57,19 @@ public final class Native {
 
   /**
    * Makes {@code file} unreadable by its owner: no permission bits where the file system has them,
-   * a deny-read entry in front of its access list elsewhere (Windows).
+   * a deny-read entry in front of its access list elsewhere (Windows). Aborts the calling test when
+   * the file stays readable all the same, as it does for root (a container, a CI image).
    */
   public static void unreadable(Path file) throws IOException {
     if (Files.getFileStore(file).supportsFileAttributeView(PosixFileAttributeView.class)) {
       Files.setPosixFilePermissions(file, Set.of());
-      return;
+    } else {
+      denyRead(file);
     }
+    Assumptions.assumeFalse(Files.isReadable(file), "this user reads every file (root)");
+  }
+
+  private static void denyRead(Path file) throws IOException {
     AclFileAttributeView view = Files.getFileAttributeView(file, AclFileAttributeView.class);
     AclEntry denyRead =
         AclEntry.newBuilder()
