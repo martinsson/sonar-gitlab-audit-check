@@ -72,7 +72,7 @@ final class MiddlewareSql {
             + ") absent de Middleware : liez-le d''abord.';");
     line("  END IF;");
     line("END $$;");
-    if (p.deploySource() == Snapshot.DeploySource.GOCD) {
+    if (p.gocd()) {
       workflows();
       runs();
       teamRepos();

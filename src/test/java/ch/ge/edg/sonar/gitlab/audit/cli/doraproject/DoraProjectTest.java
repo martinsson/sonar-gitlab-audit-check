@@ -83,6 +83,7 @@ class DoraProjectTest {
           .contains(
               "Jira : 3 tickets lus, 2 incidents retenus. Types vus : {Bug=1, Incident=1, Story=1}");
       expectSelfie(fixed(file("middleware-import.sql"), gocd, jira)).toMatchDisk("sql");
+      expectSelfie(fixed(file("devlake-import.sql"), gocd, jira)).toMatchDisk("devlake");
       expectSelfie(fixed(file("dora-donnees.json"), gocd, jira)).toMatchDisk("json");
       String html = fixed(file("dora.html"), gocd, jira);
       thePageShowsTheMeasuresAndEscapesTheText(html);
@@ -96,15 +97,56 @@ class DoraProjectTest {
   private static void thePageShowsTheMeasuresAndEscapesTheText(String html) {
     assertThat(html)
         .contains("<title>DORA octocat/Hello-World</title>")
-        .contains("<div class=\"v\">0,2 / sem.</div>")
-        .contains("<div class=\"v\">26,5 h</div>")
-        .contains("<div class=\"v\">33 %</div>")
-        .contains("<div class=\"v\">4,0 h</div>")
+        .contains("<div class=\"v\">0,2 / sem.</div><span class=\"band LOW\">niveau bas")
+        .contains("<div class=\"v\">26,5 h</div><span class=\"band HIGH\">niveau haut")
+        .contains("<div class=\"v\">33 %</div><span class=\"band LOW\">niveau bas")
+        .contains("<div class=\"v\">4,0 h</div><span class=\"band HIGH\">niveau haut")
         .contains("Deuxième &lt;b&gt;")
         .contains("Premier l&#39;essai")
         .contains("un ticket de type Incident ou Bug créé dans ABC")
         .contains("<script type=\"application/json\" id=\"donnees\">")
         .doesNotContain("Trop ancienne");
+  }
+
+  @Test
+  void gocdRunsWithoutProjectCommitsDeliverWhatReachedMainBeforeThem() throws IOException {
+    try (FakeHttpServer gitlab = Fakes.gitlab();
+        FakeHttpServer gocd = Fakes.gocdWithoutProjectCommits();
+        FakeHttpServer jira = Fakes.jira()) {
+      Cli.Result r = run(args(gitlab(gitlab), gocd(gocd, "prod-ff"), jira(jira)));
+      assertThat(r.exitCode()).as(r.err()).isZero();
+      assertThat(r.err())
+          .contains(
+              "Aucun run GoCD ne porte de commit du projet : règle « atteint main » appliquée")
+          .contains("5 commits sur main, 1 pushs");
+      // Leads: !1 50 h, !2 28 h, d2 25 h, ABC-9 11 days: the median is 39 h.
+      String html = file("dora.html");
+      assertThat(html)
+          .contains("<div class=\"v\">39,0 h</div>")
+          .contains("médiane sur 4 fonctionnalités")
+          .contains("Fonctionnalités arrivées sur main (5)")
+          .contains(
+              "Heure d&#39;arrivée : 3 par merged_at de la merge request, 1 par heure du push sur"
+                  + " main, 1 par date de commit (approximation : un rebase la réécrit).");
+      String sql = fixed(file("devlake-import.sql"), gocd, jira);
+      assertThat(sql).contains("('d2', 'h2', 'd1', 0)").contains("('d2', 'h2', 'd2', 1)");
+      expectSelfie(sql).toMatchDisk("devlake");
+      expectSelfie(fixed(file("dora-donnees.json"), gocd, jira)).toMatchDisk("json");
+      assertThat(gitlab.requests("/api/v4/projects/42/events").get(0).param("after"))
+          .isEqualTo("2026-07-22");
+    }
+  }
+
+  @Test
+  void withMaterialsTheMainBranchIsNotRead() throws IOException {
+    try (FakeHttpServer gitlab = Fakes.gitlab();
+        FakeHttpServer gocd = Fakes.gocdWithoutProjectCommits()) {
+      List<String> materials = List.of("--deploy-mapping", "materials");
+      Cli.Result r = run(args(gitlab(gitlab), gocd(gocd, "prod-ff"), materials));
+      assertThat(r.exitCode()).as(r.err()).isZero();
+      assertThat(gitlab.requests("/api/v4/projects/42/events")).isEmpty();
+      assertThat(file("dora.html")).contains("médiane sur 0 commits");
+    }
   }
 
   @Test
@@ -147,6 +189,7 @@ class DoraProjectTest {
     }
     String html = file("dora.html");
     String sql = file("middleware-import.sql");
+    String devlake = file("devlake-import.sql");
     assertThat(html).contains("les tickets de la requête « project = ABC AND labels = prod »");
     Path copy = dir.resolve("copie");
     Files.createDirectories(copy);
@@ -156,6 +199,7 @@ class DoraProjectTest {
     assertThat(again.exitCode()).as(again.err()).isZero();
     assertThat(Files.readString(copy.resolve("dora.html"))).isEqualTo(html);
     assertThat(Files.readString(copy.resolve("middleware-import.sql"))).isEqualTo(sql);
+    assertThat(Files.readString(copy.resolve("devlake-import.sql"))).isEqualTo(devlake);
   }
 
   @Test

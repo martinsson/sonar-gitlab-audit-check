@@ -12,6 +12,9 @@ import org.jspecify.annotations.Nullable;
  *
  * @param from début de la période lue
  * @param to fin de la période : l'heure de l'extraction
+ * @param mainCommits les commits de la branche par défaut, lus seulement pour la règle « atteint
+ *     main » ; vides sinon, et dans un fichier écrit avant elle
+ * @param pushes les pushs sur la branche par défaut, lus avec {@code mainCommits}
  */
 record Snapshot(
     Project project,
@@ -19,18 +22,32 @@ record Snapshot(
     Instant to,
     List<MergeRequest> mergeRequests,
     List<Deployment> deployments,
-    List<Incident> incidents) {
+    List<Incident> incidents,
+    List<MainCommit> mainCommits,
+    List<Push> pushes) {
 
   Snapshot {
     mergeRequests = List.copyOf(mergeRequests);
     deployments = List.copyOf(deployments);
     incidents = List.copyOf(incidents);
+    // Absents d'un dora-donnees.json écrit avant la règle « atteint main ».
+    mainCommits = mainCommits == null ? List.of() : List.copyOf(mainCommits);
+    pushes = pushes == null ? List.of() : List.copyOf(pushes);
   }
 
   /** D'où viennent les déploiements. */
   enum DeploySource {
-    /** Les runs des pipelines GoCD de production. */
+    /**
+     * Les runs des pipelines GoCD de production, chacun avec les commits que ses matériaux disent
+     * avoir embarqués, en remontant les pipelines amont.
+     */
     GOCD,
+    /**
+     * Les runs des pipelines GoCD de production, quand leurs matériaux ne disent rien des commits
+     * du projet : un commit va au premier run réussi planifié après son arrivée sur la branche par
+     * défaut (la règle « atteint main », {@link Features}).
+     */
+    REACHABLE,
     /** Faute de GoCD, chaque merge request fusionnée sur la branche par défaut. */
     MERGE
   }
@@ -56,6 +73,16 @@ record Snapshot(
     Project {
       prodPipelines = List.copyOf(prodPipelines);
       jiraProjects = List.copyOf(jiraProjects);
+    }
+
+    /** Les déploiements sont des runs GoCD, quelle que soit la règle des commits. */
+    boolean gocd() {
+      return deploySource != DeploySource.MERGE;
+    }
+
+    /** Les commits vont aux runs GoCD par leur arrivée sur main. */
+    boolean reachable() {
+      return deploySource == DeploySource.REACHABLE;
     }
   }
 
@@ -114,4 +141,21 @@ record Snapshot(
       Instant createdAt,
       @Nullable Instant resolvedAt,
       String url) {}
+
+  /**
+   * Un commit de la branche par défaut, tel que GitLab le liste.
+   *
+   * @param committedAt la date de commit : avec des fusions en avance rapide après rebase, à peu
+   *     près le moment du rebase, donc de l'arrivée sur main
+   */
+  record MainCommit(
+      String sha, String title, @Nullable Instant authoredAt, @Nullable Instant committedAt) {}
+
+  /**
+   * Un push sur la branche par défaut : les commits de {@code commitFrom} (exclu) à {@code
+   * commitTo} y sont arrivés à {@code at}.
+   *
+   * @param commitFrom absent à la création de la branche
+   */
+  record Push(Instant at, @Nullable String commitFrom, String commitTo, int commitCount) {}
 }

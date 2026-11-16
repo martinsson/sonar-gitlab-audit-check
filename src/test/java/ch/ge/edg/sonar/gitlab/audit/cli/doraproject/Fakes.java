@@ -13,6 +13,12 @@ import org.jspecify.annotations.Nullable;
  * without a change, as GoCD records a rerun. MR !3 is merged but never deployed. In Jira, ABC-7 is
  * a bug opened before any deploy and still open, ABC-5 an incident after prod/3, fixed in four
  * hours, ABC-6 a story.
+ *
+ * <p>The same project merged in fast-forward, deployed by prod-ff, whose GoCD materials only name a
+ * configuration repository: no commit of the project is known to GoCD. On main, besides the three
+ * merge requests, d1 « ABC-9 » was pushed straight to main at 2026-09-10 10:10 (a push event), and
+ * d2 arrived with no event at all (only its committer date says when). prod-ff/1 delivers !1,
+ * prod-ff/2 fails, prod-ff/3 delivers !2, prod-ff/4 delivers d1 and d2.
  */
 final class Fakes {
 
@@ -46,7 +52,57 @@ final class Fakes {
         "/api/v4/projects/42/merge_requests/2/commits", commits("c2", "2026-09-01T08:00:00Z"));
     gitlab.json(
         "/api/v4/projects/42/merge_requests/3/commits", commits("c3", "2026-10-09T07:00:00Z"));
+    gitlab.json(
+        "/api/v4/projects/42/repository/commits",
+        "["
+            + mainCommit("c3", "Troisième", "2026-10-09T07:00:00Z", "2026-10-10T08:00:00Z")
+            + ","
+            + mainCommit("d2", "petit ménage", "2026-09-20T09:00:00Z", "2026-09-20T09:00:00Z")
+            + ","
+            + mainCommit("d1", "ABC-9 correctif", "2026-09-10T10:00:00Z", "2026-09-10T10:05:00Z")
+            + ","
+            + mainCommit("c2", "Deuxième", "2026-09-01T08:00:00Z", "2026-09-02T07:00:00Z")
+            + ","
+            + mainCommit("c1", "Premier", "2026-08-01T08:00:00Z", "2026-08-02T09:00:00Z")
+            + "]");
+    gitlab.json(
+        "/api/v4/projects/42/events",
+        "["
+            + push("2026-09-10T10:10:00.000Z", "main", "c2", "d1")
+            + ","
+            + push("2026-09-09T10:00:00.000Z", "feature", "c2", "x9")
+            + "]");
     return gitlab;
+  }
+
+  private static String mainCommit(String sha, String title, String authored, String committed) {
+    return """
+        {"id":"%s","title":"%s","authored_date":"%s","committed_date":"%s"}
+        """
+        .formatted(sha, title, authored, committed);
+  }
+
+  private static String push(String at, String ref, String from, String to) {
+    return """
+        {"action_name":"pushed to","created_at":"%s",
+         "push_data":{"ref_type":"branch","ref":"%s","commit_from":"%s","commit_to":"%s",
+                      "commit_count":1}}
+        """
+        .formatted(at, ref, from, to);
+  }
+
+  /** prod-ff: its only material is a configuration repository, never the project. */
+  static FakeHttpServer gocdWithoutProjectCommits() {
+    FakeHttpServer gocd = new FakeHttpServer();
+    String config = GocdFixtures.git(true, "git@gitlab.test:octocat/deploy-config.git", "cfg", "");
+    gocd.json(
+        "/go/api/pipelines/prod-ff/history",
+        GocdFixtures.history(
+            run("prod-ff", 4, "2026-09-21T10:00:00Z", "Passed", config),
+            run("prod-ff", 3, "2026-09-02T12:00:00Z", "Passed", config),
+            run("prod-ff", 2, "2026-09-02T08:00:00Z", "Failed", config),
+            run("prod-ff", 1, "2026-08-03T10:00:00Z", "Passed", config)));
+    return gocd;
   }
 
   private static String mr(int iid, String title, String created, String merged, String sha) {
