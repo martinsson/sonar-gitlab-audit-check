@@ -7,7 +7,7 @@ can also be written for a tool with `--comma`.
 
 | Script | Input | Output |
 |---|---|---|
-| `DoraProject` | a GitLab project, its prod GoCD pipeline(s) and Jira project(s), each optional but GitLab | the four DORA measures: `dora-donnees.json`, `dora.html`, `middleware-import.sql`, `devlake-import.sql` |
+| `DoraProject` | a GitLab project, its prod GoCD pipeline(s) and Jira project(s), each optional but GitLab | the four DORA measures: `dora-donnees.json`, `dora.html`, `middleware-import.sql` |
 | `DoraLocate` | a GitLab project | the Jira project(s) and GoCD pipelines that probably go with it, and the extraction commands |
 | `JiraExtract` | Jira project key(s) | `jira-tickets.csv`, `jira-transitions.csv`, `jira-versions.csv`, `jira-tickets.jsonl` |
 | `GocdExtract` | pipeline name(s) or group(s) | `gocd-runs.csv`, `gocd-stages.csv`, `gocd-commits.csv`, `gocd-runs.jsonl` |
@@ -47,30 +47,24 @@ It reads, over `--days` (90 by default):
   in the period (`--release-tag-pattern`, `^v\d{8}` by default): each one is a
   deploy, see « Release tags » below. Without GoCD nor release tags, every merge
   into the default branch counts as a deploy, as Middleware does without CI.
-- **GitLab again**, only when the GoCD materials carry no commit of the project:
-  the default branch's commits and the push events on it, for the « reached
-  main » rule below (`--deploy-mapping`).
 - **Jira** (`--jira`): the issues created in the period whose type is one of
   `--incident-types` (`Incident,Bug` by default; the types seen are printed, to
   adjust). `--incident-jql` replaces the search: every issue it returns is an
   incident.
 
-It writes four files in `--out-dir` (`extraction/<project>/dora` by default):
+It writes three files in `--out-dir` (`extraction/<project>/dora` by default):
 
 - `dora-donnees.json`: what was read. `--from dora-donnees.json` rebuilds the
   others with no call at all.
 - `dora.html`: a self-contained page, no script and nothing external.
   - At the top, the four measures, each with its DORA 2023 band (elite, high,
     medium, low; the thresholds of DevLake's dashboard).
-  - The rules applied, ours beside DevLake's.
-  - Then the deploys, features, merge requests and incidents they are made of.
+  - The rules applied.
+  - Then the deploys, merge requests and incidents they are made of (with
+    release tags, the features each tag delivered).
   - The JSON is embedded too.
-- `middleware-import.sql`: the deploys and incidents for Middleware HQ.
-- `devlake-import.sql`: the same, with our deploy ↔ commit mapping, for Apache
-  DevLake (`--devlake-project`, by default the path's last segment). The
-  stack, the import and how DevLake's formulas differ from ours are in
-  `devlake/README.md`. With release tags it is not written: the file only says
-  so.
+- `middleware-import.sql`: the deploys and incidents for Middleware HQ (with
+  release tags, the incidents only: the tags are not exported).
 
 The rules, also printed on the page:
 
@@ -83,22 +77,13 @@ The rules, also printed on the page:
 
 **What a deploy is, and which commits it deployed** (`--deploy-mapping`):
 
-- `materials`: what the run embarked, upstream pipelines included, as above.
-- `reachable`: « reached main », for when GoCD's materials do not name the
-  project's commits. Merges are fast-forward, so no commit records when a change
-  reached main. It is taken from the `merged_at` of the change's merge request;
-  failing that, from the push to main that brought it (GitLab events); failing
-  that, from its committer date (rewritten by a rebase: an approximation). A
-  feature (a merge request; failing that, the commits citing one Jira key;
-  failing that, a push) is delivered by the first successful prod run
-  scheduled at or after its last commit reached main. Its lead time runs from
-  its first commit's author date to that run (`Features.java`).
+- `materials`: what the run embarked, upstream pipelines included, as above;
+  without GoCD, each merge. Release tags are not read.
 - `tags`: release tags, below. GoCD is then not read, even if given.
-- `auto`, the default. With `--gocd-pipeline`: `reachable` when no run carries
-  a commit of the project, `materials` otherwise; tags are not even listed.
-  Without it: `tags` when the period has at least one release tag on the
-  default branch, otherwise each merge is a deploy. The page and the console
-  say which was applied.
+- `auto`, the default. With `--gocd-pipeline`: `materials`; tags are not even
+  listed. Without it: `tags` when the period has at least one release tag on
+  the default branch, otherwise each merge is a deploy. The console says which
+  was applied.
 
 **Release tags** (`--deploy-mapping tags`, or `auto` without GoCD). For a
 project whose CI tags each release on the default branch, several times a day,
@@ -142,9 +127,8 @@ on a `ci(release): set release version …` commit followed by
   it is compared to, each feature with its commits, its last commit and both
   lead times, and the commits left out by type; tags with no work commit say
   so; then the totals.
-- **Not exported** to DevLake yet (`devlake-import.sql` says so; see
-  `devlake/README.md`). `middleware-import.sql` has one workflow for the tags
-  and one run per tag.
+- **Not exported**: `middleware-import.sql` says so and carries only the
+  incidents.
 - **Limits.** GitLab computes a compare in one block, with the file diffs and no
   paging. When it takes too long GitLab cuts it and says `compare_timeout`; a
   refused or cut compare marks the tag « (incomplet) ». Between two tags hours
@@ -159,19 +143,18 @@ to DevLake's REST API, reuses it:
    date, deployed commit, repository, kind. `TagReader` is the one there is.
    A version file in another repository pointing to one of these tags would
    be another source of the same shape. GoCD stays on its own path: its runs
-   carry the commits GoCD says they embarked (or none, which is why
-   « reached main » exists), not one deployed commit.
+   carry the commits GoCD says they embarked, not one deployed commit.
 2. **What each deploy delivered** (`DeliveryReader`): the compare of its commit
    to the previous deploy's, whatever the source.
 3. **Features and lead times** (`DeliveredFeatures`), from the delivered
    commits only. The page reads this; DevLake would only need step 1.
 
-### Importing into Apache DevLake
+### Apache DevLake
 
-See `devlake/README.md`: the stack (Podman or Docker Compose, Helm on
-OpenShift), the import, and where DevLake's formulas differ from ours. As
-with Middleware, the tool writes a file and you apply it to the DevLake
-database you run. GitLab, Jira and GoCD are still only read.
+`devlake/README.md` runs a DevLake stack (Podman or Docker Compose, Helm on
+OpenShift) and says where DevLake's formulas differ from ours. Feeding it our
+deploys will go through its REST webhook API, from the shared deploy list
+(step 1 above; issue #52).
 
 ### Importing into Middleware HQ
 

@@ -30,7 +30,6 @@ class DeliveredFeaturesTest {
         List.of(),
         releases.deployments(WEB),
         List.of(),
-        null,
         releases);
   }
 

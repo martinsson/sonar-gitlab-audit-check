@@ -85,7 +85,6 @@ class DoraProjectTest {
           .contains(
               "Jira : 3 tickets lus, 2 incidents retenus. Types vus : {Bug=1, Incident=1, Story=1}");
       expectSelfie(fixed(file("middleware-import.sql"), gocd, jira)).toMatchDisk("sql");
-      expectSelfie(fixed(file("devlake-import.sql"), gocd, jira)).toMatchDisk("devlake");
       expectSelfie(fixed(file("dora-donnees.json"), gocd, jira)).toMatchDisk("json");
       String html = fixed(file("dora.html"), gocd, jira);
       thePageShowsTheMeasuresAndEscapesTheText(html);
@@ -108,35 +107,6 @@ class DoraProjectTest {
         .contains("un ticket de type Incident ou Bug créé dans ABC")
         .contains("<script type=\"application/json\" id=\"donnees\">")
         .doesNotContain("Trop ancienne");
-  }
-
-  @Test
-  void gocdRunsWithoutProjectCommitsDeliverWhatReachedMainBeforeThem() throws IOException {
-    try (FakeHttpServer gitlab = Fakes.gitlab();
-        FakeHttpServer gocd = Fakes.gocdWithoutProjectCommits();
-        FakeHttpServer jira = Fakes.jira()) {
-      Cli.Result r = run(args(gitlab(gitlab), gocd(gocd, "prod-ff"), jira(jira)));
-      assertThat(r.exitCode()).as(r.err()).isZero();
-      assertThat(r.err())
-          .contains(
-              "Aucun run GoCD ne porte de commit du projet : règle « atteint main » appliquée")
-          .contains("5 commits sur main, 1 pushs");
-      // Leads: !1 50 h, !2 28 h, d2 25 h, ABC-9 11 days: the median is 39 h.
-      String html = file("dora.html");
-      assertThat(html)
-          .contains("<div class=\"v\">39,0 h</div>")
-          .contains("médiane sur 4 fonctionnalités")
-          .contains("Fonctionnalités arrivées sur main (5)")
-          .contains(
-              "Heure d&#39;arrivée : 3 par merged_at de la merge request, 1 par heure du push sur"
-                  + " main, 1 par date de commit (approximation : un rebase la réécrit).");
-      String sql = fixed(file("devlake-import.sql"), gocd, jira);
-      assertThat(sql).contains("('d2', 'h2', 'd1', 0)").contains("('d2', 'h2', 'd2', 1)");
-      expectSelfie(sql).toMatchDisk("devlake");
-      expectSelfie(fixed(file("dora-donnees.json"), gocd, jira)).toMatchDisk("json");
-      assertThat(gitlab.requests("/api/v4/projects/42/events").get(0).param("after"))
-          .isEqualTo("2026-07-22");
-    }
   }
 
   /** Six days of {@link ReleaseHistory}, with one incident after v20261113.1.2. */
@@ -188,17 +158,14 @@ class DoraProjectTest {
   }
 
   @Test
-  void releaseTagsAreNotYetExportedToDevlakeAndASavedSnapshotRendersTheSameFiles()
+  void releaseTagsAreNotExportedToMiddlewareAndASavedSnapshotRendersTheSameFiles()
       throws IOException {
     try (FakeHttpServer gitlab = Fakes.gitlabWithTags();
         FakeHttpServer jira = new FakeHttpServer()) {
       assertThat(releaseTags(gitlab, jira).exitCode()).isZero();
       String html = file("dora.html");
-      String sql = file("devlake-import.sql");
-      assertThat(sql)
-          .startsWith("-- Import Apache DevLake : la règle des tags de version n'y est pas encore")
-          .doesNotContain("INSERT");
-      assertThat(file("middleware-import.sql")).contains("('gitlab:tag', 'tag')");
+      String sql = file("middleware-import.sql");
+      assertThat(sql).contains("-- Tags de version : pas exportés").doesNotContain("RepoWorkflow");
 
       Path copy = dir.resolve("copie");
       Files.createDirectories(copy);
@@ -208,7 +175,7 @@ class DoraProjectTest {
               NOVEMBER, DoraProject::new, "--from", copy.resolve("dora-donnees.json").toString());
       assertThat(again.exitCode()).as(again.err()).isZero();
       assertThat(Files.readString(copy.resolve("dora.html"))).isEqualTo(html);
-      assertThat(Files.readString(copy.resolve("devlake-import.sql"))).isEqualTo(sql);
+      assertThat(Files.readString(copy.resolve("middleware-import.sql"))).isEqualTo(sql);
     }
   }
 
@@ -249,14 +216,12 @@ class DoraProjectTest {
   }
 
   @Test
-  void withMaterialsTheMainBranchIsNotRead() throws IOException {
-    try (FakeHttpServer gitlab = Fakes.gitlab();
-        FakeHttpServer gocd = Fakes.gocdWithoutProjectCommits()) {
-      List<String> materials = List.of("--deploy-mapping", "materials");
-      Cli.Result r = run(args(gitlab(gitlab), gocd(gocd, "prod-ff"), materials));
+  void withMaterialsAndWithoutGocdTheMergesAreTheDeploysEvenWithReleaseTags() throws IOException {
+    try (FakeHttpServer gitlab = Fakes.gitlabWithTags()) {
+      Cli.Result r = run(args(gitlab(gitlab), List.of("--deploy-mapping", "materials")));
       assertThat(r.exitCode()).as(r.err()).isZero();
-      assertThat(gitlab.requests("/api/v4/projects/42/events")).isEmpty();
-      assertThat(file("dora.html")).contains("médiane sur 0 commits");
+      assertThat(gitlab.requests("/api/v4/projects/42/repository/tags")).isEmpty();
+      assertThat(file("dora.html")).contains("médiane sur 1 MR");
     }
   }
 
@@ -300,7 +265,6 @@ class DoraProjectTest {
     }
     String html = file("dora.html");
     String sql = file("middleware-import.sql");
-    String devlake = file("devlake-import.sql");
     assertThat(html).contains("les tickets de la requête « project = ABC AND labels = prod »");
     Path copy = dir.resolve("copie");
     Files.createDirectories(copy);
@@ -310,7 +274,6 @@ class DoraProjectTest {
     assertThat(again.exitCode()).as(again.err()).isZero();
     assertThat(Files.readString(copy.resolve("dora.html"))).isEqualTo(html);
     assertThat(Files.readString(copy.resolve("middleware-import.sql"))).isEqualTo(sql);
-    assertThat(Files.readString(copy.resolve("devlake-import.sql"))).isEqualTo(devlake);
   }
 
   @Test

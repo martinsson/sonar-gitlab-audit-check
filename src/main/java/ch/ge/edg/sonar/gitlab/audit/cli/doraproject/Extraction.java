@@ -48,12 +48,12 @@ final class Extraction {
   /** Le choix de --deploy-mapping. */
   enum Mapping {
     /**
-     * Avec GoCD, les matériaux, sauf s'ils ne portent aucun commit du projet ; sans GoCD, les tags
-     * de version s'il y en a sur la période, sinon les fusions.
+     * Avec GoCD, ses runs ; sans, les tags de version s'il y en a sur la période, sinon les
+     * fusions.
      */
     AUTO,
+    /** Les runs GoCD, ou sans GoCD les fusions : jamais les tags. */
     MATERIALS,
-    REACHABLE,
     TAGS
   }
 
@@ -96,18 +96,6 @@ final class Extraction {
         request.jiraProjects().isEmpty()
             ? List.of()
             : new JiraReader(connections.jira(sleeper), err).incidents(jql(), types());
-    boolean reachable = deploys.source() == Snapshot.DeploySource.REACHABLE;
-    List<Snapshot.MainCommit> mainCommits = reachable ? gitlab.mainCommits(p, from) : List.of();
-    List<Snapshot.Push> pushes = reachable ? gitlab.pushes(p, from) : List.of();
-    if (reachable) {
-      err.println(
-          mainCommits.size()
-              + " commits sur "
-              + p.defaultBranch()
-              + ", "
-              + pushes.size()
-              + " pushs");
-    }
     boolean tags = deploys.source() == Snapshot.DeploySource.TAGS;
     Snapshot.Project project =
         new Snapshot.Project(
@@ -120,14 +108,7 @@ final class Extraction {
             request.jiraProjects(),
             incidentRule());
     return new Snapshot(
-        project,
-        from,
-        to,
-        mrs,
-        deploys.deployments(),
-        incidents,
-        reachable ? new Snapshot.MainBranch(mainCommits, pushes) : null,
-        deploys.releases());
+        project, from, to, mrs, deploys.deployments(), incidents, deploys.releases());
   }
 
   private String jql() {

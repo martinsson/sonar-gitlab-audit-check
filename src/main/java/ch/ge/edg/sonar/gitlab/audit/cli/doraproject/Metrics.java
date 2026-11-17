@@ -16,9 +16,8 @@ import org.jspecify.annotations.Nullable;
  * <ul>
  *   <li>Fréquence : les déploiements réussis, par semaine sur la période.
  *   <li>Délai : de l'écriture d'un commit à sa première mise en production réussie (GoCD), du
- *       premier commit d'une fonctionnalité à sa mise en production (GoCD, règle « atteint main »),
- *       du dernier commit d'une fonctionnalité livré par un tag de version à ce tag (règle des
- *       tags), ou du premier commit d'une merge request à sa fusion (sans GoCD ni tags). Médiane.
+ *       dernier commit d'une fonctionnalité livré par un tag de version à ce tag (règle des tags),
+ *       ou du premier commit d'une merge request à sa fusion (sans GoCD ni tags). Médiane.
  *   <li>Taux d'échec : la part des déploiements, réussis ou non, suivis d'au moins un incident
  *       avant le déploiement suivant. C'est la règle de Middleware, à l'identique.
  *   <li>Rétablissement : de la création d'un incident à sa résolution. Médiane.
@@ -62,28 +61,14 @@ record Metrics(
   }
 
   /**
-   * Les délais : par commit avec les matériaux GoCD, par fonctionnalité avec la règle « atteint
-   * main », par merge request sans GoCD.
+   * Les délais : par commit avec GoCD, par fonctionnalité avec les tags, par merge request sinon.
    */
   private static List<Duration> leads(Snapshot s, Links links) {
     if (s.project().deploySource() == Snapshot.DeploySource.MERGE) {
       return mergeLeads(s.mergeRequests());
     }
-    if (s.project().reachable()) return featureLeads(links);
     if (s.project().tags()) return DeliveredFeatures.leads(links.shipments());
     return commitLeads(s.deployments(), links.bySha());
-  }
-
-  /** De la date d'auteur du premier commit d'une fonctionnalité au déploiement qui l'a livrée. */
-  private static List<Duration> featureLeads(Links links) {
-    List<Duration> out = new ArrayList<>();
-    for (Features.Feature f : links.features()) {
-      if (f.shas().isEmpty()) continue;
-      Snapshot.Deployment d = links.bySha().get(f.shas().getFirst());
-      Duration lead = d == null ? null : between(f.firstAuthoredAt(), d.at());
-      if (lead != null) out.add(lead);
-    }
-    return out;
   }
 
   /** Du premier commit d'une merge request, à défaut de son ouverture, à sa fusion. */

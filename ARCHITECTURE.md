@@ -47,7 +47,7 @@ date out of a JSON node is the client's job, next to the response (`Gitlab.insta
 | `cli.cross` | CrossAudit | Crossing Sonar and GitLab, including the SonarToGitlab wide pass |
 | `cli.vues` | Vues | Views over the CSVs |
 | `cli.doralocate` | dora/DoraLocate | Where the DORA data lives: finds the Jira and GoCD sources of the projects |
-| `cli.doraproject` | dora/DoraProject | The four DORA measures of one project: a page, and imports for Middleware HQ and Apache DevLake |
+| `cli.doraproject` | dora/DoraProject | The four DORA measures of one project: a page, and an import for Middleware HQ |
 | `cli.gocdextract` | dora/GocdExtract | GoCD pipeline runs extracted for the DORA measures |
 | `cli.jiraextract` | dora/JiraExtract | Jira issues and their transitions extracted for the DORA measures |
 
@@ -81,8 +81,8 @@ We always go through the standard paths, unless a human has been consulted befor
 one. For the tools we read or feed, the standard path is their public API or their documented
 import mechanism: the GitLab, Jira and GoCD REST APIs, DevLake's REST API (not its database). Any
 other path (a tool's database, an undocumented endpoint, scraping) needs a human's agreement first,
-and the decision is written down where the code that takes that path is documented. The SQL imports
-for DevLake and Middleware predate this rule; DevLake's is to move to its REST API (#52).
+and the decision is written down where the code that takes that path is documented. The SQL import
+for Middleware predates this rule; DevLake will be fed through its REST API (#52).
 
 ## HTTP and errors
 

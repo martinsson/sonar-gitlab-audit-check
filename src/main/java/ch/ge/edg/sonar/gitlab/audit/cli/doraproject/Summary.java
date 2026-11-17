@@ -34,10 +34,6 @@ final class Summary {
       out.println("  Temps de rétablissement       — (pas de projet Jira)");
     }
     out.println(
-        "Écrit dans "
-            + dir
-            + " : "
-            + String.join(
-                ", ", SnapshotFile.NAME, "dora.html", MiddlewareSql.NAME, DevlakeSql.NAME));
+        "Écrit dans " + dir + " : " + SnapshotFile.NAME + ", dora.html, " + MiddlewareSql.NAME);
   }
 }

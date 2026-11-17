@@ -16,7 +16,7 @@ import org.jspecify.annotations.Nullable;
  */
 record Delivery(Deploy deploy, @Nullable Deploy previous, List<Commit> commits, boolean truncated) {
 
-  /** Le « pipeline » des déploiements par tag, dans la page et l'import Middleware. */
+  /** Le « pipeline » des déploiements par tag, dans la page. */
   static final String PIPELINE = "tag";
 
   Delivery {

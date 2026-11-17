@@ -5,20 +5,17 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-import org.jspecify.annotations.Nullable;
 
 /**
  * dora-donnees.json : un instantané écrit en JSON lisible, les dates en ISO-8601 UTC, et relu pour
@@ -52,28 +49,7 @@ final class SnapshotFile {
   }
 
   static Snapshot read(Path file) throws IOException {
-    JsonNode tree = READER.readTree(Files.readString(file, StandardCharsets.UTF_8));
-    return READER.readValue(upgrade(tree));
-  }
-
-  /**
-   * Un fichier écrit avant {@link Snapshot.MainBranch} gardait les commits et les pushs de la
-   * branche par défaut à la racine : ils y passent, vides compris, comme ils étaient lus.
-   */
-  static JsonNode upgrade(JsonNode tree) {
-    if (!(tree instanceof ObjectNode o) || o.has("mainBranch")) return tree;
-    JsonNode commits = o.remove("mainCommits");
-    JsonNode pushes = o.remove("pushes");
-    if (filled(commits) || filled(pushes)) {
-      ObjectNode main = o.putObject("mainBranch");
-      if (commits != null) main.set("commits", commits);
-      if (pushes != null) main.set("pushes", pushes);
-    }
-    return o;
-  }
-
-  private static boolean filled(@Nullable JsonNode n) {
-    return n != null && !n.isEmpty();
+    return READER.readValue(Files.readString(file, StandardCharsets.UTF_8));
   }
 
   private static final class InstantWriter extends JsonSerializer<Instant> {

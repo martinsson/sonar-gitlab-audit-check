@@ -170,7 +170,7 @@ final class HtmlPage {
   private String leadUnit() {
     if (s.project().deploySource() == Snapshot.DeploySource.MERGE) return "MR";
     if (s.project().tags()) return "fonctionnalités livrées (une par tag qui en livre)";
-    return s.project().reachable() ? "fonctionnalités" : "commits";
+    return "commits";
   }
 
   private void tile(String title, String value, Bands.@Nullable Band band, String detail) {

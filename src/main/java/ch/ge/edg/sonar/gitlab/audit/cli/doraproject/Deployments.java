@@ -71,7 +71,7 @@ final class Deployments {
     List<Snapshot.Deployment> runs =
         new GocdReader(connections.gocd(sleeper), request.maxUpstream(), err)
             .deployments(request.pipelines(), p.path(), from);
-    return new Read(source(runs), runs, null);
+    return new Read(Snapshot.DeploySource.GOCD, runs, null);
   }
 
   /**
@@ -92,21 +92,5 @@ final class Deployments {
     Snapshot.Releases releases =
         new Snapshot.Releases(rule.releaseTagPattern().pattern(), deliveries);
     return new Read(Snapshot.DeploySource.TAGS, releases.deployments(p.webUrl()), releases);
-  }
-
-  /** La règle demandée ; en automatique, « atteint main » quand aucun run ne porte de commit. */
-  private Snapshot.DeploySource source(List<Snapshot.Deployment> deployments) {
-    return switch (rule.mapping()) {
-      case MATERIALS, TAGS -> Snapshot.DeploySource.GOCD;
-      case REACHABLE -> Snapshot.DeploySource.REACHABLE;
-      case AUTO -> {
-        if (deployments.isEmpty() || deployments.stream().anyMatch(d -> !d.commits().isEmpty())) {
-          yield Snapshot.DeploySource.GOCD;
-        }
-        err.println(
-            "Aucun run GoCD ne porte de commit du projet : règle « atteint main » appliquée");
-        yield Snapshot.DeploySource.REACHABLE;
-      }
-    };
   }
 }

@@ -24,8 +24,8 @@ import picocli.CommandLine.Option;
 /**
  * Les mesures DORA d'un projet, maintenant : à partir du projet GitLab, et s'ils sont donnés, du
  * projet Jira de ses incidents et des pipelines GoCD qui le mettent en production. Écrit les
- * données lues, une page HTML qui les montre, et deux scripts SQL qui les importent dans Middleware
- * HQ et dans Apache DevLake. GET seulement. La démarche est décrite dans dora/README.md.
+ * données lues, une page HTML qui les montre, et un script SQL qui les importe dans Middleware HQ.
+ * GET seulement. La démarche est décrite dans dora/README.md.
  */
 @Command(
     name = "DoraProject",
@@ -33,8 +33,7 @@ import picocli.CommandLine.Option;
     sortOptions = false,
     description = {
       "Mesures DORA d'un projet GitLab, avec ses déploiements GoCD et ses incidents Jira.",
-      "Écrit dora-donnees.json, dora.html, middleware-import.sql et devlake-import.sql",
-      "dans --out-dir."
+      "Écrit dora-donnees.json, dora.html et middleware-import.sql dans --out-dir."
     })
 public class DoraProject implements Callable<Integer> {
 
@@ -91,10 +90,9 @@ public class DoraProject implements Callable<Integer> {
       converter = MappingConverter.class,
       description = {
         "Ce qu'est un déploiement et ce qu'il livre : materials (un run GoCD, ce qu'il a",
-        "embarqué), reachable (un run GoCD, ce qui est arrivé sur main avant lui), tags (un",
-        "tag de version de main, ce qu'il apporte depuis le précédent), auto (défaut : avec",
-        "GoCD, reachable si aucun run ne porte de commit du projet, sinon materials ; sans",
-        "GoCD, tags s'il y a des tags de version sur la période, sinon chaque fusion)"
+        "embarqué ; sans GoCD, chaque fusion), tags (un tag de version de main, ce qu'il",
+        "apporte depuis le précédent), auto (défaut : avec GoCD, materials ; sans GoCD, tags",
+        "s'il y a des tags de version sur la période, sinon chaque fusion)"
       })
   Extraction.Mapping deployMapping = Extraction.Mapping.AUTO;
 
@@ -103,11 +101,6 @@ public class DoraProject implements Callable<Integer> {
       defaultValue = DEFAULT_TAG_PATTERN,
       description = "Expression des tags de version, cherchée dans leur nom (défaut : ^v\\d{8})")
   String releaseTagPattern = DEFAULT_TAG_PATTERN;
-
-  @Option(
-      names = "--devlake-project",
-      description = "Projet DevLake de devlake-import.sql (défaut : le dernier segment du chemin)")
-  @Nullable String devlakeProject;
 
   @Option(
       names = "--out-dir",
@@ -119,7 +112,7 @@ public class DoraProject implements Callable<Integer> {
       description = "Refait la page et l'import depuis un dora-donnees.json, sans rien extraire")
   @Nullable Path from;
 
-  /** auto, materials, reachable ou tags, sans égard à la casse. */
+  /** auto, materials ou tags, sans égard à la casse. */
   static final class MappingConverter implements ITypeConverter<Extraction.Mapping> {
     @Override
     public Extraction.Mapping convert(String value) {
@@ -194,9 +187,6 @@ public class DoraProject implements Callable<Integer> {
         StandardCharsets.UTF_8);
     Files.writeString(
         dir.resolve(MiddlewareSql.NAME), MiddlewareSql.render(s), StandardCharsets.UTF_8);
-    String name = devlakeProject != null ? devlakeProject : DevlakeSql.defaultProject(s);
-    Files.writeString(
-        dir.resolve(DevlakeSql.NAME), DevlakeSql.render(s, name), StandardCharsets.UTF_8);
     Summary.print(s, dir, out);
   }
 }
