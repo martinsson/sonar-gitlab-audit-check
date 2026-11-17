@@ -112,7 +112,8 @@ final class Extraction {
             request.pipelines(),
             request.jiraProjects(),
             incidentRule());
-    return new Snapshot(project, from, to, mrs, deployments, incidents, mainCommits, pushes);
+    Snapshot.MainBranch main = reachable ? new Snapshot.MainBranch(mainCommits, pushes) : null;
+    return new Snapshot(project, from, to, mrs, deployments, incidents, main);
   }
 
   /** La règle demandée ; en automatique, « atteint main » quand aucun run ne porte de commit. */

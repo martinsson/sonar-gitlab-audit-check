@@ -2,21 +2,14 @@ package ch.ge.edg.sonar.gitlab.audit.cli.doraproject;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import ch.ge.edg.sonar.gitlab.audit.dora.RunOutcome;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
-/**
- * The « reached main » rule: when each commit reached main, grouped into features, then deploys.
- */
+/** The « reached main » rule, first step: when each commit reached main, grouped into features. */
 class FeaturesTest {
 
   private static final Instant T0 = Instant.parse("2026-01-01T00:00:00Z");
@@ -48,11 +41,14 @@ class FeaturesTest {
             List.of("prod"),
             List.of(),
             "");
-    return new Snapshot(p, T0, h(24 * 30), mrs, deployments, List.of(), newestFirst, pushes);
-  }
-
-  private static Snapshot.Deployment deploy(int counter, int at, RunOutcome outcome) {
-    return new Snapshot.Deployment("prod", counter, h(at), outcome, false, List.of(), "u");
+    return new Snapshot(
+        p,
+        T0,
+        h(24 * 30),
+        mrs,
+        deployments,
+        List.of(),
+        new Snapshot.MainBranch(newestFirst, pushes));
   }
 
   @Test
@@ -97,46 +93,5 @@ class FeaturesTest {
             new Features.Feature("q1", List.of("q1"), h(21), h(22), Features.Reached.COMMIT_DATE));
     assertThat(Features.sources(features))
         .isEqualTo(Map.of(Features.Reached.PUSH, 2, Features.Reached.COMMIT_DATE, 1));
-  }
-
-  @Test
-  void aFeatureGoesToTheFirstSuccessfulDeployScheduledAtOrAfterItReachedMain() {
-    Snapshot.MergeRequest early =
-        new Snapshot.MergeRequest(1, "t", "a", h(1), h(10), h(0), List.of("a"), "u");
-    Snapshot.MergeRequest onTime =
-        new Snapshot.MergeRequest(2, "t", "a", h(1), h(12), h(0), List.of("b"), "u");
-    Snapshot.MergeRequest late =
-        new Snapshot.MergeRequest(3, "t", "a", h(1), h(40), h(0), List.of("c"), "u");
-    Snapshot.Deployment failed = deploy(1, 11, RunOutcome.FAILURE);
-    Snapshot.Deployment first = deploy(2, 12, RunOutcome.SUCCESS);
-    Snapshot s =
-        snapshot(List.of(early, onTime, late), List.of(failed, first), List.of(), List.of());
-    Map<Snapshot.Deployment, List<Features.Feature>> d =
-        Features.deliveries(Features.of(s), List.of(first));
-    assertThat(d).containsOnlyKeys(first);
-    assertThat(d.get(first)).extracting(Features.Feature::key).containsExactly("!1", "!2");
-    Metrics m = Metrics.of(s);
-    assertThat(m.links().delivered().get(first)).containsExactly("a", "b");
-    assertThat(m.leads()).containsExactly(Duration.ofHours(12), Duration.ofHours(12));
-    assertThat(m.links().deployedBy()).doesNotContainKey(3);
-  }
-
-  @Test
-  void aSnapshotWrittenBeforeTheRuleReadsAsMaterialsWithNothingOnMain(@TempDir Path dir)
-      throws IOException {
-    Path file = dir.resolve(SnapshotFile.NAME);
-    Files.writeString(
-        file,
-        """
-        {"project":{"gitlabId":"1","path":"g/p","webUrl":"w","defaultBranch":"main",
-          "deploySource":"GOCD","prodPipelines":[],"jiraProjects":[],"incidentRule":""},
-         "from":"2026-01-01T00:00:00Z","to":"2026-01-02T00:00:00Z",
-         "mergeRequests":[],"deployments":[],"incidents":[]}
-        """);
-    Snapshot s = SnapshotFile.read(file);
-    assertThat(s.mainCommits()).isEmpty();
-    assertThat(s.pushes()).isEmpty();
-    assertThat(s.project().reachable()).isFalse();
-    assertThat(Metrics.of(s).links().features()).isEmpty();
   }
 }

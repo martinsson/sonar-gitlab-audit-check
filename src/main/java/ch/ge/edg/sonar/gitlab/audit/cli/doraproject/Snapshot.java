@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.doraproject;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.RunOutcome;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
@@ -12,9 +13,8 @@ import org.jspecify.annotations.Nullable;
  *
  * @param from début de la période lue
  * @param to fin de la période : l'heure de l'extraction
- * @param mainCommits les commits de la branche par défaut, lus seulement pour la règle « atteint
- *     main » ; vides sinon, et dans un fichier écrit avant elle
- * @param pushes les pushs sur la branche par défaut, lus avec {@code mainCommits}
+ * @param mainBranch la branche par défaut, lue seulement pour la règle « atteint main » ; absente
+ *     sinon, et dans un fichier écrit avant elle
  */
 record Snapshot(
     Project project,
@@ -23,16 +23,37 @@ record Snapshot(
     List<MergeRequest> mergeRequests,
     List<Deployment> deployments,
     List<Incident> incidents,
-    List<MainCommit> mainCommits,
-    List<Push> pushes) {
+    @JsonInclude(JsonInclude.Include.NON_NULL) @Nullable MainBranch mainBranch) {
 
   Snapshot {
     mergeRequests = List.copyOf(mergeRequests);
     deployments = List.copyOf(deployments);
     incidents = List.copyOf(incidents);
-    // Absents d'un dora-donnees.json écrit avant la règle « atteint main ».
-    mainCommits = mainCommits == null ? List.of() : List.copyOf(mainCommits);
-    pushes = pushes == null ? List.of() : List.copyOf(pushes);
+  }
+
+  /** Les commits de la branche par défaut, du plus récent au plus ancien ; aucun sans elle. */
+  List<MainCommit> mainCommits() {
+    return mainBranch == null ? List.of() : mainBranch.commits();
+  }
+
+  /** Les pushs sur la branche par défaut ; aucun sans elle. */
+  List<Push> pushes() {
+    return mainBranch == null ? List.of() : mainBranch.pushes();
+  }
+
+  /**
+   * La branche par défaut, telle que la règle « atteint main » la lit.
+   *
+   * @param commits ses commits sur la période, du plus récent au plus ancien, comme GitLab les
+   *     liste
+   * @param pushes les pushs qui les y ont apportés
+   */
+  record MainBranch(List<MainCommit> commits, List<Push> pushes) {
+
+    MainBranch {
+      commits = commits == null ? List.of() : List.copyOf(commits);
+      pushes = pushes == null ? List.of() : List.copyOf(pushes);
+    }
   }
 
   /** D'où viennent les déploiements. */

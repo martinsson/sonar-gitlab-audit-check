@@ -265,9 +265,7 @@ td.SUCCESS,td.FAILURE,td.CANCELLED,td.PENDING{font-weight:600}
     "createdAt" : "2026-09-02T14:00:00Z",
     "resolvedAt" : "2026-09-02T18:00:00Z",
     "url" : "https://jira.test/browse/ABC-5"
-  } ],
-  "mainCommits" : [ ],
-  "pushes" : [ ]
+  } ]
 }</script>
 </main></body></html>
 
@@ -364,9 +362,7 @@ td.SUCCESS,td.FAILURE,td.CANCELLED,td.PENDING{font-weight:600}
     "createdAt" : "2026-09-02T14:00:00Z",
     "resolvedAt" : "2026-09-02T18:00:00Z",
     "url" : "https://jira.test/browse/ABC-5"
-  } ],
-  "mainCommits" : [ ],
-  "pushes" : [ ]
+  } ]
 }
 
 ╔═ gitlabGocdAndJiraGiveTheFourMeasuresThePageAndTheImport/sql ═╗
@@ -630,38 +626,40 @@ COMMIT;
     "resolvedAt" : "2026-09-02T18:00:00Z",
     "url" : "https://jira.test/browse/ABC-5"
   } ],
-  "mainCommits" : [ {
-    "sha" : "c3",
-    "title" : "Troisième",
-    "authoredAt" : "2026-10-09T07:00:00Z",
-    "committedAt" : "2026-10-10T08:00:00Z"
-  }, {
-    "sha" : "d2",
-    "title" : "petit ménage",
-    "authoredAt" : "2026-09-20T09:00:00Z",
-    "committedAt" : "2026-09-20T09:00:00Z"
-  }, {
-    "sha" : "d1",
-    "title" : "ABC-9 correctif",
-    "authoredAt" : "2026-09-10T10:00:00Z",
-    "committedAt" : "2026-09-10T10:05:00Z"
-  }, {
-    "sha" : "c2",
-    "title" : "Deuxième",
-    "authoredAt" : "2026-09-01T08:00:00Z",
-    "committedAt" : "2026-09-02T07:00:00Z"
-  }, {
-    "sha" : "c1",
-    "title" : "Premier",
-    "authoredAt" : "2026-08-01T08:00:00Z",
-    "committedAt" : "2026-08-02T09:00:00Z"
-  } ],
-  "pushes" : [ {
-    "at" : "2026-09-10T10:10:00Z",
-    "commitFrom" : "c2",
-    "commitTo" : "d1",
-    "commitCount" : 1
-  } ]
+  "mainBranch" : {
+    "commits" : [ {
+      "sha" : "c3",
+      "title" : "Troisième",
+      "authoredAt" : "2026-10-09T07:00:00Z",
+      "committedAt" : "2026-10-10T08:00:00Z"
+    }, {
+      "sha" : "d2",
+      "title" : "petit ménage",
+      "authoredAt" : "2026-09-20T09:00:00Z",
+      "committedAt" : "2026-09-20T09:00:00Z"
+    }, {
+      "sha" : "d1",
+      "title" : "ABC-9 correctif",
+      "authoredAt" : "2026-09-10T10:00:00Z",
+      "committedAt" : "2026-09-10T10:05:00Z"
+    }, {
+      "sha" : "c2",
+      "title" : "Deuxième",
+      "authoredAt" : "2026-09-01T08:00:00Z",
+      "committedAt" : "2026-09-02T07:00:00Z"
+    }, {
+      "sha" : "c1",
+      "title" : "Premier",
+      "authoredAt" : "2026-08-01T08:00:00Z",
+      "committedAt" : "2026-08-02T09:00:00Z"
+    } ],
+    "pushes" : [ {
+      "at" : "2026-09-10T10:10:00Z",
+      "commitFrom" : "c2",
+      "commitTo" : "d1",
+      "commitCount" : 1
+    } ]
+  }
 }
 
 ╔═ withoutGocdEachMergeIsADeployAndWithoutJiraThereIsNoIncident/stdout ═╗
