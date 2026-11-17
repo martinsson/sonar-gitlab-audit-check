@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.doraproject;
 
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
 import java.io.IOException;
@@ -9,6 +10,7 @@ import java.security.GeneralSecurityException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.regex.Pattern;
 import org.jspecify.annotations.Nullable;
 
 /** Une extraction : le projet GitLab, puis ses déploiements, puis ses incidents. */
@@ -18,7 +20,8 @@ final class Extraction {
    * Ce qu'on demande d'extraire.
    *
    * @param project chemin, URL ou id du projet GitLab
-   * @param pipelines les pipelines GoCD de production ; vide : les fusions en tiennent lieu
+   * @param pipelines les pipelines GoCD de production ; vide : les tags de version ou les fusions
+   *     en tiennent lieu
    * @param jiraProjects les projets Jira des incidents ; vide : pas d'incident
    * @param incidentTypes les types de ticket qui sont des incidents
    * @param incidentJql une requête qui remplace la recherche et le filtre par type
@@ -44,27 +47,34 @@ final class Extraction {
 
   /** Le choix de --deploy-mapping. */
   enum Mapping {
-    /** Les matériaux GoCD, sauf s'ils ne portent aucun commit du projet. */
+    /**
+     * Avec GoCD, les matériaux, sauf s'ils ne portent aucun commit du projet ; sans GoCD, les tags
+     * de version s'il y en a sur la période, sinon les fusions.
+     */
     AUTO,
     MATERIALS,
-    REACHABLE
+    REACHABLE,
+    TAGS
   }
 
+  /**
+   * Ce qu'est un déploiement et ce qu'il livre.
+   *
+   * @param releaseTagPattern l'expression des tags de version, cherchée dans leur nom
+   */
+  record DeployRule(Mapping mapping, Pattern releaseTagPattern) {}
+
   private final Request request;
-  private final Mapping mapping;
+  private final DeployRule rule;
   private final Connections connections;
   private final Console console;
   private final Sleeper sleeper;
 
-  /**
-   * Une extraction à faire.
-   *
-   * @param mapping la règle qui rattache les commits aux runs GoCD
-   */
+  /** Une extraction à faire. */
   Extraction(
-      Request request, Mapping mapping, Connections connections, Console console, Sleeper sleeper) {
+      Request request, DeployRule rule, Connections connections, Console console, Sleeper sleeper) {
     this.request = request;
-    this.mapping = mapping;
+    this.rule = rule;
     this.connections = connections;
     this.console = console;
     this.sleeper = sleeper;
@@ -74,23 +84,19 @@ final class Extraction {
   Snapshot run(Instant to) throws Stop, IOException, GeneralSecurityException {
     PrintStream err = console.err();
     Instant from = to.minus(Duration.ofDays(request.days()));
-    GitlabReader gitlab = new GitlabReader(connections.gitlab(console, sleeper), err);
+    Gitlab client = connections.gitlab(console, sleeper);
+    GitlabReader gitlab = new GitlabReader(client, err);
     GitlabReader.Project p = gitlab.project(request.project());
     err.println("Projet GitLab : " + p.path() + " (id " + p.id() + ")");
     List<Snapshot.MergeRequest> mrs = gitlab.mergedSince(p, from, request.maxMrs());
     err.println(mrs.size() + " merge requests fusionnées sur " + p.defaultBranch());
-    boolean gocd = !request.pipelines().isEmpty();
-    List<Snapshot.Deployment> deployments =
-        gocd
-            ? new GocdReader(connections.gocd(sleeper), request.maxUpstream(), err)
-                .deployments(request.pipelines(), p.path(), from)
-            : Merges.asDeployments(mrs);
+    Deployments.Read deploys =
+        new Deployments(request, rule, connections, sleeper, err).read(client, p, mrs, from, to);
     List<Snapshot.Incident> incidents =
         request.jiraProjects().isEmpty()
             ? List.of()
             : new JiraReader(connections.jira(sleeper), err).incidents(jql(), types());
-    Snapshot.DeploySource source = gocd ? source(deployments, err) : Snapshot.DeploySource.MERGE;
-    boolean reachable = source == Snapshot.DeploySource.REACHABLE;
+    boolean reachable = deploys.source() == Snapshot.DeploySource.REACHABLE;
     List<Snapshot.MainCommit> mainCommits = reachable ? gitlab.mainCommits(p, from) : List.of();
     List<Snapshot.Push> pushes = reachable ? gitlab.pushes(p, from) : List.of();
     if (reachable) {
@@ -102,34 +108,26 @@ final class Extraction {
               + pushes.size()
               + " pushs");
     }
+    boolean tags = deploys.source() == Snapshot.DeploySource.TAGS;
     Snapshot.Project project =
         new Snapshot.Project(
             p.id(),
             p.path(),
             p.webUrl(),
             p.defaultBranch(),
-            source,
-            request.pipelines(),
+            deploys.source(),
+            tags ? List.of() : request.pipelines(),
             request.jiraProjects(),
             incidentRule());
-    Snapshot.MainBranch main = reachable ? new Snapshot.MainBranch(mainCommits, pushes) : null;
-    return new Snapshot(project, from, to, mrs, deployments, incidents, main);
-  }
-
-  /** La règle demandée ; en automatique, « atteint main » quand aucun run ne porte de commit. */
-  private Snapshot.DeploySource source(List<Snapshot.Deployment> deployments, PrintStream err) {
-    return switch (mapping) {
-      case MATERIALS -> Snapshot.DeploySource.GOCD;
-      case REACHABLE -> Snapshot.DeploySource.REACHABLE;
-      case AUTO -> {
-        if (deployments.isEmpty() || deployments.stream().anyMatch(d -> !d.commits().isEmpty())) {
-          yield Snapshot.DeploySource.GOCD;
-        }
-        err.println(
-            "Aucun run GoCD ne porte de commit du projet : règle « atteint main » appliquée");
-        yield Snapshot.DeploySource.REACHABLE;
-      }
-    };
+    return new Snapshot(
+        project,
+        from,
+        to,
+        mrs,
+        deploys.deployments(),
+        incidents,
+        reachable ? new Snapshot.MainBranch(mainCommits, pushes) : null,
+        deploys.releases());
   }
 
   private String jql() {

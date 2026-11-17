@@ -22,6 +22,8 @@ class DoraProjectTest {
 
   private static final Clock CLOCK = Clock.fixed(Fakes.NOW, ZoneId.of("Europe/Zurich"));
 
+  private static final Clock NOVEMBER = Clock.fixed(ReleaseHistory.NOW, ZoneId.of("Europe/Zurich"));
+
   @TempDir Path dir;
 
   private Cli.Result run(List<String> args) {
@@ -134,6 +136,115 @@ class DoraProjectTest {
       expectSelfie(fixed(file("dora-donnees.json"), gocd, jira)).toMatchDisk("json");
       assertThat(gitlab.requests("/api/v4/projects/42/events").get(0).param("after"))
           .isEqualTo("2026-07-22");
+    }
+  }
+
+  /** Six days of {@link ReleaseHistory}, with one incident after v20261113.1.2. */
+  private Cli.Result releaseTags(FakeHttpServer gitlab, FakeHttpServer jira) {
+    jira.json(
+        "/rest/api/2/search",
+        """
+        {"startAt":0,"total":1,"issues":[{"key":"ABC-900","fields":{"summary":"Panne",
+         "issuetype":{"name":"Incident"},"created":"2026-11-13T14:00:00.000+0100",
+         "resolutiondate":"2026-11-13T16:00:00.000+0100"}}]}
+        """);
+    List<String> all = new ArrayList<>(List.of("--out-dir", dir.toString(), "--days", "6"));
+    all.addAll(gitlab(gitlab));
+    all.addAll(jira(jira));
+    return Cli.run(NOVEMBER, DoraProject::new, all.toArray(String[]::new));
+  }
+
+  @Test
+  void withoutGocdTheReleaseTagsOfMainAreTheDeploysAndDeliverTheirFeatures() throws IOException {
+    try (FakeHttpServer gitlab = Fakes.gitlabWithTags();
+        FakeHttpServer jira = new FakeHttpServer()) {
+      Cli.Result r = releaseTags(gitlab, jira);
+      assertThat(r.exitCode()).as(r.err()).isZero();
+      assertThat(r.err())
+          .contains("5 tags de version sur la période, 4 sur main")
+          .contains("Tags de version sur la période : règle des tags appliquée");
+      assertThat(gitlab.requests("/api/v4/projects/42/repository/compare"))
+          .extracting(q -> q.param("from") + ".." + q.param("to") + " " + q.param("straight"))
+          .containsExactlyInAnyOrder(
+              "p000000..35b142d false",
+              "35b142d..4c2215e false",
+              "4c2215e..39f2138 false",
+              "39f2138..0f54f65 false");
+      String html = file("dora.html");
+      // Four tags in six days; leads 32 min, 3 h 02, 17 h 12, 40 h 05; ABC-900 follows
+      // v20261113.1.2, one of four.
+      assertThat(html)
+          .contains("<div class=\"v\">4,7 / sem.</div><span class=\"band HIGH\">")
+          .contains("<div class=\"v\">10,1 h</div><span class=\"band ELITE\">")
+          .contains("<div class=\"v\">25 %</div>")
+          .contains("un tag de version de main (nom qui contient ^v\\d{8})")
+          .contains("<td><a href=\"https://gitlab.test/octocat/Hello-World/-/merge_requests/7\">!7")
+          .doesNotContain("v20261114.9.9")
+          .doesNotContain("nightly");
+      String tags =
+          html.substring(html.indexOf("<h2>Tags de version"), html.indexOf("<h2>Déploiements"));
+      expectSelfie(tags).toMatchDisk("tags");
+    }
+  }
+
+  @Test
+  void releaseTagsAreNotYetExportedToDevlakeAndASavedSnapshotRendersTheSameFiles()
+      throws IOException {
+    try (FakeHttpServer gitlab = Fakes.gitlabWithTags();
+        FakeHttpServer jira = new FakeHttpServer()) {
+      assertThat(releaseTags(gitlab, jira).exitCode()).isZero();
+      String html = file("dora.html");
+      String sql = file("devlake-import.sql");
+      assertThat(sql)
+          .startsWith("-- Import Apache DevLake : la règle des tags de version n'y est pas encore")
+          .doesNotContain("INSERT");
+      assertThat(file("middleware-import.sql")).contains("('gitlab:tag', 'tag')");
+
+      Path copy = dir.resolve("copie");
+      Files.createDirectories(copy);
+      Files.copy(dir.resolve("dora-donnees.json"), copy.resolve("dora-donnees.json"));
+      Cli.Result again =
+          Cli.run(
+              NOVEMBER, DoraProject::new, "--from", copy.resolve("dora-donnees.json").toString());
+      assertThat(again.exitCode()).as(again.err()).isZero();
+      assertThat(Files.readString(copy.resolve("dora.html"))).isEqualTo(html);
+      assertThat(Files.readString(copy.resolve("devlake-import.sql"))).isEqualTo(sql);
+    }
+  }
+
+  @Test
+  void tagsAreOnlyLookedForWithoutGocdAndAnUnreadablePatternStops() throws IOException {
+    try (FakeHttpServer gitlab = Fakes.gitlabWithTags();
+        FakeHttpServer gocd = Fakes.gocd()) {
+      Cli.Result r = run(args(gitlab(gitlab), gocd(gocd, "prod")));
+      assertThat(r.exitCode()).as(r.err()).isZero();
+      assertThat(gitlab.requests("/api/v4/projects/42/repository/tags")).isEmpty();
+      Cli.Result bad = run(args(gitlab(gitlab), List.of("--release-tag-pattern", "v(")));
+      assertThat(bad.exitCode()).isEqualTo(2);
+      assertThat(bad.err()).contains("Arrêt : --release-tag-pattern illisible");
+    }
+  }
+
+  @Test
+  void forcedTagsSkipGocdAndTheFirstTagEverListsWhatItReachesInThePeriod() throws IOException {
+    try (FakeHttpServer gitlab = Fakes.gitlabWithTags();
+        FakeHttpServer gocd = Fakes.gocd()) {
+      List<String> all =
+          new ArrayList<>(
+              List.of("--out-dir", dir.toString(), "--days", "8", "--deploy-mapping", "tags"));
+      all.addAll(gitlab(gitlab));
+      all.addAll(gocd(gocd, "prod"));
+      Cli.Result r = Cli.run(NOVEMBER, DoraProject::new, all.toArray(String[]::new));
+      assertThat(r.exitCode()).as(r.err()).isZero();
+      assertThat(r.err()).contains("Règle des tags : les pipelines GoCD ne sont pas lus");
+      assertThat(gocd.requests("/go/api/pipelines/prod/history")).isEmpty();
+      // v20261110.1.1 is in these eight days and has no release tag before it.
+      assertThat(gitlab.requests("/api/v4/projects/42/repository/commits"))
+          .extracting(q -> q.param("ref_name") + " " + q.param("since"))
+          .contains("p000000 2026-11-09T12:00:00Z");
+      assertThat(file("dora.html"))
+          .contains("premier tag")
+          .contains("pas de tag de version avant lui");
     }
   }
 

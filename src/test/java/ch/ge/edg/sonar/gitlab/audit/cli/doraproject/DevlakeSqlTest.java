@@ -38,7 +38,7 @@ class DevlakeSqlTest {
             "");
     Snapshot.Incident i =
         new Snapshot.Incident("ABC-1", "Panne \\ totale", "Bug", h(13), h(15), "j");
-    return new Snapshot(p, T0, h(48), mrs, deployments, List.of(i), null);
+    return new Snapshot(p, T0, h(48), mrs, deployments, List.of(i), null, null);
   }
 
   @Test

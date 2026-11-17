@@ -48,7 +48,8 @@ class FeaturesTest {
         mrs,
         deployments,
         List.of(),
-        new Snapshot.MainBranch(newestFirst, pushes));
+        new Snapshot.MainBranch(newestFirst, pushes),
+        null);
   }
 
   @Test

@@ -18,7 +18,9 @@ import org.jspecify.annotations.Nullable;
  * @param delivered déploiement réussi → les SHA qu'il a mis en production pour la première fois par
  *     son pipeline, dans l'ordre où il les a reçus
  * @param features avec la règle « atteint main », les fonctionnalités ; vide sinon
- * @param bySha SHA → le premier déploiement réussi qui l'a mis en production
+ * @param shipments avec les tags de version, chaque tag et ses fonctionnalités ; vide sinon
+ * @param bySha SHA → le premier déploiement réussi qui l'a mis en production ; avec les tags, tous
+ *     les commits livrés par le tag comptent, même ceux qu'on écarte du délai
  * @param deployedBy iid de merge request → le premier déploiement réussi qui en portait un commit
  * @param incidentsAfter déploiement → les incidents créés avant le déploiement suivant
  * @param precededBy clé d'incident → le déploiement qui l'a précédé
@@ -26,6 +28,7 @@ import org.jspecify.annotations.Nullable;
 record Links(
     Map<Snapshot.Deployment, List<String>> delivered,
     List<Features.Feature> features,
+    List<DeliveredFeatures.Shipment> shipments,
     Map<String, Snapshot.Deployment> bySha,
     Map<Integer, Snapshot.Deployment> deployedBy,
     Map<Snapshot.Deployment, List<Snapshot.Incident>> incidentsAfter,
@@ -38,11 +41,13 @@ record Links(
    */
   static Links of(Snapshot s, List<Snapshot.Deployment> runs) {
     List<Features.Feature> features = s.project().reachable() ? Features.of(s) : List.of();
+    List<DeliveredFeatures.Shipment> shipments =
+        s.project().tags() ? DeliveredFeatures.of(s) : List.of();
     Map<Snapshot.Deployment, List<String>> delivered =
-        s.project().reachable() ? reached(features, runs) : carried(runs);
+        delivered(s.project(), features, shipments, runs);
     Map<String, Snapshot.Deployment> bySha = new HashMap<>();
     for (Snapshot.Deployment d : runs) {
-      for (String sha : delivered.getOrDefault(d, List.of())) bySha.putIfAbsent(sha, d);
+      for (String sha : shipped(d, delivered, s.project().tags())) bySha.putIfAbsent(sha, d);
     }
     Map<Integer, Snapshot.Deployment> deployedBy = new HashMap<>();
     for (Snapshot.MergeRequest mr : s.mergeRequests()) {
@@ -57,7 +62,31 @@ record Links(
       after.computeIfAbsent(d, k -> new ArrayList<>()).add(i);
       precededBy.put(i.key(), d);
     }
-    return new Links(delivered, features, bySha, deployedBy, after, precededBy);
+    return new Links(delivered, features, shipments, bySha, deployedBy, after, precededBy);
+  }
+
+  /** Ce que chaque déploiement réussi a livré, selon la règle du projet. */
+  private static Map<Snapshot.Deployment, List<String>> delivered(
+      Snapshot.Project p,
+      List<Features.Feature> features,
+      List<DeliveredFeatures.Shipment> shipments,
+      List<Snapshot.Deployment> runs) {
+    if (p.tags()) {
+      Map<Snapshot.Deployment, List<String>> out = new HashMap<>();
+      for (DeliveredFeatures.Shipment t : shipments) out.put(t.deployment(), t.delivered());
+      return out;
+    }
+    return p.reachable() ? reached(features, runs) : carried(runs);
+  }
+
+  /**
+   * Les SHA qu'un déploiement a mis en production : ce qu'il a livré ; pour un tag, tous ses
+   * commits, même ceux que le délai écarte.
+   */
+  private static List<String> shipped(
+      Snapshot.Deployment d, Map<Snapshot.Deployment, List<String>> delivered, boolean tags) {
+    if (tags) return d.commits().stream().map(Snapshot.Change::sha).toList();
+    return delivered.getOrDefault(d, List.of());
   }
 
   /**

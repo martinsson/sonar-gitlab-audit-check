@@ -42,7 +42,10 @@ It reads, over `--days` (90 by default):
   commits (one call per MR, the `--max-mrs` most recent).
 - **GoCD** (`--gocd-pipeline`, the pipeline(s) whose successful run *is* a
   production deploy): every run, and the project's commits it deployed, walking
-  the upstream pipelines exactly as `GocdExtract` does. Without GoCD, every merge
+  the upstream pipelines exactly as `GocdExtract` does.
+- **Without GoCD**, the release tags of the default branch, when there are some
+  in the period (`--release-tag-pattern`, `^v\d{8}` by default): each one is a
+  deploy, see « Release tags » below. Without GoCD nor release tags, every merge
   into the default branch counts as a deploy, as Middleware does without CI.
 - **GitLab again**, only when the GoCD materials carry no commit of the project:
   the default branch's commits and the push events on it, for the « reached
@@ -66,18 +69,19 @@ It writes four files in `--out-dir` (`extraction/<project>/dora` by default):
 - `devlake-import.sql`: the same, with our deploy ↔ commit mapping, for Apache
   DevLake (`--devlake-project`, by default the path's last segment). The
   stack, the import and how DevLake's formulas differ from ours are in
-  `devlake/README.md`.
+  `devlake/README.md`. With release tags it is not written: the file only says
+  so.
 
 The rules, also printed on the page:
 
 | Measure | Rule |
 |---|---|
-| Deployment frequency | successful deploys per week |
-| Lead time for changes | median, from a commit's author date to the first successful deploy that carried it (without GoCD: from an MR's first commit to its merge). A failed run retried without a new material carries nothing in GoCD's eyes: its commits go to the next successful run of the same pipeline |
+| Deployment frequency | successful deploys per week (with release tags: tags per week) |
+| Lead time for changes | median, from a commit's author date to the first successful deploy that carried it (with release tags: per feature and tag, from its last commit's author date to the tag; without GoCD nor tags: from an MR's first commit to its merge). A failed run retried without a new material carries nothing in GoCD's eyes: its commits go to the next successful run of the same pipeline |
 | Change failure rate | deploys, successful or not, followed by at least one incident before the next deploy, over all deploys: Middleware's own rule, so both give the same figure |
 | Time to restore | median, from an incident's creation to its Jira resolution date |
 
-**Which commits a GoCD run deployed** (`--deploy-mapping`):
+**What a deploy is, and which commits it deployed** (`--deploy-mapping`):
 
 - `materials`: what the run embarked, upstream pipelines included, as above.
 - `reachable`: « reached main », for when GoCD's materials do not name the
@@ -89,8 +93,78 @@ The rules, also printed on the page:
   failing that, a push) is delivered by the first successful prod run
   scheduled at or after its last commit reached main. Its lead time runs from
   its first commit's author date to that run (`Features.java`).
-- `auto`, the default: `reachable` when no run carries a commit of the
-  project, `materials` otherwise. The page says which was applied.
+- `tags`: release tags, below. GoCD is then not read, even if given.
+- `auto`, the default. With `--gocd-pipeline`: `reachable` when no run carries
+  a commit of the project, `materials` otherwise; tags are not even listed.
+  Without it: `tags` when the period has at least one release tag on the
+  default branch, otherwise each merge is a deploy. The page and the console
+  say which was applied.
+
+**Release tags** (`--deploy-mapping tags`, or `auto` without GoCD). For a
+project whose CI tags each release on the default branch, several times a day,
+on a `ci(release): set release version …` commit followed by
+`ci(release): set next SNAPSHOT version …`:
+
+- **Deploy.** A tag whose name matches `--release-tag-pattern` (a regular
+  expression searched in the name, `^v\d{8}` by default) and whose commit is on
+  the default branch (its commits since 30 days before the period). Always
+  successful. Its date is its creation: the tagger's date (`created_at` of the
+  tags API, annotated tags only), otherwise the committer date of the tagged
+  commit.
+- **What it delivered.** The commits reachable from it and not from the previous
+  release tag: GitLab's `compare?from=<previous>&to=<tag>&straight=false`, by
+  commit SHA. The first tag of the period is compared to the last release tag
+  before it; with none, its commits are those it reaches, committed in the
+  period. Merge commits (two parents or more, merges of main into a branch
+  included) and `ci(release):` commits are left out.
+- **Features**, tag by tag:
+  1. the Jira key of the title, read with
+     `^(\w+)(\([^)]*\))?!?:\s*(\[([A-Z][A-Z0-9]+-\d+)\])?`
+     (`feat(scope)!: [ABC-123] …`; a key elsewhere in the title is not read);
+  2. otherwise the key of the branch whose merge into the default branch brought
+     the commit: the commit is reachable from the merge's second parent and not
+     from its first, and the merge is `Merge branch 'feature/ABC-123_…' into
+     'main'` (or `bugfix/ABC-123_…`);
+  3. otherwise a `feat:` or `fix:` is a feature alone, « sans story »; any other
+     type (chore, test, refactor, docs, style, build, ci, perf, or no type) is
+     not counted, and the page gives their number by type.
+
+  A chore, test or refactor attached by 1 or 2 belongs to its feature. A
+  feature shipped in pieces counts once per tag that delivers a piece.
+- **Lead time**, per feature and tag: from the author date of the feature's last
+  commit delivered by that tag (the latest author date) to the tag. The page
+  shows beside it the same from the latest committer date. Median, as
+  everywhere else.
+- **Deployment frequency**: tags per week. **Change failure rate and time to
+  restore** are unchanged: the Jira incidents, each after the last tag before
+  it.
+- **The page** has a « Tags de version » table: per tag, its date and the tag
+  it is compared to, each feature with its commits, its last commit and both
+  lead times, and the commits left out by type; tags with no work commit say
+  so; then the totals.
+- **Not exported** to DevLake yet (`devlake-import.sql` says so; see
+  `devlake/README.md`). `middleware-import.sql` has one workflow for the tags
+  and one run per tag.
+- **Limits.** GitLab computes a compare in one block, with the file diffs and no
+  paging. When it takes too long GitLab cuts it and says `compare_timeout`; a
+  refused or cut compare marks the tag « (incomplet) ». Between two tags hours
+  apart this should not happen, but it has not been tried on a real GitLab yet.
+  Neither have the tags API's `created_at` for annotated tags, nor the
+  `parent_ids` of compare commits.
+
+How it is built (`cli/doraproject`), so that another deploy source, or a push
+to DevLake's REST API, reuses it:
+
+1. **A deploy source** (`Deploy.Source`) yields deploys: name, environment,
+   date, deployed commit, repository, kind. `TagReader` is the one there is.
+   A version file in another repository pointing to one of these tags would
+   be another source of the same shape. GoCD stays on its own path: its runs
+   carry the commits GoCD says they embarked (or none, which is why
+   « reached main » exists), not one deployed commit.
+2. **What each deploy delivered** (`DeliveryReader`): the compare of its commit
+   to the previous deploy's, whatever the source.
+3. **Features and lead times** (`DeliveredFeatures`), from the delivered
+   commits only. The page reads this; DevLake would only need step 1.
 
 ### Importing into Apache DevLake
 

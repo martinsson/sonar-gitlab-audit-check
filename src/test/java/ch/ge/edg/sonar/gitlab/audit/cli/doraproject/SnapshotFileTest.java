@@ -48,6 +48,7 @@ class SnapshotFileTest {
     Snapshot s = SnapshotFile.read(file);
     assertThat(s.mainCommits()).extracting(Snapshot.MainCommit::sha).containsExactly("c1");
     assertThat(s.pushes()).extracting(Snapshot.Push::commitTo).containsExactly("c1");
+    assertThat(s.releases()).isNull();
     assertThat(SnapshotFile.json(s)).contains("\"mainBranch\"").doesNotContain("\"mainCommits\"");
   }
 }

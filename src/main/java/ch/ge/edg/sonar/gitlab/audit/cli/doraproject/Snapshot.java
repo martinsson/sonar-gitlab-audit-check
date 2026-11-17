@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.doraproject;
 import ch.ge.edg.sonar.gitlab.audit.dora.RunOutcome;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import org.jspecify.annotations.Nullable;
 
@@ -15,6 +16,8 @@ import org.jspecify.annotations.Nullable;
  * @param to fin de la période : l'heure de l'extraction
  * @param mainBranch la branche par défaut, lue seulement pour la règle « atteint main » ; absente
  *     sinon, et dans un fichier écrit avant elle
+ * @param releases avec les tags de version, ce qu'ils ont livré ; absent sinon, et dans un fichier
+ *     écrit avant eux
  */
 record Snapshot(
     Project project,
@@ -23,7 +26,8 @@ record Snapshot(
     List<MergeRequest> mergeRequests,
     List<Deployment> deployments,
     List<Incident> incidents,
-    @JsonInclude(JsonInclude.Include.NON_NULL) @Nullable MainBranch mainBranch) {
+    @JsonInclude(JsonInclude.Include.NON_NULL) @Nullable MainBranch mainBranch,
+    @JsonInclude(JsonInclude.Include.NON_NULL) @Nullable Releases releases) {
 
   Snapshot {
     mergeRequests = List.copyOf(mergeRequests);
@@ -56,6 +60,48 @@ record Snapshot(
     }
   }
 
+  /** Ce que les tags de version ont livré ; aucune livraison sans eux. */
+  List<Delivery> deliveries() {
+    return releases == null ? List.of() : releases.deliveries();
+  }
+
+  /**
+   * Le nom d'un déploiement : le tag, avec les tags de version (son numéro est son rang dans les
+   * livraisons) ; sinon le pipeline et le numéro du run.
+   */
+  String deployName(Deployment d) {
+    int rank = d.counter() - 1;
+    List<Delivery> deliveries = deliveries();
+    if (project.tags() && rank >= 0 && rank < deliveries.size()) {
+      return deliveries.get(rank).deploy().name();
+    }
+    return d.pipeline() + " #" + d.counter();
+  }
+
+  /**
+   * Les tags de version lus comme déploiements.
+   *
+   * @param tagPattern l'expression de leur nom ({@code --release-tag-pattern})
+   * @param deliveries chaque tag de la période et ce qu'il a livré depuis le précédent, du plus
+   *     ancien au plus récent ; les {@code deployments} de l'instantané en sont tirés ({@link
+   *     Delivery#deployment})
+   */
+  record Releases(String tagPattern, List<Delivery> deliveries) {
+
+    Releases {
+      deliveries = deliveries == null ? List.of() : List.copyOf(deliveries);
+    }
+
+    /** Les déploiements que les mesures communes lisent, un par livraison. */
+    List<Deployment> deployments(String webUrl) {
+      List<Deployment> out = new ArrayList<>();
+      for (int i = 0; i < deliveries.size(); i++) {
+        out.add(deliveries.get(i).deployment(i + 1, webUrl));
+      }
+      return List.copyOf(out);
+    }
+  }
+
   /** D'où viennent les déploiements. */
   enum DeploySource {
     /**
@@ -70,7 +116,12 @@ record Snapshot(
      */
     REACHABLE,
     /** Faute de GoCD, chaque merge request fusionnée sur la branche par défaut. */
-    MERGE
+    MERGE,
+    /**
+     * Les tags de version de la branche par défaut ({@code --release-tag-pattern}) : chacun livre
+     * les commits atteignables depuis lui et pas depuis le précédent ({@link Delivery}).
+     */
+    TAGS
   }
 
   /**
@@ -98,12 +149,17 @@ record Snapshot(
 
     /** Les déploiements sont des runs GoCD, quelle que soit la règle des commits. */
     boolean gocd() {
-      return deploySource != DeploySource.MERGE;
+      return deploySource == DeploySource.GOCD || deploySource == DeploySource.REACHABLE;
     }
 
     /** Les commits vont aux runs GoCD par leur arrivée sur main. */
     boolean reachable() {
       return deploySource == DeploySource.REACHABLE;
+    }
+
+    /** Les déploiements sont les tags de version de la branche par défaut. */
+    boolean tags() {
+      return deploySource == DeploySource.TAGS;
     }
   }
 

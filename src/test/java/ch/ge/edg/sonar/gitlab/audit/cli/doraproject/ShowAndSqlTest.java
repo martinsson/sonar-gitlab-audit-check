@@ -57,7 +57,8 @@ class ShowAndSqlTest {
             List.of("ABC", "XYZ"),
             "");
     Instant t = Instant.parse("2026-01-01T00:00:00Z");
-    String sql = MiddlewareSql.render(new Snapshot(p, t, t, List.of(), List.of(), List.of(), null));
+    String sql =
+        MiddlewareSql.render(new Snapshot(p, t, t, List.of(), List.of(), List.of(), null, null));
     assertThat(sql)
         .contains("idempotency_key = '7'")
         .contains("(g/l''appli)")

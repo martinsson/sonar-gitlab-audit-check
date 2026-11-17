@@ -196,6 +196,14 @@ GoCD run carries a commit of the project; `materials` and `reachable` force one 
 page names the rule applied, and counts the features by source. The snapshot keeps the main-branch
 commits and the push events, so `--from` rebuilds the same files.
 
+### Release tags (`--deploy-mapping tags`): not exported yet
+
+With release tags as deploys (`dora/README.md`, « Release tags »), `devlake-import.sql` holds only a
+comment saying so: tag mode is not exported to DevLake yet, and this SQL import will not be extended
+for it. `dora.html` has its measures. Its deploys already have the shape DevLake's REST API takes
+(one deployment, its environment, its date and the commit it deployed; DevLake works out the
+delivered commits from git itself), so the REST import of #52 can send them as they are.
+
 ## 5. What the prototype checked
 
 These checks ran in a container, with Docker 29 and the compose file above.

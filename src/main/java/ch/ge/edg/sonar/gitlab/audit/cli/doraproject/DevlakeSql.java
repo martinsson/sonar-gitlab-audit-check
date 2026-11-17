@@ -52,7 +52,16 @@ final class DevlakeSql {
     this.prefix = model.prefix();
   }
 
+  /**
+   * Le script ; avec la règle des tags de version, pas encore exportée, un script vide qui le dit.
+   */
   static String render(Snapshot s, String project) {
+    if (s.project().tags()) {
+      return "-- Import Apache DevLake : la règle des tags de version n'y est pas encore exportée.\n"
+          + "-- Rien à importer pour "
+          + s.project().path()
+          + ".\n";
+    }
     return new DevlakeSql(s, project).script();
   }
 

@@ -72,7 +72,7 @@ final class MiddlewareSql {
             + ") absent de Middleware : liez-le d''abord.';");
     line("  END IF;");
     line("END $$;");
-    if (p.gocd()) {
+    if (p.gocd() || p.tags()) {
       workflows();
       runs();
       teamRepos();
@@ -91,19 +91,24 @@ final class MiddlewareSql {
   private void workflows() {
     Snapshot.Project p = s.project();
     line("");
-    line("-- Déploiements : un workflow par pipeline GoCD de production.");
+    line(
+        p.tags()
+            ? "-- Déploiements : un workflow pour les tags de version, un run par tag."
+            : "-- Déploiements : un workflow par pipeline GoCD de production.");
     line(
         "INSERT INTO \"RepoWorkflow\" (org_repo_id, type, provider, provider_workflow_id, name,"
             + " is_active, meta)");
     line(
         "SELECT r.id, 'DEPLOYMENT', "
             + text(WORKFLOW_PROVIDER)
-            + ", v.workflow, v.name, true, '{\"source\": \"gocd\"}'::jsonb");
+            + ", v.workflow, v.name, true, '{\"source\": \""
+            + (p.tags() ? "gitlab-tags" : GOCD)
+            + "\"}'::jsonb");
     line("FROM dora_repo r, (VALUES");
-    List<String> pipelines = p.prodPipelines();
+    List<String> pipelines = p.tags() ? List.of(Delivery.PIPELINE) : p.prodPipelines();
     for (int i = 0; i < pipelines.size(); i++) {
       String name = pipelines.get(i);
-      line("  (" + text(workflowId(name)) + ", " + text(name) + ")" + comma(i, pipelines.size()));
+      line("  (" + text(workflow(name)) + ", " + text(name) + ")" + comma(i, pipelines.size()));
     }
     line(") AS v (workflow, name)");
     line("ON CONFLICT (org_repo_id, provider_workflow_id)");
@@ -115,6 +120,7 @@ final class MiddlewareSql {
   private void runs() {
     List<Snapshot.Deployment> runs = s.deployments();
     if (runs.isEmpty()) return;
+    boolean tags = s.project().tags();
     String branch = s.project().defaultBranch();
     line("");
     line(
@@ -130,11 +136,11 @@ final class MiddlewareSql {
           "  ("
               + String.join(
                   ", ",
-                  text(workflowId(d.pipeline())),
-                  text(String.valueOf(d.counter())),
+                  text(workflow(d.pipeline())),
+                  text(tags ? s.deployName(d) : String.valueOf(d.counter())),
                   text(status(d.outcome())),
                   text(branch),
-                  text(d.forced() ? "gocd (forcé)" : "gocd"),
+                  text(tags ? "tag" : d.forced() ? "gocd (forcé)" : "gocd"),
                   time(d.at()),
                   text(d.url()),
                   text("{\"commits\": " + d.commits().size() + "}"))
@@ -238,6 +244,11 @@ final class MiddlewareSql {
   /** L'id du workflow dans Middleware : unique par dépôt. */
   static String workflowId(String pipeline) {
     return GOCD + ":" + pipeline;
+  }
+
+  /** L'id du workflow d'un pipeline GoCD, ou celui des tags de version. */
+  private String workflow(String pipeline) {
+    return s.project().tags() ? "gitlab:" + Delivery.PIPELINE : workflowId(pipeline);
   }
 
   /** Les statuts de run que Middleware connaît. */

@@ -31,7 +31,7 @@ class FeatureDeliveriesTest {
             List.of("prod"),
             List.of(),
             "");
-    return new Snapshot(p, T0, h(24 * 30), mrs, deployments, List.of(), null);
+    return new Snapshot(p, T0, h(24 * 30), mrs, deployments, List.of(), null, null);
   }
 
   private static Snapshot.Deployment deploy(int counter, int at, RunOutcome outcome) {

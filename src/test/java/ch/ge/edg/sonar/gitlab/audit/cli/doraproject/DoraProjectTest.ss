@@ -670,4 +670,15 @@ DORA octocat/Hello-World sur 90 jours
   Temps de rétablissement       — (pas de projet Jira)
 Écrit dans <dir> : dora-donnees.json, dora.html, middleware-import.sql, devlake-import.sql
 
+╔═ withoutGocdTheReleaseTagsOfMainAreTheDeploysAndDeliverTheirFeatures/tags ═╗
+<h2>Tags de version (4)</h2>
+<div class="scroll"><table><thead><tr><th>Tag</th><th>Date</th><th>Fonctionnalité</th><th>Rattachée par</th><th>Commits</th><th>Dernier commit</th><th>Délai (auteur)</th><th>Délai (commit)</th><th>Écartés</th></tr></thead><tbody>
+<tr><td><a href="https://gitlab.test/octocat/Hello-World/-/tags/v20261117.1.1">v20261117.1.1</a><br><span class="note">depuis v20261116.1.2</span></td><td>2026-11-17 09:01</td><td class="t" colspan="6">aucun commit de travail</td><td class="t">2 ci(release)</td></tr>
+<tr><td><a href="https://gitlab.test/octocat/Hello-World/-/tags/v20261116.1.2">v20261116.1.2</a><br><span class="note">depuis v20261113.1.2</span></td><td>2026-11-16 09:05</td><td>ABC-483</td><td>clé du message</td><td class="n">2</td><td class="t">3a9ec64 feat: [ABC-483] fix keys (2026-11-14 17:00)</td><td>40,1 h</td><td>24,1 h</td><td class="t">1 chore, 1 fusion(s), 1 ci(release)</td></tr>
+<tr><td rowspan="2"><a href="https://gitlab.test/octocat/Hello-World/-/tags/v20261113.1.2">v20261113.1.2</a><br><span class="note">depuis v20261113.1.1</span></td><td rowspan="2">2026-11-13 13:02</td><td>ABC-585</td><td>clé du message</td><td class="n">1</td><td class="t">b702d84 fix: [ABC-585] use none as initial (2026-11-13 10:00)</td><td>3,0 h</td><td>3,0 h</td><td class="t" rowspan="2">2 fusion(s), 1 ci(release)</td></tr>
+<tr><td>ABC-483</td><td>clé du message</td><td class="n">2</td><td class="t">366100a feat: [ABC-483] sonar (2026-11-13 12:30)</td><td>32 min</td><td>32 min</td></tr>
+<tr><td><a href="https://gitlab.test/octocat/Hello-World/-/tags/v20261113.1.1">v20261113.1.1</a><br><span class="note">depuis v20261110.1.1</span></td><td>2026-11-13 09:12</td><td>ABC-343</td><td>clé du message, 1 par la branche de la fusion</td><td class="n">2</td><td class="t">fefda95 test: [ABC-343] ux: new baseline images (2026-11-12 16:00)</td><td>17,2 h</td><td>42 min</td><td class="t">1 fusion(s), 1 ci(release)</td></tr>
+</tbody></table></div>
+<p class="note">Écartés faute de story : 1 chore. Écartés toujours : 4 commit(s) de fusion, 5 commit(s) ci(release):. Tags sans commit de travail : v20261117.1.1.</p>
+
 ╔═ [end of file] ═╗

@@ -13,6 +13,9 @@ import java.util.List;
  */
 final class RulesSection {
 
+  /** La règle des tags de version n'a pas encore d'équivalent dans l'import DevLake. */
+  private static final String NOT_EXPORTED = "pas encore exporté vers DevLake";
+
   private final Snapshot s;
   private final Metrics m;
   private final ZoneId zone;
@@ -27,33 +30,22 @@ final class RulesSection {
 
   void write() {
     Snapshot.Project p = s.project();
-    boolean gocd = p.gocd();
     out.line("<h2>Règles appliquées</h2>");
     out.line(
         "<div class=\"scroll\"><table class=\"rules\"><thead><tr><th>Mesure</th><th>Notre règle</th>"
             + "<th>Dans DevLake (devlake-import.sql)</th></tr></thead><tbody>");
-    String deploys =
-        gocd
-            ? "un run réussi de " + String.join(", ", p.prodPipelines()) + " (GoCD)"
-            : "une merge request fusionnée sur " + p.defaultBranch() + " (pas de GoCD)";
     rule(
         "Déploiement",
-        deploys,
-        "un cicd_deployment en PRODUCTION par run ; fréquence : médiane des jours de déploiement"
-            + " par semaine");
-    rule("Rattachement d'un commit", mapping(p), "les lignes commits_diffs de son déploiement");
+        deploys(),
+        p.tags()
+            ? NOT_EXPORTED
+            : "un cicd_deployment en PRODUCTION par run ; fréquence : médiane des jours de"
+                + " déploiement par semaine");
     rule(
-        "Délai",
-        gocd
-            ? p.reachable()
-                ? "de la date d'auteur du premier commit d'une fonctionnalité à son déploiement"
-                : "de la date d'auteur d'un commit à son premier déploiement réussi"
-            : "du premier commit d'une merge request à sa fusion",
-        p.reachable()
-            ? "par pull request (une merge request, ou des commits arrivés sur main sans) : de son"
-                + " premier commit au déploiement qui porte son commit de fusion ; médiane basse"
-            : "par merge request : de son premier commit au déploiement qui porte son commit de"
-                + " fusion ; médiane basse");
+        "Rattachement d'un commit",
+        mapping(p),
+        p.tags() ? NOT_EXPORTED : "les lignes commits_diffs de son déploiement");
+    rule("Délai", lead(p), devlakeLead(p));
     rule(
         "Incident",
         p.jiraProjects().isEmpty() ? "aucun : pas de projet Jira donné" : p.incidentRule(),
@@ -70,12 +62,66 @@ final class RulesSection {
             + " basse");
     out.line("</tbody></table></div>");
     if (p.reachable()) features();
+    if (p.tags()) new DeliveriesSection(m, zone, out).write();
+  }
+
+  /** Ce qu'est un déploiement, en clair. */
+  private String deploys() {
+    Snapshot.Project p = s.project();
+    Snapshot.Releases releases = s.releases();
+    if (p.tags()) {
+      return "un tag de version de "
+          + p.defaultBranch()
+          + " (nom qui contient "
+          + (releases == null ? "" : releases.tagPattern())
+          + "), à sa création : la date du tagueur pour un tag annoté, sinon la date de commit du"
+          + " commit tagué. Toujours réussi ; fréquence : tags par semaine";
+    }
+    return p.gocd()
+        ? "un run réussi de " + String.join(", ", p.prodPipelines()) + " (GoCD)"
+        : "une merge request fusionnée sur " + p.defaultBranch() + " (pas de GoCD)";
+  }
+
+  /** Le délai, en clair. */
+  private static String lead(Snapshot.Project p) {
+    if (p.tags()) {
+      return "pour chaque fonctionnalité et chaque tag qui en livre une part : de la date d'auteur"
+          + " de son dernier commit livré par ce tag à la date du tag ; médiane. La variante par"
+          + " date de commit (la plus récente de ses commits) est montrée à côté";
+    }
+    if (!p.gocd()) return "du premier commit d'une merge request à sa fusion";
+    return p.reachable()
+        ? "de la date d'auteur du premier commit d'une fonctionnalité à son déploiement"
+        : "de la date d'auteur d'un commit à son premier déploiement réussi";
+  }
+
+  /** Le délai, tel que DevLake le calcule sur l'import. */
+  private static String devlakeLead(Snapshot.Project p) {
+    if (p.tags()) {
+      return NOT_EXPORTED;
+    }
+    return p.reachable()
+        ? "par pull request (une merge request, ou des commits arrivés sur main sans) : de son"
+            + " premier commit au déploiement qui porte son commit de fusion ; médiane basse"
+        : "par merge request : de son premier commit au déploiement qui porte son commit de"
+            + " fusion ; médiane basse";
   }
 
   /** La règle de rattachement, en clair. */
   private static String mapping(Snapshot.Project p) {
     if (p.deploySource() == Snapshot.DeploySource.MERGE) {
       return "les commits de la merge request, à sa fusion";
+    }
+    if (p.tags()) {
+      return "les commits atteignables depuis le tag et pas depuis le tag de version précédent"
+          + " (comparaison GitLab), sans les commits de fusion (deux parents ou plus) ni les"
+          + " commits ci(release):. Fonctionnalité, tag par tag : la clé Jira du titre"
+          + " (type(scope)!: [ABC-123] …) ; sinon la clé de la branche (feature/ABC-123_… ou"
+          + " bugfix/ABC-123_…) dont la fusion dans "
+          + p.defaultBranch()
+          + " a apporté le commit ; sinon un feat: ou un fix: est une fonctionnalité seule,"
+          + " « sans story ». Un commit d'un autre type (chore, test, refactor, docs…) sans"
+          + " story ne compte pas";
     }
     if (p.reachable()) {
       return "« atteint main » : le premier run réussi planifié après l'arrivée de la"

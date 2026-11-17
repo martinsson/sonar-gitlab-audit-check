@@ -169,6 +169,7 @@ final class HtmlPage {
 
   private String leadUnit() {
     if (s.project().deploySource() == Snapshot.DeploySource.MERGE) return "MR";
+    if (s.project().tags()) return "fonctionnalités livrées (une par tag qui en livre)";
     return s.project().reachable() ? "fonctionnalités" : "commits";
   }
 
@@ -212,7 +213,7 @@ final class HtmlPage {
           "<td><a href=\""
               + html(d.url())
               + "\">"
-              + html(d.pipeline() + " #" + d.counter())
+              + html(s.deployName(d))
               + "</a>"
               + (d.forced() ? " (forcé)" : "")
               + "</td>",
@@ -222,6 +223,13 @@ final class HtmlPage {
           Markup.td(String.join(", ", after.stream().map(Snapshot.Incident::key).toList())));
     }
     out.endTable();
+    if (s.project().tags()) {
+      out.line(
+          "<p class=\"note\">Embarqués : les commits que le tag apporte depuis le tag de version"
+              + " précédent, fusions et commits de CI compris. Livrés : ceux de ses"
+              + " fonctionnalités, qui comptent dans le délai.</p>");
+      return;
+    }
     out.line(
         "<p class=\"note\">Embarqués : les commits du projet que GoCD dit avoir embarqués."
             + " Livrés : ceux que nos règles lui attribuent, mis en production pour la première"
@@ -276,7 +284,7 @@ final class HtmlPage {
           Markup.td(Show.dateTime(i.createdAt(), zone)),
           Markup.td(Show.dateTime(i.resolvedAt(), zone)),
           Markup.td(Show.duration(Metrics.between(i.createdAt(), i.resolvedAt()))),
-          Markup.td(d == null ? Show.NONE : d.pipeline() + " #" + d.counter()));
+          Markup.td(d == null ? Show.NONE : s.deployName(d)));
     }
     out.endTable();
   }

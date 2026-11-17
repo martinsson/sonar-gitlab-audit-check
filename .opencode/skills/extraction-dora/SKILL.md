@@ -97,6 +97,13 @@ Fichiers produits :
   (défaut) passe à `reachable` (« atteint main ») quand aucun run ne porte de commit du projet. La
   page dit d'où vient l'heure d'arrivée sur main de chaque fonctionnalité (MR, push, date de
   commit approchée).
+- **Tags de version (sans GoCD).** Si la CI tague chaque livraison sur main (`v20261117.1.1`…),
+  `DoraProject` sans `--gocd-pipeline` prend chaque tag (`--release-tag-pattern`, `^v\d{8}` par
+  défaut) comme mise en production ; `--deploy-mapping tags` l'impose. Le délai va du dernier
+  commit d'une fonctionnalité (clé Jira du titre, sinon de la branche `feature/`/`bugfix/` dont la
+  fusion l'a apporté) livré par le tag à la date du tag. Les chore/test/refactor sans story ne
+  comptent pas : vérifier sur la page leur nombre par type, et les tags sans commit de travail,
+  avant d'en tirer des chiffres. Ce mode n'est pas encore exporté vers DevLake.
 
 ## 5. DevLake
 
