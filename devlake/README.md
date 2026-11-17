@@ -113,6 +113,10 @@ curl -X POST localhost:8080/pipelines -H 'Content-Type: application/json' -d '{"
 
 ### Writing to DevLake: the one exception
 
+This SQL import predates the rule that integrations go through the standard path
+(`ARCHITECTURE.md`): it writes into DevLake's database rather than through its REST API. It is
+slated to be replaced by the REST API (#52).
+
 Every tool in this repository only reads (GET) GitLab, Jira, GoCD and Sonar, and that does not
 change. `DoraProject` does not write to DevLake either. It writes a file, `devlake-import.sql`. You
 apply it yourself to DevLake's own database, which you run, as with `middleware-import.sql`. The

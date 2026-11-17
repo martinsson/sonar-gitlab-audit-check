@@ -20,6 +20,9 @@ Scripts JBang en lecture seule (GET seulement), authentifiés par PAT. Détails 
   sortir ne contient ni nom de projet, ni nom de pipeline, ni nom de personne.
 - Les correspondances proposées par `DoraLocate` sont des suppositions : les montrer et attendre
   une confirmation avant de lancer l'extraction.
+- On passe toujours par les chemins standard (API publiques, mécanismes d'import documentés, par
+  exemple l'API REST de DevLake plutôt que sa base), sauf si un humain a été consulté avant d'en
+  prendre un autre ; noter alors la décision (`ARCHITECTURE.md`).
 
 ## Prérequis
 
