@@ -7,13 +7,11 @@
 #   SONAR_URL=... SONAR_TOKEN=... GITLAB_URL=... GITLAB_TOKEN=... ci/build-pages.sh
 #   python3 -m http.server -d public   # then http://localhost:8000 (file:// cannot fetch the CSVs)
 #
-# Optional variables (TOOLS.md, "Weekly report on GitLab Pages"):
+# Optional variables:
 #   AUDIT_GROUP        GitLab group to audit (default: the whole instance)
 #   AUDIT_SINCE        activity window in days (--since, default 90)
 #   AUDIT_TOP          deep-pass budget (--top, default 200)
 #   AUDIT_EXCLUSIONS   exclusions file, read on both sides (default: exclusions.txt, if present)
-#   AUDIT_APPARIEMENT  appariement.csv to start from, with the hand-made pairs. Unset in CI: the
-#                      one the last successful `pages` job published
 #   AUDIT_SONAR_ARGS, AUDIT_GITLAB_ARGS  more options for either tool, split on spaces
 #   AUDIT_CP           classpath of tools already built (skips the Maven build)
 #   AUDIT_WORK         working directory (default target/pages-audit)
@@ -68,28 +66,6 @@ if [ -n "${AUDIT_EXCLUSIONS:-}" ]; then
   exclusions=(--exclusions "$AUDIT_EXCLUSIONS")
 fi
 
-# The hand-made pairs survive from one run to the next through appariement.csv: the file given, or
-# else the one the last successful `pages` job published (the job token may read this project's
-# artifacts; the path is the one in the artifact, whatever PUBLIC_DIR is here). Without either,
-# CrossAudit starts a new one.
-appariement=$WORK/appariement.csv
-if [ -n "${AUDIT_APPARIEMENT:-}" ]; then
-  [ -f "$AUDIT_APPARIEMENT" ] || {
-    echo "AUDIT_APPARIEMENT must be a file (a CI/CD variable of type File)." >&2
-    exit 2
-  }
-  cp "$AUDIT_APPARIEMENT" "$appariement"
-  echo "appariement.csv: from AUDIT_APPARIEMENT"
-elif [ -n "${CI_JOB_TOKEN:-}" ] && [ -n "${CI_API_V4_URL:-}" ]; then
-  if curl -sSf -o "$appariement" -H "JOB-TOKEN: $CI_JOB_TOKEN" \
-    "$CI_API_V4_URL/projects/$CI_PROJECT_ID/jobs/artifacts/$CI_COMMIT_REF_NAME/raw/public/data/appariement.csv?job=${CI_JOB_NAME:-pages}"; then
-    echo "appariement.csv: from the last successful ${CI_JOB_NAME:-pages} job"
-  else
-    rm -f "$appariement"
-    echo "appariement.csv: none from a previous run, CrossAudit starts one"
-  fi
-fi
-
 # Unquoted on purpose: extra options are split on spaces.
 read -r -a sonar_args <<<"${AUDIT_SONAR_ARGS:-}"
 read -r -a gitlab_args <<<"${AUDIT_GITLAB_ARGS:-}"
@@ -107,7 +83,7 @@ tool activity.GitlabActivityAudit --deep --out-dir "$WORK" \
 
 step "3. Crossing"
 tool cross.CrossAudit --sonar "$WORK/sonar-inventaire.csv" --gitlab "$WORK/pratiques.csv" \
-  --appariement "$appariement" --out "$WORK/croisement.csv"
+  --out "$WORK/croisement.csv"
 
 step "4. Views"
 tool vues.Vues --in "$WORK/croisement.csv"

@@ -85,8 +85,7 @@ lus dans le navigateur, jamais envoyés. L'export « page autonome » contient d
 chiffres : vérifier qui le reçoit.
 
 Le rapport hebdomadaire (job `pages`, `ci/build-pages.sh`) fait la même chaîne sans LLM dans la CI
-GitLab du client et publie ces pages sur GitLab Pages, réservé aux membres du projet. Mise en place :
-`TOOLS.md`, « Weekly report on GitLab Pages ».
+GitLab du client et publie ces pages sur GitLab Pages, réservé aux membres du projet.
 
 ## Rendre compte
 

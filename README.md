@@ -70,8 +70,7 @@ jbang GitLabProjectReport.java --path my/group/project          # one project, r
 ```
 
 **Every week, without anyone running it**: a pipeline schedule runs the same chain in GitLab CI and
-publishes the charts on GitLab Pages, with the CSVs already loaded. Setup, Pages visibility and the
-hand-made pairs: `TOOLS.md`, "Weekly report on GitLab Pages".
+publishes the charts on GitLab Pages, with the CSVs already loaded (`ci/build-pages.sh`, `ci/audit-pages.yml`).
 
 Each tool's `--help` lists its options and ends with more recipes:
 whole-instance runs, longer windows, SonarQube Cloud.

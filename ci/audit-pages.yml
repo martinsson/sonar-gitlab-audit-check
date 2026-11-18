@@ -1,4 +1,4 @@
-# The weekly report on GitLab Pages (TOOLS.md, "Weekly report on GitLab Pages"). A pipeline schedule
+# The weekly report on GitLab Pages. A pipeline schedule
 # with AUDIT_PAGES=true, or Build → Pipelines → Run pipeline on the default branch, runs the audit
 # chain with ci/build-pages.sh (the tools only, no LLM) and publishes viz/ with that run's CSVs.
 # The CSVs are client data: Pages must be visible to project members only.
@@ -10,9 +10,6 @@ pages:
     - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   variables:
     GIT_DEPTH: "1"
-  # Not the default one: no shellcheck, no ratchet. curl fetches last run's appariement.csv.
-  before_script:
-    - command -v curl >/dev/null || (apt-get update -qq && apt-get install -y -qq curl >/dev/null)
   # A whole instance with --deep takes a while; the runner's own limit may be lower.
   timeout: 4h
   script: ci/build-pages.sh
