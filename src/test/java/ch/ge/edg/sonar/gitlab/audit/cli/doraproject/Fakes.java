@@ -3,6 +3,8 @@ package ch.ge.edg.sonar.gitlab.audit.cli.doraproject;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer;
 import ch.ge.edg.sonar.gitlab.audit.testing.GocdFixtures;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -20,15 +22,17 @@ final class Fakes {
 
   private Fakes() {}
 
+  /** octocat/Hello-World as GitLab describes it. */
+  private static final String PROJECT =
+      """
+      {"id":42,"path_with_namespace":"octocat/Hello-World","name":"Hello-World",
+       "namespace":{"full_path":"octocat"},"web_url":"https://gitlab.test/octocat/Hello-World",
+       "default_branch":"main"}
+      """;
+
   static FakeHttpServer gitlab() {
     FakeHttpServer gitlab = new FakeHttpServer();
-    gitlab.json(
-        "/api/v4/projects/octocat%2FHello-World",
-        """
-        {"id":42,"path_with_namespace":"octocat/Hello-World","name":"Hello-World",
-         "namespace":{"full_path":"octocat"},"web_url":"https://gitlab.test/octocat/Hello-World",
-         "default_branch":"main"}
-        """);
+    gitlab.json("/api/v4/projects/octocat%2FHello-World", PROJECT);
     gitlab.json(
         "/api/v4/projects/42/merge_requests",
         "["
@@ -46,7 +50,75 @@ final class Fakes {
         "/api/v4/projects/42/merge_requests/2/commits", commits("c2", "2026-09-01T08:00:00Z"));
     gitlab.json(
         "/api/v4/projects/42/merge_requests/3/commits", commits("c3", "2026-10-09T07:00:00Z"));
+    gitlab.json(
+        "/api/v4/projects/42/repository/tags",
+        "[" + tag("1.0", "c1", null, "2026-08-02T09:00:00Z") + "]");
     return gitlab;
+  }
+
+  /**
+   * The same project, released by CI with tags ({@link ReleaseHistory}): the period's four release
+   * tags, one before it, one off main, one that is not a release; the compare of each pair; one
+   * merge request, ABC-483's last piece.
+   */
+  static FakeHttpServer gitlabWithTags() {
+    FakeHttpServer gitlab = new FakeHttpServer();
+    gitlab.json("/api/v4/projects/octocat%2FHello-World", PROJECT);
+    gitlab.json(
+        "/api/v4/projects/42/merge_requests",
+        "["
+            + mr(7, "ABC-483 dédup", "2026-11-14T09:00:00Z", "2026-11-16T08:00:00Z", "4a6ef8c")
+            + "]");
+    gitlab.json(
+        "/api/v4/projects/42/merge_requests/7/commits", commits("a36c9cc", "2026-11-14T10:00:00Z"));
+    List<String> tags = new ArrayList<>();
+    tags.add(tag("nightly-20261115", "3a9ec64", null, "2026-11-14T16:00:00Z"));
+    tags.add(tag("v20261114.9.9", "zzz9999", null, "2026-11-14T18:00:00Z"));
+    for (ReleaseHistory.Tag t : ReleaseHistory.tags()) {
+      // A lightweight tag is dated by its commit, which the fixture commits at the tag's time.
+      String at = t.at().toString();
+      tags.add(tag(t.name(), t.sha(), t.annotated() ? at : null, at));
+    }
+    gitlab.json(
+        "/api/v4/projects/42/repository/tags", "[" + String.join(",", tags.reversed()) + "]");
+    List<String> main = ReleaseHistory.main().stream().map(Fakes::gitCommit).toList();
+    gitlab.json("/api/v4/projects/42/repository/commits", "[" + String.join(",", main) + "]");
+    gitlab.on("/api/v4/projects/42/repository/compare", Fakes::compare);
+    return gitlab;
+  }
+
+  /** What a tag's commit brings since the previous tag's, as GitLab's compare gives it. */
+  private static FakeHttpServer.Response compare(FakeHttpServer.Request q) {
+    for (Delivery d : ReleaseHistory.deliveries()) {
+      Deploy previous = d.previous();
+      if (previous != null
+          && d.deploy().sha().equals(q.param("to"))
+          && previous.sha().equals(q.param("from"))) {
+        List<String> json = d.commits().stream().map(Fakes::gitCommit).toList();
+        return FakeHttpServer.Response.json(
+            "{\"commits\":["
+                + String.join(",", json)
+                + "],\"diffs\":[],\"compare_timeout\":false}");
+      }
+    }
+    return FakeHttpServer.Response.status(404, "{\"message\":\"404 Ref Not Found\"}");
+  }
+
+  private static String tag(String name, String sha, @Nullable String created, String committed) {
+    return """
+        {"name":"%s","target":"%s","message":"","created_at":%s,
+         "commit":{"id":"%s","committed_date":"%s"}}
+        """
+        .formatted(name, sha, created == null ? "null" : "\"" + created + "\"", sha, committed);
+  }
+
+  private static String gitCommit(Delivery.Commit c) {
+    String parents = String.join(",", c.parents().stream().map(p -> "\"" + p + "\"").toList());
+    return """
+        {"id":"%s","parent_ids":[%s],"title":"%s","message":"%s\\n","authored_date":"%s",
+         "committed_date":"%s"}
+        """
+        .formatted(c.sha(), parents, c.title(), c.message(), c.authoredAt(), c.committedAt());
   }
 
   private static String mr(int iid, String title, String created, String merged, String sha) {

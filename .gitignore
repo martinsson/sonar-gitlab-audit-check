@@ -33,3 +33,6 @@ target/
 
 # Synthetic test fixtures are fine to commit
 !src/test/resources/**/*.csv
+
+# DevLake stack secrets
+devlake/.env

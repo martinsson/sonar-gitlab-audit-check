@@ -15,8 +15,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <ul>
  *   <li>Fréquence : les déploiements réussis, par semaine sur la période.
- *   <li>Délai : de l'écriture d'un commit à sa première mise en production réussie (GoCD), ou du
- *       premier commit d'une merge request à sa fusion (sans GoCD). Médiane.
+ *   <li>Délai : de l'écriture d'un commit à sa première mise en production réussie (GoCD), du
+ *       dernier commit d'une fonctionnalité livré par un tag de version à ce tag (règle des tags),
+ *       ou du premier commit d'une merge request à sa fusion (sans GoCD ni tags). Médiane.
  *   <li>Taux d'échec : la part des déploiements, réussis ou non, suivis d'au moins un incident
  *       avant le déploiement suivant. C'est la règle de Middleware, à l'identique.
  *   <li>Rétablissement : de la création d'un incident à sa résolution. Médiane.
@@ -54,16 +55,20 @@ record Metrics(
         !s.project().jiraProjects().isEmpty(),
         List.copyOf(runs),
         successes,
-        leads(s, links.bySha()),
+        leads(s, links),
         recoveries,
         links);
   }
 
-  /** Les délais : par commit avec GoCD, par merge request sans. */
-  private static List<Duration> leads(Snapshot s, Map<String, Snapshot.Deployment> bySha) {
-    return s.project().deploySource() == Snapshot.DeploySource.MERGE
-        ? mergeLeads(s.mergeRequests())
-        : commitLeads(s.deployments(), bySha);
+  /**
+   * Les délais : par commit avec GoCD, par fonctionnalité avec les tags, par merge request sinon.
+   */
+  private static List<Duration> leads(Snapshot s, Links links) {
+    if (s.project().deploySource() == Snapshot.DeploySource.MERGE) {
+      return mergeLeads(s.mergeRequests());
+    }
+    if (s.project().tags()) return DeliveredFeatures.leads(links.shipments());
+    return commitLeads(s.deployments(), links.bySha());
   }
 
   /** Du premier commit d'une merge request, à défaut de son ouverture, à sa fusion. */

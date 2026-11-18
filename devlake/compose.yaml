@@ -1,0 +1,94 @@
+# Apache DevLake, to compute the DORA measures: MySQL, the DevLake server, its config UI and its
+# Grafana. Works with `podman compose` (rootless, Podman Desktop) and `docker compose`.
+#
+#   cp .env.example .env        # then set ENCRYPTION_SECRET (and the passwords) in .env
+#   podman compose up -d        # or: docker compose up -d
+#   open http://localhost:4000  # config UI; Grafana at http://localhost:4000/grafana
+#
+# Versions are pinned: v1.0.2 is DevLake's latest stable release (chart 1.0.2, July 2025); the
+# v1.0.3-betaN images that followed are pre-releases. Change all three DevLake tags together.
+#
+# Rootless-friendly: no privileged container, no host bind mount (named volumes only, so no
+# SELinux relabelling is needed), ports above 1024, bound to localhost.
+
+name: devlake
+
+services:
+  mysql:
+    image: docker.io/library/mysql:8.0.40
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_DATABASE: lake
+      MYSQL_USER: ${MYSQL_USER:-merico}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?set MYSQL_PASSWORD in .env}
+      TZ: UTC
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_bin
+      - --skip-log-bin
+    volumes:
+      - mysql-data:/var/lib/mysql
+    ports:
+      # For importing devlake-import.sql and checking the tables; drop it if not needed.
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  devlake:
+    image: docker.io/apache/devlake:v1.0.2
+    restart: unless-stopped
+    environment:
+      DB_URL: mysql://${MYSQL_USER:-merico}:${MYSQL_PASSWORD}@mysql:3306/lake?charset=utf8mb4&parseTime=True&loc=UTC
+      ENCRYPTION_SECRET: ${ENCRYPTION_SECRET:?set ENCRYPTION_SECRET in .env}
+      LOGGING_DIR: /app/logs
+      PORT: "8080"
+      MODE: release
+      TZ: UTC
+    volumes:
+      - devlake-logs:/app/logs
+    ports:
+      # The API without the config UI's API-key check: keep it on localhost.
+      - "127.0.0.1:${DEVLAKE_PORT:-8080}:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  grafana:
+    image: docker.io/apache/devlake-dashboard:v1.0.2
+    restart: unless-stopped
+    environment:
+      GF_SERVER_ROOT_URL: http://localhost:${UI_PORT:-4000}/grafana
+      GF_USERS_DEFAULT_THEME: light
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD in .env}
+      MYSQL_URL: mysql:3306
+      MYSQL_DATABASE: lake
+      MYSQL_USER: ${MYSQL_USER:-merico}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: UTC
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  config-ui:
+    image: docker.io/apache/devlake-config-ui:v1.0.2
+    restart: unless-stopped
+    environment:
+      DEVLAKE_ENDPOINT: devlake:8080
+      GRAFANA_ENDPOINT: grafana:3000
+      TZ: UTC
+    ports:
+      - "127.0.0.1:${UI_PORT:-4000}:4000"
+    depends_on:
+      - devlake
+      - grafana
+
+volumes:
+  mysql-data:
+  devlake-logs:
+  grafana-data:
