@@ -13,6 +13,7 @@ either instance.
 | `Vues` | Readable extracts of the crossing |
 | `viz/index.html` | Charts of all of the above, in the browser |
 | `viz/projet.html` | One project, Sonar or GitLab, with everything the audit knows about it |
+| `ci/build-pages.sh` | All of the above, every week, on GitLab Pages |
 | `GitLabProjectReport` | How one project you already picked is worked on |
 
 Developing: `./verify` runs every gate, `./verify --test FooTest` one test in seconds, `./mvnw` is the Maven
@@ -67,6 +68,9 @@ Other entry points:
 jbang SonarRank.java --in inventaire.csv --out classement.csv   # Sonar shortlist, no API call
 jbang GitLabProjectReport.java --path my/group/project          # one project, read closely
 ```
+
+**Every week, without anyone running it**: a pipeline schedule runs the same chain in GitLab CI and
+publishes the charts on GitLab Pages, with the CSVs already loaded (`ci/build-pages.sh`, `ci/audit-pages.yml`).
 
 Each tool's `--help` lists its options and ends with more recipes:
 whole-instance runs, longer windows, SonarQube Cloud.
@@ -241,7 +245,8 @@ The wheel zooms the y axis only; double-click resets. **Exporter une page
 autonome** downloads one HTML file with the charts, their data and the
 libraries, which opens offline: zip it before emailing (mail servers block
 `.html`), or publish it on GitLab Pages. It holds project names and quality
-figures, so check who receives it. Adding a chart: `TOOLS.md`.
+figures, so check who receives it. Next to a `data/manifest.json` (what the weekly
+report publishes), both pages load the CSVs it lists on their own. Adding a chart: `TOOLS.md`.
 
 ---
 

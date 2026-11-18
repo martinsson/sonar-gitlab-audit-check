@@ -191,7 +191,7 @@ progress() {
 # The shell scripts get a linter too, when shellcheck is installed (it is on GitHub runners).
 lint_scripts() {
   command -v shellcheck >/dev/null || return 0
-  shellcheck -x -f gcc verify mvnw .mvn/use-jdk.sh .githooks/*
+  shellcheck -x -f gcc verify mvnw .mvn/use-jdk.sh .githooks/* ci/*.sh
 }
 
 ratchet() {

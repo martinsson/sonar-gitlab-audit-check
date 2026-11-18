@@ -54,6 +54,57 @@ const Viz = {
       this.load(e.dataTransfer.files);
     });
     this.render();
+    this.autoload();
+  },
+
+  /**
+   * Sur GitLab Pages, les CSV sont à côté de la page et data/manifest.json les
+   * liste (ci/build-pages.sh) : on les charge comme des fichiers déposés. Sans
+   * manifeste, ou ouverte en file://, la page attend qu'on dépose les CSV.
+   * Rend le manifeste, ou null.
+   */
+  async autoload() {
+    if (location.protocol === 'file:') return null;
+    let manifest;
+    try {
+      const r = await fetch('data/manifest.json', { cache: 'no-cache' });
+      if (!r.ok) return null;
+      manifest = await r.json();
+    } catch { return null; }
+    const files = await Promise.all((manifest.files || []).map(async name => {
+      const r = await fetch('data/' + encodeURIComponent(name), { cache: 'no-cache' });
+      if (r.ok) return new File([await r.blob()], name);
+      console.warn('CSV du manifeste introuvable :', name, r.status);
+      return null;
+    }));
+    this.showSource(manifest);
+    await this.load(files.filter(Boolean));
+    return manifest;
+  },
+
+  /** « Généré le … », et les CSV publiés en lien, dans #generated. */
+  showSource(m) {
+    const p = document.getElementById('generated');
+    if (!p) return;
+    const t = new Date(m.generated);
+    const when = Number.isNaN(t.getTime()) ? String(m.generated || '?')
+      : t.toLocaleString('fr-CH', { dateStyle: 'long', timeStyle: 'short' });
+    p.textContent = `Généré le ${when}${m.group ? `, groupe ${m.group}` : ''}. `;
+    if (m.pipeline) {
+      const a = document.createElement('a');
+      a.href = m.pipeline;
+      a.textContent = 'ce pipeline';
+      p.append('Produit par ', a, '. ');
+    }
+    p.append('Fichiers : ');
+    [...(m.files || []), ...(m.extras || [])].forEach((name, i) => {
+      const a = document.createElement('a');
+      a.href = 'data/' + encodeURIComponent(name);
+      a.textContent = name;
+      if (i) p.append(', ');
+      p.append(a);
+    });
+    p.hidden = false;
   },
 
   async load(files) {

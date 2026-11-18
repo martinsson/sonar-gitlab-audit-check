@@ -28,6 +28,7 @@ target/
 /dump/
 /audit/
 /extraction/
+/public/
 .jqwik-database
 
 # Synthetic test fixtures are fine to commit

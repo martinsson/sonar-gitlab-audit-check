@@ -128,7 +128,8 @@ forks run the checks but never merge themselves: on a public repository, that
 would let anyone land code that merely passes the tests.
 
 **GitLab.** `.gitlab-ci.yml`, with the same two jobs, plus `auto-merge`.
-`verify-full` runs only on the default branch. Blocking
+`verify-full` runs only on the default branch. Scheduled and manual pipelines run only the weekly
+report (`ci/audit-pages.yml`). Blocking
 needs these project settings, which a file cannot set:
 
 - Settings → Repository → Protected branches: `main`, allowed to merge:
