@@ -45,16 +45,16 @@ Instance : <URL>
   OK       Quality profiles du projet                 2 profil(s)
   OK       Historique d'analyses (project_analyses)   12 analyses
   OK       Arbre de composants (components/tree)      57 fichiers
-  OK       Total réel des projets (admin uniquement)  6 projets au total
   OK       Liaison DevOps (alm_settings/get_binding)  GITLAB, dépôt 101
   OK       Liens du projet (project_links/search)     2 lien(s)
   OK       Blame SCM (sources/scm)                    4 changeset(s)
 
 === 3. Inventaire des projets visibles ================================
   Projets visibles avec ce token : 4
-  Projets réellement présents    : 6
-  → 2 projet(s) hors de ton périmètre. Ton classement sera tronqué
-    de 33% sans aucun message d'erreur.
+  Tu vois 4 projet(s) avec ce token. Sans 'Administer System', la
+  complétude du périmètre n'est pas vérifiable : fais confirmer ce
+  chiffre par un admin. S'il manque des projets, c'est le point aveugle
+  de ton audit — et il n'apparaît dans aucune réponse d'erreur.
   Dernier scan sur une branche non principale : 2
     dont 1 sans aucune analyse de la branche principale
     (invisibles dans search_projects et measures/search)
@@ -109,7 +109,7 @@ Instance : <URL>
     → churn et âge du code calculables sans accès Git
 
 === Synthèse ==========================================================
-  49 appels API effectués (8 en vol).
+  47 appels API effectués (8 en vol).
   Rappel : search_projects filtre silencieusement sur ce que le token
   peut voir. Une permission manquante ne produit pas d'erreur, seulement
   un classement incomplet — et les projets manquants sont souvent ceux

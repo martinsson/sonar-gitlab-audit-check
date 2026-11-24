@@ -20,7 +20,6 @@ class SonarAuditCheckInventoryTest extends SonarAuditCheckTestBase {
   @Test
   void noVisibleProjectWritesAHeaderOnlyCsvAndSkipsTheSampleSections() throws IOException {
     fake.projects.clear();
-    fake.realTotal = 0;
     Cli.Result r = runCsv();
 
     assertThat(r.exitCode()).isZero();
@@ -75,47 +74,19 @@ class SonarAuditCheckInventoryTest extends SonarAuditCheckTestBase {
   }
 
   @Test
-  void refusedRealTotalIsABlindSpotWarning() {
-    fake.realTotal = null;
+  void theScopeGapIsAStaticWarningWithoutAnAdminCall() {
     Cli.Result r = runCsv(LEAN);
     assertThat(r.out())
         .contains(
             """
               Projets visibles avec ce token : 4
-              Total réel indisponible (nécessite 'Administer System').
-                Fais comparer ce chiffre à un admin : l'écart est le point aveugle
-                de ton audit, et il n'apparaît dans aucune réponse d'erreur.
-            """)
-        .contains(
-            "  REFUSE   Total réel des projets (admin uniquement)  HTTP 403 Insufficient privileges\n");
-  }
-
-  @Test
-  void realTotalWithoutPagingIsAlsoUnavailable() {
-    fake.override("/api/projects/search", q -> ok(Map.of("components", List.of())));
-    assertThat(runCsv(LEAN).out()).contains("  Total réel indisponible");
-  }
-
-  @Test
-  void equalOrSmallerRealTotalIsACompleteScope() {
-    fake.realTotal = 4;
-    assertThat(runCsv(LEAN).out())
-        .contains("  Projets réellement présents    : 4\n  → Périmètre complet.\n");
-  }
-
-  @Test
-  void smallerRealTotalIsACompleteScopeToo() {
-    fake.realTotal = 3;
-    assertThat(runCsv(LEAN).out())
-        .contains("  Projets réellement présents    : 3\n  → Périmètre complet.\n");
-  }
-
-  @Test
-  void oneHiddenProjectOutOfManyIsRoundedPercent() {
-    fake.realTotal = 7;
-    assertThat(runCsv(LEAN).out())
-        .contains(
-            "  → 3 projet(s) hors de ton périmètre. Ton classement sera tronqué\n    de 43% sans");
+              Tu vois 4 projet(s) avec ce token. Sans 'Administer System', la
+              complétude du périmètre n'est pas vérifiable : fais confirmer ce
+              chiffre par un admin. S'il manque des projets, c'est le point aveugle
+              de ton audit — et il n'apparaît dans aucune réponse d'erreur.
+            """);
+    // L'écart n'est pas calculable sans admin : l'outil n'appelle plus l'endpoint.
+    assertThat(fake.server().requests("/api/projects/search")).isEmpty();
   }
 
   @Test

@@ -31,7 +31,6 @@ final class SonarAuditCheckRoutes {
     s.on("/api/users/current", q -> ok(currentUser()));
     s.on("/api/metrics/search", r::metrics);
     s.on("/api/components/search_projects", r::searchProjects);
-    s.on("/api/projects/search", q -> r.realTotal());
     s.on("/api/project_branches/list", r::branches);
     s.on("/api/measures/search", r::measuresSearch);
     s.on("/api/measures/component", r::measuresComponent);
@@ -73,11 +72,6 @@ final class SonarAuditCheckRoutes {
         f.projects.subList(from, Math.min(from + size, f.projects.size()));
     int total = f.searchTotal != null ? f.searchTotal : f.projects.size();
     return ok(Map.of("paging", paging(page, size, total), "components", batch));
-  }
-
-  private Response realTotal() {
-    if (f.realTotal == null) return error(403, "Insufficient privileges");
-    return ok(Map.of("paging", paging(1, 1, f.realTotal), "components", List.of()));
   }
 
   private Response branches(Request q) {
