@@ -62,9 +62,6 @@ final class SonarAuditCheckFake implements AutoCloseable {
   /** Whether api/metrics/search sends its paging block. */
   boolean metricsPaging = true;
 
-  /** Total of api/projects/search, or null for a 403. */
-  @Nullable Integer realTotal = 6;
-
   /** Metric keys api/metrics/search knows, served 20 per page. */
   final List<String> metrics = new ArrayList<>();
 

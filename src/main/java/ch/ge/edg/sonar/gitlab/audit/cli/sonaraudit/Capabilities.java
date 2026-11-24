@@ -119,7 +119,7 @@ final class Capabilities {
             params("project", sample, "ps", "5")));
   }
 
-  /** Le parc entier, et ce qui relie un projet à son dépôt. */
+  /** Le contenu d'un projet, et ce qui le relie à son dépôt. */
   private static List<Probe<?>> repositoryProbes(String sample) {
     return List.of(
         new Probe<>(
@@ -128,12 +128,6 @@ final class Capabilities {
             ProjectSearch.class,
             p -> total(p.paging()) + " fichiers",
             params("component", sample, "qualifiers", "FIL", "ps", "1")),
-        new Probe<>(
-            "Total réel des projets (admin uniquement)",
-            "api/projects/search",
-            ProjectSearch.class,
-            p -> total(p.paging()) + " projets au total",
-            params("ps", "1")),
         new Probe<>(
             "Liaison DevOps (alm_settings/get_binding)",
             "api/alm_settings/get_binding",

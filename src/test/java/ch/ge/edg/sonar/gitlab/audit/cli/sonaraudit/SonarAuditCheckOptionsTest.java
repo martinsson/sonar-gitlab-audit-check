@@ -90,8 +90,6 @@ class SonarAuditCheckOptionsTest extends SonarAuditCheckTestBase {
 
     assertThat(server.requests("/api/components/search_projects"))
         .allSatisfy(q -> assertThat(q.param("organization")).isEqualTo("org-a"));
-    assertThat(server.requests("/api/projects/search").getFirst().param("organization"))
-        .isEqualTo("org-a");
     assertThat(server.requests("/api/measures/search"))
         .allSatisfy(q -> assertThat(q.param("organization")).isNull());
   }
@@ -99,13 +97,13 @@ class SonarAuditCheckOptionsTest extends SonarAuditCheckTestBase {
   @Test
   void concurrencyOneDropsTheInFlightMention() {
     Cli.Result r = runCsv("--concurrency", "1");
-    assertThat(r.out()).contains("  49 appels API effectués.\n");
+    assertThat(r.out()).contains("  47 appels API effectués.\n");
   }
 
   @Test
   void concurrencyIsReportedInTheSummary() {
     Cli.Result r = runCsv("--concurrency", "3");
-    assertThat(r.out()).contains("  49 appels API effectués (3 en vol).\n");
+    assertThat(r.out()).contains("  47 appels API effectués (3 en vol).\n");
   }
 
   @Test
@@ -137,7 +135,7 @@ class SonarAuditCheckOptionsTest extends SonarAuditCheckTestBase {
     Cli.Result r = runCsv("--exclusions", ex.toString());
 
     assertThat(r.out())
-        .contains("  Projets visibles avec ce token : 4\n  Projets réellement présents    : 6\n")
+        .contains("  Projets visibles avec ce token : 4\n  Tu vois 4 projet(s) avec ce token.")
         .contains("  Exclus par " + ex + " : 2 (3 entrées)\n")
         .contains("  Liés à une plateforme DevOps   : 1 / 2  {gitlab=1}\n");
     assertThat(excelCsv(csv()).lines().map(l -> l.substring(0, l.indexOf(';'))))

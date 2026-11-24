@@ -18,8 +18,10 @@ Instance : <URL>
 
 === 3. Inventaire des projets visibles ================================
   Projets visibles avec ce token : 0
-  Projets réellement présents    : 0
-  → Périmètre complet.
+  Tu vois 0 projet(s) avec ce token. Sans 'Administer System', la
+  complétude du périmètre n'est pas vérifiable : fais confirmer ce
+  chiffre par un admin. S'il manque des projets, c'est le point aveugle
+  de ton audit — et il n'apparaît dans aucune réponse d'erreur.
   Dernier scan sur une branche non principale : 0
 
   Analysés il y a < 90 j        : 0
@@ -31,7 +33,7 @@ Instance : <URL>
   Format Excel (point-virgule + BOM UTF-8) : double-clic, ou `start inventaire.csv`. Pour un autre outil : --comma.
 
 === Synthèse ==========================================================
-  8 appels API effectués (8 en vol).
+  7 appels API effectués (8 en vol).
   Rappel : search_projects filtre silencieusement sur ce que le token
   peut voir. Une permission manquante ne produit pas d'erreur, seulement
   un classement incomplet — et les projets manquants sont souvent ceux

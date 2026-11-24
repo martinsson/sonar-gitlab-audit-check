@@ -124,7 +124,7 @@ class SonarAuditCheckConnectivityTest extends SonarAuditCheckTestBase {
     assertThat(r.out())
         .contains("  Permissions globales : aucune\n")
         .doesNotContain("Groupes   ")
-        .doesNotContain("Administer System");
+        .doesNotContain("Note : ce token a 'Administer System'");
   }
 
   @Test
@@ -146,6 +146,6 @@ class SonarAuditCheckConnectivityTest extends SonarAuditCheckTestBase {
     Cli.Result r = runCsv();
     assertThat(r.out())
         .contains(
-            "  51 appels API effectués (8 en vol).\n  dont 1 ralenti(s) (429) et 1 repris (5xx).\n");
+            "  49 appels API effectués (8 en vol).\n  dont 1 ralenti(s) (429) et 1 repris (5xx).\n");
   }
 }

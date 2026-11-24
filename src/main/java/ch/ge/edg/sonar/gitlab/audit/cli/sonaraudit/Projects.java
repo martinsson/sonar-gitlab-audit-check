@@ -2,7 +2,6 @@ package ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit;
 
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.BOLD;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.DIM;
-import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.GREEN;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.RED;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Presentation.YELLOW;
 import static ch.ge.edg.sonar.gitlab.audit.cli.sonaraudit.Values.orEmptyList;
@@ -90,37 +89,23 @@ final class Projects {
     return kept;
   }
 
-  /** L'écart entre ce que je vois et ce qui existe : le point aveugle de l'audit. */
+  /**
+   * Le périmètre visible peut être incomplet, et on ne peut pas le vérifier sans 'Administer
+   * System' : le dire, pour que l'écart éventuel ne reste pas un point aveugle silencieux.
+   */
   void reportScopeGap(int visible) {
-    ProjectSearch p = session.read("api/projects/search", params("ps", "1"), ProjectSearch.class);
-    // paging absent = réponse illisible, pas « zéro projet » : ne rien affirmer.
-    Integer real = (p == null || p.paging() == null) ? null : p.paging().total();
-    if (real == null) {
-      out.println(
-          out.color(
-              // Le délimiteur fermant, deux colonnes à gauche, garde le retrait du texte.
-              """
-                  Total réel indisponible (nécessite 'Administer System').
-                    Fais comparer ce chiffre à un admin : l'écart est le point aveugle
-                    de ton audit, et il n'apparaît dans aucune réponse d'erreur.
+    // Le text block finit par un saut de ligne : print, pas println.
+    out.print(
+        out.color(
+            Text.format(
                 """
-                  .stripTrailing(),
-              YELLOW));
-      return;
-    }
-    int gap = real - visible;
-    out.println("  Projets réellement présents    : " + out.color(String.valueOf(real), BOLD));
-    if (gap > 0 && real > 0) {
-      out.println(
-          out.color(
-              Text.format(
-                  "  → %d projet(s) hors de ton périmètre. Ton classement sera "
-                      + "tronqué%n    de %.0f%% sans aucun message d'erreur.",
-                  gap, 100.0 * gap / real),
-              RED));
-    } else {
-      out.println(out.color("  → Périmètre complet.", GREEN));
-    }
+                  Tu vois %d projet(s) avec ce token. Sans 'Administer System', la
+                  complétude du périmètre n'est pas vérifiable : fais confirmer ce
+                  chiffre par un admin. S'il manque des projets, c'est le point aveugle
+                  de ton audit — et il n'apparaît dans aucune réponse d'erreur.
+                """,
+                visible),
+            YELLOW));
   }
 
   void reportFreshness(List<Component> projects, int staleDays) {

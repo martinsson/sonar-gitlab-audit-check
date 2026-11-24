@@ -36,7 +36,7 @@ class SonarAuditCheckReplayTest extends SonarAuditCheckTestBase {
     Path dump = tmp.resolve("captures");
     Cli.Result live = runCsv("--dump-dir", dump.toString(), "--concurrency", "1");
     List<String> index = Files.readAllLines(dump.resolve("index.txt"), StandardCharsets.UTF_8);
-    assertThat(index).hasSize(49);
+    assertThat(index).hasSize(47);
     assertThat(index.getFirst()).matches("system_status-[0-9a-f]{8}\\.json  api/system/status");
     fake.close();
 
@@ -51,7 +51,7 @@ class SonarAuditCheckReplayTest extends SonarAuditCheckTestBase {
         .isEqualTo(Files.readString(historyCsv()));
     assertThat(stable(r.out()))
         .startsWith("\nInstance : rejeu de <TMP>/captures\n")
-        .contains("  49 appels API effectués.\n")
+        .contains("  47 appels API effectués.\n")
         .doesNotContain("capture(s) manquante(s)");
     expectSelfie(stable(live.out())).toMatchDisk("live");
     expectSelfie(stable(r.out())).toMatchDisk("replay");
