@@ -25,6 +25,7 @@ class ImportIsNotVacuousTest {
           "matching",
           "exclusions",
           "dora",
+          "contributors",
           "exchange",
           "gitlab",
           "sonar",

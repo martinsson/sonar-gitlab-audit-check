@@ -1,5 +1,13 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.commits.CommitActivity;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.commits.RecencyGate;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.AuditedProject;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.Funnel;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.FunnelResult;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.FunnelReport;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.selection.ActivityFloor;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.selection.Selection;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.util.List;
 

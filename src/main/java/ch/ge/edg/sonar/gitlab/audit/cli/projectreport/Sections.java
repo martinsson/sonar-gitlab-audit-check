@@ -10,11 +10,11 @@ final class Sections {
   private final ReviewSection reviews;
   private final ProjectApi api;
 
-  Sections(Report report, ProjectApi api, Settings settings, Dates dates) {
+  Sections(Report report, ProjectApi api, Budget budget, Dates dates) {
     this.api = api;
-    this.cadence = new CadenceSection(report, settings, dates);
-    this.people = new PeopleSection(report, api, settings, dates);
-    this.reviews = new ReviewSection(report, api, settings, dates);
+    this.cadence = new CadenceSection(report, budget, dates);
+    this.people = new PeopleSection(report, api, budget, dates);
+    this.reviews = new ReviewSection(report, api, budget, dates);
   }
 
   /** Chaque section affiche ce qu'elle mesure, puis le tout est remis aux constats. */

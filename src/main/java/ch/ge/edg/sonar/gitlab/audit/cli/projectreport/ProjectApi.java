@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 import static ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab.enc;
 import static ch.ge.edg.sonar.gitlab.audit.rest.Query.params;
 
+import ch.ge.edg.sonar.gitlab.audit.contributors.Contributors;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import java.time.LocalDateTime;
@@ -13,11 +14,13 @@ import java.util.List;
 final class ProjectApi {
 
   private final Gitlab gitlab;
-  private final Settings settings;
+  private final Budget budget;
+  private final BotPolicy bots;
 
-  ProjectApi(Gitlab gitlab, Settings settings) {
+  ProjectApi(Gitlab gitlab, Budget budget, BotPolicy bots) {
     this.gitlab = gitlab;
-    this.settings = settings;
+    this.budget = budget;
+    this.bots = bots;
   }
 
   int calls() {
@@ -49,11 +52,10 @@ final class ProjectApi {
                 "with_stats",
                 "true"),
             Commit.class,
-            settings.maxCommits());
+            budget.maxCommits());
 
     List<Commit> all = f.items();
-    List<Commit> humans =
-        settings.includeBots() ? all : all.stream().filter(x -> !isBot(x)).toList();
+    List<Commit> humans = bots.includeBots() ? all : all.stream().filter(x -> !isBot(x)).toList();
     List<Commit> botCommits = all.stream().filter(this::isBot).toList();
     return new Commits(humans, botCommits, f.truncated(), f.error());
   }
@@ -81,7 +83,7 @@ final class ProjectApi {
             "sort",
             "desc"),
         MergeRequest.class,
-        settings.maxMrs());
+        budget.maxMrs());
   }
 
   Gitlab.Page<Note> notes(Project p, MergeRequest m) {
@@ -93,6 +95,6 @@ final class ProjectApi {
   }
 
   private boolean isBot(Commit x) {
-    return Gitlab.isBot(settings.bots(), x.authorEmail(), x.authorName());
+    return Contributors.isBot(bots.pattern(), x.authorEmail(), x.authorName());
   }
 }

@@ -4,12 +4,11 @@ import ch.ge.edg.sonar.gitlab.audit.parallel.Parallel;
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Endpoint;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Retries;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Transport;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -35,9 +34,6 @@ import org.jspecify.annotations.Nullable;
  * Capture}).
  */
 public final class Sonar {
-
-  public static final ObjectMapper MAPPER =
-      new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
   /** Appels concurrents par défaut : assez pour que l'attente se recouvre. */
   public static final int DEFAULT_CONCURRENCY = 8;
@@ -98,8 +94,8 @@ public final class Sonar {
     if (token != null) headers.put("Authorization", "Bearer " + token);
     this.client =
         new RestClient(
-            new Settings(
-                base, headers, connection.timeoutSeconds(), connection.insecure(), true, RETRIES),
+            new Endpoint(base, headers, RETRIES),
+            new Transport(connection.timeoutSeconds(), connection.insecure(), true),
             capture,
             sleeper);
   }

@@ -5,9 +5,12 @@ question. One entry per choice: what, why, and what the alternative would have b
 
 ## Environment
 
-- **Maven must run on JDK 26.** The pom targets `release 26`; Maven on JDK 25 fails with
-  "release version 26 not supported". Used `JAVA_HOME=~/.jbang/cache/jdks/26` (the JDK JBang
-  downloads for the scripts' `//JAVA 26`).
+- **Target Java 25, the current LTS (was 26, a non-LTS).** `maven.compiler.release`, CI images,
+  `setup-java`, the JBang `//JAVA` lines and the docs now say 25. Nothing in the code needed
+  Java 26 features. ArchUnit 1.4.2, Error Prone 2.50, NullAway, PMD 7.28, Checkstyle, google-java-format
+  and JaCoCo 0.8.15 all read Java 25 class files; no dependency blocked the move. Maven must run
+  on JDK 25+; `./verify` and `./mvnw` borrow JBang's JDK 25 (`jbang jdk home 25`) when the default
+  JDK is older.
 - **A lenient copy of the pom while writing tests.** The code had ~240 Error Prone / NullAway
   errors, so nothing compiled under the real pom and no test could run. The tests were written
   against a local, untracked `pom-lenient.xml` (the real pom minus Error Prone, `-Werror`,
@@ -254,3 +257,21 @@ bug means changing that test on purpose. Run them all with `mvn test -Dgroups=su
 `./verify --full` passes: Spotless, Checkstyle, Error Prone + NullAway (main and tests), PMD, CPD,
 ~680 tests, JaCoCo (~99% line, ~97% branch), PIT 3392/3433 mutants killed (99%), ratchet. Empty
 baselines: nothing was recorded as an accepted violation.
+
+## Mutation testing (PIT) leaves CI
+
+- **What.** PIT no longer runs in `./verify --full`, in the nightly `verify-full` job on GitHub or in
+  the `verify-full` job on GitLab. It moved from the `full` Maven profile to its own `pit` profile,
+  with no phase binding: it only runs when asked. `verify-full` stays, with the Docker integration
+  tests and CPD. The 85 % `mutation.score.minimum` stays in the pom (the ratchet still watches it)
+  but gates nothing.
+- **Why.** Mutation testing was the most expensive step and used up the CI budget. A nightly red
+  run it produced was a to-do nobody had to act on that day, so the money bought little.
+- **What replaces it.** `./verify --mutants` runs PIT on the production classes changed since the
+  merge-base with `origin/main` only (about 40 s for a one-class change), always exits 0, and
+  leaves the report in `target/pit-reports`. Developers and agents run it beside their work. The
+  whole-code run remains available: `./mvnw -Ppit test-compile pitest:mutationCoverage`.
+- **Alternative rejected.** PIT's `scmMutationCoverage` / history files: they need a maven-scm
+  connection or a persisted history file, more moving parts than diffing against `origin/main`.
+- **Cost.** Nothing now stops the mutation score from drifting down; the signal is only as good as
+  the habit of running `--mutants`.

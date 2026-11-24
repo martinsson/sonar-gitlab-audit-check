@@ -204,8 +204,9 @@ class SonarClientTest {
             pause -> {});
     RestResponse r = sq.get("api/system/status", Map.of());
     assertThat(r.unreachable()).isTrue();
-    // "ConnectException: Connection refused" on macOS and Linux; the class name always leads.
-    assertThat(r.why()).startsWith("ConnectException: ");
+    // "ConnectException: Connection refused" on macOS and Linux, bare "ConnectException" on JDK 25;
+    // the class name always leads.
+    assertThat(r.why()).startsWith("ConnectException");
     assertThat(sq.calls()).isEqualTo(1);
   }
 

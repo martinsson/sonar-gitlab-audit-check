@@ -2,6 +2,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.storyinspection;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,7 +13,7 @@ import java.util.stream.Stream;
 /** Les tickets d'un répertoire consigné par {@code --dump-dir}, lus sans appeler Jira. */
 final class ReplayDump {
 
-  private static final ObjectMapper JSON = new ObjectMapper();
+  private static final ObjectReader READER = new ObjectMapper().reader();
 
   private ReplayDump() {}
 
@@ -26,7 +27,7 @@ final class ReplayDump {
     }
     List<JsonNode> issues = new ArrayList<>();
     for (Path file : files) {
-      JSON.readTree(file.toFile()).path("issues").forEach(issues::add);
+      READER.readTree(Files.readAllBytes(file)).path("issues").forEach(issues::add);
     }
     return issues;
   }

@@ -11,9 +11,13 @@ import java.nio.file.Path;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Callable;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 import org.jspecify.annotations.Nullable;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Mixin;
 import picocli.CommandLine.Option;
 
@@ -32,6 +36,9 @@ import picocli.CommandLine.Option;
       "Écrit dora-donnees.json, dora.html et middleware-import.sql dans --out-dir."
     })
 public class DoraProject implements Callable<Integer> {
+
+  /** Les tags de version par défaut : v suivi d'une date, vYYYYMMDD…. */
+  static final String DEFAULT_TAG_PATTERN = "^v\\d{8}";
 
   @Option(
       names = "--gitlab-project",
@@ -78,6 +85,24 @@ public class DoraProject implements Callable<Integer> {
   int maxUpstream;
 
   @Option(
+      names = "--deploy-mapping",
+      defaultValue = "auto",
+      converter = MappingConverter.class,
+      description = {
+        "Ce qu'est un déploiement et ce qu'il livre : materials (un run GoCD, ce qu'il a",
+        "embarqué ; sans GoCD, chaque fusion), tags (un tag de version de main, ce qu'il",
+        "apporte depuis le précédent), auto (défaut : avec GoCD, materials ; sans GoCD, tags",
+        "s'il y a des tags de version sur la période, sinon chaque fusion)"
+      })
+  Extraction.Mapping deployMapping = Extraction.Mapping.AUTO;
+
+  @Option(
+      names = "--release-tag-pattern",
+      defaultValue = DEFAULT_TAG_PATTERN,
+      description = "Expression des tags de version, cherchée dans leur nom (défaut : ^v\\d{8})")
+  String releaseTagPattern = DEFAULT_TAG_PATTERN;
+
+  @Option(
       names = "--out-dir",
       description = "Dossier de sortie (défaut : extraction/<projet>/dora)")
   @Nullable Path outDir;
@@ -86,6 +111,14 @@ public class DoraProject implements Callable<Integer> {
       names = "--from",
       description = "Refait la page et l'import depuis un dora-donnees.json, sans rien extraire")
   @Nullable Path from;
+
+  /** auto, materials ou tags, sans égard à la casse. */
+  static final class MappingConverter implements ITypeConverter<Extraction.Mapping> {
+    @Override
+    public Extraction.Mapping convert(String value) {
+      return Extraction.Mapping.valueOf(value.trim().toUpperCase(Locale.ROOT));
+    }
+  }
 
   @Mixin Connections connections = new Connections();
 
@@ -120,10 +153,17 @@ public class DoraProject implements Callable<Integer> {
   private Snapshot extract(Console console) throws Stop, IOException, GeneralSecurityException {
     String ref = project;
     if (ref == null || ref.isBlank()) throw new Stop("donner --gitlab-project, ou --from");
+    Pattern tags;
+    try {
+      tags = Pattern.compile(releaseTagPattern);
+    } catch (PatternSyntaxException e) {
+      throw new Stop("--release-tag-pattern illisible : " + e.getDescription());
+    }
     Extraction.Request request =
         new Extraction.Request(
             ref, pipelines, jiraProjects, incidentTypes, incidentJql, days, maxMrs, maxUpstream);
-    return new Extraction(request, connections, console, host.sleeper())
+    Extraction.DeployRule rule = new Extraction.DeployRule(deployMapping, tags);
+    return new Extraction(request, rule, connections, console, host.sleeper())
         .run(host.clock().instant());
   }
 

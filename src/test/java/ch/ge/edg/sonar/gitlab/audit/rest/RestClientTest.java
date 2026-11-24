@@ -25,7 +25,8 @@ class RestClientTest {
 
   private RestClient client(String base, Map<String, String> headers) throws IOException {
     return new RestClient(
-        RestClient.Settings.of(base, headers, false),
+        RestClient.Endpoint.of(base, headers),
+        RestClient.Transport.of(false),
         Capture.none(),
         pause -> waits.add(pause.toSeconds()));
   }
@@ -70,8 +71,8 @@ class RestClientTest {
       Path dumps = dir.resolve("dumps");
       RestClient c =
           new RestClient(
-              new RestClient.Settings(
-                  jira.url(), Map.of(), 5, false, false, RestClient.Retries.DEFAULT),
+              new RestClient.Endpoint(jira.url(), Map.of(), RestClient.Retries.DEFAULT),
+              new RestClient.Transport(5, false, false),
               new Capture(
                   dumps, null, reason -> err.println("  (capture non écrite : " + reason + ")")),
               pause -> waits.add(pause.toSeconds()));
@@ -90,8 +91,8 @@ class RestClientTest {
       Path dumps = dir.resolve("gone");
       RestClient c =
           new RestClient(
-              new RestClient.Settings(
-                  jira.url(), Map.of(), 5, false, false, RestClient.Retries.DEFAULT),
+              new RestClient.Endpoint(jira.url(), Map.of(), RestClient.Retries.DEFAULT),
+              new RestClient.Transport(5, false, false),
               new Capture(
                   dumps, null, reason -> err.println("  (capture non écrite : " + reason + ")")),
               pause -> waits.add(pause.toSeconds()));
@@ -105,7 +106,8 @@ class RestClientTest {
   void insecureBuildsAClientThatTrustsAnyCertificate() throws IOException {
     RestClient c =
         new RestClient(
-            RestClient.Settings.of("https://self-signed.invalid", Map.of(), true),
+            RestClient.Endpoint.of("https://self-signed.invalid", Map.of()),
+            RestClient.Transport.of(true),
             Capture.none(),
             pause -> {});
     assertThat(c.base()).isEqualTo("https://self-signed.invalid");

@@ -1,8 +1,8 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.PAST;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.daily;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.PAST;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.daily;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.project;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -95,11 +95,11 @@ class GitlabActivityAuditEdgeCasesTest extends GitlabActivityAuditTestBase {
   void oddPracticeAnswersAreReadCautiously() {
     ObjectNode[] ps = new ObjectNode[5];
     for (int i = 0; i < 5; i++) ps[i] = project(1 + i, "team-a/e" + (1 + i));
-    fake.enterprise(false).group("team-a", ps);
+    fake.enterprise(false).group("team-a", (Object[]) ps);
     oddProjects();
 
     Cli.Result r =
-        fake.run(
+        run(
             "--group",
             "team-a",
             "--deep",
@@ -114,10 +114,10 @@ class GitlabActivityAuditEdgeCasesTest extends GitlabActivityAuditTestBase {
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk("stdout");
     expectSelfie(file(tmp.resolve("pratiques.csv"))).toMatchDisk("pratiques");
-    assertThat(fake.server.requests()).filteredOn(q -> q.path().endsWith("/ci/lint")).hasSize(1);
-    assertThat(fake.server.requests("/api/v4/projects/shared%2Ftpl")).hasSize(1);
-    assertThat(fake.server.requests("/api/v4/projects/shared%2Fno-id")).hasSize(1);
-    assertThat(fake.server.requests("/api/v4/projects/77/repository/files/a.yml/raw")).hasSize(1);
+    assertThat(fake.server().requests()).filteredOn(q -> q.path().endsWith("/ci/lint")).hasSize(1);
+    assertThat(fake.server().requests("/api/v4/projects/shared%2Ftpl")).hasSize(1);
+    assertThat(fake.server().requests("/api/v4/projects/shared%2Fno-id")).hasSize(1);
+    assertThat(fake.server().requests("/api/v4/projects/77/repository/files/a.yml/raw")).hasSize(1);
   }
 
   @Test
@@ -130,12 +130,11 @@ class GitlabActivityAuditEdgeCasesTest extends GitlabActivityAuditTestBase {
     fake.route("/api/v4/projects/1/ci/lint", r -> Response.status(500, "{}"))
         .route("/api/v4/projects/2/ci/lint", r -> Response.status(404, "{}"))
         .raw(3, ".gitlab-ci.yml", "x: 1\n");
-    fake.enterprise(false).group("team-a", ps);
+    fake.enterprise(false).group("team-a", (Object[]) ps);
     Cli.Result r =
-        fake.run(
-            "--group", "team-a", "--deep", "--graphql=false", "--floor", "0", "--concurrency", "1");
+        run("--group", "team-a", "--deep", "--graphql=false", "--floor", "0", "--concurrency", "1");
     assertOk(r);
-    assertThat(fake.server.requests())
+    assertThat(fake.server().requests())
         .filteredOn(q -> q.path().endsWith("/ci/lint"))
         .extracting(q -> q.path())
         .containsExactly("/api/v4/projects/1/ci/lint", "/api/v4/projects/2/ci/lint");
@@ -150,7 +149,7 @@ class GitlabActivityAuditEdgeCasesTest extends GitlabActivityAuditTestBase {
     fake.route("/api/v4/projects/1/ci/lint", r -> Response.status(403, "{}"))
         .raw(1, ".gitlab-ci.yml", "x: 1\n");
     fake.enterprise(false).group("team-a", project(1, "team-a/l1"));
-    Cli.Result r = fake.run("--group", "team-a", "--deep", "--graphql=false", "--floor", "0");
+    Cli.Result r = run("--group", "team-a", "--deep", "--graphql=false", "--floor", "0");
     assertOk(r);
     assertThat(r.out()).contains("    ci/lint refusé (HTTP 403) : le jeton n'a pas le droit de\n");
   }
@@ -168,7 +167,7 @@ class GitlabActivityAuditEdgeCasesTest extends GitlabActivityAuditTestBase {
     fake.enterprise(false)
         .group("team-a", undatedFork, undatedForkActivity, silent)
         .commits(1, daily("f", "fred", 6));
-    Cli.Result r = fake.run("--group", "team-a", "--csv", tmp.resolve("i.csv").toString());
+    Cli.Result r = run("--group", "team-a", "--csv", tmp.resolve("i.csv").toString());
     assertOk(r);
     expectSelfie(file(tmp.resolve("i.csv"))).toMatchDisk();
   }
@@ -182,11 +181,11 @@ class GitlabActivityAuditEdgeCasesTest extends GitlabActivityAuditTestBase {
             "/api/v4/projects/1/repository/commits",
             r ->
                 "1".equals(r.param("per_page")) ? Response.json("[]") : Response.status(500, "{}"));
-    Cli.Result r = fake.run("--group", "team-a");
+    Cli.Result r = run("--group", "team-a");
     assertThat(r.out())
         .contains("Échantillon de contrôle sous la coupe : 1 projets, 0 faux négatif");
     List<String> perPage = new ArrayList<>();
-    fake.server
+    fake.server()
         .requests("/api/v4/projects/1/repository/commits")
         .forEach(q -> perPage.add(q.param("per_page")));
     assertThat(perPage).containsExactly("1", "100");
@@ -198,7 +197,7 @@ class GitlabActivityAuditEdgeCasesTest extends GitlabActivityAuditTestBase {
     fake.enterprise(false)
         .group("team-a", sleepy)
         .json("/api/v4/projects/1/repository/commits", "{\"message\":\"x\"}");
-    Cli.Result r = fake.run("--group", "team-a");
+    Cli.Result r = run("--group", "team-a");
     assertThat(r.out()).contains("1 projets, 0 faux négatif");
   }
 }

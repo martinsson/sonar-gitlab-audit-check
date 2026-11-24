@@ -33,7 +33,8 @@ class LayersTest {
           .layer("Shared options")
           .definedBy(ROOT + "cli.shared..")
           .layer("Domain")
-          .definedBy(ROOT + "matching..", ROOT + "exclusions..", ROOT + "dora..")
+          .definedBy(
+              ROOT + "matching..", ROOT + "exclusions..", ROOT + "dora..", ROOT + "contributors..")
           .layer("Exchange")
           .definedBy(ROOT + "exchange..")
           .layer("Clients")

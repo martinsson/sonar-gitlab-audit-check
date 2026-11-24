@@ -12,19 +12,19 @@ final class SideLists {
   private SideLists() {}
 
   /** Actifs sans code neuf : ils portent la dette sans en créer. */
-  static List<Scored> carrying(List<InventoryRow> active, RankSettings settings) {
-    return byDebtRatio(active, r -> r.noNewCode() && r.ncloc() >= settings.minNcloc());
+  static List<Scored> carrying(List<InventoryRow> active, Thresholds thresholds) {
+    return byDebtRatio(active, r -> r.noNewCode() && r.ncloc() >= thresholds.minNcloc());
   }
 
   /** Obsolètes récents et endettés : quelqu'un a lâché un projet en mauvais état. */
-  static List<Scored> abandoned(List<InventoryRow> stale, RankSettings settings) {
+  static List<Scored> abandoned(List<InventoryRow> stale, Thresholds thresholds) {
     return byDebtRatio(
         stale,
         r -> {
           Integer days = r.daysSinceAnalysis();
           return days != null
-              && days <= settings.abandonedDays()
-              && r.ncloc() >= settings.minNcloc();
+              && days <= thresholds.abandonedDays()
+              && r.ncloc() >= thresholds.minNcloc();
         });
   }
 

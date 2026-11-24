@@ -4,6 +4,7 @@ import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import java.io.IOException;
 import java.util.List;
@@ -24,8 +25,10 @@ import java.util.stream.StreamSupport;
  */
 public sealed interface RestResponse {
 
-  ObjectMapper MAPPER =
-      new ObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  ObjectReader READER =
+      new ObjectMapper()
+          .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+          .reader();
 
   /**
    * Le serveur a répondu.
@@ -101,7 +104,7 @@ public sealed interface RestResponse {
   default Optional<JsonNode> json() {
     if (!(this instanceof Answered a) || a.body().isBlank()) return Optional.empty();
     try {
-      return Optional.ofNullable(MAPPER.readTree(a.body()));
+      return Optional.ofNullable(READER.readTree(a.body()));
     } catch (IOException e) {
       return Optional.empty();
     }
@@ -119,7 +122,7 @@ public sealed interface RestResponse {
   default <T> Optional<T> as(Class<T> type) {
     if (!ok() || body().isBlank()) return Optional.empty();
     try {
-      return Optional.ofNullable(MAPPER.readValue(body(), type));
+      return Optional.ofNullable(READER.readValue(body(), type));
     } catch (IOException e) {
       return Optional.empty();
     }
@@ -130,8 +133,9 @@ public sealed interface RestResponse {
     if (!ok() || body().isBlank()) return Optional.empty();
     try {
       return Optional.ofNullable(
-          MAPPER.readValue(
-              body(), MAPPER.getTypeFactory().constructCollectionType(List.class, type)));
+          READER
+              .forType(READER.getTypeFactory().constructCollectionType(List.class, type))
+              .readValue(body()));
     } catch (IOException e) {
       return Optional.empty();
     }

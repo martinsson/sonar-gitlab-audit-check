@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.daily;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.daily;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.project;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
@@ -18,7 +18,7 @@ class CosmeticSuspectedBugsTest extends GitlabActivityAuditTestBase {
         .byPath(project(1, "team-a/alpha"))
         .route("/api/v4/projects/team-a%2Fsecret", req -> Response.status(403, "{}"))
         .commits(1, daily("a", "alice", 7));
-    Cli.Result r = fake.run("--projects", list.toString(), "--concurrency", "1");
+    Cli.Result r = run("--projects", list.toString(), "--concurrency", "1");
     assertOk(r);
     return r;
   }

@@ -17,8 +17,8 @@ record MergeRequest(Facts facts, Participants participants) {
   @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
   static MergeRequest of(JsonNode json) throws JsonProcessingException {
     return new MergeRequest(
-        Gitlab.MAPPER.treeToValue(json, Facts.class),
-        Gitlab.MAPPER.treeToValue(json, Participants.class));
+        Gitlab.READER.treeToValue(json, Facts.class),
+        Gitlab.READER.treeToValue(json, Participants.class));
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)

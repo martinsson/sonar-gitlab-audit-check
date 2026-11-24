@@ -1,5 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.matching;
 
+import ch.ge.edg.sonar.gitlab.audit.gitlab.RepoPath;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -48,15 +49,7 @@ public final class Keys {
     // Les entrées vides, en fin de liste ou non, ne donnent aucun chemin.
     for (String entry : LINK_SEPARATOR.split(links, -1)) {
       String url = entry.contains(" ") ? entry.substring(entry.indexOf(' ') + 1) : entry;
-      String path =
-          url.trim()
-              .replaceFirst("^[a-zA-Z][a-zA-Z0-9+.-]*://[^/]+/", "")
-              .replaceFirst("^[^@/\\s]+@[^:/]+:", "")
-              .replaceFirst("/-/.*$", "")
-              .replaceFirst("[?#].*$", "")
-              .replaceFirst("\\.git/?$", "")
-              .replaceFirst("/+$", "")
-              .toLowerCase(Locale.ROOT);
+      String path = RepoPath.of(url).toLowerCase(Locale.ROOT);
       if (path.contains("/") && !path.contains("://") && !out.contains(path)) out.add(path);
     }
     return out;

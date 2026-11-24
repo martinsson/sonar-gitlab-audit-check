@@ -1,11 +1,11 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.API;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.merge;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.mr;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.obj;
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.user;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.API;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.merge;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.mr;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.obj;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.user;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,8 +38,8 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
     Cli.Result r = run("--token", "");
 
     assertThat(r.exitCode()).isZero();
-    assertThat(server.requests(projectRoute()).getFirst().header("PRIVATE-TOKEN")).isNull();
-    assertThat(server.requests(API + ID + "/repository/commits")).isEmpty();
+    assertThat(fake.server().requests(projectRoute()).getFirst().header("PRIVATE-TOKEN")).isNull();
+    assertThat(fake.server().requests(API + ID + "/repository/commits")).isEmpty();
     expectSelfie(normalized(r.out())).toMatchDisk();
   }
 
@@ -66,7 +66,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
 
   @Test
   void aProjectAnswerWithoutAnIdIsNotFound() {
-    server.json(projectRoute(), "{\"name\":\"x\"}");
+    fake.json(projectRoute(), "{\"name\":\"x\"}");
 
     Cli.Result r = run();
 
@@ -76,8 +76,8 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
 
   @Test
   void anUnreachableInstanceIsReported() {
-    String url = server.url();
-    server.close();
+    String url = fake.url();
+    fake.close();
 
     Cli.Result r =
         Cli.run(
@@ -109,7 +109,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
             fx.clock(),
             GitLabProjectReport::new,
             "--url",
-            server.url(),
+            fake.url(),
             "--path",
             " https://gitlab.example/team-a/alpha-service.git/-/tree/main ",
             "--token",
@@ -118,7 +118,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
             "never");
 
     assertThat(r.exitCode()).isZero();
-    assertThat(server.requests(projectRoute())).hasSize(1);
+    assertThat(fake.server().requests(projectRoute())).hasSize(1);
   }
 
   @Test
@@ -244,7 +244,7 @@ class GitLabProjectReportEdgeTest extends GitLabProjectReportHarness {
 
     Cli.Result r = run();
 
-    assertThat(server.requests(API + ID + "/merge_requests/2/notes")).isEmpty();
+    assertThat(fake.server().requests(API + ID + "/merge_requests/2/notes")).isEmpty();
     expectSelfie(normalized(r.out())).toMatchDisk();
   }
 

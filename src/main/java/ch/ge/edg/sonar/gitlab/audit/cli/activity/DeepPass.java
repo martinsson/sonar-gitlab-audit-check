@@ -1,6 +1,17 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.activity.OutputOptions.Outputs;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.Assessed;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.AuditedProject;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.Funnel;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.FunnelResult;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.GitlabProject;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.Practices;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.practices.PracticeProbes;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.practices.SonarCache;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.preflight.Preflight;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.CsvFiles;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.OutputOptions.Outputs;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.Screen;
 import ch.ge.edg.sonar.gitlab.audit.csv.Column;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import java.io.IOException;

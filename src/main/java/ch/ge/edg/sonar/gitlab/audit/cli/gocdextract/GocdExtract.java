@@ -98,11 +98,10 @@ public class GocdExtract implements Callable<Integer> {
       if (selection.pipelines().isEmpty()) {
         throw new Stop("aucun pipeline : donner --pipeline ou --group");
       }
-      Extraction.Settings settings =
-          new Extraction.Settings(
-              outDir, comma.enabled(), !noRaw, maxUpstream, durations, clock.getZone());
-      new Extraction(gocd, selection, settings, err)
-          .run(clock.instant().minus(Duration.ofDays(days)));
+      Reading reading = new Reading(maxUpstream, durations, clock.getZone());
+      OutputTarget target = new OutputTarget(outDir, comma.enabled(), !noRaw);
+      new Extraction(gocd, selection, reading, err)
+          .run(clock.instant().minus(Duration.ofDays(days)), target);
       err.println(gocd.calls() + " requêtes GET.");
       return 0;
     } catch (Stop e) {

@@ -116,7 +116,7 @@ class SonarRankUnitTest {
   @Test
   void presentationHelpers() {
     RankReport report =
-        new RankReport(Printed.colored().console(), new RankSettings(365, 730, 0, 10, 2));
+        new RankReport(Printed.colored().console(), new Thresholds(365, 730, 0, 10, 2));
     assertThat(report.paint("x", "")).isEqualTo("x");
     assertThat(report.paint("x", RankReport.RED)).isEqualTo("\033[31mx\033[0m");
     assertThat(report.pct(3, 0, "")).isEqualTo("3");

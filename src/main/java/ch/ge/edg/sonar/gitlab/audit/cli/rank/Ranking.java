@@ -17,22 +17,22 @@ import java.util.List;
  */
 final class Ranking {
 
-  private final RankSettings settings;
+  private final Thresholds thresholds;
   private final RankReport report;
 
-  public Ranking(RankSettings settings, Console out) {
-    this.settings = settings;
-    this.report = new RankReport(out, settings);
+  public Ranking(Thresholds thresholds, Console out) {
+    this.thresholds = thresholds;
+    this.report = new RankReport(out, thresholds);
   }
 
   /** Classe {@code rows}, le dit sur la console et l'écrit dans {@code file}. */
   public void run(List<InventoryRow> rows, Path file, boolean comma) throws IOException {
-    Cohorts cohorts = Cohorts.split(rows, settings.staleDays());
+    Cohorts cohorts = Cohorts.split(rows, thresholds.staleDays());
     report.governance(rows, cohorts);
 
-    List<Scored> velocity = VelocityRanking.rank(cohorts.active(), settings);
-    List<Scored> carrying = SideLists.carrying(cohorts.active(), settings);
-    List<Scored> abandoned = SideLists.abandoned(cohorts.stale(), settings);
+    List<Scored> velocity = VelocityRanking.rank(cohorts.active(), thresholds);
+    List<Scored> carrying = SideLists.carrying(cohorts.active(), thresholds);
+    List<Scored> abandoned = SideLists.abandoned(cohorts.stale(), thresholds);
 
     report.velocity(velocity);
     report.sideLists(carrying, abandoned);

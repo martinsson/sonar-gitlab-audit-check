@@ -5,7 +5,7 @@ and the tools used less often. Options are in each tool's `--help`.
 
 ## Running without JBang
 
-Any JDK 26+ and Maven. The code is a Maven project under `src/main/java`
+Any JDK 25+ (the current LTS) and Maven. The code is a Maven project under `src/main/java`
 (package `ch.ge.edg.sonar.gitlab.audit`); the `.java` files at the root are
 only JBang entry points that point at it with `//SOURCES`. `JbangScriptsTest`
 keeps it that way for every JBang script in the repository: at most 20 lines,
@@ -56,6 +56,35 @@ silently, so drift never shows up as an error), to keep samples of the
 unhealthy projects whose payloads break naive parsing, and to rank an instance
 you cannot reach from a colleague's capture.
 
+## Developing: the inner loop
+
+Build with the Maven wrapper, `./mvnw`, never plain `mvn`: the machine's default JDK is often older
+than the one the pom targets (25, see `maven.compiler.release`), and Maven then stops at "release
+version 25 not supported". `./mvnw` and `./verify` both source `.mvn/use-jdk.sh`, which keeps
+`JAVA_HOME` if it is new enough and otherwise looks for a JDK 25 (macOS `java_home`, SDKMAN,
+`~/.jdks`, JBang, which downloads one on first use). With none it stops and says how to install one.
+On Windows use Git Bash (`.\verify` does); `mvnw.cmd` does not select a JDK.
+
+| What | Command | Time (warm) |
+| --- | --- | --- |
+| One test class | `./verify --test FooTest` | 3 to 5 s |
+| One test method | `./verify --test FooTest#someMethod` | 3 to 5 s |
+| Several | `./verify --test FooTest,BarTest` | a few s |
+| All gates a push needs | `./verify` (`./verify --fix` formats first) | about 1 min |
+| Docker tests, copy-paste | `./verify --full` | a few min |
+| Mutants of what you changed | `./verify --mutants` | under a min for a small change |
+
+`--test` is `./mvnw test -Dtest=... -Dsurefire.failIfNoSpecifiedTests=false` with Spotless,
+Checkstyle, PMD, CPD and JaCoCo skipped. Error Prone and NullAway still run, as they are the
+compiler. It is feedback while you work, not permission to push: the pre-push hook runs `./verify`.
+
+## Notes on a batch of work
+
+Decisions, compromises, behaviour changes, gate changes and reviewer disagreements are not written to
+a file in the repository. The lead agent keeps them in its session memory or scratchpad and puts them
+in the pull request (description, or a comment or attachment) when it opens it. Open questions that
+outlive the PR go in `ARCHITECTURE.md` ("Open questions for the owner"). Details there.
+
 ## CI: every change lands on main through a green pipeline
 
 Nobody pushes to `main`. A change goes on a branch, then a pull request (GitHub)
@@ -64,10 +93,21 @@ or a merge request (GitLab). It merges itself, without human review, once the
 about a minute. On Windows, `.\verify` in PowerShell or cmd runs `verify.cmd`,
 which hands the bash script to Git Bash.
 
+The pre-push hook runs `./verify` on the checked-out tree, so it refuses (and says why) unless that tree
+is what you push: a rebase, merge, cherry-pick or revert in progress, tracked files with uncommitted
+changes, or a pushed ref that is not `HEAD` all stop the push. Check out the branch, or push from a worktree of it.
+
 Every night, and on demand (`gh workflow run verify`), **`verify-full`** runs
-`./verify --full` on `main`: Docker integration tests, mutation testing and
-copy-paste detection, about 15 minutes. It does not block anything. A red run
-is fixed by the next pull request.
+`./verify --full` on `main`: Docker integration tests and copy-paste
+detection. It does not block anything. A red run is fixed by the next pull
+request.
+
+**Mutation testing (PIT) is not in CI**: it used up the CI budget. Run it
+locally, beside your work: `./verify --mutants` mutates only the production
+classes changed since `origin/main` (committed or not) and takes under a minute
+for a small change. It never fails and blocks nothing; surviving mutants are in
+`target/pit-reports/index.html`. The whole code base:
+`./mvnw -Ppit test-compile pitest:mutationCoverage` (about 5 minutes, 99% killed today).
 
 It cannot run on each merge: an auto-merge is made with the workflow token, and
 GitHub starts no workflow for that token's events.
@@ -88,7 +128,8 @@ forks run the checks but never merge themselves: on a public repository, that
 would let anyone land code that merely passes the tests.
 
 **GitLab.** `.gitlab-ci.yml`, with the same two jobs, plus `auto-merge`.
-`verify-full` runs only on the default branch. Blocking
+`verify-full` runs only on the default branch. Scheduled and manual pipelines run only the weekly
+report (`ci/audit-pages.yml`). Blocking
 needs these project settings, which a file cannot set:
 
 - Settings → Repository → Protected branches: `main`, allowed to merge:

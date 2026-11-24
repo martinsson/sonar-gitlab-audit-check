@@ -20,6 +20,9 @@ Scripts JBang en lecture seule (GET seulement), authentifiés par PAT. Détails 
   sortir ne contient ni nom de projet, ni nom de pipeline, ni nom de personne.
 - Les correspondances proposées par `DoraLocate` sont des suppositions : les montrer et attendre
   une confirmation avant de lancer l'extraction.
+- On passe toujours par les chemins standard (API publiques, mécanismes d'import documentés, par
+  exemple l'API REST de DevLake plutôt que sa base), sauf si un humain a été consulté avant d'en
+  prendre un autre ; noter alors la décision (`ARCHITECTURE.md`).
 
 ## Prérequis
 
@@ -90,6 +93,13 @@ Fichiers produits :
 - **Définitions par projet.** Ce qu'est une mise en prod et ce qu'est un incident se décident
   projet par projet, avec l'utilisateur. Proposer une définition, compter ce qu'elle retient, et
   attendre son choix.
+- **Tags de version (sans GoCD).** Si la CI tague chaque livraison sur main (`v20261117.1.1`…),
+  `DoraProject` sans `--gocd-pipeline` prend chaque tag (`--release-tag-pattern`, `^v\d{8}` par
+  défaut) comme mise en production ; `--deploy-mapping tags` l'impose. Le délai va du dernier
+  commit d'une fonctionnalité (clé Jira du titre, sinon de la branche `feature/`/`bugfix/` dont la
+  fusion l'a apporté) livré par le tag à la date du tag. Les chore/test/refactor sans story ne
+  comptent pas : vérifier sur la page leur nombre par type, et les tags sans commit de travail,
+  avant d'en tirer des chiffres. Ce mode n'est pas exporté vers Middleware.
 
 Si une API répond autrement qu'attendu (404 sur la recherche Jira, champ absent), le signaler avec
 l'endpoint et le code HTTP plutôt que de contourner : le code se corrige ensuite, en suivant

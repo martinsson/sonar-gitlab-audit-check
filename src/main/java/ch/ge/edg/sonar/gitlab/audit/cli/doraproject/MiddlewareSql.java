@@ -76,6 +76,10 @@ final class MiddlewareSql {
       workflows();
       runs();
       teamRepos();
+    } else if (p.deploySource() == Snapshot.DeploySource.TAGS) {
+      line(
+          "\n-- Tags de version : pas exportés ; Middleware compte les merge requests fusionnées"
+              + " (PR_MERGE).");
     } else {
       line("\n-- Pas de GoCD : Middleware compte les merge requests fusionnées (PR_MERGE).");
     }

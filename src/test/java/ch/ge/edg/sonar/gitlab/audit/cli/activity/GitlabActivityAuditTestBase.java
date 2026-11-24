@@ -3,11 +3,15 @@ package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
+import ch.ge.edg.sonar.gitlab.audit.testing.GitlabFake;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
@@ -20,16 +24,24 @@ abstract class GitlabActivityAuditTestBase {
 
   @TempDir Path tmp;
 
-  GitlabAuditFake fake;
+  GitlabFake fake;
 
   @BeforeEach
   void setUpBase() {
-    fake = new GitlabAuditFake();
+    fake = new GitlabFake();
   }
 
   @AfterEach
   void tearDownBase() {
     fake.close();
+  }
+
+  /** Runs the audit against the fake, colours off. */
+  Cli.Result run(String... args) {
+    List<String> all =
+        new ArrayList<>(List.of("--url", fake.url(), "--token", "glpat-test", "--color", "never"));
+    all.addAll(Arrays.asList(args));
+    return Cli.run(GitlabActivityAudit::new, all.toArray(String[]::new));
   }
 
   /** Stdout with the port and temp directory replaced, stderr appended when not empty. */

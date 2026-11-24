@@ -36,7 +36,7 @@ class SlicesTest {
   @ArchTest
   static final ArchRule DOMAINS_DO_NOT_DEPEND_ON_EACH_OTHER =
       slices()
-          .assignedFrom(topLevelPackages("matching", "exclusions", "dora"))
+          .assignedFrom(topLevelPackages("matching", "exclusions", "dora", "contributors"))
           .should()
           .notDependOnEachOther()
           .because(

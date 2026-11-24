@@ -7,7 +7,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.io.IOException;
@@ -24,27 +25,31 @@ final class SnapshotFile {
 
   static final String NAME = "dora-donnees.json";
 
-  private static final ObjectMapper JSON =
-      new ObjectMapper()
-          .registerModule(
-              new SimpleModule()
-                  .addSerializer(Instant.class, new InstantWriter())
-                  .addDeserializer(Instant.class, new InstantReader()))
-          .enable(SerializationFeature.INDENT_OUTPUT)
-          .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  private static final ObjectWriter WRITER = mapper().writerWithDefaultPrettyPrinter();
+
+  private static final ObjectReader READER = mapper().readerFor(Snapshot.class);
 
   private SnapshotFile() {}
+
+  private static ObjectMapper mapper() {
+    return new ObjectMapper()
+        .registerModule(
+            new SimpleModule()
+                .addSerializer(Instant.class, new InstantWriter())
+                .addDeserializer(Instant.class, new InstantReader()))
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+  }
 
   static void write(Snapshot snapshot, Path file) throws IOException {
     Files.writeString(file, json(snapshot) + "\n", StandardCharsets.UTF_8);
   }
 
   static String json(Snapshot snapshot) throws IOException {
-    return JSON.writeValueAsString(snapshot);
+    return WRITER.writeValueAsString(snapshot);
   }
 
   static Snapshot read(Path file) throws IOException {
-    return JSON.readValue(Files.readString(file, StandardCharsets.UTF_8), Snapshot.class);
+    return READER.readValue(Files.readString(file, StandardCharsets.UTF_8));
   }
 
   private static final class InstantWriter extends JsonSerializer<Instant> {

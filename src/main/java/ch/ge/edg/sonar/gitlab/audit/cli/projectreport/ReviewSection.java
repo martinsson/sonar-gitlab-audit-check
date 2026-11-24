@@ -19,13 +19,13 @@ final class ReviewSection {
 
   private final Report report;
   private final ProjectApi api;
-  private final Settings settings;
+  private final Budget budget;
   private final Dates dates;
 
-  ReviewSection(Report report, ProjectApi api, Settings settings, Dates dates) {
+  ReviewSection(Report report, ProjectApi api, Budget budget, Dates dates) {
     this.report = report;
     this.api = api;
-    this.settings = settings;
+    this.budget = budget;
     this.dates = dates;
   }
 
@@ -72,7 +72,7 @@ final class ReviewSection {
             squashShare,
             squashShare >= 50 ? report.paint("   (écrase l'historique par commit)", DIM) : ""));
 
-    new ReviewSample(report, api, settings.sample(), dates).measure(p, merged);
+    new ReviewSample(report, api, budget.sample(), dates).measure(p, merged);
     return new ReviewMeasures(all.size(), leadP90, silentShare, selfShare, squashShare, false);
   }
 
@@ -81,13 +81,13 @@ final class ReviewSection {
       report.println(
           Text.format(
               "  Plafond --max-mrs atteint : chiffres portant sur les %d plus récentes.",
-              settings.maxMrs()),
+              budget.maxMrs()),
           YELLOW);
     }
     long closed = all.stream().filter(m -> "closed".equals(m.state())).count();
     long opened = all.stream().filter(m -> "opened".equals(m.state())).count();
 
-    double observed = settings.days();
+    double observed = budget.days();
     if (truncated) {
       LocalDateTime oldest =
           all.stream()

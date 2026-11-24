@@ -19,7 +19,8 @@ class RestClientRetryTest {
 
   private RestClient client(String base, Map<String, String> headers) throws IOException {
     return new RestClient(
-        RestClient.Settings.of(base, headers, false),
+        RestClient.Endpoint.of(base, headers),
+        RestClient.Transport.of(false),
         Capture.none(),
         pause -> waits.add(pause.toSeconds()));
   }

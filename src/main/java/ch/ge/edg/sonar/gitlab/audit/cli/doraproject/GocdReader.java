@@ -2,8 +2,8 @@ package ch.ge.edg.sonar.gitlab.audit.cli.doraproject;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.DeployedCommit;
 import ch.ge.edg.sonar.gitlab.audit.dora.DeployedCommits;
-import ch.ge.edg.sonar.gitlab.audit.dora.RepoPath;
 import ch.ge.edg.sonar.gitlab.audit.dora.RunOutcome;
+import ch.ge.edg.sonar.gitlab.audit.gitlab.RepoPath;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;

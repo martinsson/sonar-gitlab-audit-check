@@ -8,7 +8,6 @@ import ch.ge.edg.sonar.gitlab.audit.text.Text;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
@@ -17,35 +16,24 @@ import java.util.Optional;
 /** Une extraction : pour chaque pipeline choisi, ses runs depuis une date, écrits run par run. */
 final class Extraction {
 
-  /**
-   * Ce que l'extraction écrit et jusqu'où elle remonte.
-   *
-   * @param comma CSV pour un outil (virgule, sans BOM) plutôt que pour Excel
-   * @param raw écrire aussi gocd-runs.jsonl
-   * @param maxUpstream appels de runs amont permis pour un seul run
-   * @param durations lire chaque stage pour sa fin (un appel de plus par stage)
-   */
-  record Settings(
-      Path outDir, boolean comma, boolean raw, int maxUpstream, boolean durations, ZoneId zone) {}
-
   private final Gocd gocd;
   private final Selection selection;
-  private final Settings settings;
+  private final Reading reading;
   private final DeployedCommits commits;
   private final StageRows stages;
   private final PrintStream err;
 
-  public Extraction(Gocd gocd, Selection selection, Settings settings, PrintStream err) {
+  public Extraction(Gocd gocd, Selection selection, Reading reading, PrintStream err) {
     this.gocd = gocd;
     this.selection = selection;
-    this.settings = settings;
-    this.commits = new DeployedCommits(gocd.api(), settings.maxUpstream());
-    this.stages = new StageRows(gocd, settings.durations(), settings.zone());
+    this.reading = reading;
+    this.commits = new DeployedCommits(gocd.api(), reading.maxUpstream());
+    this.stages = new StageRows(gocd, reading.durations(), reading.zone());
     this.err = err;
   }
 
-  public void run(Instant since) throws IOException, Stop {
-    try (Output out = new Output(settings.outDir(), settings.comma(), settings.raw())) {
+  public void run(Instant since, OutputTarget target) throws IOException, Stop {
+    try (Output out = new Output(target.dir(), target.comma(), target.raw())) {
       for (String pipeline : selection.pipelines()) {
         List<Run> history = RunHistory.since(gocd, pipeline, since, err);
         err.print(Text.format("%s : %d runs%n", pipeline, history.size()));
@@ -54,7 +42,7 @@ final class Extraction {
       err.print(
           Text.format(
               "%s : %d runs, %d stages, %d commits%n",
-              settings.outDir(), out.runs.rows(), out.stages.rows(), out.commits.rows()));
+              target.dir(), out.runs.rows(), out.stages.rows(), out.commits.rows()));
     }
   }
 
@@ -62,7 +50,7 @@ final class Extraction {
     Optional<JsonNode> raw = gocd.api().raw(pipeline, run.counter());
     if (raw.isPresent()) out.raw(raw.get());
     List<DeployedCommit> found = commits.of(pipeline, run);
-    ZoneId zone = settings.zone();
+    ZoneId zone = reading.zone();
     out.runs.row(RunRow.cells(pipeline, selection.group(pipeline), run, found, zone));
     for (String[] row : stages.of(pipeline, run)) out.stages.row(row);
     for (DeployedCommit c : found)

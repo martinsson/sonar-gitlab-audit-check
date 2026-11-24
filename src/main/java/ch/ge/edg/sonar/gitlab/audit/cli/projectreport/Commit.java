@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.contributors.Contributors;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
@@ -18,7 +18,7 @@ record Commit(
 
   /** Deux parents ou plus : commit de fusion, dont les lignes appartiennent à d'autres. */
   boolean isMerge() {
-    return Gitlab.isMerge(parentIds);
+    return Contributors.isMerge(parentIds);
   }
 
   @JsonIgnoreProperties(ignoreUnknown = true)

@@ -1,17 +1,19 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.FUTURE;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.PAST;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.daily;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.FUTURE;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.PAST;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.daily;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.project;
 import static com.diffplug.selfie.Selfie.expectSelfie;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Request;
 import ch.ge.edg.sonar.gitlab.audit.testing.FakeHttpServer.Response;
+import ch.ge.edg.sonar.gitlab.audit.testing.GitlabFake;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class GitlabActivityAuditInventoryTest extends GitlabActivityAuditTestBase {
@@ -47,14 +49,14 @@ class GitlabActivityAuditInventoryTest extends GitlabActivityAuditTestBase {
   void everyExclusionReasonIsCountedAndWritten() {
     Path exclusions = write("exclusions.txt", "# synthetic\nteam-a/excluded-*  # list\n\n");
     fake.enterprise(false)
-        .group("team-a", everyKindOfProject())
+        .group("team-a", (Object[]) everyKindOfProject())
         .commits(1, daily("a", "alice", 6))
         .commits(6, daily("f", "bob", 3))
         .commits(11, daily("g", "carol", 1));
     Path outDir = tmp.resolve("audit");
 
     Cli.Result r =
-        fake.run(
+        run(
             "--group",
             "team-a",
             "--exclusions",
@@ -72,13 +74,13 @@ class GitlabActivityAuditInventoryTest extends GitlabActivityAuditTestBase {
   void outDirGetsTheInventory() {
     Path exclusions = write("exclusions.txt", "team-a/excluded-*\n");
     fake.enterprise(false)
-        .group("team-a", everyKindOfProject())
+        .group("team-a", (Object[]) everyKindOfProject())
         .commits(1, daily("a", "alice", 6))
         .commits(6, daily("f", "bob", 3));
     Path outDir = tmp.resolve("audit");
 
     Cli.Result r =
-        fake.run(
+        run(
             "--group",
             "team-a",
             "--exclusions",
@@ -95,8 +97,8 @@ class GitlabActivityAuditInventoryTest extends GitlabActivityAuditTestBase {
   @Test
   void groupRequestCarriesTheScopeParameters() {
     fake.enterprise(false).group("team-a/sub", project(1, "team-a/sub/alpha"));
-    fake.run("--group", "team-a/sub");
-    Request req = fake.server.requests("/api/v4/groups/team-a%2Fsub/projects").getFirst();
+    run("--group", "team-a/sub");
+    Request req = fake.server().requests("/api/v4/groups/team-a%2Fsub/projects").getFirst();
     assertThat(req.target())
         .isEqualTo(
             "/api/v4/groups/team-a%2Fsub/projects?include_subgroups=true&with_shared=false"
@@ -108,8 +110,8 @@ class GitlabActivityAuditInventoryTest extends GitlabActivityAuditTestBase {
     fake.enterprise(false)
         .group(
             "team-a", project(1, "team-a/alpha"), project(2, "team-a/old").put("archived", true));
-    Cli.Result r = fake.run("--group", "team-a", "--include-subgroups=false", "--include-archived");
-    Request req = fake.server.requests("/api/v4/groups/team-a/projects").getFirst();
+    Cli.Result r = run("--group", "team-a", "--include-subgroups=false", "--include-archived");
+    Request req = fake.server().requests("/api/v4/groups/team-a/projects").getFirst();
     assertThat(req.target())
         .isEqualTo(
             "/api/v4/groups/team-a/projects?include_subgroups=false&with_shared=false"
@@ -120,23 +122,23 @@ class GitlabActivityAuditInventoryTest extends GitlabActivityAuditTestBase {
   @Test
   void withoutGroupTheWholeInstanceIsListed() {
     fake.enterprise(false).instance(project(1, "team-a/alpha"), project(2, "team-b/beta"));
-    Cli.Result r = fake.run();
+    Cli.Result r = run();
     assertOk(r);
-    assertThat(fake.server.requests("/api/v4/projects").getFirst().target())
+    assertThat(fake.server().requests("/api/v4/projects").getFirst().target())
         .isEqualTo(
             "/api/v4/projects?statistics=true&archived=false&order_by=id&sort=asc"
                 + "&per_page=100&page=1");
     assertThat(r.out()).contains("Projets retournés               : 2\n");
-    fake.run("--include-archived");
-    assertThat(fake.server.requests("/api/v4/projects").getLast().target())
+    run("--include-archived");
+    assertThat(fake.server().requests("/api/v4/projects").getLast().target())
         .isEqualTo("/api/v4/projects?statistics=true&order_by=id&sort=asc&per_page=100&page=1");
   }
 
   @Test
   void aBlankGroupMeansTheWholeInstance() {
     fake.enterprise(false).instance(project(1, "team-a/alpha"));
-    fake.run("--group", " ");
-    assertThat(fake.server.requests("/api/v4/projects")).hasSize(1);
+    run("--group", " ");
+    assertThat(fake.server().requests("/api/v4/projects")).hasSize(1);
   }
 
   @Test
@@ -146,10 +148,10 @@ class GitlabActivityAuditInventoryTest extends GitlabActivityAuditTestBase {
             "/api/v4/groups/team-a/projects",
             req ->
                 "1".equals(req.param("page"))
-                    ? Response.json(GitlabAuditFake.array(project(1, "team-a/alpha")))
+                    ? Response.json(GitlabFake.toJson(List.of(project(1, "team-a/alpha"))))
                         .withHeader("X-Next-Page", "2")
-                    : Response.json(GitlabAuditFake.array(project(2, "team-a/beta"))));
-    Cli.Result r = fake.run("--group", "team-a");
+                    : Response.json(GitlabFake.toJson(List.of(project(2, "team-a/beta")))));
+    Cli.Result r = run("--group", "team-a");
     assertThat(r.out()).contains("Projets retournés               : 2\n");
   }
 
@@ -163,10 +165,10 @@ class GitlabActivityAuditInventoryTest extends GitlabActivityAuditTestBase {
         .byPath(project(1, "team-a/alpha"))
         .route("/api/v4/projects/team-a%2Fsecret", req -> Response.status(403, "{}"))
         .commits(1, daily("a", "alice", 7));
-    Cli.Result r = fake.run("--projects", list.toString(), "--concurrency", "1");
+    Cli.Result r = run("--projects", list.toString(), "--concurrency", "1");
     assertOk(r);
     expectSelfie(out(r)).toMatchDisk();
-    assertThat(fake.server.requests("/api/v4/projects/team-a%2Falpha").getFirst().target())
+    assertThat(fake.server().requests("/api/v4/projects/team-a%2Falpha").getFirst().target())
         .isEqualTo("/api/v4/projects/team-a%2Falpha?statistics=true");
   }
 
@@ -174,7 +176,7 @@ class GitlabActivityAuditInventoryTest extends GitlabActivityAuditTestBase {
   void aProjectsFileWinsOverAGroup() {
     Path list = write("projects.txt", "team-a/alpha\n");
     fake.enterprise(false).byPath(project(1, "team-a/alpha"));
-    fake.run("--projects", list.toString(), "--group", "team-b", "--concurrency", "4");
-    assertThat(fake.server.requests("/api/v4/groups/team-b/projects")).isEmpty();
+    run("--projects", list.toString(), "--group", "team-b", "--concurrency", "4");
+    assertThat(fake.server().requests("/api/v4/groups/team-b/projects")).isEmpty();
   }
 }

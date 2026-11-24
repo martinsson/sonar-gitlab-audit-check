@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.commit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
@@ -42,7 +42,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       add(6, "t/kept", 50, 10, 2);
       Path list = write("exclusions.txt", "t/listed\n");
 
-      run(REST, NO_SAMPLE, "--exclusions", list.toString());
+      runFunnel(REST, NO_SAMPLE, "--exclusions", list.toString());
 
       assertThat(row("t/archived").str("exclu")).isEqualTo("archivé");
       assertThat(row("t/empty").str("exclu")).isEqualTo("dépôt vide");
@@ -60,7 +60,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       add(2, "t/archived-mirror", 50).put("archived", true).put("mirror", true);
       Path list = write("exclusions.txt", "t/listed-archived-mirror\n");
 
-      run(REST, NO_SAMPLE, "--exclusions", list.toString());
+      runFunnel(REST, NO_SAMPLE, "--exclusions", list.toString());
 
       assertThat(row("t/listed-archived-mirror").str("exclu")).isEqualTo("liste d'exclusion");
       assertThat(row("t/archived-mirror").str("exclu")).isEqualTo("archivé");
@@ -70,7 +70,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
     void includeArchivedKeepsArchivedProjectsInTheFunnel() {
       add(1, "t/archived", 50, 10, 2).put("archived", true);
 
-      run(REST, NO_SAMPLE, "--include-archived");
+      runFunnel(REST, NO_SAMPLE, "--include-archived");
 
       assertThat(row("t/archived").str("exclu")).isEmpty();
       assertThat(countedByRest(1)).isTrue();
@@ -87,7 +87,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       diverged.put("last_activity_at", NOW.minusDays(9).toString());
       diverged.putObject("forked_from_project").put("path_with_namespace", "up/stream");
 
-      run(REST, NO_SAMPLE);
+      runFunnel(REST, NO_SAMPLE);
 
       assertThat(row("t/copy").str("exclu")).isEqualTo("fork non divergé");
       assertThat(row("t/diverged").str("exclu")).isEmpty();
@@ -102,7 +102,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
     void aProjectLastActiveExactlyAtTheWindowStartIsKept() {
       add(1, "t/edge", 50, 10, 2).put("last_activity_at", WINDOW_START.toString());
 
-      run(REST, NO_SAMPLE);
+      runFunnel(REST, NO_SAMPLE);
 
       assertThat(row("t/edge").str("exclu")).isEmpty();
       assertThat(countedByRest(1)).isTrue();
@@ -112,7 +112,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
     void aProjectLastActiveOneSecondBeforeTheWindowIsDroppedAsInactive() {
       add(1, "t/stale", 50, 10, 2).put("last_activity_at", WINDOW_START.minusSeconds(1).toString());
 
-      run(REST, NO_SAMPLE);
+      runFunnel(REST, NO_SAMPLE);
 
       assertThat(row("t/stale").str("exclu")).isEqualTo("inactif > 90j");
       assertThat(row("t/stale").str("commits_window")).isEmpty();
@@ -123,7 +123,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
     void aProjectWithNoLastActivityIsDroppedAsInactive() {
       add(1, "t/never", 50, 10, 2).remove("last_activity_at");
 
-      run(REST, NO_SAMPLE);
+      runFunnel(REST, NO_SAMPLE);
 
       assertThat(row("t/never").str("exclu")).isEqualTo("inactif > 90j");
     }
@@ -132,7 +132,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
     void sinceWidensTheWindowTheGateCutsOn() {
       add(1, "t/older", 50, 10, 2).put("last_activity_at", NOW.minusDays(100).toString());
 
-      run(REST, NO_SAMPLE, "--since", "120");
+      runFunnel(REST, NO_SAMPLE, "--since", "120");
 
       assertThat(row("t/older").str("exclu")).isEmpty();
     }
@@ -143,7 +143,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
           .put("mirror", true)
           .put("last_activity_at", "2000-01-01T00:00:00Z");
 
-      run(REST, NO_SAMPLE);
+      runFunnel(REST, NO_SAMPLE);
 
       assertThat(row("t/old-mirror").str("exclu")).isEqualTo("miroir");
     }
@@ -154,7 +154,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       add(2, "t/quiet", 50).put("last_activity_at", "2000-01-01T00:00:00Z");
       fake.commits(2, List.of());
 
-      Cli.Result r = run(REST, "--validation-sample", "5");
+      Cli.Result r = runFunnel(REST, "--validation-sample", "5");
 
       Csv.Row leaky = row("t/leaky");
       assertThat(leaky.str("fuite_filtre")).isEqualTo("true");
@@ -171,7 +171,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
           .put("archived", true)
           .put("last_activity_at", "2000-01-01T00:00:00Z");
 
-      run(REST, "--validation-sample", "5");
+      runFunnel(REST, "--validation-sample", "5");
 
       assertThat(countedByRest(1)).isFalse();
       assertThat(row("t/old-archived").str("fuite_filtre")).isEqualTo("false");
@@ -181,7 +181,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
     void aValidationSampleOfZeroLooksAtNoDroppedProject() {
       add(1, "t/leaky", 50, 3, 1).put("last_activity_at", "2000-01-01T00:00:00Z");
 
-      run(REST, NO_SAMPLE);
+      runFunnel(REST, NO_SAMPLE);
 
       assertThat(countedByRest(1)).isFalse();
       assertThat(row("t/leaky").str("fuite_filtre")).isEqualTo("false");
@@ -195,7 +195,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
     void withoutActiveWithinEveryFreshProjectIsCounted() {
       add(1, "t/month-ago", 50, 10, 2).put("last_activity_at", NOW.minusDays(60).toString());
 
-      run(REST, NO_SAMPLE);
+      runFunnel(REST, NO_SAMPLE);
 
       assertThat(countedByRest(1)).isTrue();
     }
@@ -204,7 +204,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
     void aProjectLastActiveExactlyAtTheCutIsCounted() {
       add(1, "t/edge", 50, 10, 2).put("last_activity_at", NOW.minusDays(30).toString());
 
-      run(REST, NO_SAMPLE, "--active-within", "30");
+      runFunnel(REST, NO_SAMPLE, "--active-within", "30");
 
       assertThat(countedByRest(1)).isTrue();
       assertThat(row("t/edge").str("commits_window")).isEqualTo("10");
@@ -215,7 +215,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       add(1, "t/quiet", 50, 10, 2)
           .put("last_activity_at", NOW.minusDays(30).minusSeconds(1).toString());
 
-      run(REST, NO_SAMPLE, "--active-within", "30");
+      runFunnel(REST, NO_SAMPLE, "--active-within", "30");
 
       Csv.Row quiet = row("t/quiet");
       assertThat(quiet.str("exclu")).isEqualTo("hors coupe d'activité (dernière activité > 30j)");
@@ -229,7 +229,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       fake.json(
           "/api/graphql", "{\"data\":{\"p0\":" + lastCommit(NOW.minusDays(40).toString()) + "}}");
 
-      run(NO_SAMPLE, "--active-within", "30");
+      runFunnel(NO_SAMPLE, "--active-within", "30");
 
       assertThat(row("t/busy-tickets").str("exclu"))
           .isEqualTo("hors coupe d'activité (dernier commit > 30j)");
@@ -243,7 +243,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
           "/api/graphql",
           "{\"data\":{\"p0\":" + lastCommit(WINDOW_START.minusDays(1).toString()) + "}}");
 
-      run(NO_SAMPLE);
+      runFunnel(NO_SAMPLE);
 
       assertThat(row("t/tickets-only").str("commits_window")).isEqualTo("0");
       assertThat(countedByRest(1)).isFalse();
@@ -259,7 +259,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       fake.route("/api/v4/projects/1/repository/commits", req -> Response.status(403, "{}"));
       add(2, "t/visible", 50, 10, 2);
 
-      Cli.Result r = run(REST, NO_SAMPLE);
+      Cli.Result r = runFunnel(REST, NO_SAMPLE);
 
       Csv.Row forbidden = row("t/forbidden");
       assertThat(forbidden.str("commits_window")).isEmpty();
@@ -274,7 +274,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       add(1, "t/broken", 50);
       fake.route("/api/v4/projects/1/repository/commits", req -> Response.status(500, "{}"));
 
-      run(REST, NO_SAMPLE, "--floor", "0");
+      runFunnel(REST, NO_SAMPLE, "--floor", "0");
 
       assertThat(row("t/broken").str("exclu")).isEqualTo("activité non mesurable (HTTP 500)");
       assertThat(row("t/broken").str("selectionne")).isEqualTo("false");
@@ -284,7 +284,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
     void theCountStopsAtMaxCommitPagesAndSaysItIsTruncated() {
       add(1, "t/huge", 50, 150, 3);
 
-      run(REST, NO_SAMPLE, "--max-commit-pages", "1");
+      runFunnel(REST, NO_SAMPLE, "--max-commit-pages", "1");
 
       assertThat(row("t/huge").str("commits_window")).isEqualTo("100");
       assertThat(row("t/huge").str("tronque")).isEqualTo("true");
@@ -298,7 +298,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       commits.add(commit("r2", "renovate", NOW.toString()));
       fake.commits(1, commits);
 
-      run(REST, NO_SAMPLE);
+      runFunnel(REST, NO_SAMPLE);
 
       assertThat(row("t/mixed").str("commits_window")).isEqualTo("6");
       assertThat(row("t/mixed").str("commits_bots")).isEqualTo("2");
@@ -314,7 +314,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       add(1, "t/at", 50, 8, 2);
       add(2, "t/below", 50, 7, 2);
 
-      Cli.Result r = run(REST, NO_SAMPLE, "--floor", "8");
+      Cli.Result r = runFunnel(REST, NO_SAMPLE, "--floor", "8");
 
       assertThat(row("t/at").str("exclu")).isEmpty();
       assertThat(row("t/below").str("exclu")).isEqualTo("sous le plancher (7 commits)");
@@ -326,7 +326,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       add(1, "t/five", 50, 5, 2);
       add(2, "t/four", 50, 4, 2);
 
-      Cli.Result r = run(REST, NO_SAMPLE);
+      Cli.Result r = runFunnel(REST, NO_SAMPLE);
 
       assertThat(row("t/five").str("exclu")).isEmpty();
       assertThat(row("t/four").str("exclu")).isEqualTo("sous le plancher (4 commits)");
@@ -338,7 +338,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       // --top 2: at most 3 eligible. 10, 9 and 8 commits fit; 7 would make four.
       for (int i = 0; i < 5; i++) add(1 + i, "t/p" + (10 - i), 50, 10 - i, 2);
 
-      Cli.Result r = run(REST, NO_SAMPLE, "--top", "2");
+      Cli.Result r = runFunnel(REST, NO_SAMPLE, "--top", "2");
 
       assertThat(r.out()).contains("Plancher déduit des données     : 8 commits");
       assertThat(pathsWhere("exclu", "").toList()).containsExactly("t/p10", "t/p9", "t/p8");
@@ -351,7 +351,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       add(2, "t/b", 50, 70, 2);
       add(3, "t/c", 50, 59, 2);
 
-      Cli.Result r = run(REST, NO_SAMPLE, "--top", "1");
+      Cli.Result r = runFunnel(REST, NO_SAMPLE, "--top", "1");
 
       assertThat(r.out()).contains("Plancher déduit des données     : 60 commits");
       assertThat(row("t/a").str("exclu")).isEmpty();
@@ -364,11 +364,12 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       add(1, "t/renovated", 50);
       fake.commits(
           1,
-          commit("r1", "renovate", NOW.toString()),
-          commit("r2", "renovate", NOW.toString()),
-          commit("r3", "dependabot", NOW.toString()));
+          List.of(
+              commit("r1", "renovate", NOW.toString()),
+              commit("r2", "renovate", NOW.toString()),
+              commit("r3", "dependabot", NOW.toString())));
 
-      run(REST, NO_SAMPLE);
+      runFunnel(REST, NO_SAMPLE);
 
       assertThat(row("t/renovated").str("exclu"))
           .isEqualTo("activité robotique seule (3 commits de bots)");
@@ -378,7 +379,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
     void projectsBelowTheFloorGetNoStratumAndAreNotSelected() {
       add(1, "t/low", 50, 2, 2);
 
-      Cli.Result r = run(REST, NO_SAMPLE);
+      Cli.Result r = runFunnel(REST, NO_SAMPLE);
 
       assertThat(row("t/low").str("bucket")).isEmpty();
       assertThat(row("t/low").str("selectionne")).isEqualTo("false");
@@ -399,23 +400,23 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       selectedAndNot();
 
       Path pratiques = tmp.resolve("pratiques.csv");
-      run(REST, NO_SAMPLE, "--deep", "--floor", "5", "--pratiques", pratiques.toString());
+      runFunnel(REST, NO_SAMPLE, "--deep", "--floor", "5", "--pratiques", pratiques.toString());
 
       List<String> measured = Csv.read(pratiques).rows().stream().map(r -> r.str("path")).toList();
       assertThat(measured).containsExactly("t/selected");
-      assertThat(fake.server.requests("/api/v4/projects/1/protected_branches")).isNotEmpty();
-      assertThat(fake.server.requests("/api/v4/projects/2/protected_branches")).isEmpty();
-      assertThat(fake.server.requests("/api/v4/projects/2/merge_requests")).isEmpty();
+      assertThat(fake.server().requests("/api/v4/projects/1/protected_branches")).isNotEmpty();
+      assertThat(fake.server().requests("/api/v4/projects/2/protected_branches")).isEmpty();
+      assertThat(fake.server().requests("/api/v4/projects/2/merge_requests")).isEmpty();
     }
 
     @Test
     void withoutDeepNoPracticeIsMeasuredAndNoPracticeFileIsWritten() {
       selectedAndNot();
 
-      run(REST, NO_SAMPLE, "--floor", "5");
+      runFunnel(REST, NO_SAMPLE, "--floor", "5");
 
       assertThat(row("t/selected").str("selectionne")).isEqualTo("true");
-      assertThat(fake.server.requests("/api/v4/projects/1/protected_branches")).isEmpty();
+      assertThat(fake.server().requests("/api/v4/projects/1/protected_branches")).isEmpty();
       assertThat(tmp.resolve("pratiques.csv")).doesNotExist();
     }
 
@@ -424,7 +425,7 @@ class FunnelRulesTest extends FunnelRulesTestBase {
       selectedAndNot();
       Path pratiques = tmp.resolve("out/p.csv");
 
-      run(REST, NO_SAMPLE, "--floor", "5", "--pratiques", pratiques.toString());
+      runFunnel(REST, NO_SAMPLE, "--floor", "5", "--pratiques", pratiques.toString());
 
       assertThat(Csv.read(pratiques).rows()).hasSize(1);
     }

@@ -1,9 +1,22 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.BOLD;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.Screen.YELLOW;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.report.Screen.BOLD;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.report.Screen.YELLOW;
 
-import ch.ge.edg.sonar.gitlab.audit.cli.activity.OutputOptions.Outputs;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.inventory.Inventory;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.inventory.ScopeOptions;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.AuditedProject;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.Funnel;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.FunnelOptions;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.FunnelResult;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.preflight.Preflight;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.preflight.PreflightReport;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.CsvFiles;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.FunnelReport;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.OutputOptions;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.OutputOptions.Outputs;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.Screen;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.Summary;
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.GitlabConnectionOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
 import ch.ge.edg.sonar.gitlab.audit.csv.Column;
@@ -25,13 +38,13 @@ import java.util.Optional;
 final class ActivityAudit {
 
   /** Les options de la commande, groupées comme elles se lisent. */
-  record Settings(
+  record ActivityOptions(
       GitlabConnectionOptions gitlab,
       ScopeOptions scope,
       FunnelOptions funnel,
       OutputOptions output) {}
 
-  private final Settings settings;
+  private final ActivityOptions settings;
   private final Screen screen;
   private final Console out;
   private final Clock clock;
@@ -47,7 +60,8 @@ final class ActivityAudit {
    * @param sleeper l'attente que demande un 429
    * @param workDir où chercher exclusions.txt quand --exclusions n'est pas donné
    */
-  ActivityAudit(Settings settings, Screen screen, Clock clock, Sleeper sleeper, Path workDir) {
+  ActivityAudit(
+      ActivityOptions settings, Screen screen, Clock clock, Sleeper sleeper, Path workDir) {
     this.settings = settings;
     this.screen = screen;
     this.out = screen.out();

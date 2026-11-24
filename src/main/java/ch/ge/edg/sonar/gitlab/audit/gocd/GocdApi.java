@@ -4,7 +4,8 @@ import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Endpoint;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Transport;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
@@ -57,7 +58,8 @@ public final class GocdApi {
     String base = Stop.require(url, "GOCD_URL").replaceAll("/+$", "").replaceFirst("/go$", "");
     Map<String, String> headers = AuthHeaders.bearer(Stop.require(token, "GOCD_TOKEN"));
     return new GocdApi(
-        new RestClient(Settings.of(base, headers, insecure), Capture.none(), sleeper));
+        new RestClient(
+            Endpoint.of(base, headers), Transport.of(insecure), Capture.none(), sleeper));
   }
 
   /** La racine de l'instance, sans « /go ». */

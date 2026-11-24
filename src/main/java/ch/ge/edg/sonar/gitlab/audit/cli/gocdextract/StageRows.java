@@ -1,13 +1,13 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.gocdextract;
 
 import ch.ge.edg.sonar.gitlab.audit.dora.Platforms;
-import ch.ge.edg.sonar.gitlab.audit.dora.Times;
 import ch.ge.edg.sonar.gitlab.audit.gocd.GocdApi;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Run;
 import ch.ge.edg.sonar.gitlab.audit.gocd.Stage;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.text.Text;
+import ch.ge.edg.sonar.gitlab.audit.text.Times;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;

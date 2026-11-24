@@ -5,7 +5,12 @@
 #                            compile with Error Prone + NullAway, PMD, unit/property/architecture/
 #                            snapshot tests, coverage gate, ratchet (no gate got looser)
 #   ./verify --full          everything above + Docker integration tests (Testcontainers),
-#                            mutation testing (PIT), copy-paste detection (CPD)
+#                            copy-paste detection (CPD)
+#   ./verify --mutants       mutation testing (PIT) of the classes changed since origin/main only;
+#                            a few minutes, never fails, run it beside your work (not part of CI)
+#   ./verify --test <T>      inner loop: compile and run only test class(es) T (FooTest, FooTest#bar,
+#                            a,b), without format, structure, PMD or coverage gates; seconds. Not a
+#                            substitute for ./verify before you push.
 #   ./verify --fix           auto-format with Spotless first, then run the fast gates
 #   ./verify --snapshots     re-record Selfie snapshots after an intentional behaviour change
 #   ./verify --baseline      record today's violations in config/baseline (adopting in a legacy repo)
@@ -18,20 +23,10 @@
 set -uo pipefail
 cd "$(dirname "$0")" || exit 2
 
+# Maven must run on the JDK the build targets (see .mvn/use-jdk.sh; ./mvnw does the same).
+# shellcheck source=.mvn/use-jdk.sh
+JDK_ROOT=$PWD . .mvn/use-jdk.sh
 MVN=./mvnw
-[ -x "$MVN" ] || MVN=mvn
-
-# Maven must run on the JDK the build targets, or the compiler stops at "release version N not
-# supported" and every push is blocked. When it does not, borrow that JDK from JBang, which every
-# user of this repository has (it may download it once).
-release=$(sed -n 's:.*<maven.compiler.release>\([0-9]*\)</maven.compiler.release>.*:\1:p' pom.xml)
-maven_jdk=$("$MVN" -v 2>/dev/null | sed -n 's/^Java version: \([0-9]*\).*/\1/p')
-if [ -n "$release" ] && [ "${maven_jdk:-0}" -lt "$release" ] && command -v jbang >/dev/null; then
-  jdk=$(jbang jdk home "$release" 2>/dev/null)
-  if [ -x "$jdk/bin/java" ]; then
-    export JAVA_HOME="$jdk"
-  fi
-fi
 
 # The ratchet (tools/ratchet) needs the JDK the build targets. When `java` on the PATH is older,
 # use the one Maven runs on.
@@ -44,16 +39,29 @@ fi
 
 mode=fast
 action=verify
-for arg in "$@"; do
+tests=""
+while [ $# -gt 0 ]; do
+  arg=$1
+  shift
   case "$arg" in
+    --test)
+      action=one-test
+      if [ $# -eq 0 ]; then
+        echo "--test needs a test class or method, e.g. --test FooTest or --test FooTest#bar" >&2
+        exit 2
+      fi
+      tests=$1
+      shift
+      ;;
     --full) mode=full ;;
+    --mutants) action=mutants ;;
     --fix) action=fix ;;
     --snapshots) action=snapshots ;;
     --baseline) action=baseline ;;
     --install-hooks) action=install-hooks ;;
     --format-staged) action=format-staged ;;
     -h | --help)
-      sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -183,7 +191,7 @@ progress() {
 # The shell scripts get a linter too, when shellcheck is installed (it is on GitHub runners).
 lint_scripts() {
   command -v shellcheck >/dev/null || return 0
-  shellcheck -f gcc verify .githooks/*
+  shellcheck -x -f gcc verify mvnw .mvn/use-jdk.sh .githooks/* ci/*.sh
 }
 
 ratchet() {
@@ -206,7 +214,46 @@ ratchet() {
   "$JAVA" tools/ratchet/Ratchet.java check "$base"
 }
 
+# Mutation testing of the production classes changed since the merge-base with origin (committed or
+# not), as feedback to read, never a gate: it always exits 0. The whole-code run is
+# `mvn -Ppit test-compile pitest:mutationCoverage`; this one passes only the changed classes.
+mutants() {
+  local base="" ref f classes="" out=target/pit-mutants.log
+  for ref in origin/HEAD origin/main origin/master; do
+    if git rev-parse -q --verify "$ref^{commit}" >/dev/null; then
+      base=$(git merge-base HEAD "$ref") && break
+    fi
+  done
+  while IFS= read -r f; do
+    f=${f#src/main/java/}
+    classes="$classes,$(printf '%s' "${f%.java}" | tr / .)*"
+  done < <({ git diff --name-only "${base:-HEAD}" -- 'src/main/java/*.java'
+    git ls-files --others --exclude-standard -- 'src/main/java/*.java'; } | sort -u)
+  classes=${classes#,}
+  if [ -z "$classes" ]; then
+    echo "MUTANTS: no production class changed since ${base:-HEAD}, nothing to mutate"
+    return 0
+  fi
+  echo "Mutating: $classes"
+  mkdir -p target
+  SECONDS=0
+  if "$MVN" -Ppit "-Dpit.classes=$classes" -Dmutation.score.minimum=0 \
+    -Dspotless.check.skip=true -Dcheckstyle.skip=true -Dpmd.skip=true -Dcpd.skip=true \
+    -Djacoco.skip=true -Denforcer.skip=true \
+    test-compile pitest:mutationCoverage >"$out" 2>&1; then
+    grep -E 'Generated [0-9]+ mutations|Ran [0-9]+ tests|Line Coverage|Mutation Coverage|Test Strength' "$out" | sed 's/^.*INFO[^ ]* *//'
+    echo "MUTANTS DONE in ${SECONDS}s. Survivors: open target/pit-reports/index.html (log: $out)"
+  else
+    echo "MUTANTS: the run failed (not a blocker). See $out"
+  fi
+  return 0
+}
+
 case "$action" in
+  mutants)
+    mutants
+    exit 0
+    ;;
   install-hooks)
     install_hooks
     exit 0
@@ -227,6 +274,17 @@ case "$action" in
     }
     echo "SNAPSHOTS UPDATED"
     exit 0
+    ;;
+  one-test)
+    SECONDS=0
+    "$MVN" test "-Dtest=$tests" -Dsurefire.failIfNoSpecifiedTests=false \
+      -Dspotless.check.skip=true -Dcheckstyle.skip=true -Dpmd.skip=true -Dcpd.skip=true \
+      -Djacoco.skip=true >"$log" 2>&1
+    status=$?
+    grep -E '^\[ERROR\]|Tests run:|Snapshot mismatch|FAIL' "$log" | grep -v -E 'Help 1|^\[ERROR\] *$' | sed "s|$PWD/||g" | awk '!seen[$0]++' | head -40
+    grep -q 'Tests run:' "$log" || echo "no test matched $tests"
+    echo "TEST $([ $status -eq 0 ] && echo OK || echo FAILED) in ${SECONDS}s (log: $log)"
+    exit $status
     ;;
   fix)
     "$MVN" spotless:apply >"$log" 2>&1 || {

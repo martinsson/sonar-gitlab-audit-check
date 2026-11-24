@@ -1,5 +1,9 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.inventory.ScopeOptions;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.model.FunnelOptions;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.OutputOptions;
+import ch.ge.edg.sonar.gitlab.audit.cli.activity.report.Screen;
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.GitlabConnectionOptions;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
 import java.util.concurrent.Callable;
@@ -123,7 +127,7 @@ public class GitlabActivityAudit implements Callable<Integer> {
   @Override
   public Integer call() throws Exception {
     return new ActivityAudit(
-            new ActivityAudit.Settings(gitlab, scope, funnel, output),
+            new ActivityAudit.ActivityOptions(gitlab, scope, funnel, output),
             new Screen(host.console(output.color.mode())),
             host.clock(),
             host.sleeper(),

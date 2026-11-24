@@ -21,15 +21,22 @@ metadata:
 
 - **Installation.** Le premier `./verify` hors CI installe les hooks (`core.hooksPath=.githooks`).
 - **pre-commit.** Formate les fichiers Java indexés, sans jamais bloquer.
-- **pre-push.** Lance `./verify` et bloque si c'est rouge.
+- **pre-push.** Lance `./verify` et bloque si c'est rouge. Refuse aussi si un rebase/merge/cherry-pick est
+  en cours, si des fichiers suivis ont des modifications non commitées, ou si la réf poussée n'est pas `HEAD`
+  (`./verify` contrôle l'arbre extrait, pas les commits poussés).
 - **Jamais `--no-verify`.** La CI rattrape un push qui l'utilise, mais seulement après coup.
 - **Vérifier qu'ils sont en place.** `git config core.hooksPath` doit répondre `.githooks`.
 
 ## JDK
 
-Le build vise Java 26. Si Maven tourne sur un JDK plus ancien, `./verify` emprunte celui de JBang
-(`jbang jdk home 26`). Une erreur `release version 26 not supported` hors de `./verify` se règle
-avec `export JAVA_HOME=$(jbang jdk home 26)`.
+Le build vise Java 25 (LTS). Utiliser `./mvnw` (jamais `mvn` seul) et `./verify` : tous deux choisissent
+un JDK 25 (`.mvn/use-jdk.sh` : JAVA_HOME, `java_home`, SDKMAN, JBang) ou s'arrêtent avec un message clair.
+
+## Boucle courte
+
+`./verify --test FooTest` (ou `FooTest#methode`) compile et lance seulement ce test, sans les gates de
+format, structure, PMD ni couverture : quelques secondes. À utiliser pendant le travail ; `./verify`
+complet avant tout push.
 
 ## Règles
 

@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.GitLabProjectReportFakeGitlab.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.projectreport.ProjectReportFixtures.commit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
@@ -23,7 +23,7 @@ class GitLabProjectReportOptionsTest extends GitLabProjectReportHarness {
     project(fx.project(ID, PATH, "main", false));
     commits(List.of(commit("Alice", "alice@example.com", null, fx.ago(1, 0), new int[] {1, 0})));
     contributors(1);
-    server.json(GitLabProjectReportFakeGitlab.API + ID + "/merge_requests", "[]");
+    fake.json(ProjectReportFixtures.API + ID + "/merge_requests", "[]");
   }
 
   @Test
@@ -52,7 +52,7 @@ class GitLabProjectReportOptionsTest extends GitLabProjectReportHarness {
             commit("Alice", "alice@example.com", null, fx.ago(1, 0), new int[] {1, 0}),
             commit("dependabot", "dependabot@example.com", null, fx.ago(2, 0), new int[] {1, 0})));
     contributors(1);
-    server.json(GitLabProjectReportFakeGitlab.API + ID + "/merge_requests", "[]");
+    fake.json(ProjectReportFixtures.API + ID + "/merge_requests", "[]");
 
     Cli.Result r = run("--bot-pattern", " ");
 

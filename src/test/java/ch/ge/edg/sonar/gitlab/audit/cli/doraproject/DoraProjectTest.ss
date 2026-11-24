@@ -3,58 +3,82 @@
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>DORA octocat/Hello-World</title>
-<style>:root{--bg:#fbfbfa;--fg:#1d1d1b;--muted:#6b6b66;--line:#e2e1dc;--card:#fff;--accent:#2d5fa8;
---ok:#2e7d4f;--ko:#b3412e;--warn:#9a6b00}
-@media (prefers-color-scheme:dark){:root{--bg:#161615;--fg:#ecebe6;--muted:#a3a29b;
---line:#34332f;--card:#1f1f1d;--accent:#8db3ec;--ok:#7bc79a;--ko:#ec8f7d;--warn:#e0b45a}}
+<style>:root{--bg:#f6f7f9;--fg:#16181d;--muted:#5f6672;--line:#e3e6eb;--card:#fff;--accent:#2457c5;
+--ok:#1f7a4a;--ko:#b3392b;--warn:#946200;--elite:#1f7a4a;--high:#3d8b2f;--medium:#b07800;
+--low:#b3392b;--chip:#eef1f5;--shadow:0 1px 2px rgba(20,24,32,.06),0 4px 16px rgba(20,24,32,.04)}
+@media (prefers-color-scheme:dark){:root{--bg:#121417;--fg:#e9ebef;--muted:#9aa2ae;
+--line:#2a2e35;--card:#1a1d22;--accent:#8fb2f5;--ok:#6fcf97;--ko:#f08a7c;--warn:#e7b65a;
+--elite:#6fcf97;--high:#a5d96a;--medium:#e7b65a;--low:#f08a7c;--chip:#23272e;--shadow:none}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,
 "Segoe UI",Roboto,sans-serif}
-main{max-width:1180px;margin:0 auto;padding:24px 16px 48px}
-h1{font-size:24px;margin:0 0 4px}h2{font-size:18px;margin:32px 0 8px}
-a{color:var(--accent)}
-.sub,.note{color:var(--muted)}.note{font-size:13px}
-.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;
-margin-top:20px}
-.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
-.tile h3{font-size:13px;font-weight:600;color:var(--muted);margin:0;text-transform:uppercase;
-letter-spacing:.03em}
-.tile .v{font-size:30px;font-weight:650;margin:6px 0 2px;font-variant-numeric:tabular-nums}
-.tile p{margin:0;font-size:13px;color:var(--muted)}
-.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+main{max-width:1180px;margin:0 auto;padding:28px 16px 56px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px}
+h1{font-size:26px;margin:0;letter-spacing:-.01em}h1 small{color:var(--muted);font-weight:500;
+font-size:15px;display:block;text-transform:uppercase;letter-spacing:.08em}
+h2{font-size:18px;margin:36px 0 10px}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.sub,.note{color:var(--muted)}.note{font-size:13px;margin:8px 2px 0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;
+margin-top:22px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;
+box-shadow:var(--shadow);border-top:4px solid var(--line)}
+.tile.ELITE{border-top-color:var(--elite)}.tile.HIGH{border-top-color:var(--high)}
+.tile.MEDIUM{border-top-color:var(--medium)}.tile.LOW{border-top-color:var(--low)}
+.tile h3{font-size:12px;font-weight:650;color:var(--muted);margin:0;text-transform:uppercase;
+letter-spacing:.06em}
+.tile .v{font-size:34px;font-weight:700;margin:6px 0 4px;font-variant-numeric:tabular-nums;
+letter-spacing:-.02em}
+.tile p{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.band{display:inline-block;font-size:12px;font-weight:650;padding:2px 9px;border-radius:99px;
+background:var(--chip);color:var(--muted)}
+.band.ELITE{color:var(--elite)}.band.HIGH{color:var(--high)}.band.MEDIUM{color:var(--medium)}
+.band.LOW{color:var(--low)}
+.scale{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:10px}
+.scale span{height:6px;border-radius:3px;background:var(--chip)}
+.scale span.on.ELITE{background:var(--elite)}.scale span.on.HIGH{background:var(--high)}
+.scale span.on.MEDIUM{background:var(--medium)}.scale span.on.LOW{background:var(--low)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);
+box-shadow:var(--shadow)}
 table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;
+th,td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;
 white-space:nowrap}
 td.t{white-space:normal;min-width:220px}
-th{font-weight:600;color:var(--muted);background:var(--card);position:sticky;top:0}
+th{font-weight:600;color:var(--muted);background:var(--card);position:sticky;top:0;font-size:13px}
+tbody tr:nth-child(even) td{background:color-mix(in srgb,var(--chip) 45%,transparent)}
 tr:last-child td{border-bottom:0}
 td.n{text-align:right;font-variant-numeric:tabular-nums}
 .SUCCESS{color:var(--ok)}.FAILURE{color:var(--ko)}.CANCELLED,.PENDING{color:var(--warn)}
+td.SUCCESS,td.FAILURE,td.CANCELLED,td.PENDING{font-weight:600}
 .empty{padding:12px 16px;color:var(--muted)}
-dl{display:grid;grid-template-columns:max-content 1fr;gap:4px 16px;margin:0}
-dt{color:var(--muted)}dd{margin:0}
+.rules td:first-child{font-weight:600;white-space:nowrap}.rules td{white-space:normal}
 </style></head><body><main>
-<h1>DORA — <a href="https://gitlab.test/octocat/Hello-World">octocat/Hello-World</a></h1>
-<p class="sub">Du 2026-07-23 au 2026-10-21 (90 jours), extrait le 2026-10-21 02:00.</p>
+<header><h1><small>Mesures DORA</small>
+<a href="https://gitlab.test/octocat/Hello-World">octocat/Hello-World</a></h1>
+<p class="sub">Du 2026-07-23 au 2026-10-21 (90 jours), extrait le 2026-10-21 02:00.</p></header>
 <section class="tiles">
-<div class="tile"><h3>Fréquence de déploiement</h3><div class="v">0,2 / sem.</div><p>2 déploiements réussis en 90 jours</p></div>
-<div class="tile"><h3>Délai de mise en production</h3><div class="v">26,5 h</div><p>médiane sur 4 commits</p></div>
-<div class="tile"><h3>Taux d&#39;échec des changements</h3><div class="v">33 %</div><p>1 déploiement(s) sur 3 suivi(s) d&#39;un incident ; runs en échec : 33 %</p></div>
-<div class="tile"><h3>Temps de rétablissement</h3><div class="v">4,0 h</div><p>médiane sur 1 incident(s) résolu(s) sur 2</p></div>
+<div class="tile LOW"><h3>Fréquence de déploiement</h3><div class="v">0,2 / sem.</div><span class="band LOW">niveau bas</span><div class="scale"><span></span><span></span><span></span><span class="on LOW"></span></div><p>2 déploiements réussis en 90 jours</p></div>
+<div class="tile HIGH"><h3>Délai de mise en production</h3><div class="v">26,5 h</div><span class="band HIGH">niveau haut</span><div class="scale"><span></span><span class="on HIGH"></span><span></span><span></span></div><p>médiane sur 4 commits</p></div>
+<div class="tile LOW"><h3>Taux d&#39;échec des changements</h3><div class="v">33 %</div><span class="band LOW">niveau bas</span><div class="scale"><span></span><span></span><span></span><span class="on LOW"></span></div><p>1 déploiement(s) sur 3 suivi(s) d&#39;un incident ; runs en échec : 33 %</p></div>
+<div class="tile HIGH"><h3>Temps de rétablissement</h3><div class="v">4,0 h</div><span class="band HIGH">niveau haut</span><div class="scale"><span></span><span class="on HIGH"></span><span></span><span></span></div><p>médiane sur 1 incident(s) résolu(s) sur 2</p></div>
 </section>
-<h2>Règles appliquées</h2><dl>
-<dt>Déploiement</dt><dd>un run réussi de prod (GoCD)</dd>
-<dt>Délai</dt><dd>de la date d&#39;auteur d&#39;un commit à son premier déploiement réussi</dd>
-<dt>Incident</dt><dd>un ticket de type Incident ou Bug créé dans ABC</dd>
-<dt>Échec d&#39;un changement</dt><dd>un déploiement, réussi ou non, suivi d&#39;au moins un incident avant le déploiement suivant, rapporté à tous les déploiements (la règle de Middleware)</dd>
-<dt>Rétablissement</dt><dd>de la création de l&#39;incident à sa date de résolution Jira</dd>
-</dl>
-<h2>Déploiements (3)</h2>
-<div class="scroll"><table><thead><tr><th>Date</th><th>Run</th><th>Résultat</th><th>Commits</th><th>Incidents qui suivent</th></tr></thead><tbody>
-<tr><td>2026-09-02 14:00</td><td><a href="https://gocd.test/go/pipelines/value_stream_map/prod/3">prod #3</a></td><td class="SUCCESS">succès</td><td class="n">0</td><td>ABC-5</td></tr>
-<tr><td>2026-09-02 10:00</td><td><a href="https://gocd.test/go/pipelines/value_stream_map/prod/2">prod #2</a></td><td class="FAILURE">échec</td><td class="n">2</td><td></td></tr>
-<tr><td>2026-08-03 12:00</td><td><a href="https://gocd.test/go/pipelines/value_stream_map/prod/1">prod #1</a></td><td class="SUCCESS">succès</td><td class="n">2</td><td></td></tr>
+<p class="note">Niveaux du rapport DORA 2023, aux seuils du tableau de bord DORA d'Apache DevLake : élite, haut, moyen, bas.</p>
+<h2>Règles appliquées</h2>
+<div class="scroll"><table class="rules"><thead><tr><th>Mesure</th><th>Notre règle</th></tr></thead><tbody>
+<tr><td>Déploiement</td><td>un run réussi de prod (GoCD)</td></tr>
+<tr><td>Rattachement d&#39;un commit</td><td>les commits que le run a embarqués, pipelines amont compris ; ceux d&#39;un run en échec relancé sans nouveau matériau vont au run réussi suivant du même pipeline</td></tr>
+<tr><td>Délai</td><td>de la date d&#39;auteur d&#39;un commit à son premier déploiement réussi</td></tr>
+<tr><td>Incident</td><td>un ticket de type Incident ou Bug créé dans ABC</td></tr>
+<tr><td>Échec d&#39;un changement</td><td>un déploiement, réussi ou non, suivi d&#39;au moins un incident avant le déploiement suivant, rapporté à tous les déploiements (la règle de Middleware)</td></tr>
+<tr><td>Rétablissement</td><td>de la création de l&#39;incident à sa date de résolution Jira</td></tr>
 </tbody></table></div>
+<h2>Déploiements (3)</h2>
+<div class="scroll"><table><thead><tr><th>Date</th><th>Run</th><th>Résultat</th><th>Embarqués</th><th>Livrés</th><th>Incidents qui suivent</th></tr></thead><tbody>
+<tr><td>2026-09-02 14:00</td><td><a href="https://gocd.test/go/pipelines/value_stream_map/prod/3">prod #3</a></td><td class="SUCCESS">succès</td><td class="n">0</td><td class="n">2</td><td>ABC-5</td></tr>
+<tr><td>2026-09-02 10:00</td><td><a href="https://gocd.test/go/pipelines/value_stream_map/prod/2">prod #2</a></td><td class="FAILURE">échec</td><td class="n">2</td><td class="n">0</td><td></td></tr>
+<tr><td>2026-08-03 12:00</td><td><a href="https://gocd.test/go/pipelines/value_stream_map/prod/1">prod #1</a></td><td class="SUCCESS">succès</td><td class="n">2</td><td class="n">2</td><td></td></tr>
+</tbody></table></div>
+<p class="note">Embarqués : les commits du projet que GoCD dit avoir embarqués. Livrés : ceux que nos règles lui attribuent, mis en production pour la première fois.</p>
 <h2>Merge requests fusionnées (3)</h2>
 <div class="scroll"><table><thead><tr><th>MR</th><th>Titre</th><th>Auteur</th><th>Fusionnée</th><th>En production</th><th>Écriture</th><th>Revue</th><th>Attente</th></tr></thead><tbody>
 <tr><td><a href="https://gitlab.test/octocat/Hello-World/-/merge_requests/3">!3</a></td><td class="t">Troisième</td><td>dev3</td><td>2026-10-10 10:00</td><td>—</td><td>1,0 h</td><td>24,0 h</td><td>—</td></tr>
@@ -345,5 +369,16 @@ DORA octocat/Hello-World sur 90 jours
   Taux d'échec des changements  — (pas de projet Jira)
   Temps de rétablissement       — (pas de projet Jira)
 Écrit dans <dir> : dora-donnees.json, dora.html, middleware-import.sql
+
+╔═ withoutGocdTheReleaseTagsOfMainAreTheDeploysAndDeliverTheirFeatures/tags ═╗
+<h2>Tags de version (4)</h2>
+<div class="scroll"><table><thead><tr><th>Tag</th><th>Date</th><th>Fonctionnalité</th><th>Rattachée par</th><th>Commits</th><th>Dernier commit</th><th>Délai (auteur)</th><th>Délai (commit)</th><th>Écartés</th></tr></thead><tbody>
+<tr><td><a href="https://gitlab.test/octocat/Hello-World/-/tags/v20261117.1.1">v20261117.1.1</a><br><span class="note">depuis v20261116.1.2</span></td><td>2026-11-17 09:01</td><td class="t" colspan="6">aucun commit de travail</td><td class="t">2 ci(release)</td></tr>
+<tr><td><a href="https://gitlab.test/octocat/Hello-World/-/tags/v20261116.1.2">v20261116.1.2</a><br><span class="note">depuis v20261113.1.2</span></td><td>2026-11-16 09:05</td><td>ABC-483</td><td>clé du message</td><td class="n">2</td><td class="t">3a9ec64 feat: [ABC-483] fix keys (2026-11-14 17:00)</td><td>40,1 h</td><td>24,1 h</td><td class="t">1 chore, 1 fusion(s), 1 ci(release)</td></tr>
+<tr><td rowspan="2"><a href="https://gitlab.test/octocat/Hello-World/-/tags/v20261113.1.2">v20261113.1.2</a><br><span class="note">depuis v20261113.1.1</span></td><td rowspan="2">2026-11-13 13:02</td><td>ABC-585</td><td>clé du message</td><td class="n">1</td><td class="t">b702d84 fix: [ABC-585] use none as initial (2026-11-13 10:00)</td><td>3,0 h</td><td>3,0 h</td><td class="t" rowspan="2">2 fusion(s), 1 ci(release)</td></tr>
+<tr><td>ABC-483</td><td>clé du message</td><td class="n">2</td><td class="t">366100a feat: [ABC-483] sonar (2026-11-13 12:30)</td><td>32 min</td><td>32 min</td></tr>
+<tr><td><a href="https://gitlab.test/octocat/Hello-World/-/tags/v20261113.1.1">v20261113.1.1</a><br><span class="note">depuis v20261110.1.1</span></td><td>2026-11-13 09:12</td><td>ABC-343</td><td>clé du message, 1 par la branche de la fusion</td><td class="n">2</td><td class="t">fefda95 test: [ABC-343] ux: new baseline images (2026-11-12 16:00)</td><td>17,2 h</td><td>42 min</td><td class="t">1 fusion(s), 1 ci(release)</td></tr>
+</tbody></table></div>
+<p class="note">Écartés faute de story : 1 chore. Écartés toujours : 4 commit(s) de fusion, 5 commit(s) ci(release):. Tags sans commit de travail : v20261117.1.1.</p>
 
 ╔═ [end of file] ═╗

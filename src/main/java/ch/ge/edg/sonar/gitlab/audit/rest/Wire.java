@@ -20,17 +20,17 @@ final class Wire {
   private final HttpClient client;
   private final Duration timeout;
 
-  Wire(RestClient.Settings settings) throws IOException {
-    this.timeout = Duration.ofSeconds(settings.timeoutSeconds());
+  Wire(RestClient.Transport transport) throws IOException {
+    this.timeout = Duration.ofSeconds(transport.timeoutSeconds());
     HttpClient.Builder b =
         HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(settings.timeoutSeconds()))
+            .connectTimeout(Duration.ofSeconds(transport.timeoutSeconds()))
             .proxy(ProxySelector.getDefault())
             .followRedirects(
-                settings.followRedirects()
+                transport.followRedirects()
                     ? HttpClient.Redirect.NORMAL
                     : HttpClient.Redirect.NEVER);
-    if (settings.insecure()) {
+    if (transport.insecure()) {
       // Le client du JDK n'a pas de vérificateur de nom d'hôte : seule cette propriété l'éteint.
       System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
       try {

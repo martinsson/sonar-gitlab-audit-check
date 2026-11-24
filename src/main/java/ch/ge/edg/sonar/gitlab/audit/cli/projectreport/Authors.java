@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 
-import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
+import ch.ge.edg.sonar.gitlab.audit.contributors.Contributors;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 record Authors(List<Map.Entry<String, Long>> ranked, Map<String, String> labels, long total) {
 
   static Authors of(List<Commit> cs) {
-    // Identité normalisée par Gitlab.identity, la même que côté parc : partie
+    // Identité normalisée par Contributors.identity, la même que côté parc : partie
     // locale de l'adresse, à défaut le nom, les deux ramenés dans le même
     // espace de noms. Sans cette dernière précaution, un commit signé « Dev 0 »
     // sans adresse et un commit de dev0@example.com font deux personnes, et le
@@ -39,7 +39,7 @@ record Authors(List<Map.Entry<String, Long>> ranked, Map<String, String> labels,
   }
 
   static String identity(Commit x) {
-    return Gitlab.identity(x.authorEmail(), x.authorName());
+    return Contributors.identity(x.authorEmail(), x.authorName());
   }
 
   int count() {

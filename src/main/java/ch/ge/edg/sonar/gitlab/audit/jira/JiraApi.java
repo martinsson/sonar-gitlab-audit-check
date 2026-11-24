@@ -4,12 +4,15 @@ import ch.ge.edg.sonar.gitlab.audit.rest.AuthHeaders;
 import ch.ge.edg.sonar.gitlab.audit.rest.Capture;
 import ch.ge.edg.sonar.gitlab.audit.rest.Query;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestClient;
-import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Settings;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Endpoint;
+import ch.ge.edg.sonar.gitlab.audit.rest.RestClient.Transport;
 import ch.ge.edg.sonar.gitlab.audit.rest.RestResponse;
 import ch.ge.edg.sonar.gitlab.audit.rest.Stop;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Sleeper;
+import ch.ge.edg.sonar.gitlab.audit.text.Times;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
@@ -42,7 +45,8 @@ public final class JiraApi {
         new HashMap<>(AuthHeaders.bearer(Stop.require(token, "JIRA_TOKEN")));
     headers.put("Accept", "application/json");
     return new JiraApi(
-        new RestClient(Settings.of(base, headers, insecure), Capture.none(), sleeper));
+        new RestClient(
+            Endpoint.of(base, headers), Transport.of(insecure), Capture.none(), sleeper));
   }
 
   public String base() {
@@ -130,6 +134,16 @@ public final class JiraApi {
       out.put(s.path("id").asText(), s.path("statusCategory").path("key").asText(""));
     }
     return out;
+  }
+
+  /**
+   * Une date d'une réponse Jira : le format Jira ou l'ISO-8601 ; absente ou illisible, null. Un
+   * nombre y est lu comme un epoch en millisecondes, comme il l'a toujours été.
+   */
+  public static @Nullable Instant instant(@Nullable JsonNode n) {
+    if (n == null || n.isMissingNode() || n.isNull()) return null;
+    if (n.isNumber()) return Instant.ofEpochMilli(n.asLong());
+    return Times.parse(n.asText(""));
   }
 
   public static String enc(String s) {

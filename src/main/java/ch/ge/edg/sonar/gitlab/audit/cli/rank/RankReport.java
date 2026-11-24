@@ -18,11 +18,11 @@ final class RankReport {
   public static final String RESET = ESC + "[0m";
 
   private final Console out;
-  private final RankSettings settings;
+  private final Thresholds thresholds;
 
-  RankReport(Console out, RankSettings settings) {
+  RankReport(Console out, Thresholds thresholds) {
     this.out = out;
-    this.settings = settings;
+    this.thresholds = thresholds;
   }
 
   // ----------------------------------------------------------------------
@@ -36,7 +36,7 @@ final class RankReport {
     int never = cohorts.never().size();
     int stale = cohorts.stale().size();
     int active = cohorts.active().size();
-    int staleDays = settings.staleDays();
+    int staleDays = thresholds.staleDays();
 
     out.printf("  Projets dans l'inventaire       : %d%n", total);
     out.printf("  Jamais analysés                 : %s%n", pct(never, total, YELLOW));
@@ -158,7 +158,7 @@ final class RankReport {
         carrying.size());
     out.printf(
         "  Abandons récents (%d-%d j)     : %d%n",
-        settings.staleDays(), settings.abandonedDays(), abandoned.size());
+        thresholds.staleDays(), thresholds.abandonedDays(), abandoned.size());
     out.println(
         paint(
             "    Les deux se classent sur sqale_debt_ratio seul : " + "un niveau, pas une vitesse.",

@@ -1,7 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.activity;
 
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.commit;
-import static ch.ge.edg.sonar.gitlab.audit.cli.activity.GitlabAuditFake.project;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.commit;
+import static ch.ge.edg.sonar.gitlab.audit.cli.activity.ActivityFixtures.project;
 
 import ch.ge.edg.sonar.gitlab.audit.csv.Csv;
 import ch.ge.edg.sonar.gitlab.audit.testing.Cli;
@@ -62,17 +62,17 @@ abstract class FunnelRulesTestBase extends GitlabActivityAuditTestBase {
   }
 
   /** Runs the audit on the park at {@link #NOW}, inventory to {@link #csv()}. */
-  Cli.Result run(String... extra) {
+  Cli.Result runFunnel(String... extra) {
     return runTo(csv(), extra);
   }
 
   Cli.Result runTo(Path inventory, String... extra) {
-    fake.enterprise(false).group("team", park.toArray(ObjectNode[]::new));
+    fake.enterprise(false).group("team", park.toArray());
     List<String> args =
         new ArrayList<>(
             List.of(
                 "--url",
-                fake.server.url(),
+                fake.server().url(),
                 "--token",
                 "glpat-test",
                 "--color",
@@ -124,6 +124,6 @@ abstract class FunnelRulesTestBase extends GitlabActivityAuditTestBase {
   }
 
   boolean countedByRest(long id) {
-    return !fake.server.requests("/api/v4/projects/" + id + "/repository/commits").isEmpty();
+    return !fake.server().requests("/api/v4/projects/" + id + "/repository/commits").isEmpty();
   }
 }

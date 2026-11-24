@@ -20,18 +20,17 @@ final class CadenceSection {
   static final int BIG_COMMIT = 2000;
 
   private final Report report;
-  private final Settings settings;
+  private final Budget budget;
   private final Dates dates;
 
-  CadenceSection(Report report, Settings settings, Dates dates) {
+  CadenceSection(Report report, Budget budget, Dates dates) {
     this.report = report;
-    this.settings = settings;
+    this.budget = budget;
     this.dates = dates;
   }
 
   Cadence measure(Commits commits) {
-    report.title(
-        Text.format("2. Cadence (branche par défaut, %d derniers jours)", settings.days()));
+    report.title(Text.format("2. Cadence (branche par défaut, %d derniers jours)", budget.days()));
 
     List<Commit> real = ordinaryCommits(commits);
     if (real.isEmpty()) return Cadence.EMPTY;
@@ -76,7 +75,7 @@ final class CadenceSection {
       report.println(
           Text.format(
               "  Plafond --max-commits atteint : les chiffres portent sur les %d plus récents.",
-              settings.maxCommits()),
+              budget.maxCommits()),
           YELLOW);
     }
 
@@ -96,7 +95,7 @@ final class CadenceSection {
     // qui remonte au plus ancien commit rapatrié. Rapporter le débit aux --days
     // demandés donnerait un taux mécaniquement sous-estimé, et présenté comme
     // une mesure.
-    double observed = settings.days();
+    double observed = budget.days();
     if (commits.truncated() && !dates.isEmpty()) {
       observed = Math.max(1, ChronoUnit.DAYS.between(dates.get(0), this.dates.now()));
     }

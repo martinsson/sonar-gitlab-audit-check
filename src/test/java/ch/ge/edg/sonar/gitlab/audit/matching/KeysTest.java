@@ -35,7 +35,11 @@ class KeysTest {
     "https://h/a/b?x=1#y,a/b",
     "https://h/A/B/,a/b",
     "x https://h/a/b.git/,a/b",
-    "ftp://h/g/sub/p,g/sub/p"
+    "ftp://h/g/sub/p,g/sub/p",
+    "git@h:/a/b.git,a/b",
+    "git@h/a/b,a/b",
+    "https://h/a/b.git//,a/b",
+    "/a/b,a/b"
   })
   void linkedPathsStripQueryFragmentTrailingSlashAndDotGit(String links, String expected) {
     assertThat(Keys.linkedPaths(links)).containsExactly(expected);

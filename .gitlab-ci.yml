@@ -2,20 +2,27 @@
 # the full run after each merge into the default branch. They block a merge only with the project settings listed
 # in TOOLS.md ("CI"): protected default branch that nobody pushes to, "Pipelines must succeed",
 # and the GITLAB_AUTOMERGE_TOKEN variable for the auto-merge job below.
+# The weekly report on GitLab Pages is in ci/audit-pages.yml: its pipelines (a schedule with
+# AUDIT_PAGES=true, or a manual run) run that job only.
 
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $AUDIT_PAGES == "true"
+    - if: $CI_PIPELINE_SOURCE == "web" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
-stages: [verify]
+include:
+  - local: ci/audit-pages.yml
+
+stages: [verify, report]
 
 variables:
   GIT_DEPTH: "0" # the ratchet compares with the base commit
   MAVEN_OPTS: -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository
 
 default:
-  image: maven:3.9-eclipse-temurin-26
+  image: maven:3.9-eclipse-temurin-25
   cache:
     key: maven
     paths: [.m2/repository]
@@ -26,6 +33,9 @@ default:
 
 verify:
   stage: verify
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"
   script: ./verify
   artifacts:
     when: on_failure
@@ -47,7 +57,7 @@ verify-full:
   script: ./verify --full
   artifacts:
     when: on_failure
-    paths: [target/verify.log, target/pit-reports/, target/site/jacoco/]
+    paths: [target/verify.log, target/site/jacoco/]
 
 # Sets each merge request to merge itself when its pipeline succeeds: no human review, the gates
 # are the review. Needs a project access token (Developer, scope api) in GITLAB_AUTOMERGE_TOKEN;

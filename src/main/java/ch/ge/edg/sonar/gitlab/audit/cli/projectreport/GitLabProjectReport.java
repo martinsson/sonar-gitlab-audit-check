@@ -3,6 +3,7 @@ package ch.ge.edg.sonar.gitlab.audit.cli.projectreport;
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.ColorOption;
 import ch.ge.edg.sonar.gitlab.audit.cli.shared.GitlabConnectionOptions;
 import ch.ge.edg.sonar.gitlab.audit.console.Console;
+import ch.ge.edg.sonar.gitlab.audit.contributors.Contributors;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.Gitlab;
 import ch.ge.edg.sonar.gitlab.audit.gitlab.GitlabWarnings;
 import ch.ge.edg.sonar.gitlab.audit.runtime.Host;
@@ -119,22 +120,17 @@ public class GitLabProjectReport implements Callable<Integer> {
       // ne vérifie pas contre un bouchon.
       out.println(out.color("  Aucun jeton : lecture anonyme, projets publics seulement.", YELLOW));
     }
-    String bots = botPattern == null || botPattern.isBlank() ? Gitlab.BOT_PATTERN : botPattern;
-    Settings settings =
-        new Settings(
-            days,
-            maxCommits,
-            maxMrs,
-            sample,
-            includeBots,
-            Pattern.compile(bots, Pattern.CASE_INSENSITIVE));
+    String pattern =
+        botPattern == null || botPattern.isBlank() ? Contributors.BOT_PATTERN : botPattern;
+    Budget budget = new Budget(days, maxCommits, maxMrs, sample);
+    BotPolicy bots = new BotPolicy(includeBots, Pattern.compile(pattern, Pattern.CASE_INSENSITIVE));
     Gitlab client =
         new Gitlab(
             gitlab.connectionOrAnonymous("https://gitlab.com"),
             GitlabWarnings.onOutput(out),
             host.sleeper());
 
-    return new ProjectReport(client, settings, out, new Dates(host.clock()))
+    return new ProjectReport(client, budget, bots, out, new Dates(host.clock()))
         .run(ProjectPath.normalize(path));
   }
 }

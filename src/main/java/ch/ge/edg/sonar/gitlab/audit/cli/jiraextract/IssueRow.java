@@ -1,6 +1,7 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
-import ch.ge.edg.sonar.gitlab.audit.dora.Times;
+import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
+import ch.ge.edg.sonar.gitlab.audit.text.Times;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -79,14 +80,14 @@ final class IssueRow {
 
   /** Créé, en cours, terminé, résolu, mis à jour ; délais de résolution et de cycle en jours. */
   private static List<String> dates(JsonNode f, StatusTimeline t, ZoneId zone) {
-    Instant created = Times.parse(f.path("created"));
-    Instant resolved = Times.parse(f.path("resolutiondate"));
+    Instant created = JiraApi.instant(f.path("created"));
+    Instant resolved = JiraApi.instant(f.path("resolutiondate"));
     return List.of(
         Times.format(created, zone),
         Times.format(t.inProgress(), zone),
         Times.format(t.done(), zone),
         Times.format(resolved, zone),
-        Times.format(Times.parse(f.path("updated")), zone),
+        Times.format(JiraApi.instant(f.path("updated")), zone),
         Times.days(created, resolved),
         Times.days(t.inProgress(), t.done()));
   }

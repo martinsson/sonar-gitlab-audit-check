@@ -1,6 +1,6 @@
 package ch.ge.edg.sonar.gitlab.audit.cli.jiraextract;
 
-import ch.ge.edg.sonar.gitlab.audit.dora.Times;
+import ch.ge.edg.sonar.gitlab.audit.jira.JiraApi;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -54,7 +54,7 @@ record StatusTimeline(
     histories.sort(Comparator.comparing(h -> h.path("created").asText()));
     List<Transition> out = new ArrayList<>();
     for (JsonNode h : histories) {
-      Instant at = Times.parse(h.path("created"));
+      Instant at = JiraApi.instant(h.path("created"));
       for (JsonNode item : h.path("items")) {
         if (!"status".equals(item.path("field").asText())) continue;
         out.add(
