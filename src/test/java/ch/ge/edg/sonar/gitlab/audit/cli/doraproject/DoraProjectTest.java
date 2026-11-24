@@ -281,7 +281,8 @@ class DoraProjectTest {
     Cli.Result none = run();
     assertThat(none.exitCode()).isEqualTo(2);
     assertThat(none.err()).contains("Arrêt : donner --gitlab-project, ou --from");
-    Cli.Result noToken = run("--gitlab-project", "a/b", "--gitlab-url", "http://127.0.0.1:9");
+    Cli.Result noToken =
+        run("--gitlab-project", "a/b", "--gitlab-url", "http://127.0.0.1:9", "--gitlab-token", "");
     assertThat(noToken.exitCode()).isEqualTo(2);
     assertThat(noToken.err()).contains("GITLAB_TOKEN");
   }

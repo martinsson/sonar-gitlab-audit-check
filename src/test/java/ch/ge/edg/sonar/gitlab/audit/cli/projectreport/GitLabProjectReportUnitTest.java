@@ -28,7 +28,7 @@ class GitLabProjectReportUnitTest {
   @Test
   void defaultsAreThoseDocumented() {
     GitLabProjectReport cmd = new GitLabProjectReport(Cli.host());
-    new CommandLine(cmd).parseArgs("--path", "a/b");
+    new CommandLine(cmd).parseArgs("--path", "a/b", "--url", "", "--token", "");
     assertThat(cmd.days).isEqualTo(180);
     assertThat(cmd.maxCommits).isEqualTo(5000);
     assertThat(cmd.maxMrs).isEqualTo(500);
@@ -36,7 +36,7 @@ class GitLabProjectReportUnitTest {
     assertThat(cmd.includeBots).isFalse();
     assertThat(cmd.botPattern).isNull();
     assertThat(cmd.gitlab.connectionOrAnonymous("http://u"))
-        .isEqualTo(new Gitlab.Connection("http://u", null, 30, false, null));
+        .isEqualTo(new Gitlab.Connection("http://u", "", 30, false, null));
     assertThat(cmd.color.mode()).isEqualTo("auto");
   }
 
